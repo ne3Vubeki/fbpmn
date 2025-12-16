@@ -15,14 +15,14 @@ Already a pro? Just edit this README.md and make it your own. Want to make it ea
 
 ```
 cd existing_repo
-git remote add origin https://gitflex.diasoft.ru/vmaltsev/qbpnmui.git
+git remote add origin https://gitflex.diasoft.ru/vmaltsev/fbpmn.git
 git branch -M master
 git push -uf origin master
 ```
 
 ## Integrate with your tools
 
-- [ ] [Set up project integrations](https://gitflex.diasoft.ru/vmaltsev/qbpnmui/-/settings/integrations)
+- [ ] [Set up project integrations](https://gitflex.diasoft.ru/vmaltsev/fbpmn/-/settings/integrations)
 
 ## Collaborate with your team
 
