@@ -12,7 +12,7 @@ void main() {
       viewBuilder: (BuildContext context) {
         // final FlutterView view = View.of(context);
         // final int viewId = view.viewId;
-        // final Map initialData = views.getInitialData(viewId).dartify() as Map;
+        // final Map  properties= views.getInitialData(viewId).dartify() as Map;
         // return _views[initialData['view']]!;
         return App();
       },

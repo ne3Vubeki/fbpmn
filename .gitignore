@@ -3,3 +3,4 @@
 /.vscode/
 /test/
 /.dart_tool/
+/pubspec.lock
