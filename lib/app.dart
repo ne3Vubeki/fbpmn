@@ -1,13 +1,7 @@
+import 'package:fbpmn/src/editor.dart';
 import 'package:flutter/material.dart';
 
-import 'example_editor/editor.dart';
-import 'models/app.model.dart';
-import 'services/broadcast.service.dart';
-
 class App extends StatefulWidget {
-  final String app = 'child';
-  final String view = 'example';
-
   const App({super.key});
 
   @override
@@ -15,14 +9,10 @@ class App extends StatefulWidget {
 }
 
 class _AppState extends State<App> {
-  late Broadcast _bcs;
-  late EventApp _appEventCtrl;
   
   @override
   void didChangeDependencies() async {
     super.didChangeDependencies();
-    _bcs = Broadcast(app: widget.app, source: widget.view);
-    _appEventCtrl = _bcs.register();
   }
 
   @override
