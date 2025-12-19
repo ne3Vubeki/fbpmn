@@ -21,6 +21,7 @@ class HierarchicalGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Рисуем белый фон холста
+    print('Paint started........................');
     canvas.drawRect(
       Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
       Paint()..color = Colors.white,
@@ -97,9 +98,6 @@ class HierarchicalGridPainter extends CustomPainter {
       );
     }
   }
-
-  // Предположим, что в классе есть переменная:
-  // final Offset delta = Offset(0, 0); // или другие значения
 
   void _drawTableNodes(Canvas canvas) {
     for (final node in nodes) {

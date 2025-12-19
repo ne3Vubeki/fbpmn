@@ -21,6 +21,9 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
   Offset _offset = Offset.zero;
   bool _isShiftPressed = false;
 
+  // Добавляем флаг для отслеживания только навигации (скроллинг/масштабирование)
+  bool _isNavigationOnly = false;
+
   final FocusNode _focusNode = FocusNode();
 
   final double _canvasSizeMultiplier = 3.0;
@@ -161,6 +164,7 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
 
   void _resetZoom() {
     setState(() {
+      _isNavigationOnly = true;
       _scale = 1.0;
       _centerCanvas();
     });
