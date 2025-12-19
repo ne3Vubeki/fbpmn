@@ -9,7 +9,6 @@ class TableNode extends Node {
   final String style;
   final Color borderColor;
   final Color backgroundColor;
-  final bool isRounded;
 
   TableNode({
     required super.id,
@@ -21,7 +20,6 @@ class TableNode extends Node {
     required this.style,
     required this.borderColor,
     required this.backgroundColor,
-    required this.isRounded,
     super.isSelected,
   });
 
@@ -55,18 +53,6 @@ class TableNode extends Node {
       return Colors.black;
     }
 
-    bool parseRounded(String styleStr) {
-      try {
-        final match = RegExp(r'rounded=([^;]+)').firstMatch(styleStr);
-        if (match != null) {
-          return match.group(1) == '1';
-        }
-      } catch (e) {
-        print('Error parsing rounded: $e');
-      }
-      return false;
-    }
-
     return TableNode(
       id: object['id'] as String,
       position: Offset(x, y),
@@ -75,9 +61,8 @@ class TableNode extends Node {
       objectData: object,
       attributes: attributes,
       style: style,
-      borderColor: parseColor(style, 'strokeColor'),
+      borderColor: parseColor(style, 'fillColor'),
       backgroundColor: parseColor(style, 'fillColor'),
-      isRounded: parseRounded(style),
     );
   }
 
@@ -97,7 +82,6 @@ class TableNode extends Node {
       style: style,
       borderColor: borderColor,
       backgroundColor: backgroundColor,
-      isRounded: isRounded,
       isSelected: isSelected ?? this.isSelected,
     );
   }

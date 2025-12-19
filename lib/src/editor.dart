@@ -4,10 +4,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'widgets/models/node.dart';
+import 'models/node.dart';
+import 'models/table.node.dart';
+import 'widgets/hierarchical_grid_painter.dart';
 
 class StableGridCanvas extends StatefulWidget {
-  const StableGridCanvas({super.key});
+  final Map diagram;
+  const StableGridCanvas({super.key, required this.diagram});
 
   @override
   State<StableGridCanvas> createState() => _StableGridCanvasState();
@@ -44,7 +47,8 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
   double _verticalScrollbarStartOffset = 0.0;
 
   // Для работы с узлами
-  final List<Node> _nodes = [];
+  final List<TableNode> _nodes = [];
+  Offset _delta = Offset.zero;
   Node? _selectedNode;
   bool _isNodeDragging = false;
   Offset _nodeDragStart = Offset.zero;
@@ -54,21 +58,31 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
   void initState() {
     super.initState();
 
+    final objects = widget.diagram['objects'];
+    final metadata = widget.diagram['metadata'];
+    final double dx = (metadata['dx'] as num).toDouble();
+    final double dy = (metadata['dy'] as num).toDouble();
+
+    _delta = Offset(dx, dy);
+
+    for (final object in objects) {
+      _nodes.add(TableNode.fromJson(object));
+    }
+
     _horizontalScrollController.addListener(_onHorizontalScroll);
     _verticalScrollController.addListener(_onVerticalScroll);
-
   }
 
-  void _addNodeAt(Offset position) {
-    setState(() {
-      final newNode = Node(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        position: position,
-        text: 'Node ${_nodes.length + 1}',
-      );
-      _nodes.add(newNode);
-    });
-  }
+  // void _addNodeAt(Offset position) {
+  //   setState(() {
+  //     final newNode = TableNode(
+  //       id: DateTime.now().millisecondsSinceEpoch.toString(),
+  //       position: position,
+  //       text: 'Node ${_nodes.length + 1}',
+  //     );
+  //     _nodes.add(newNode);
+  //   });
+  // }
 
   void _deleteSelectedNode() {
     if (_selectedNode != null) {
@@ -503,6 +517,7 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
                                 offset: _offset,
                                 canvasSize: scaledCanvasSize,
                                 nodes: _nodes,
+                                delta: _delta,
                               ),
                             ),
                           ),
@@ -618,7 +633,7 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
                     bottom: 70,
                     child: FloatingActionButton(
                       onPressed: () {
-                        _addNodeAt((_mousePosition - _offset) / _scale);
+                        // _addNodeAt((_mousePosition - _offset) / _scale);
                       },
                       mini: true,
                       child: const Icon(Icons.add),
@@ -631,254 +646,5 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
         );
       },
     );
-  }
-}
-
-class HierarchicalGridPainter extends CustomPainter {
-  final double scale;
-  final Offset offset;
-  final Size canvasSize;
-  final List<Node> nodes;
-
-  const HierarchicalGridPainter({
-    required this.scale,
-    required this.offset,
-    required this.canvasSize,
-    required this.nodes,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Рисуем белый фон холста
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-      Paint()..color = Colors.white,
-    );
-
-    // Применяем масштабирование к холсту
-    canvas.save();
-    canvas.scale(scale, scale);
-    canvas.translate(offset.dx / scale, offset.dy / scale);
-
-    // Определяем видимую область с учетом смещения и масштаба
-    final double visibleLeft = -offset.dx / scale;
-    final double visibleTop = -offset.dy / scale;
-    final double visibleRight = (size.width - offset.dx) / scale;
-    final double visibleBottom = (size.height - offset.dy) / scale;
-
-    // Рисуем иерархическую сетку
-    _drawHierarchicalGrid(
-      canvas,
-      visibleLeft,
-      visibleTop,
-      visibleRight,
-      visibleBottom,
-    );
-
-    // Рисуем узлы
-    _drawNodes(canvas);
-
-    canvas.restore();
-  }
-
-  void _drawNodes(Canvas canvas) {
-    for (final node in nodes) {
-      final nodeRect = Rect.fromCenter(
-        center: node.position,
-        width: node.size.width,
-        height: node.size.height,
-      );
-
-      // Рисуем тело узла
-      final paint = Paint()
-        ..color = node.isSelected ? Colors.blue.shade200 : Colors.grey.shade300
-        ..style = PaintingStyle.fill;
-
-      canvas.drawRect(nodeRect, paint);
-
-      // Рисуем рамку
-      final borderPaint = Paint()
-        ..color = node.isSelected ? Colors.blue.shade600 : Colors.grey.shade600
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
-
-      canvas.drawRect(nodeRect, borderPaint);
-
-      // Рисуем текст
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: node.text,
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(
-          node.position.dx - textPainter.width / 2,
-          node.position.dy - textPainter.height / 2,
-        ),
-      );
-    }
-  }
-
-  void _drawHierarchicalGrid(
-    Canvas canvas,
-    double visibleLeft,
-    double visibleTop,
-    double visibleRight,
-    double visibleBottom,
-  ) {
-    // Базовый размер родительского квадрата (в мировых координатах)
-    const double baseParentSize = 100.0;
-
-    // Расширяем область отрисовки для плавного появления/исчезновения линий
-    final double extendedLeft = visibleLeft - baseParentSize * 4;
-    final double extendedTop = visibleTop - baseParentSize * 4;
-    final double extendedRight = visibleRight + baseParentSize * 4;
-    final double extendedBottom = visibleBottom + baseParentSize * 4;
-
-    // Рисуем уровни сетки от -2 до 5
-    for (int level = -2; level <= 5; level++) {
-      double levelParentSize = baseParentSize * pow(4, level);
-      _drawGridLevel(
-        canvas,
-        extendedLeft,
-        extendedTop,
-        extendedRight,
-        extendedBottom,
-        levelParentSize,
-        level,
-      );
-    }
-  }
-
-  void _drawGridLevel(
-    Canvas canvas,
-    double left,
-    double top,
-    double right,
-    double bottom,
-    double parentSize,
-    int level,
-  ) {
-    // Вычисляем прозрачность для текущего уровня
-    double alpha = _calculateAlphaForLevel(level);
-
-    // Если прозрачность 0, прекращаем отрисовку этого уровня
-    if (alpha < 0.01) return;
-
-    // Родительская сетка (светло-серая) - толщина линии компенсируется масштабом
-    final Paint parentGridPaint = Paint()
-      ..color = Color(0xFFE0E0E0).withOpacity(alpha)
-      ..strokeWidth =
-          1.0 / scale; // Компенсируем масштаб для постоянной толщины
-
-    // Размер дочернего квадрата (4x4 внутри родительского)
-    final double childSize = parentSize / 4;
-
-    // Рисуем родительскую сетку
-    _drawGridLines(
-      canvas,
-      left,
-      top,
-      right,
-      bottom,
-      parentSize,
-      parentGridPaint,
-    );
-
-    // Рисуем дочернюю сетку (4x4 внутри каждого родительского квадрата)
-    if (childSize > 2) {
-      // Минимальный размер для отрисовки
-      final double childAlpha = alpha * 0.8; // Дочерняя сетка светлее
-
-      if (childAlpha > 0.01) {
-        // Дочерняя сетка - толщина линии также компенсируется масштабом
-        final Paint childGridPaint = Paint()
-          ..color = Color(0xFFF0F0F0).withOpacity(childAlpha)
-          ..strokeWidth =
-              0.5 / scale; // Компенсируем масштаб для постоянной толщины
-
-        _drawGridLines(
-          canvas,
-          left,
-          top,
-          right,
-          bottom,
-          childSize,
-          childGridPaint,
-        );
-      }
-    }
-  }
-
-  void _drawGridLines(
-    Canvas canvas,
-    double left,
-    double top,
-    double right,
-    double bottom,
-    double cellSize,
-    Paint paint,
-  ) {
-    // Вертикальные линии
-    double startX = (left / cellSize).floor() * cellSize;
-    double endX = (right / cellSize).ceil() * cellSize;
-
-    for (double x = startX; x <= endX; x += cellSize) {
-      canvas.drawLine(Offset(x, top), Offset(x, bottom), paint);
-    }
-
-    // Горизонтальные линии
-    double startY = (top / cellSize).floor() * cellSize;
-    double endY = (bottom / cellSize).ceil() * cellSize;
-
-    for (double y = startY; y <= endY; y += cellSize) {
-      canvas.drawLine(Offset(left, y), Offset(right, y), paint);
-    }
-  }
-
-  double _calculateAlphaForLevel(int level) {
-    // Идеальный масштаб для этого уровня
-    // Уровень 0 идеален при scale=1.0, уровень 1 при scale=0.25, уровень -1 при scale=4.0
-    double idealScale = 1.0 / pow(4, level);
-
-    // Разница между текущим масштабом и идеальным в логарифмической шкале
-    double logDifference = (log(scale) - log(idealScale)).abs();
-
-    // Максимальная разница, при которой сетка еще видна
-    double maxLogDifference = 2.0;
-
-    // Вычисляем прозрачность: 1.0 когда scale = idealScale, 0.0 когда logDifference > maxLogDifference
-    double alpha =
-        (1.0 - (logDifference / maxLogDifference)).clamp(0.0, 1.0) * 0.8;
-    return alpha;
-  }
-
-  @override
-  bool shouldRepaint(covariant HierarchicalGridPainter oldDelegate) {
-    return oldDelegate.scale != scale ||
-        oldDelegate.offset != offset ||
-        oldDelegate.canvasSize != canvasSize ||
-        !_listEquals(oldDelegate.nodes, nodes);
-  }
-
-  bool _listEquals(List<Node> a, List<Node> b) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (a[i].id != b[i].id ||
-          a[i].position != b[i].position ||
-          a[i].isSelected != b[i].isSelected ||
-          a[i].text != b[i].text) {
-        return false;
-      }
-    }
-    return true;
   }
 }
