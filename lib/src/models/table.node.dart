@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'node.dart';
 
 class TableNode extends Node {
+  final String? groupId;
   final Map<String, dynamic> objectData;
   final List<Map<String, dynamic>> attributes;
+  final List<TableNode>? children;
+  final String qType;
   final String style;
   final Color borderColor;
   final Color backgroundColor;
@@ -17,9 +20,12 @@ class TableNode extends Node {
     required super.text,
     required this.objectData,
     required this.attributes,
+    required this.qType,
     required this.style,
     required this.borderColor,
     required this.backgroundColor,
+    this.groupId,
+    this.children,
     super.isSelected,
   });
 
@@ -28,7 +34,10 @@ class TableNode extends Node {
     final style = object['style'] as String? ?? '';
     final attributes = (object['attributes'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
-    
+    final children = (object['children'] as List<dynamic>? ?? [])
+        .map<TableNode>((object) => TableNode.fromJson(object))
+        .toList();
+
     final x = (geometry['x'] as num).toDouble();
     final y = (geometry['y'] as num).toDouble();
     final width = (geometry['width'] as num).toDouble();
@@ -44,7 +53,9 @@ class TableNode extends Node {
             return Colors.transparent;
           }
           if (colorStr!.startsWith('#')) {
-            return Color(int.parse(colorStr.substring(1), radix: 16) + 0xFF000000);
+            return Color(
+              int.parse(colorStr.substring(1), radix: 16) + 0xFF000000,
+            );
           }
         }
       } catch (e) {
@@ -55,11 +66,14 @@ class TableNode extends Node {
 
     return TableNode(
       id: object['id'] as String,
+      groupId: object['groupId'] as String?,
       position: Offset(x, y),
       size: Size(width, height),
       text: object['label'] as String? ?? '',
       objectData: object,
       attributes: attributes,
+      children: children,
+      qType: object['qType'] ?? 'None',
       style: style,
       borderColor: parseColor(style, 'fillColor'),
       backgroundColor: parseColor(style, 'fillColor'),
@@ -74,11 +88,14 @@ class TableNode extends Node {
   }) {
     return TableNode(
       id: id,
+      groupId: groupId,
       position: position ?? this.position,
       size: size,
       text: text ?? this.text,
       objectData: objectData ?? this.objectData,
       attributes: attributes,
+      children: children,
+      qType: qType,
       style: style,
       borderColor: borderColor,
       backgroundColor: backgroundColor,

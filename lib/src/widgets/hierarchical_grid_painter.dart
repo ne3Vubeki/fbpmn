@@ -21,7 +21,6 @@ class HierarchicalGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Рисуем белый фон холста
-    print('Paint started........................');
     canvas.drawRect(
       Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
       Paint()..color = Colors.white,
@@ -48,7 +47,7 @@ class HierarchicalGridPainter extends CustomPainter {
     );
 
     // Рисуем узлы
-    _drawTableNodes(canvas);
+    _drawTableNodes(canvas, nodes, delta);
 
     canvas.restore();
   }
@@ -99,33 +98,37 @@ class HierarchicalGridPainter extends CustomPainter {
     }
   }
 
-  void _drawTableNodes(Canvas canvas) {
+  void _drawTableNodes(Canvas canvas, List<TableNode> nodes, Offset offset) {
     for (final node in nodes) {
-      final tableNode = node;
+      final TableNode tableNode = node;
+
+      print('Обработка ${tableNode.text}');
 
       // Применяем сдвиг к позиции узла
-      final shiftedPosition = tableNode.position + delta;
+      final shiftedPosition = tableNode.position + offset;
 
-      // Увеличиваем размер узла, если нужно больше места для текста
-      final minWidth = _calculateMinWidth(tableNode);
+      // Используем ширину из geometry ноды - это главная ширина
+      final actualWidth = tableNode.size.width;
       final minHeight = _calculateMinHeight(tableNode);
 
-      final actualWidth = max(tableNode.size.width, minWidth);
       final actualHeight = max(tableNode.size.height, minHeight);
 
       // Используем сдвинутую позицию
-      final nodeRect = Rect.fromCenter(
-        center: shiftedPosition,
-        width: actualWidth,
-        height: actualHeight,
+      final nodeRect = Rect.fromPoints(
+        shiftedPosition,
+        Offset(
+          shiftedPosition.dx + actualWidth,
+          shiftedPosition.dy + actualHeight,
+        ),
       );
 
       // Цвета для отрисовки
-      final backgroundColor = Colors.white; // Фон таблицы всегда белый
-      final headerBackgroundColor =
-          tableNode.backgroundColor ?? Colors.grey[200]!; // Цвет заголовка
-      final borderColor = tableNode.borderColor ?? Colors.black;
-      final textColor = borderColor.computeLuminance() > 0.5
+      final backgroundColor = tableNode.groupId != null
+          ? tableNode.backgroundColor
+          : Colors.white; // Фон таблицы всегда белый
+      final headerBackgroundColor = tableNode.backgroundColor; // Цвет заголовка
+      final borderColor = Colors.black;
+      final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5
           ? Colors.black
           : Colors.white;
 
@@ -139,17 +142,26 @@ class HierarchicalGridPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.0;
 
-      // Рисуем закругленный прямоугольник
-      final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
-      canvas.drawRRect(roundedRect, tablePaint);
-      canvas.drawRRect(roundedRect, tableBorderPaint);
+      if (tableNode.groupId != null) {
+        // Рисуем прямой прямоугольник
+        canvas.drawRect(nodeRect, tablePaint);
+        canvas.drawRect(nodeRect, tableBorderPaint);
+      } else {
+        // Рисуем закругленный прямоугольник
+        final roundedRect = RRect.fromRectAndRadius(
+          nodeRect,
+          Radius.circular(8),
+        );
+        canvas.drawRRect(roundedRect, tablePaint);
+        canvas.drawRRect(roundedRect, tableBorderPaint);
+      }
 
       // Вычисляем размеры заголовка и ячеек
       final attributes = tableNode.attributes;
-      final totalRows = attributes.length + 1; // +1 для заголовка
+      final children = tableNode.children ?? [];
 
       // Фиксированная высота заголовка = 20
-      final headerHeight = 20.0;
+      final headerHeight = 30.0;
       final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
 
       // Минимальная высота для строк атрибутов
@@ -158,10 +170,10 @@ class HierarchicalGridPainter extends CustomPainter {
 
       // Рисуем заголовок
       final headerRect = Rect.fromLTWH(
-        nodeRect.left,
-        nodeRect.top,
-        nodeRect.width,
-        headerHeight,
+        nodeRect.left + 1,
+        nodeRect.top + 1,
+        nodeRect.width - 2,
+        headerHeight - 2,
       );
 
       // Фон заголовка - используем переданный цвет
@@ -169,32 +181,39 @@ class HierarchicalGridPainter extends CustomPainter {
         ..color = headerBackgroundColor
         ..style = PaintingStyle.fill;
 
-      // Рисуем заголовок с закругленными верхними углами
-      final headerRoundedRect = RRect.fromRectAndCorners(
-        headerRect,
-        topLeft: Radius.circular(8),
-        topRight: Radius.circular(8),
-      );
-      canvas.drawRRect(headerRoundedRect, headerPaint);
+      if (tableNode.groupId != null) {
+        // Рисуем заголовок с прямыми верхними углами
+        canvas.drawRect(headerRect, headerPaint);
+      } else {
+        // Рисуем заголовок с закругленными верхними углами
+        final headerRoundedRect = RRect.fromRectAndCorners(
+          headerRect,
+          topLeft: Radius.circular(8),
+          topRight: Radius.circular(8),
+        );
+        canvas.drawRRect(headerRoundedRect, headerPaint);
+      }
 
-      // Граница заголовка снизу
+      // Граница горизонтальная
       final headerBorderPaint = Paint()
         ..color = borderColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.0;
 
-      // Линия разделения между заголовком и таблицей
-      canvas.drawLine(
-        Offset(nodeRect.left, nodeRect.top + headerHeight),
-        Offset(nodeRect.right, nodeRect.top + headerHeight),
-        headerBorderPaint,
-      );
+      if (tableNode.groupId == null) {
+        // Линия разделения между заголовком и таблицей
+        canvas.drawLine(
+          Offset(nodeRect.left, nodeRect.top + headerHeight),
+          Offset(nodeRect.right, nodeRect.top + headerHeight),
+          headerBorderPaint,
+        );
+      }
 
       // Текст заголовка с ограничением по ширине
       final headerTextSpan = TextSpan(
         text: tableNode.text,
         style: TextStyle(
-          color: textColor,
+          color: textColorHeader,
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
@@ -203,17 +222,18 @@ class HierarchicalGridPainter extends CustomPainter {
       final headerTextPainter = TextPainter(
         text: headerTextSpan,
         textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
         maxLines: 1,
         ellipsis: '...',
       );
 
       headerTextPainter.layout(
-        maxWidth: nodeRect.width - 8,
-      ); // Отступы по 4px с каждой стороны
+        maxWidth: nodeRect.width - 16,
+      ); // Отступы по 8px с каждой стороны
       headerTextPainter.paint(
         canvas,
         Offset(
-          nodeRect.left + 4,
+          nodeRect.left + 8,
           nodeRect.top + (headerHeight - headerTextPainter.height) / 2,
         ),
       );
@@ -225,8 +245,9 @@ class HierarchicalGridPainter extends CustomPainter {
         final rowBottom = rowTop + actualRowHeight;
 
         // Разделяем строку на две колонки
-        final columnSplit =
-            nodeRect.width * 0.8; // 80% для названия, 20% для типа/значения
+        final columnSplit = tableNode.qType == 'enum'
+            ? 20
+            : nodeRect.width - 20;
 
         // Рисуем вертикальную границу между колонками
         canvas.drawLine(
@@ -245,7 +266,9 @@ class HierarchicalGridPainter extends CustomPainter {
         }
 
         // Текст в левой колонке (label атрибута)
-        final leftText = attribute['label'] ?? '';
+        final leftText = tableNode.qType == 'enum'
+            ? attribute['position']
+            : attribute['label'];
         if (leftText.isNotEmpty) {
           final leftTextPainter = TextPainter(
             text: TextSpan(
@@ -256,44 +279,50 @@ class HierarchicalGridPainter extends CustomPainter {
               ), // Черный текст на белом фоне
             ),
             textDirection: TextDirection.ltr,
+            textAlign: TextAlign.center,
             maxLines: 1,
             ellipsis: '...',
           );
-          leftTextPainter.layout(maxWidth: columnSplit - 8);
+          leftTextPainter.layout(maxWidth: columnSplit - 16);
           leftTextPainter.paint(
             canvas,
             Offset(
-              nodeRect.left + 4,
+              nodeRect.left + 8,
               rowTop + (actualRowHeight - leftTextPainter.height) / 2,
             ),
           );
         }
 
         // Текст в правой колонке (type атрибута)
-        final rightText = attribute['type'] ?? '';
+        final rightText = tableNode.qType == 'enum' ? attribute['label'] : '';
         if (rightText.isNotEmpty) {
           final rightTextPainter = TextPainter(
             text: TextSpan(
               text: rightText,
               style: TextStyle(
-                color: Colors.black.withOpacity(0.7), // Серый текст
-                fontSize: 9,
-                fontStyle: FontStyle.italic,
-              ),
+                color: Colors.black,
+                fontSize: 10,
+              ), // Черный текст на белом фоне
             ),
             textDirection: TextDirection.ltr,
+            textAlign: TextAlign.center,
             maxLines: 1,
             ellipsis: '...',
           );
-          rightTextPainter.layout(maxWidth: nodeRect.width - columnSplit - 8);
+          rightTextPainter.layout(maxWidth: nodeRect.width - columnSplit - 16);
           rightTextPainter.paint(
             canvas,
             Offset(
-              nodeRect.left + columnSplit + 4,
+              nodeRect.left + columnSplit + 8,
               rowTop + (actualRowHeight - rightTextPainter.height) / 2,
             ),
           );
         }
+      }
+
+      // Рисуем вложенные объекты
+      if (children.isNotEmpty) {
+      _drawTableNodes(canvas, children, tableNode.position + offset);
       }
 
       // Если узел выделен, рисуем выделяющую рамку
@@ -303,71 +332,28 @@ class HierarchicalGridPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2.0;
 
-        final selectionRect = RRect.fromRectAndRadius(
-          Rect.fromLTWH(
+        if (tableNode.groupId != null) {
+          final selectionRect = Rect.fromLTWH(
             nodeRect.left - 2,
             nodeRect.top - 2,
             nodeRect.width + 4,
             nodeRect.height + 4,
-          ),
-          Radius.circular(10),
-        );
-        canvas.drawRRect(selectionRect, selectionBorderPaint);
+          );
+          canvas.drawRect(selectionRect, selectionBorderPaint);
+        } else {
+          final selectionRRect = RRect.fromRectAndRadius(
+            Rect.fromLTWH(
+              nodeRect.left - 2,
+              nodeRect.top - 2,
+              nodeRect.width + 4,
+              nodeRect.height + 4,
+            ),
+            Radius.circular(10),
+          );
+          canvas.drawRRect(selectionRRect, selectionBorderPaint);
+        }
       }
     }
-  }
-
-  // Вспомогательные методы для расчета минимальных размеров
-  double _calculateMinWidth(TableNode node) {
-    double maxTextWidth = 0;
-
-    // Проверяем ширину заголовка
-    final headerTextSpan = TextSpan(
-      text: node.text,
-      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-    );
-    final headerPainter = TextPainter(
-      text: headerTextSpan,
-      textDirection: TextDirection.ltr,
-    );
-    headerPainter.layout();
-    maxTextWidth = max(maxTextWidth, headerPainter.width);
-
-    // Проверяем ширину атрибутов
-    for (final attribute in node.attributes) {
-      final labelText = attribute['label'] ?? '';
-      final typeText = attribute['type'] ?? '';
-
-      // Для левой колонки (80% ширины)
-      if (labelText.isNotEmpty) {
-        final textSpan = TextSpan(
-          text: labelText,
-          style: TextStyle(fontSize: 10),
-        );
-        final painter = TextPainter(
-          text: textSpan,
-          textDirection: TextDirection.ltr,
-        );
-        painter.layout();
-        maxTextWidth = max(maxTextWidth, painter.width / 0.8);
-      }
-
-      // Для правой колонки (20% ширины)
-      if (typeText.isNotEmpty) {
-        final textSpan = TextSpan(
-          text: typeText,
-          style: TextStyle(fontSize: 9),
-        );
-        final painter = TextPainter(
-          text: textSpan,
-          textDirection: TextDirection.ltr,
-        );
-        painter.layout();
-        maxTextWidth = max(maxTextWidth, painter.width / 0.2);
-      }
-    }
-
-    return maxTextWidth + 20; // Добавляем отступы
   }
 
   double _calculateMinHeight(TableNode node) {

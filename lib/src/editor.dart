@@ -109,10 +109,13 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
       // Ищем узел под курсором (в обратном порядке для приоритета верхних узлов)
       for (int i = _nodes.length - 1; i >= 0; i--) {
         final node = _nodes[i];
-        final nodeRect = Rect.fromCenter(
-          center: node.position,
-          width: node.size.width,
-          height: node.size.height,
+        final deltaPosition = node.position + _delta;
+        final nodeRect = Rect.fromPoints(
+          deltaPosition,
+          Offset(
+            deltaPosition.dx + node.size.width,
+            deltaPosition.dy + node.size.height,
+          ),
         );
 
         if (nodeRect.contains(worldPos)) {
