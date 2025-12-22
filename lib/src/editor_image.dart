@@ -58,7 +58,7 @@ class _StableGridImageState extends State<StableGridImage> {
   // Тайловое изображение
   List<ImageTile> _imageTiles = [];
   Rect _totalBounds = Rect.zero;
-  final double _tileScale = 2.0; // Масштаб для высокого качества (Retina)
+  double _tileScale = 2.0; // Масштаб для высокого качества (Retina)
   
   // Размер тайла (в пикселях после масштабирования)
   static const int _tileSize = 1024;
@@ -68,10 +68,17 @@ class _StableGridImageState extends State<StableGridImage> {
   
   // Состояние загрузки
   bool _isLoading = false;
-  String _loadingStatus = '';
-  double _loadingProgress = 0.0;
-  int _totalTilesToCreate = 0;
-  int _createdTiles = 0;
+  
+  // Выделенный узел на отдельном слое
+  TableNode? _selectedNodeOnTopLayer;
+  Offset _selectedNodeOffset = Offset.zero;
+  bool _isNodeOnTopLayer = false;
+  
+  // Для отслеживания каких тайлов нужно обновить
+  final Set<int> _tilesToUpdate = {};
+  
+  // Отображение границ тайлов
+  bool _showTileBorders = true; // Включено по умолчанию
 
   @override
   void initState() {
@@ -105,8 +112,6 @@ class _StableGridImageState extends State<StableGridImage> {
     try {
       setState(() {
         _isLoading = true;
-        _loadingStatus = 'Расчет границ...';
-        _loadingProgress = 0.1;
       });
       
       print('Создание тайлового изображения...');
@@ -115,13 +120,6 @@ class _StableGridImageState extends State<StableGridImage> {
       final bounds = _calculateTotalBounds();
       
       if (bounds == null) {
-        setState(() {
-          _loadingStatus = 'Нет узлов для отрисовки';
-          _loadingProgress = 0.0;
-        });
-        
-        await Future.delayed(Duration(milliseconds: 500));
-        
         await _createFallbackTiles();
         return;
       }
@@ -129,18 +127,8 @@ class _StableGridImageState extends State<StableGridImage> {
       _totalBounds = bounds;
       print('Общие границы: $_totalBounds');
       
-      setState(() {
-        _loadingStatus = 'Подготовка тайлов...';
-        _loadingProgress = 0.3;
-      });
-      
       // 2. Разбиваем на тайлы
       final tiles = await _createTilesForBounds(_totalBounds);
-      
-      setState(() {
-        _loadingStatus = 'Завершение...';
-        _loadingProgress = 0.9;
-      });
       
       // 3. Освобождаем старые тайлы
       _disposeTiles();
@@ -152,29 +140,11 @@ class _StableGridImageState extends State<StableGridImage> {
       
       setState(() {
         _isLoading = false;
-        _loadingProgress = 1.0;
-        _loadingStatus = 'Готово';
       });
-      
-      // Небольшая задержка перед скрытием индикатора
-      await Future.delayed(Duration(milliseconds: 300));
-      
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
       
     } catch (e, stackTrace) {
       print('Ошибка создания тайлового изображения: $e');
       print('Stack trace: $stackTrace');
-      
-      setState(() {
-        _loadingStatus = 'Ошибка: $e';
-        _loadingProgress = 0.0;
-      });
-      
-      await Future.delayed(Duration(milliseconds: 1000));
       
       await _createFallbackTiles();
     }
@@ -244,15 +214,7 @@ class _StableGridImageState extends State<StableGridImage> {
     final int tilesX = max(1, (bounds.width / tileWorldSize).ceil());
     final int tilesY = max(1, (bounds.height / tileWorldSize).ceil());
     
-    _totalTilesToCreate = tilesX * tilesY;
-    _createdTiles = 0;
-    
-    print('Создаем $tilesX x $tilesY тайлов (всего: $_totalTilesToCreate)');
-    
-    setState(() {
-      _loadingStatus = 'Обработка объектов: 0/$_totalTilesToCreate';
-      _loadingProgress = 0.4;
-    });
+    print('Создаем $tilesX x $tilesY тайлов');
     
     // Создаем каждый тайл
     for (int y = 0; y < tilesY; y++) {
@@ -277,17 +239,8 @@ class _StableGridImageState extends State<StableGridImage> {
             tiles.add(tile);
           }
           
-          _createdTiles++;
-          
-          // Обновляем прогресс
-          final progress = 0.4 + (0.5 * (_createdTiles / _totalTilesToCreate));
-          setState(() {
-            _loadingProgress = progress;
-            _loadingStatus = 'Создание тайлов: $_createdTiles/$_totalTilesToCreate';
-          });
-          
-          // Небольшая пауза для предотвращения перегрузки и обновления UI
-          if (_createdTiles % 2 == 0) {
+          // Небольшая пауза для предотвращения перегрузки
+          if ((x + y * tilesX) % 2 == 0) {
             await Future.delayed(Duration(milliseconds: 1));
           }
         } catch (e) {
@@ -299,6 +252,7 @@ class _StableGridImageState extends State<StableGridImage> {
     return tiles;
   }
 
+  // Создание отдельного тайла
   Future<ImageTile?> _createTile(Rect bounds, int tileX, int tileY) async {
     try {
       // Проверяем, есть ли узлы в этом тайле
@@ -342,6 +296,10 @@ class _StableGridImageState extends State<StableGridImage> {
       
       // Рисуем узлы, которые попадают в границы тайла
       for (final node in nodesInTile) {
+        // Пропускаем узел, если он на верхнем слое
+        if (_isNodeOnTopLayer && node == _selectedNodeOnTopLayer) {
+          continue;
+        }
         _drawNodeToTile(canvas, node, bounds);
       }
       
@@ -361,6 +319,52 @@ class _StableGridImageState extends State<StableGridImage> {
       print('Ошибка создания тайла [$tileX, $tileY]: $e');
       return null;
     }
+  }
+
+  // Обновление конкретных тайлов
+  Future<void> _updateSpecificTiles(Set<int> tileIndices) async {
+    if (tileIndices.isEmpty) return;
+    
+    try {
+      for (final index in tileIndices) {
+        if (index >= 0 && index < _imageTiles.length) {
+          final oldTile = _imageTiles[index];
+          final bounds = oldTile.bounds;
+          
+          // Создаем новый тайл
+          final newTile = await _createTile(bounds, index % 10, index ~/ 10);
+          
+          if (newTile != null) {
+            // Освобождаем старое изображение
+            oldTile.image.dispose();
+            
+            // Заменяем тайл
+            _imageTiles[index] = newTile;
+          }
+        }
+      }
+      
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Ошибка обновления тайлов: $e');
+    }
+  }
+
+  // Получаем индексы тайлов, которые пересекаются с узлом
+  Set<int> _getTileIndicesForNode(TableNode node, Offset nodePosition) {
+    final Set<int> indices = {};
+    final nodeRect = _calculateNodeRect(node, nodePosition);
+    
+    for (int i = 0; i < _imageTiles.length; i++) {
+      final tile = _imageTiles[i];
+      if (nodeRect.overlaps(tile.bounds)) {
+        indices.add(i);
+      }
+    }
+    
+    return indices;
   }
 
   // Получаем узлы, которые пересекаются с границами
@@ -418,11 +422,6 @@ class _StableGridImageState extends State<StableGridImage> {
   // Fallback для тайлов
   Future<void> _createFallbackTiles() async {
     try {
-      setState(() {
-        _loadingStatus = 'Создание запасного изображения...';
-        _loadingProgress = 0.5;
-      });
-      
       print('Создание запасных тайлов...');
       
       _totalBounds = Rect.fromLTRB(0, 0, 2000, 2000);
@@ -456,27 +455,11 @@ class _StableGridImageState extends State<StableGridImage> {
       ];
       
       setState(() {
-        _loadingStatus = 'Готово';
-        _loadingProgress = 1.0;
+        _isLoading = false;
       });
-      
-      await Future.delayed(Duration(milliseconds: 300));
-      
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
       
     } catch (e) {
       print('Ошибка создания запасных тайлов: $e');
-      setState(() {
-        _loadingStatus = 'Ошибка создания изображения';
-        _loadingProgress = 0.0;
-      });
-      
-      await Future.delayed(Duration(milliseconds: 1000));
-      
       setState(() {
         _isLoading = false;
       });
@@ -688,26 +671,25 @@ class _StableGridImageState extends State<StableGridImage> {
     }
   }
 
-  void _deleteSelectedNode() {
-    if (_selectedNode != null) {
-      setState(() {
-        _nodes.removeWhere((node) => node.id == _selectedNode!.id);
-        _selectedNode = null;
-        // Пересоздаем изображение после удаления узла
-        _createTiledImage();
-      });
-    }
-  }
-
+  // Выделение узла - перемещение на верхний слой
   void _selectNodeAtPosition(Offset position) {
     final worldPos = (position - _offset) / _scale;
-
+    
+    // Если уже есть выделенный узел на верхнем слое, сохраняем его обратно
+    if (_isNodeOnTopLayer && _selectedNodeOnTopLayer != null) {
+      _saveNodeToTiles();
+    }
+    
     setState(() {
       // Снимаем выделение со всех узлов
       for (final node in _nodes) {
         node.isSelected = false;
       }
       _selectedNode = null;
+      
+      // Сбрасываем состояние верхнего слоя
+      _isNodeOnTopLayer = false;
+      _selectedNodeOnTopLayer = null;
 
       // Ищем узел под курсором
       for (int i = _nodes.length - 1; i >= 0; i--) {
@@ -724,27 +706,81 @@ class _StableGridImageState extends State<StableGridImage> {
         if (nodeRect.contains(worldPos)) {
           node.isSelected = true;
           _selectedNode = node;
+          
+          // Перемещаем узел на верхний слой
+          _selectedNodeOnTopLayer = node;
+          _isNodeOnTopLayer = true;
+          _selectedNodeOffset = deltaPosition;
+          
+          // Удаляем узел из тайлов
+          _removeNodeFromTiles(node);
+          
           break;
         }
       }
     });
   }
 
-  void _startNodeDrag(Offset position) {
+  // Удаление узла из тайлов (асинхронно)
+  Future<void> _removeNodeFromTiles(TableNode node) async {
+    final nodePosition = node.position + _delta;
+    final tileIndices = _getTileIndicesForNode(node, nodePosition);
+    
+    if (tileIndices.isNotEmpty) {
+      // Запускаем обновление тайлов в фоне
+      _updateSpecificTiles(tileIndices);
+    }
+  }
+
+  // Сохранение узла обратно в тайлы (асинхронно)
+  Future<void> _saveNodeToTiles() async {
+    if (!_isNodeOnTopLayer || _selectedNodeOnTopLayer == null) return;
+    
+    final nodePosition = _selectedNodeOffset;
+    final tileIndices = _getTileIndicesForNode(_selectedNodeOnTopLayer!, nodePosition);
+    
+    if (tileIndices.isNotEmpty) {
+      // Обновляем позицию узла
+      _selectedNodeOnTopLayer!.position = nodePosition - _delta;
+      
+      // Запускаем обновление тайлов в фоне
+      _updateSpecificTiles(tileIndices);
+    }
+    
+    setState(() {
+      _isNodeOnTopLayer = false;
+      _selectedNodeOnTopLayer = null;
+    });
+  }
+
+  void _deleteSelectedNode() {
     if (_selectedNode != null) {
+      setState(() {
+        _nodes.removeWhere((node) => node.id == _selectedNode!.id);
+        _selectedNode = null;
+        _isNodeOnTopLayer = false;
+        _selectedNodeOnTopLayer = null;
+        // Пересоздаем изображение после удаления узла
+        _createTiledImage();
+      });
+    }
+  }
+
+  void _startNodeDrag(Offset position) {
+    if (_isNodeOnTopLayer && _selectedNodeOnTopLayer != null) {
       setState(() {
         _isNodeDragging = true;
         _nodeDragStart = position;
-        _nodeStartPosition = _selectedNode!.position;
+        _nodeStartPosition = _selectedNodeOffset;
       });
     }
   }
 
   void _updateNodeDrag(Offset position) {
-    if (_isNodeDragging && _selectedNode != null) {
+    if (_isNodeDragging && _isNodeOnTopLayer && _selectedNodeOnTopLayer != null) {
       setState(() {
         final delta = (position - _nodeDragStart) / _scale;
-        _selectedNode!.position = _nodeStartPosition + delta;
+        _selectedNodeOffset = _nodeStartPosition + delta;
       });
     }
   }
@@ -752,10 +788,20 @@ class _StableGridImageState extends State<StableGridImage> {
   void _endNodeDrag() {
     setState(() {
       _isNodeDragging = false;
-      // После перетаскивания пересоздаем изображение
-      if (_selectedNode != null) {
-        _createTiledImage();
-      }
+    });
+  }
+
+  // Обработка клика на пустую область
+  void _handleEmptyAreaClick() {
+    if (_isNodeOnTopLayer && _selectedNodeOnTopLayer != null) {
+      _saveNodeToTiles();
+    }
+  }
+
+  // Переключение отображения границ тайлов
+  void _toggleTileBorders() {
+    setState(() {
+      _showTileBorders = !_showTileBorders;
     });
   }
 
@@ -1060,6 +1106,11 @@ class _StableGridImageState extends State<StableGridImage> {
                                 event.logicalKey == LogicalKeyboardKey.delete) {
                               _deleteSelectedNode();
                             }
+                            // Переключение отображения границ тайлов по клавише B
+                            if (event is KeyDownEvent &&
+                                event.logicalKey == LogicalKeyboardKey.keyB) {
+                              _toggleTileBorders();
+                            }
                           },
                           child: MouseRegion(
                             cursor: _isShiftPressed && _isPanning
@@ -1108,6 +1159,10 @@ class _StableGridImageState extends State<StableGridImage> {
                                 } else {
                                   _selectNodeAtPosition(event.localPosition);
                                   _startNodeDrag(event.localPosition);
+                                  // Проверяем, был ли клик на пустой области
+                                  if (!_isNodeOnTopLayer) {
+                                    _handleEmptyAreaClick();
+                                  }
                                 }
                                 _focusNode.requestFocus();
                               },
@@ -1124,18 +1179,67 @@ class _StableGridImageState extends State<StableGridImage> {
                                 _endNodeDrag();
                               },
                               child: ClipRect(
-                                child: CustomPaint(
-                                  size: scaledCanvasSize,
-                                  painter: HierarchicalGridPainter(
-                                    scale: _scale,
-                                    offset: _offset,
-                                    canvasSize: scaledCanvasSize,
-                                    nodes: _nodes,
-                                    delta: _delta,
-                                    imageTiles: _imageTiles,
-                                    totalBounds: _totalBounds,
-                                    tileScale: _tileScale,
-                                  ),
+                                child: Stack(
+                                  children: [
+                                    // Слой с тайлами
+                                    CustomPaint(
+                                      size: scaledCanvasSize,
+                                      painter: HierarchicalGridPainter(
+                                        scale: _scale,
+                                        offset: _offset,
+                                        canvasSize: scaledCanvasSize,
+                                        nodes: _nodes,
+                                        delta: _delta,
+                                        imageTiles: _imageTiles,
+                                        totalBounds: _totalBounds,
+                                        tileScale: _tileScale,
+                                      ),
+                                    ),
+                                    
+                                    // Слой с красными границами тайлов
+                                    if (_showTileBorders)
+                                      CustomPaint(
+                                        size: scaledCanvasSize,
+                                        painter: _TileBorderPainter(
+                                          scale: _scale,
+                                          offset: _offset,
+                                          imageTiles: _imageTiles,
+                                          totalBounds: _totalBounds,
+                                        ),
+                                      ),
+                                    
+                                    // Верхний слой с выделенным узлом
+                                    if (_isNodeOnTopLayer && _selectedNodeOnTopLayer != null)
+                                      Positioned(
+                                        left: _selectedNodeOffset.dx * _scale + _offset.dx,
+                                        top: _selectedNodeOffset.dy * _scale + _offset.dy,
+                                        child: Transform.scale(
+                                          scale: _scale,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: Colors.blue,
+                                                width: 2.0,
+                                              ),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: CustomPaint(
+                                              size: Size(
+                                                _selectedNodeOnTopLayer!.size.width,
+                                                max(
+                                                  _selectedNodeOnTopLayer!.size.height,
+                                                  _calculateMinHeight(_selectedNodeOnTopLayer!),
+                                                ),
+                                              ),
+                                              painter: _NodePainter(
+                                                node: _selectedNodeOnTopLayer!,
+                                                isSelected: true,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -1239,6 +1343,21 @@ class _StableGridImageState extends State<StableGridImage> {
                                 ),
                                 tooltip: 'Reset to 100%',
                               ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: Icon(
+                                  _showTileBorders ? Icons.border_outer : Icons.border_clear,
+                                  size: 18,
+                                  color: _showTileBorders ? Colors.red : Colors.grey,
+                                ),
+                                onPressed: _toggleTileBorders,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 24,
+                                  minHeight: 24,
+                                ),
+                                tooltip: _showTileBorders ? 'Hide tile borders' : 'Show tile borders',
+                              ),
                             ],
                           ),
                         ),
@@ -1249,73 +1368,16 @@ class _StableGridImageState extends State<StableGridImage> {
               ],
             ),
 
-            // Индикатор загрузки
+            // Индикатор загрузки - только CircularProgressIndicator
             if (_isLoading)
               Positioned.fill(
                 child: Container(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withOpacity(0.2),
                   child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 50,
-                            height: 50,
-                            child: CircularProgressIndicator(
-                              value: _loadingProgress,
-                              strokeWidth: 4,
-                              backgroundColor: Colors.grey[200],
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.blue,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _loadingStatus,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          if (_totalTilesToCreate > 0)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                'Тайлов: $_createdTiles/$_totalTilesToCreate',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ),
-                          if (_loadingProgress > 0 && _loadingProgress < 1)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                '${(_loadingProgress * 100).toInt()}%',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                            ),
-                        ],
+                    child: CircularProgressIndicator(
+                      strokeWidth: 4,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.blue,
                       ),
                     ),
                   ),
@@ -1325,5 +1387,350 @@ class _StableGridImageState extends State<StableGridImage> {
         );
       },
     );
+  }
+}
+
+// Кастомный Painter для отрисовки красных границ тайлов
+class _TileBorderPainter extends CustomPainter {
+  final double scale;
+  final Offset offset;
+  final List<ImageTile> imageTiles;
+  final Rect totalBounds;
+
+  _TileBorderPainter({
+    required this.scale,
+    required this.offset,
+    required this.imageTiles,
+    required this.totalBounds,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Применяем трансформации
+    canvas.save();
+    canvas.scale(scale, scale);
+    canvas.translate(offset.dx / scale, offset.dy / scale);
+
+    // Определяем видимую область
+    final double visibleLeft = -offset.dx / scale;
+    final double visibleTop = -offset.dy / scale;
+    final double visibleRight = (size.width - offset.dx) / scale;
+    final double visibleBottom = (size.height - offset.dy) / scale;
+
+    final visibleRect = Rect.fromLTRB(
+      visibleLeft,
+      visibleTop,
+      visibleRight,
+      visibleBottom,
+    );
+
+    // Создаем Paint для красных границ
+    final tileBorderPaint = Paint()
+      ..color = Colors.red.withOpacity(0.7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0 / scale
+      ..isAntiAlias = true;
+
+    final tileNumberPaint = Paint()
+      ..color = Colors.red
+      ..style = PaintingStyle.fill;
+
+    // Рисуем границы тайлов
+    for (int i = 0; i < imageTiles.length; i++) {
+      final tile = imageTiles[i];
+      
+      // Проверяем, виден ли тайл
+      if (tile.bounds.overlaps(visibleRect)) {
+        // Рисуем красную рамку тайла
+        canvas.drawRect(tile.bounds, tileBorderPaint);
+        
+        // Рисуем номер тайла в левом верхнем углу
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: '$i',
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 12 / scale,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        
+        textPainter.paint(
+          canvas,
+          Offset(
+            tile.bounds.left + 2 / scale,
+            tile.bounds.top + 2 / scale,
+          ),
+        );
+        
+        // Рисуем размер тайла в правом нижнем углу
+        final sizeText = '${tile.image.width}x${tile.image.height}';
+        final sizeTextPainter = TextPainter(
+          text: TextSpan(
+            text: sizeText,
+            style: TextStyle(
+              color: Colors.red.withOpacity(0.8),
+              fontSize: 10 / scale,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        
+        sizeTextPainter.paint(
+          canvas,
+          Offset(
+            tile.bounds.right - sizeTextPainter.width - 2 / scale,
+            tile.bounds.bottom - sizeTextPainter.height - 2 / scale,
+          ),
+        );
+      }
+    }
+
+    // Рисуем общую границу всех тайлов
+    if (imageTiles.isNotEmpty) {
+      final totalBorderPaint = Paint()
+        ..color = Colors.red.withOpacity(0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0 / scale
+        ..isAntiAlias = true;
+      
+      canvas.drawRect(totalBounds, totalBorderPaint);
+      
+      // Подпись для общей границы
+      final totalText = 'Total bounds: ${totalBounds.width.toStringAsFixed(0)}x${totalBounds.height.toStringAsFixed(0)}';
+      final totalTextPainter = TextPainter(
+        text: TextSpan(
+          text: totalText,
+          style: TextStyle(
+            color: Colors.red.withOpacity(0.8),
+            fontSize: 12 / scale,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      
+      totalTextPainter.paint(
+        canvas,
+        Offset(
+          totalBounds.left + 5 / scale,
+          totalBounds.top + 5 / scale,
+        ),
+      );
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _TileBorderPainter oldDelegate) {
+    return oldDelegate.scale != scale ||
+        oldDelegate.offset != offset ||
+        oldDelegate.imageTiles.length != imageTiles.length ||
+        oldDelegate.totalBounds != totalBounds;
+  }
+}
+
+// Кастомный Painter для отрисовки узла на верхнем слое
+class _NodePainter extends CustomPainter {
+  final TableNode node;
+  final bool isSelected;
+
+  _NodePainter({
+    required this.node,
+    required this.isSelected,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect nodeRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    
+    final backgroundColor = node.groupId != null
+        ? node.backgroundColor
+        : Colors.white;
+    final headerBackgroundColor = node.backgroundColor;
+    final borderColor = isSelected ? Colors.blue : Colors.black;
+    final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5
+        ? Colors.black
+        : Colors.white;
+
+    // Рисуем закругленный прямоугольник для всей таблицы
+    final tablePaint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true
+      ..filterQuality = FilterQuality.high;
+
+    final tableBorderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isSelected ? 2.0 : 1.0
+      ..isAntiAlias = true
+      ..filterQuality = FilterQuality.high;
+
+    if (node.groupId != null) {
+      canvas.drawRect(nodeRect, tablePaint);
+      canvas.drawRect(nodeRect, tableBorderPaint);
+    } else {
+      final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+      canvas.drawRRect(roundedRect, tablePaint);
+      canvas.drawRRect(roundedRect, tableBorderPaint);
+    }
+
+    // Вычисляем размеры
+    final attributes = node.attributes;
+    final headerHeight = 30.0;
+    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
+    final minRowHeight = 18.0;
+    final actualRowHeight = max(rowHeight, minRowHeight);
+
+    // Рисуем заголовок
+    final headerRect = Rect.fromLTWH(
+      nodeRect.left + 1,
+      nodeRect.top + 1,
+      nodeRect.width - 2,
+      headerHeight - 2,
+    );
+
+    final headerPaint = Paint()
+      ..color = headerBackgroundColor
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true
+      ..filterQuality = FilterQuality.high;
+
+    if (node.groupId != null) {
+      canvas.drawRect(headerRect, headerPaint);
+    } else {
+      final headerRoundedRect = RRect.fromRectAndCorners(
+        headerRect,
+        topLeft: Radius.circular(8),
+        topRight: Radius.circular(8),
+      );
+      canvas.drawRRect(headerRoundedRect, headerPaint);
+    }
+
+    final headerBorderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isSelected ? 2.0 : 1.0
+      ..isAntiAlias = true
+      ..filterQuality = FilterQuality.high;
+
+    if (node.groupId == null) {
+      canvas.drawLine(
+        Offset(nodeRect.left, nodeRect.top + headerHeight),
+        Offset(nodeRect.right, nodeRect.top + headerHeight),
+        headerBorderPaint,
+      );
+    }
+
+    // Текст заголовка
+    final headerTextSpan = TextSpan(
+      text: node.text,
+      style: TextStyle(
+        color: textColorHeader,
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+
+    final headerTextPainter = TextPainter(
+      text: headerTextSpan,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      ellipsis: '...',
+    )..textWidthBasis = TextWidthBasis.longestLine;
+
+    headerTextPainter.layout(maxWidth: nodeRect.width - 16);
+    headerTextPainter.paint(
+      canvas,
+      Offset(
+        nodeRect.left + 8,
+        nodeRect.top + (headerHeight - headerTextPainter.height) / 2,
+      ),
+    );
+
+    // Рисуем строки таблицы
+    for (int i = 0; i < attributes.length; i++) {
+      final attribute = attributes[i];
+      final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
+      final rowBottom = rowTop + actualRowHeight;
+
+      final columnSplit = node.qType == 'enum' ? 20 : nodeRect.width - 20;
+
+      // Вертикальная граница
+      canvas.drawLine(
+        Offset(nodeRect.left + columnSplit, rowTop),
+        Offset(nodeRect.left + columnSplit, rowBottom),
+        headerBorderPaint,
+      );
+
+      // Горизонтальная граница
+      if (i < attributes.length - 1) {
+        canvas.drawLine(
+          Offset(nodeRect.left, rowBottom),
+          Offset(nodeRect.right, rowBottom),
+          headerBorderPaint,
+        );
+      }
+
+      // Текст в левой колонке
+      final leftText = node.qType == 'enum'
+          ? attribute['position']
+          : attribute['label'];
+      if (leftText.isNotEmpty) {
+        final leftTextPainter = TextPainter(
+          text: TextSpan(
+            text: leftText,
+            style: TextStyle(color: Colors.black, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          ellipsis: '...',
+        )..textWidthBasis = TextWidthBasis.parent;
+        
+        leftTextPainter.layout(maxWidth: columnSplit - 16);
+        leftTextPainter.paint(
+          canvas,
+          Offset(
+            nodeRect.left + 8,
+            rowTop + (actualRowHeight - leftTextPainter.height) / 2,
+          ),
+        );
+      }
+
+      // Текст в правой колонке
+      final rightText = node.qType == 'enum' ? attribute['label'] : '';
+      if (rightText.isNotEmpty) {
+        final rightTextPainter = TextPainter(
+          text: TextSpan(
+            text: rightText,
+            style: TextStyle(color: Colors.black, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          ellipsis: '...',
+        )..textWidthBasis = TextWidthBasis.parent;
+        
+        rightTextPainter.layout(maxWidth: nodeRect.width - columnSplit - 16);
+        rightTextPainter.paint(
+          canvas,
+          Offset(
+            nodeRect.left + columnSplit + 8,
+            rowTop + (actualRowHeight - rightTextPainter.height) / 2,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _NodePainter oldDelegate) {
+    return oldDelegate.node != node || oldDelegate.isSelected != isSelected;
   }
 }
