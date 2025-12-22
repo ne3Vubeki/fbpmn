@@ -1,12 +1,12 @@
 import 'dart:math';
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'models/node.dart';
 import 'models/table.node.dart';
-import 'widgets/hierarchical_grid_painter.dart';
+import 'models/vector_data.dart';
+import 'widgets/vector_grid_painter.dart'; // Новый painter
 
 class StableGridCanvas extends StatefulWidget {
   final Map diagram;
@@ -20,9 +20,6 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
   double _scale = 1.0;
   Offset _offset = Offset.zero;
   bool _isShiftPressed = false;
-
-  // Добавляем флаг для отслеживания только навигации (скроллинг/масштабирование)
-  bool _isNavigationOnly = false;
 
   final FocusNode _focusNode = FocusNode();
 
@@ -57,6 +54,9 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartPosition = Offset.zero;
 
+  // Векторный кеш
+  final List<NodeVectorData> _vectorCache = [];
+
   @override
   void initState() {
     super.initState();
@@ -72,26 +72,103 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
       _nodes.add(TableNode.fromJson(object));
     }
 
+    // Создаем векторный кеш
+    _createVectorCache();
+
     _horizontalScrollController.addListener(_onHorizontalScroll);
     _verticalScrollController.addListener(_onVerticalScroll);
   }
 
-  // void _addNodeAt(Offset position) {
-  //   setState(() {
-  //     final newNode = TableNode(
-  //       id: DateTime.now().millisecondsSinceEpoch.toString(),
-  //       position: position,
-  //       text: 'Node ${_nodes.length + 1}',
-  //     );
-  //     _nodes.add(newNode);
-  //   });
-  // }
+  // Создание векторного кеша
+  void _createVectorCache() {
+    print('Создание векторного кеша...');
+
+    _vectorCache.clear();
+
+    for (final node in _nodes) {
+      final vectorData = _createNodeVectorData(node, _delta);
+      _vectorCache.add(vectorData);
+    }
+
+    print('Векторный кеш создан: ${_vectorCache.length} узлов');
+  }
+
+  // Создание векторных данных для узла
+  NodeVectorData _createNodeVectorData(TableNode node, Offset parentOffset) {
+    final shiftedPosition = node.position + parentOffset;
+    final actualWidth = node.size.width;
+    final minHeight = _calculateMinHeight(node);
+    final actualHeight = max(node.size.height, minHeight);
+
+    final nodeRect = Rect.fromPoints(
+      shiftedPosition,
+      Offset(
+        shiftedPosition.dx + actualWidth,
+        shiftedPosition.dy + actualHeight,
+      ),
+    );
+
+    // Цвета
+    final backgroundColor = node.groupId != null
+        ? node.backgroundColor
+        : Colors.white;
+    final headerBackgroundColor = node.backgroundColor;
+    final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5
+        ? Colors.black
+        : Colors.white;
+
+    // Геометрия
+    final headerHeight = 30.0;
+    final attributes = node.attributes;
+    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
+    final minRowHeight = 18.0;
+    final actualRowHeight = max(rowHeight, minRowHeight);
+
+    // Заголовок
+    final headerRect = Rect.fromLTWH(
+      nodeRect.left + 1,
+      nodeRect.top + 1,
+      nodeRect.width - 2,
+      headerHeight - 2,
+    );
+
+    return NodeVectorData(
+      id: node.id,
+      bounds: nodeRect,
+      backgroundColor: backgroundColor,
+      headerBackgroundColor: headerBackgroundColor,
+      headerText: node.text,
+      headerTextColor: textColorHeader,
+      headerRect: headerRect,
+      isGroup: node.groupId != null,
+      attributes: attributes,
+      qType: node.qType,
+      actualRowHeight: actualRowHeight,
+      headerHeight: headerHeight,
+      isSelected: node.isSelected,
+      position: shiftedPosition,
+      children: node.children
+          ?.map(
+            (child) =>
+                _createNodeVectorData(child, node.position + parentOffset),
+          )
+          .toList(),
+    );
+  }
+
+  double _calculateMinHeight(TableNode node) {
+    final headerHeight = 20.0;
+    final minRowHeight = 18.0;
+    final totalRowsHeight = node.attributes.length * minRowHeight;
+    return headerHeight + totalRowsHeight;
+  }
 
   void _deleteSelectedNode() {
     if (_selectedNode != null) {
       setState(() {
         _nodes.removeWhere((node) => node.id == _selectedNode!.id);
         _selectedNode = null;
+        _createVectorCache();
       });
     }
   }
@@ -106,7 +183,7 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
       }
       _selectedNode = null;
 
-      // Ищем узел под курсором (в обратном порядке для приоритета верхних узлов)
+      // Ищем узел под курсором
       for (int i = _nodes.length - 1; i >= 0; i--) {
         final node = _nodes[i];
         final deltaPosition = node.position + _delta;
@@ -124,6 +201,9 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
           break;
         }
       }
+
+      // Обновляем векторный кеш с выделением
+      _createVectorCache();
     });
   }
 
@@ -142,6 +222,7 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
       setState(() {
         final delta = (position - _nodeDragStart) / _scale;
         _selectedNode!.position = _nodeStartPosition + delta;
+        // Не обновляем кеш при каждом движении - только в конце
       });
     }
   }
@@ -149,6 +230,8 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
   void _endNodeDrag() {
     setState(() {
       _isNodeDragging = false;
+      // Обновляем кеш после завершения перетаскивания
+      _createVectorCache();
     });
   }
 
@@ -167,7 +250,6 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
 
   void _resetZoom() {
     setState(() {
-      _isNavigationOnly = true;
       _scale = 1.0;
       _centerCanvas();
     });
@@ -247,14 +329,9 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
 
       double newScale = _scale * (1 + delta * 0.001);
 
-      // Ограничения зума
-      if (newScale < 0.35) {
-        newScale = 0.35;
-      } else if (newScale > 5.0) {
-        newScale = 5.0;
-      }
+      if (newScale < 0.35) newScale = 0.35;
+      if (newScale > 5.0) newScale = 5.0;
 
-      // Корректировка смещения для фокуса на курсоре
       double zoomFactor = newScale / oldScale;
       Offset mouseInCanvas = (localPosition - _offset);
       Offset newOffset = localPosition - mouseInCanvas * zoomFactor;
@@ -278,19 +355,11 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
     double maxXOffset = _viewportSize.width - canvasSize.width;
     double maxYOffset = _viewportSize.height - canvasSize.height;
 
-    if (constrainedX > 0) {
-      constrainedX = 0;
-    }
-    if (constrainedX < maxXOffset) {
-      constrainedX = maxXOffset;
-    }
+    if (constrainedX > 0) constrainedX = 0;
+    if (constrainedX < maxXOffset) constrainedX = maxXOffset;
 
-    if (constrainedY > 0) {
-      constrainedY = 0;
-    }
-    if (constrainedY < maxYOffset) {
-      constrainedY = maxYOffset;
-    }
+    if (constrainedY > 0) constrainedY = 0;
+    if (constrainedY < maxYOffset) constrainedY = maxYOffset;
 
     return Offset(constrainedX, constrainedY);
   }
@@ -314,10 +383,8 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
     double horizontalMaxScroll = max(0, canvasSize.width - _viewportSize.width);
     if (horizontalMaxScroll == 0) return;
 
-    // Вычисляем соотношение размеров для правильной скорости перемещения
     double viewportToCanvasRatio = canvasSize.width / _viewportSize.width;
 
-    // Применяем соотношение к перемещению мыши для синхронизации скоростей
     double delta =
         (details.localPosition.dx - _horizontalScrollbarDragStart.dx) *
         viewportToCanvasRatio;
@@ -362,10 +429,8 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
     double verticalMaxScroll = max(0, canvasSize.height - _viewportSize.height);
     if (verticalMaxScroll == 0) return;
 
-    // Вычисляем соотношение размеров для правильной скорости перемещения
     double viewportToCanvasRatio = canvasSize.height / _viewportSize.height;
 
-    // Применяем соотношение к перемещению мыши для синхронизации скоростей
     double delta =
         (details.localPosition.dy - _verticalScrollbarDragStart.dy) *
         viewportToCanvasRatio;
@@ -427,7 +492,6 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
 
         return Row(
           children: [
-            // Контент с холстом
             Expanded(
               child: Stack(
                 children: [
@@ -448,7 +512,6 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
                                 event is KeyRepeatEvent;
                           });
                         }
-                        // Обработка удаления узла
                         if (event is KeyDownEvent &&
                             event.logicalKey == LogicalKeyboardKey.delete) {
                           _deleteSelectedNode();
@@ -519,12 +582,14 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
                           child: ClipRect(
                             child: CustomPaint(
                               size: scaledCanvasSize,
-                              painter: HierarchicalGridPainter(
+                              painter: VectorGridPainter(
                                 scale: _scale,
                                 offset: _offset,
                                 canvasSize: scaledCanvasSize,
-                                nodes: _nodes,
                                 delta: _delta,
+                                vectorCache: _vectorCache,
+                                debugInfo:
+                                    'Масштаб: ${_scale.toStringAsFixed(2)}',
                               ),
                             ),
                           ),
@@ -533,7 +598,7 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
                     ),
                   ),
 
-                  // Горизонтальный скроллбар с возможностью перетаскивания
+                  // Горизонтальный скроллбар
                   Positioned(
                     left: 0,
                     right: 10,
@@ -561,7 +626,7 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
                     ),
                   ),
 
-                  // Вертикальный скроллбар с возможностью перетаскивания
+                  // Вертикальный скроллбар
                   Positioned(
                     top: 0,
                     bottom: 10,
@@ -631,19 +696,6 @@ class _StableGridCanvasState extends State<StableGridCanvas> {
                           ),
                         ],
                       ),
-                    ),
-                  ),
-
-                  // Кнопка добавления узла
-                  Positioned(
-                    right: 20,
-                    bottom: 70,
-                    child: FloatingActionButton(
-                      onPressed: () {
-                        // _addNodeAt((_mousePosition - _offset) / _scale);
-                      },
-                      mini: true,
-                      child: const Icon(Icons.add),
                     ),
                   ),
                 ],
