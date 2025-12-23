@@ -69,6 +69,11 @@ class InputHandler {
     state.scale = newScale;
     state.offset = _constrainOffset(newOffset);
     
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Корректируем позицию выделенного узла при изменении масштаба
+    if (oldScale != newScale) {
+      nodeManager.onScaleChanged();
+    }
+    
     scrollHandler.updateScrollControllers();
     onStateUpdate();
   }
@@ -83,21 +88,22 @@ class InputHandler {
       _panStartMousePosition = position;
       onStateUpdate();
     } else {
-      // ВАЖНОЕ ИСПРАВЛЕНИЕ: проверяем, есть ли уже выделенный узел под курсором
-      final worldPos = (position - state.offset) / state.scale;
+      // Используем selectionPadding из NodeManager
+      final double selectionPadding = NodeManager.selectionPadding;
       
       // Проверяем, кликнули ли мы на уже выделенный узел
       bool clickedOnSelectedNode = false;
       if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-        final selectedNodeOffset = state.selectedNodeOffset;
-        final selectedNodeRect = Rect.fromLTWH(
-          selectedNodeOffset.dx,
-          selectedNodeOffset.dy,
-          state.selectedNodeOnTopLayer!.size.width,
-          state.selectedNodeOnTopLayer!.size.height,
+        // Проверяем попадание в область узла (с учетом рамки выделения)
+        final node = state.selectedNodeOnTopLayer!;
+        final nodeScreenRect = Rect.fromLTWH(
+          state.selectedNodeOffset.dx,
+          state.selectedNodeOffset.dy,
+          node.size.width * state.scale + selectionPadding * 2,
+          node.size.height * state.scale + selectionPadding * 2,
         );
         
-        clickedOnSelectedNode = selectedNodeRect.contains(worldPos);
+        clickedOnSelectedNode = nodeScreenRect.contains(position);
       }
       
       if (clickedOnSelectedNode) {
@@ -106,8 +112,6 @@ class InputHandler {
         nodeManager.startNodeDrag(position);
       } else {
         // Клик на другой узел или пустую область
-        // ВАЖНОЕ ИСПРАВЛЕНИЕ: передаем флаг immediateDrag=true
-        // для немедленного начала перетаскивания
         nodeManager.selectNodeAtPosition(position, immediateDrag: true);
       }
     }
@@ -124,6 +128,12 @@ class InputHandler {
       final Offset newOffset = _panStartOffset + deltaMove;
       
       state.offset = _constrainOffset(newOffset);
+      
+      // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при панорамировании
+      if (state.isNodeOnTopLayer) {
+        nodeManager.onOffsetChanged();
+      }
+      
       scrollHandler.updateScrollControllers();
       onStateUpdate();
     } else if (state.isNodeDragging || _isDirectNodeDrag) {

@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:fbpmn/src/editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -47,7 +46,6 @@ class _AppState extends State<App> {
       home: Scaffold(
         body: _isLoading 
             ? const Center(child: CircularProgressIndicator())
-            // : StableGridCanvas(diagram: _diagram),
             : StableGridImage(diagram: _diagram),
       ),
     );

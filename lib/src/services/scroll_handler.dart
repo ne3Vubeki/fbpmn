@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
+import '../services/node_manager.dart';
 
 class ScrollHandler {
   final EditorState state;
+  final NodeManager? nodeManager; // Делаем необязательным
   final VoidCallback onStateUpdate;
   
   final ScrollController horizontalScrollController = ScrollController();
@@ -22,6 +24,7 @@ class ScrollHandler {
   
   ScrollHandler({
     required this.state,
+    this.nodeManager, // Делаем необязательным
     required this.onStateUpdate,
   }) {
     horizontalScrollController.addListener(_onHorizontalScroll);
@@ -33,6 +36,11 @@ class ScrollHandler {
       (state.viewportSize.width - state.viewportSize.width * canvasSizeMultiplier) / 2,
       (state.viewportSize.height - state.viewportSize.height * canvasSizeMultiplier) / 2,
     );
+    
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию узла при центрировании
+    if (state.isNodeOnTopLayer) {
+      nodeManager?.onOffsetChanged();
+    }
     
     updateScrollControllers();
     state.isInitialized = true;
@@ -127,6 +135,11 @@ class ScrollHandler {
     // Обновляем offset холста
     state.offset = Offset(newOffsetX, state.offset.dy);
     
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при скроллинге
+    if (state.isNodeOnTopLayer) {
+      nodeManager?.onOffsetChanged();
+    }
+    
     _updatingFromScroll = false;
     onStateUpdate();
   }
@@ -145,6 +158,11 @@ class ScrollHandler {
     
     // Обновляем offset холста
     state.offset = Offset(state.offset.dx, newOffsetY);
+    
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при скроллинге
+    if (state.isNodeOnTopLayer) {
+      nodeManager?.onOffsetChanged();
+    }
     
     _updatingFromScroll = false;
     onStateUpdate();
@@ -177,6 +195,12 @@ class ScrollHandler {
     
     final double newOffsetX = -newScrollOffset;
     state.offset = Offset(newOffsetX, state.offset.dy);
+    
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла
+    if (state.isNodeOnTopLayer) {
+      nodeManager?.onOffsetChanged();
+    }
+    
     onStateUpdate();
   }
   
@@ -211,6 +235,12 @@ class ScrollHandler {
     
     final double newOffsetY = -newScrollOffset;
     state.offset = Offset(state.offset.dx, newOffsetY);
+    
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла
+    if (state.isNodeOnTopLayer) {
+      nodeManager?.onOffsetChanged();
+    }
+    
     onStateUpdate();
   }
   

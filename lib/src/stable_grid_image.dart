@@ -30,11 +30,8 @@ class _StableGridImageState extends State<StableGridImage> {
     super.initState();
     
     _editorState = EditorState();
-    _scrollHandler = ScrollHandler(
-      state: _editorState,
-      onStateUpdate: () => setState(() {}),
-    );
     
+    // Сначала создаем TileManager и NodeManager
     _tileManager = TileManager(
       state: _editorState,
       onStateUpdate: () => setState(() {}),
@@ -43,6 +40,13 @@ class _StableGridImageState extends State<StableGridImage> {
     _nodeManager = NodeManager(
       state: _editorState,
       tileManager: _tileManager,
+      onStateUpdate: () => setState(() {}),
+    );
+    
+    // Теперь создаем ScrollHandler с передачей NodeManager
+    _scrollHandler = ScrollHandler(
+      state: _editorState,
+      nodeManager: _nodeManager, // Передаем NodeManager
       onStateUpdate: () => setState(() {}),
     );
     

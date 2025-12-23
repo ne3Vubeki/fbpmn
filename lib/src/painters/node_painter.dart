@@ -15,16 +15,26 @@ class NodePainter extends CustomPainter {
   
   @override
   void paint(Canvas canvas, Size size) {
+    // ВАЖНО: размер уже масштабирован, рисуем в полный размер
     final Rect nodeRect = Rect.fromLTWH(0, 0, size.width, size.height);
     
     final backgroundColor = node.groupId != null
         ? node.backgroundColor
         : Colors.white;
     final headerBackgroundColor = node.backgroundColor;
-    final borderColor = Colors.black; // Всегда черная рамка, синяя рамка рисуется Container'ом
+    final borderColor = Colors.black;
     final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5
         ? Colors.black
         : Colors.white;
+    
+    // Рассчитываем масштаб для внутреннего содержимого
+    final scaleX = size.width / node.size.width;
+    final scaleY = size.height / node.size.height;
+    
+    canvas.save();
+    
+    // Применяем масштаб к содержимому узла
+    canvas.scale(scaleX, scaleY);
     
     // Рисуем закругленный прямоугольник для всей таблицы
     final tablePaint = Paint()
@@ -36,15 +46,18 @@ class NodePainter extends CustomPainter {
     final tableBorderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
+      ..strokeWidth = 1.0 / math.min(scaleX, scaleY) // Корректируем толщину линии
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
     if (node.groupId != null) {
-      canvas.drawRect(nodeRect, tablePaint);
-      canvas.drawRect(nodeRect, tableBorderPaint);
+      canvas.drawRect(Rect.fromLTWH(0, 0, node.size.width, node.size.height), tablePaint);
+      canvas.drawRect(Rect.fromLTWH(0, 0, node.size.width, node.size.height), tableBorderPaint);
     } else {
-      final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+      final roundedRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, node.size.width, node.size.height), 
+        Radius.circular(8)
+      );
       canvas.drawRRect(roundedRect, tablePaint);
       canvas.drawRRect(roundedRect, tableBorderPaint);
     }
@@ -52,15 +65,15 @@ class NodePainter extends CustomPainter {
     // Вычисляем размеры
     final attributes = node.attributes;
     final headerHeight = EditorConfig.headerHeight;
-    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
+    final rowHeight = (node.size.height - headerHeight) / attributes.length;
     final minRowHeight = EditorConfig.minRowHeight;
     final actualRowHeight = math.max(rowHeight, minRowHeight);
     
     // Рисуем заголовок
     final headerRect = Rect.fromLTWH(
-      nodeRect.left + 1,
-      nodeRect.top + 1,
-      nodeRect.width - 2,
+      1,
+      1,
+      node.size.width - 2,
       headerHeight - 2,
     );
 
@@ -84,14 +97,14 @@ class NodePainter extends CustomPainter {
     final headerBorderPaint = Paint()
       ..color = borderColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
+      ..strokeWidth = 1.0 / math.min(scaleX, scaleY)
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
     if (node.groupId == null) {
       canvas.drawLine(
-        Offset(nodeRect.left, nodeRect.top + headerHeight),
-        Offset(nodeRect.right, nodeRect.top + headerHeight),
+        Offset(0, headerHeight),
+        Offset(node.size.width, headerHeight),
         headerBorderPaint,
       );
     }
@@ -114,33 +127,33 @@ class NodePainter extends CustomPainter {
       ellipsis: '...',
     )..textWidthBasis = TextWidthBasis.longestLine;
 
-    headerTextPainter.layout(maxWidth: nodeRect.width - 16);
+    headerTextPainter.layout(maxWidth: node.size.width - 16);
     headerTextPainter.paint(
       canvas,
       Offset(
-        nodeRect.left + 8,
-        nodeRect.top + (headerHeight - headerTextPainter.height) / 2,
+        8,
+        (headerHeight - headerTextPainter.height) / 2,
       ),
     );
 
     // Рисуем строки таблицы
     for (int i = 0; i < attributes.length; i++) {
       final attribute = attributes[i];
-      final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
+      final rowTop = headerHeight + actualRowHeight * i;
       final rowBottom = rowTop + actualRowHeight;
 
-      final columnSplit = node.qType == 'enum' ? 20 : nodeRect.width - 20;
+      final columnSplit = node.qType == 'enum' ? 20 : node.size.width - 20;
 
       canvas.drawLine(
-        Offset(nodeRect.left + columnSplit, rowTop),
-        Offset(nodeRect.left + columnSplit, rowBottom),
+        Offset(columnSplit.toDouble(), rowTop),
+        Offset(columnSplit.toDouble(), rowBottom),
         headerBorderPaint,
       );
 
       if (i < attributes.length - 1) {
         canvas.drawLine(
-          Offset(nodeRect.left, rowBottom),
-          Offset(nodeRect.right, rowBottom),
+          Offset(0, rowBottom),
+          Offset(node.size.width, rowBottom),
           headerBorderPaint,
         );
       }
@@ -164,7 +177,7 @@ class NodePainter extends CustomPainter {
         leftTextPainter.paint(
           canvas,
           Offset(
-            nodeRect.left + 8,
+            8,
             rowTop + (actualRowHeight - leftTextPainter.height) / 2,
           ),
         );
@@ -183,16 +196,18 @@ class NodePainter extends CustomPainter {
           ellipsis: '...',
         )..textWidthBasis = TextWidthBasis.parent;
         
-        rightTextPainter.layout(maxWidth: nodeRect.width - columnSplit - 16);
+        rightTextPainter.layout(maxWidth: node.size.width - columnSplit - 16);
         rightTextPainter.paint(
           canvas,
           Offset(
-            nodeRect.left + columnSplit + 8,
+            columnSplit + 8,
             rowTop + (actualRowHeight - rightTextPainter.height) / 2,
           ),
         );
       }
     }
+    
+    canvas.restore();
   }
   
   @override

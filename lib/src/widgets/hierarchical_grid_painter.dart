@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
-import '../models/image_tile.dart';
-import '../models/table.node.dart';
+import '../../src/models/image_tile.dart';
+import '../../src/models/table.node.dart';
 
 class HierarchicalGridPainter extends CustomPainter {
   final double scale;
