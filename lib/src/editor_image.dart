@@ -73,12 +73,14 @@ class _StableGridImageState extends State<StableGridImage> {
   TableNode? _selectedNodeOnTopLayer;
   Offset _selectedNodeOffset = Offset.zero;
   bool _isNodeOnTopLayer = false;
+  Offset _originalNodePosition = Offset.zero; // Сохраняем оригинальную позицию
   
-  // Для отслеживания каких тайлов нужно обновить
-  final Set<int> _tilesToUpdate = {};
+  // Карта для отслеживания узлов в тайлах
+  final Map<int, List<TableNode>> _tileToNodes = {};
+  final Map<TableNode, Set<int>> _nodeToTiles = {};
   
   // Отображение границ тайлов
-  bool _showTileBorders = true; // Включено по умолчанию
+  bool _showTileBorders = true;
 
   @override
   void initState() {
@@ -233,8 +235,10 @@ class _StableGridImageState extends State<StableGridImage> {
             tileWorldBottom,
           );
           
+          final tileIndex = y * tilesX + x;
+          
           // Создаем тайл
-          final tile = await _createTile(tileBounds, x, y);
+          final tile = await _createTile(tileBounds, tileIndex);
           if (tile != null) {
             tiles.add(tile);
           }
@@ -253,12 +257,21 @@ class _StableGridImageState extends State<StableGridImage> {
   }
 
   // Создание отдельного тайла
-  Future<ImageTile?> _createTile(Rect bounds, int tileX, int tileY) async {
+  Future<ImageTile?> _createTile(Rect bounds, int tileIndex) async {
     try {
-      // Проверяем, есть ли узлы в этом тайле
+      // Получаем узлы для этого тайла (ВСЕ узлы, включая выделенный)
       final nodesInTile = _getNodesInBounds(bounds);
       if (nodesInTile.isEmpty) {
         return null;
+      }
+      
+      // Сохраняем информацию о том, какие узлы находятся в этом тайле
+      _tileToNodes[tileIndex] = nodesInTile;
+      for (final node in nodesInTile) {
+        if (!_nodeToTiles.containsKey(node)) {
+          _nodeToTiles[node] = {};
+        }
+        _nodeToTiles[node]!.add(tileIndex);
       }
       
       // Размеры изображения тайла
@@ -296,10 +309,6 @@ class _StableGridImageState extends State<StableGridImage> {
       
       // Рисуем узлы, которые попадают в границы тайла
       for (final node in nodesInTile) {
-        // Пропускаем узел, если он на верхнем слое
-        if (_isNodeOnTopLayer && node == _selectedNodeOnTopLayer) {
-          continue;
-        }
         _drawNodeToTile(canvas, node, bounds);
       }
       
@@ -313,42 +322,214 @@ class _StableGridImageState extends State<StableGridImage> {
         image: image,
         bounds: bounds,
         scale: _tileScale,
+        index: tileIndex,
       );
       
     } catch (e) {
-      print('Ошибка создания тайла [$tileX, $tileY]: $e');
+      print('Ошибка создания тайла [$tileIndex]: $e');
       return null;
     }
   }
 
-  // Обновление конкретных тайлов
-  Future<void> _updateSpecificTiles(Set<int> tileIndices) async {
+  // Обновление конкретных тайлов (удаляем узел)
+  Future<void> _removeNodeFromTiles(TableNode node) async {
+    final tileIndices = _nodeToTiles[node];
+    if (tileIndices == null || tileIndices.isEmpty) return;
+    
+    print('Удаление узла из тайлов: ${tileIndices.toList()}');
+    
+    for (final tileIndex in tileIndices) {
+      await _updateTileWithoutNode(tileIndex, node);
+    }
+  }
+
+  // Обновление конкретных тайлов (добавляем узел)
+  Future<void> _addNodeToTiles(TableNode node, Offset nodePosition) async {
+    final tileIndices = _getTileIndicesForNode(node, nodePosition);
     if (tileIndices.isEmpty) return;
     
+    print('Добавление узла в тайлы: ${tileIndices.toList()}');
+    
+    // Обновляем карту узлов-тайлов
+    _nodeToTiles[node] = tileIndices;
+    for (final tileIndex in tileIndices) {
+      if (!_tileToNodes.containsKey(tileIndex)) {
+        _tileToNodes[tileIndex] = [];
+      }
+      if (!_tileToNodes[tileIndex]!.contains(node)) {
+        _tileToNodes[tileIndex]!.add(node);
+      }
+    }
+    
+    for (final tileIndex in tileIndices) {
+      await _updateTile(tileIndex);
+    }
+  }
+
+  // Обновление тайла без указанного узла
+  Future<void> _updateTileWithoutNode(int tileIndex, TableNode nodeToRemove) async {
+    if (tileIndex < 0 || tileIndex >= _imageTiles.length) return;
+    
     try {
-      for (final index in tileIndices) {
-        if (index >= 0 && index < _imageTiles.length) {
-          final oldTile = _imageTiles[index];
-          final bounds = oldTile.bounds;
-          
-          // Создаем новый тайл
-          final newTile = await _createTile(bounds, index % 10, index ~/ 10);
-          
-          if (newTile != null) {
-            // Освобождаем старое изображение
-            oldTile.image.dispose();
-            
-            // Заменяем тайл
-            _imageTiles[index] = newTile;
-          }
+      final oldTile = _imageTiles[tileIndex];
+      final bounds = oldTile.bounds;
+      
+      // Получаем узлы для этого тайла, исключая удаляемый
+      final nodesInTile = _tileToNodes[tileIndex] ?? [];
+      final filteredNodes = nodesInTile.where((node) => node != nodeToRemove).toList();
+      
+      // Обновляем карту
+      _tileToNodes[tileIndex] = filteredNodes;
+      
+      // Если нет узлов, создаем пустой тайл
+      if (filteredNodes.isEmpty) {
+        // Создаем пустой тайл
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(recorder);
+        
+        // Прозрачный фон
+        canvas.drawRect(
+          bounds,
+          Paint()
+            ..color = Colors.transparent
+            ..blendMode = BlendMode.src,
+        );
+        
+        final picture = recorder.endRecording();
+        final image = await picture.toImage(10, 10);
+        picture.dispose();
+        
+        // Освобождаем старое изображение
+        oldTile.image.dispose();
+        
+        // Заменяем тайл
+        _imageTiles[tileIndex] = ImageTile(
+          image: image,
+          bounds: bounds,
+          scale: _tileScale,
+          index: tileIndex,
+        );
+      } else {
+        // Создаем новый тайл
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(recorder);
+        
+        // Применяем масштаб для высокого качества
+        canvas.scale(_tileScale, _tileScale);
+        
+        // Смещаем канвас для рисования в правильном месте
+        canvas.translate(-bounds.left, -bounds.top);
+        
+        // Прозрачный фон
+        canvas.drawRect(
+          bounds,
+          Paint()
+            ..color = Colors.transparent
+            ..blendMode = BlendMode.src,
+        );
+        
+        // Рисуем оставшиеся узлы
+        for (final node in filteredNodes) {
+          _drawNodeToTile(canvas, node, bounds);
         }
+        
+        final picture = recorder.endRecording();
+        
+        // Размеры изображения
+        final double width = bounds.width;
+        final double height = bounds.height;
+        final int tileWidth = max(1, (width * _tileScale).ceil());
+        final int tileHeight = max(1, (height * _tileScale).ceil());
+        final int finalWidth = min(_tileSize, tileWidth);
+        final int finalHeight = min(_tileSize, tileHeight);
+        
+        final image = await picture.toImage(finalWidth, finalHeight);
+        picture.dispose();
+        
+        // Освобождаем старое изображение
+        oldTile.image.dispose();
+        
+        // Заменяем тайл
+        _imageTiles[tileIndex] = ImageTile(
+          image: image,
+          bounds: bounds,
+          scale: _tileScale,
+          index: tileIndex,
+        );
       }
       
       if (mounted) {
         setState(() {});
       }
     } catch (e) {
-      print('Ошибка обновления тайлов: $e');
+      print('Ошибка обновления тайла [$tileIndex] без узла: $e');
+    }
+  }
+
+  // Обновление тайла со всеми узлами
+  Future<void> _updateTile(int tileIndex) async {
+    if (tileIndex < 0 || tileIndex >= _imageTiles.length) return;
+    
+    try {
+      final oldTile = _imageTiles[tileIndex];
+      final bounds = oldTile.bounds;
+      
+      // Получаем узлы для этого тайла
+      final nodesInTile = _tileToNodes[tileIndex] ?? [];
+      if (nodesInTile.isEmpty) return;
+      
+      // Создаем новый тайл
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      
+      // Применяем масштаб для высокого качества
+      canvas.scale(_tileScale, _tileScale);
+      
+      // Смещаем канвас для рисования в правильном месте
+      canvas.translate(-bounds.left, -bounds.top);
+      
+      // Прозрачный фон
+      canvas.drawRect(
+        bounds,
+        Paint()
+          ..color = Colors.transparent
+          ..blendMode = BlendMode.src,
+      );
+      
+      // Рисуем все узлы
+      for (final node in nodesInTile) {
+        _drawNodeToTile(canvas, node, bounds);
+      }
+      
+      final picture = recorder.endRecording();
+      
+      // Размеры изображения
+      final double width = bounds.width;
+      final double height = bounds.height;
+      final int tileWidth = max(1, (width * _tileScale).ceil());
+      final int tileHeight = max(1, (height * _tileScale).ceil());
+      final int finalWidth = min(_tileSize, tileWidth);
+      final int finalHeight = min(_tileSize, tileHeight);
+      
+      final image = await picture.toImage(finalWidth, finalHeight);
+      picture.dispose();
+      
+      // Освобождаем старое изображение
+      oldTile.image.dispose();
+      
+      // Заменяем тайл
+      _imageTiles[tileIndex] = ImageTile(
+        image: image,
+        bounds: bounds,
+        scale: _tileScale,
+        index: tileIndex,
+      );
+      
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Ошибка обновления тайла [$tileIndex]: $e');
     }
   }
 
@@ -451,6 +632,7 @@ class _StableGridImageState extends State<StableGridImage> {
           image: image,
           bounds: bounds,
           scale: 1.0,
+          index: 0,
         )
       ];
       
@@ -472,6 +654,8 @@ class _StableGridImageState extends State<StableGridImage> {
     }
     _imageTiles.clear();
     _nodeBoundsCache.clear();
+    _tileToNodes.clear();
+    _nodeToTiles.clear();
   }
 
   // Вспомогательный метод для расчета минимальной высоты узла
@@ -675,82 +859,94 @@ class _StableGridImageState extends State<StableGridImage> {
   void _selectNodeAtPosition(Offset position) {
     final worldPos = (position - _offset) / _scale;
     
-    // Если уже есть выделенный узел на верхнем слое, сохраняем его обратно
+    print('Клик на позицию: $worldPos');
+    
+    // 1. Сначала сохраняем текущий выделенный узел (если есть)
     if (_isNodeOnTopLayer && _selectedNodeOnTopLayer != null) {
+      print('Сохранение предыдущего узла...');
       _saveNodeToTiles();
     }
     
-    setState(() {
-      // Снимаем выделение со всех узлов
-      for (final node in _nodes) {
-        node.isSelected = false;
+    // 2. Ищем новый узел под курсором
+    TableNode? foundNode;
+    Offset foundPosition = Offset.zero;
+    
+    for (int i = _nodes.length - 1; i >= 0; i--) {
+      final node = _nodes[i];
+      final deltaPosition = node.position + _delta;
+      final nodeRect = Rect.fromPoints(
+        deltaPosition,
+        Offset(
+          deltaPosition.dx + node.size.width,
+          deltaPosition.dy + node.size.height,
+        ),
+      );
+
+      if (nodeRect.contains(worldPos)) {
+        foundNode = node;
+        foundPosition = deltaPosition;
+        break;
       }
-      _selectedNode = null;
+    }
+    
+    if (foundNode != null) {
+      print('Найден узел: ${foundNode.text}');
       
-      // Сбрасываем состояние верхнего слоя
-      _isNodeOnTopLayer = false;
-      _selectedNodeOnTopLayer = null;
-
-      // Ищем узел под курсором
-      for (int i = _nodes.length - 1; i >= 0; i--) {
-        final node = _nodes[i];
-        final deltaPosition = node.position + _delta;
-        final nodeRect = Rect.fromPoints(
-          deltaPosition,
-          Offset(
-            deltaPosition.dx + node.size.width,
-            deltaPosition.dy + node.size.height,
-          ),
-        );
-
-        if (nodeRect.contains(worldPos)) {
-          node.isSelected = true;
-          _selectedNode = node;
-          
-          // Перемещаем узел на верхний слой
-          _selectedNodeOnTopLayer = node;
-          _isNodeOnTopLayer = true;
-          _selectedNodeOffset = deltaPosition;
-          
-          // Удаляем узел из тайлов
-          _removeNodeFromTiles(node);
-          
-          break;
+      setState(() {
+        // Снимаем выделение со всех узлов
+        for (final node in _nodes) {
+          node.isSelected = false;
         }
-      }
-    });
-  }
-
-  // Удаление узла из тайлов (асинхронно)
-  Future<void> _removeNodeFromTiles(TableNode node) async {
-    final nodePosition = node.position + _delta;
-    final tileIndices = _getTileIndicesForNode(node, nodePosition);
-    
-    if (tileIndices.isNotEmpty) {
-      // Запускаем обновление тайлов в фоне
-      _updateSpecificTiles(tileIndices);
-    }
-  }
-
-  // Сохранение узла обратно в тайлы (асинхронно)
-  Future<void> _saveNodeToTiles() async {
-    if (!_isNodeOnTopLayer || _selectedNodeOnTopLayer == null) return;
-    
-    final nodePosition = _selectedNodeOffset;
-    final tileIndices = _getTileIndicesForNode(_selectedNodeOnTopLayer!, nodePosition);
-    
-    if (tileIndices.isNotEmpty) {
-      // Обновляем позицию узла
-      _selectedNodeOnTopLayer!.position = nodePosition - _delta;
+        
+        // Выделяем найденный узел
+        foundNode?.isSelected = true;
+        _selectedNode = foundNode;
+        
+        // Перемещаем узел на верхний слой
+        _selectedNodeOnTopLayer = foundNode;
+        _isNodeOnTopLayer = true;
+        _selectedNodeOffset = foundPosition;
+        _originalNodePosition = foundPosition;
+        
+        print('Узел перемещен на верхний слой. Позиция: $_selectedNodeOffset');
+      });
       
-      // Запускаем обновление тайлов в фоне
-      _updateSpecificTiles(tileIndices);
+      // 3. УДАЛЯЕМ узел из тайлов
+      _removeNodeFromTiles(foundNode);
+    } else {
+      print('Узел не найден под курсором');
+      // Клик на пустую область - снимаем выделение
+      _handleEmptyAreaClick();
+    }
+  }
+
+  // Сохранение узла обратно в тайлы
+  Future<void> _saveNodeToTiles() async {
+    if (!_isNodeOnTopLayer || _selectedNodeOnTopLayer == null) {
+      print('Нет узла для сохранения');
+      return;
     }
     
+    print('Сохранение узла обратно в тайлы...');
+    
+    // 1. Обновляем позицию узла в оригинальных данных
+    final newPosition = _selectedNodeOffset - _delta;
+    print('Новая позиция узла: $newPosition (была: ${_selectedNodeOnTopLayer!.position})');
+    
+    _selectedNodeOnTopLayer!.position = newPosition;
+    
+    // 2. ДОБАВЛЯЕМ узел в тайлы по новой позиции
+    await _addNodeToTiles(_selectedNodeOnTopLayer!, _selectedNodeOffset);
+    
+    // 3. Сбрасываем состояние
     setState(() {
+      _selectedNodeOnTopLayer!.isSelected = false;
       _isNodeOnTopLayer = false;
       _selectedNodeOnTopLayer = null;
+      _selectedNode = null;
     });
+    
+    print('Узел сохранен обратно в тайлы');
   }
 
   void _deleteSelectedNode() {
@@ -793,8 +989,19 @@ class _StableGridImageState extends State<StableGridImage> {
 
   // Обработка клика на пустую область
   void _handleEmptyAreaClick() {
+    print('Клик на пустую область');
     if (_isNodeOnTopLayer && _selectedNodeOnTopLayer != null) {
       _saveNodeToTiles();
+    } else {
+      // Снимаем выделение со всех узлов
+      setState(() {
+        for (final node in _nodes) {
+          node.isSelected = false;
+        }
+        _selectedNode = null;
+        _isNodeOnTopLayer = false;
+        _selectedNodeOnTopLayer = null;
+      });
     }
   }
 
@@ -1111,6 +1318,11 @@ class _StableGridImageState extends State<StableGridImage> {
                                 event.logicalKey == LogicalKeyboardKey.keyB) {
                               _toggleTileBorders();
                             }
+                            // Отмена выделения по клавише Escape
+                            if (event is KeyDownEvent &&
+                                event.logicalKey == LogicalKeyboardKey.escape) {
+                              _handleEmptyAreaClick();
+                            }
                           },
                           child: MouseRegion(
                             cursor: _isShiftPressed && _isPanning
@@ -1159,10 +1371,6 @@ class _StableGridImageState extends State<StableGridImage> {
                                 } else {
                                   _selectNodeAtPosition(event.localPosition);
                                   _startNodeDrag(event.localPosition);
-                                  // Проверяем, был ли клик на пустой области
-                                  if (!_isNodeOnTopLayer) {
-                                    _handleEmptyAreaClick();
-                                  }
                                 }
                                 _focusNode.requestFocus();
                               },
@@ -1447,7 +1655,7 @@ class _TileBorderPainter extends CustomPainter {
         // Рисуем номер тайла в левом верхнем углу
         final textPainter = TextPainter(
           text: TextSpan(
-            text: '$i',
+            text: '${tile.index}',
             style: TextStyle(
               color: Colors.red,
               fontSize: 12 / scale,

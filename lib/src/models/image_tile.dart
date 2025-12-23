@@ -1,13 +1,17 @@
 import 'dart:ui';
 
+// Класс для хранения тайлов изображения
 class ImageTile {
   final Image image;
   final Rect bounds; // Границы тайла в мировых координатах
   final double scale; // Масштаб тайла
+  final int index; // Индекс тайла
   
   ImageTile({
     required this.image,
     required this.bounds,
     required this.scale,
+    required this.index,
   });
 }
+
