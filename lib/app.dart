@@ -4,7 +4,8 @@ import 'package:fbpmn/src/editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'src/editor_image.dart';
+import 'src/stable_grid_image.dart';
+
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -25,7 +26,7 @@ class _AppState extends State<App> {
 
   Future<void> _loadXmlFile() async {
     try {
-      final diagram = await rootBundle.loadString('2.json');
+      final diagram = await rootBundle.loadString('1.json');
       setState(() {
         _diagram = jsonDecode(diagram);
         _isLoading = false;
