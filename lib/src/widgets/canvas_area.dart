@@ -1,4 +1,3 @@
-import 'package:fbpmn/src/widgets/hierarchical_grid_painter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +8,7 @@ import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
 import '../painters/tile_border_painter.dart';
 import '../painters/node_painter.dart';
+import 'hierarchical_grid_painter.dart';
 
 class CanvasArea extends StatefulWidget {
   final EditorState state;
@@ -133,12 +133,15 @@ class _CanvasAreaState extends State<CanvasArea> {
                             child: Container(
                               // ВАЖНО: Container добавляет padding для рамки выделения
                               padding: EdgeInsets.all(selectionPadding),
+                              // ВАЖНОЕ ИСПРАВЛЕНИЕ: для групп рамка без закруглений
                               decoration: BoxDecoration(
                                 border: Border.all(
                                   color: Colors.blue,
                                   width: 2.0,
                                 ),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: widget.state.selectedNodeOnTopLayer!.groupId != null
+                                    ? BorderRadius.zero // Без закруглений для групп
+                                    : BorderRadius.circular(12), // С закруглениями для обычных узлов
                               ),
                               child: CustomPaint(
                                 // Размер узла без учета padding для рамки
@@ -161,7 +164,7 @@ class _CanvasAreaState extends State<CanvasArea> {
             ),
           ),
         ),
-
+        
         // Горизонтальный скроллбар (только если нужен)
         if (needsHorizontalScrollbar)
           Positioned(
@@ -170,12 +173,9 @@ class _CanvasAreaState extends State<CanvasArea> {
             bottom: 0,
             height: 10,
             child: Listener(
-              onPointerDown:
-                  widget.scrollHandler.handleHorizontalScrollbarDragStart,
-              onPointerMove:
-                  widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
-              onPointerUp:
-                  widget.scrollHandler.handleHorizontalScrollbarDragEnd,
+              onPointerDown: widget.scrollHandler.handleHorizontalScrollbarDragStart,
+              onPointerMove: widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
+              onPointerUp: widget.scrollHandler.handleHorizontalScrollbarDragEnd,
               child: MouseRegion(
                 cursor: SystemMouseCursors.grab,
                 child: Scrollbar(
@@ -187,13 +187,16 @@ class _CanvasAreaState extends State<CanvasArea> {
                     controller: widget.scrollHandler.horizontalScrollController,
                     scrollDirection: Axis.horizontal,
                     physics: const NeverScrollableScrollPhysics(),
-                    child: SizedBox(width: scaledCanvasSize.width, height: 10),
+                    child: SizedBox(
+                      width: scaledCanvasSize.width,
+                      height: 10,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-
+        
         // Вертикальный скроллбар (только если нужен)
         if (needsVerticalScrollbar)
           Positioned(
@@ -202,10 +205,8 @@ class _CanvasAreaState extends State<CanvasArea> {
             right: 0,
             width: 10,
             child: Listener(
-              onPointerDown:
-                  widget.scrollHandler.handleVerticalScrollbarDragStart,
-              onPointerMove:
-                  widget.scrollHandler.handleVerticalScrollbarDragUpdate,
+              onPointerDown: widget.scrollHandler.handleVerticalScrollbarDragStart,
+              onPointerMove: widget.scrollHandler.handleVerticalScrollbarDragUpdate,
               onPointerUp: widget.scrollHandler.handleVerticalScrollbarDragEnd,
               child: MouseRegion(
                 cursor: SystemMouseCursors.grab,
@@ -217,7 +218,10 @@ class _CanvasAreaState extends State<CanvasArea> {
                   child: SingleChildScrollView(
                     controller: widget.scrollHandler.verticalScrollController,
                     physics: const NeverScrollableScrollPhysics(),
-                    child: SizedBox(width: 10, height: scaledCanvasSize.height),
+                    child: SizedBox(
+                      width: 10,
+                      height: scaledCanvasSize.height,
+                    ),
                   ),
                 ),
               ),

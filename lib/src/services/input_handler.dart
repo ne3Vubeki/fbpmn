@@ -15,6 +15,7 @@ class InputHandler {
   
   Offset _panStartOffset = Offset.zero;
   Offset _panStartMousePosition = Offset.zero;
+  bool _isDirectNodeDrag = false; // Флаг для прямого перетаскивания узла
   
   InputHandler({
     required this.state,
@@ -68,21 +69,49 @@ class InputHandler {
     state.scale = newScale;
     state.offset = _constrainOffset(newOffset);
     
-    // ВАЖНО: Обновляем скроллбары после зума
     scrollHandler.updateScrollControllers();
     onStateUpdate();
   }
   
   void handlePanStart(Offset position) {
+    _isDirectNodeDrag = false;
+    
     if (state.isShiftPressed) {
+      // Если зажат Shift - начинаем панорамирование
       state.isPanning = true;
       _panStartOffset = state.offset;
       _panStartMousePosition = position;
       onStateUpdate();
     } else {
-      nodeManager.selectNodeAtPosition(position);
-      nodeManager.startNodeDrag(position);
+      // ВАЖНОЕ ИСПРАВЛЕНИЕ: проверяем, есть ли уже выделенный узел под курсором
+      final worldPos = (position - state.offset) / state.scale;
+      
+      // Проверяем, кликнули ли мы на уже выделенный узел
+      bool clickedOnSelectedNode = false;
+      if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
+        final selectedNodeOffset = state.selectedNodeOffset;
+        final selectedNodeRect = Rect.fromLTWH(
+          selectedNodeOffset.dx,
+          selectedNodeOffset.dy,
+          state.selectedNodeOnTopLayer!.size.width,
+          state.selectedNodeOnTopLayer!.size.height,
+        );
+        
+        clickedOnSelectedNode = selectedNodeRect.contains(worldPos);
+      }
+      
+      if (clickedOnSelectedNode) {
+        // Клик на уже выделенный узел - начинаем прямое перетаскивание
+        _isDirectNodeDrag = true;
+        nodeManager.startNodeDrag(position);
+      } else {
+        // Клик на другой узел или пустую область
+        // ВАЖНОЕ ИСПРАВЛЕНИЕ: передаем флаг immediateDrag=true
+        // для немедленного начала перетаскивания
+        nodeManager.selectNodeAtPosition(position, immediateDrag: true);
+      }
     }
+    
     _focusNode.requestFocus();
   }
   
@@ -90,28 +119,44 @@ class InputHandler {
     state.mousePosition = position;
     
     if (state.isPanning && state.isShiftPressed) {
+      // Панорамирование
       final Offset deltaMove = position - _panStartMousePosition;
       final Offset newOffset = _panStartOffset + deltaMove;
       
       state.offset = _constrainOffset(newOffset);
-      
-      // ВАЖНО: Обновляем скроллбары при перемещении холста
       scrollHandler.updateScrollControllers();
       onStateUpdate();
-    } else if (state.isNodeDragging) {
+    } else if (state.isNodeDragging || _isDirectNodeDrag) {
+      // Перетаскивание узла (как через выделение, так и прямое)
       nodeManager.updateNodeDrag(position);
     }
   }
   
   void handlePanEnd() {
-    state.isPanning = false;
-    nodeManager.endNodeDrag();
+    if (state.isPanning) {
+      state.isPanning = false;
+    }
+    
+    // Завершаем перетаскивание узла, если оно было
+    if (state.isNodeDragging) {
+      nodeManager.endNodeDrag();
+    }
+    
+    _isDirectNodeDrag = false;
     onStateUpdate();
   }
   
   void handlePanCancel() {
-    state.isPanning = false;
-    nodeManager.endNodeDrag();
+    if (state.isPanning) {
+      state.isPanning = false;
+    }
+    
+    // Отменяем перетаскивание узла, если оно было
+    if (state.isNodeDragging) {
+      nodeManager.endNodeDrag();
+    }
+    
+    _isDirectNodeDrag = false;
     onStateUpdate();
   }
   
