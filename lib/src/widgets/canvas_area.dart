@@ -231,7 +231,6 @@ class _CanvasAreaState extends State<CanvasArea> {
             node: node,
             isSelected: true,
             targetSize: nodeSize,
-            scale: widget.state.scale, // Передаем текущий масштаб
           ),
         ),
       ),
