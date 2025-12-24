@@ -49,16 +49,6 @@ class NodePainter {
     required Rect visibleBounds,
     Map<TableNode, Rect>? nodeBoundsCache,
   }) {
-    // Сначала рисуем текущий узел
-    final nodeAbsolutePosition = currentNode.position + parentAbsolutePosition;
-    final nodeWorldRect = Rect.fromPoints(
-      nodeAbsolutePosition,
-      Offset(
-        nodeAbsolutePosition.dx + currentNode.size.width,
-        nodeAbsolutePosition.dy + currentNode.size.height,
-      ),
-    );
-
     // Рисуем текущий узел (для виджета координаты локальные)
     _drawSingleNode(
       canvas: canvas,

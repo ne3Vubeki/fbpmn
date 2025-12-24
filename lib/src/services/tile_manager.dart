@@ -109,15 +109,15 @@ class TileManager {
   
   Future<ImageTile?> _createTile(Rect bounds, int tileIndex, List<TableNode> allNodes) async {
     try {
-      // Получаем узлы для этого тайла (исключая узел на верхнем слое, если он есть)
-      final nodesInTile = _boundsCalculator.getNodesForTile(
+      // Получаем только КОРНЕВЫЕ узлы для этого тайла
+      final rootNodesInTile = _getRootNodesForTile(
         bounds: bounds,
         allNodes: allNodes,
         delta: state.delta,
         excludedNode: state.isNodeOnTopLayer ? state.selectedNodeOnTopLayer : null,
       );
       
-      // Даже если узлов нет, создаем пустой тайл для сохранения структуры
+      // Даже если корневых узлов нет, создаем пустой тайл для сохранения структуры
       
       // Рассчитываем размеры изображения
       final double width = bounds.width;
@@ -147,23 +147,21 @@ class TileManager {
           ..blendMode = BlendMode.src,
       );
       
-      // Рисуем узлы, которые попадают в границы тайла
-      for (final node in nodesInTile) {
-        _nodeRenderer.drawNodeToTile(
-          canvas: canvas,
-          node: node,
-          tileBounds: bounds,
-          delta: state.delta,
-          cache: state.nodeBoundsCache,
-        );
-      }
+      // Рисуем только КОРНЕВЫЕ узлы, их дети нарисуются рекурсивно
+      _nodeRenderer.drawRootNodesToTile(
+        canvas: canvas,
+        rootNodes: rootNodesInTile,
+        tileBounds: bounds,
+        delta: state.delta,
+        cache: state.nodeBoundsCache,
+      );
       
       final picture = recorder.endRecording();
       final image = await picture.toImage(finalWidth, finalHeight);
       picture.dispose();
       
-      // Создаем карту узлов для этого тайла
-      _updateNodeTileMappings(tileIndex, nodesInTile);
+      // Создаем карту узлов для этого тайла (включая детей через рекурсию)
+      _updateNodeTileMappings(tileIndex, _getAllNodesFromRoots(rootNodesInTile));
       
       return ImageTile(
         image: image,
@@ -176,6 +174,71 @@ class TileManager {
       print('Ошибка создания тайла [$tileIndex]: $e');
       return null;
     }
+  }
+  
+  /// Получает только корневые узлы для тайла (узлы без родителей в этом тайле)
+  List<TableNode> _getRootNodesForTile({
+    required Rect bounds,
+    required List<TableNode> allNodes,
+    required Offset delta,
+    required TableNode? excludedNode,
+  }) {
+    final List<TableNode> rootNodes = [];
+    
+    void checkNode(TableNode node, Offset parentOffset, bool isRoot) {
+      // Пропускаем исключенный узел
+      if (excludedNode != null && node.id == excludedNode.id) {
+        return;
+      }
+      
+      final shiftedPosition = node.position + parentOffset;
+      final nodeRect = _boundsCalculator.calculateNodeRect(
+        node: node,
+        position: shiftedPosition,
+      );
+      
+      // Проверяем пересечение с тайлом
+      if (nodeRect.overlaps(bounds)) {
+        // Если это корневой узел (без родителя в списке), добавляем его
+        if (isRoot) {
+          rootNodes.add(node);
+        }
+      }
+      
+      // Рекурсивно проверяем детей
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          checkNode(child, shiftedPosition, false); // Дети не корневые
+        }
+      }
+    }
+    
+    // Начинаем с корневых узлов
+    for (final node in allNodes) {
+      checkNode(node, delta, true);
+    }
+    
+    return rootNodes;
+  }
+  
+  /// Получает все узлы (включая детей) из списка корневых узлов
+  List<TableNode> _getAllNodesFromRoots(List<TableNode> rootNodes) {
+    final List<TableNode> allNodes = [];
+    
+    void collectNodes(TableNode node) {
+      allNodes.add(node);
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          collectNodes(child);
+        }
+      }
+    }
+    
+    for (final root in rootNodes) {
+      collectNodes(root);
+    }
+    
+    return allNodes;
   }
   
   void _updateNodeTileMappings(int tileIndex, List<TableNode> nodesInTile) {
@@ -194,21 +257,46 @@ class TileManager {
   Future<void> removeNodeFromTiles(TableNode node) async {
     print('Удаление узла "${node.text}" из тайлов');
     
-    final tileIndices = state.nodeToTiles[node];
-    if (tileIndices == null || tileIndices.isEmpty) {
-      print('Узел не найден в тайлах');
-      return;
+    // Собираем ВСЕ узлы для удаления (сам узел + все его дети)
+    final List<TableNode> nodesToRemove = _collectAllNodes(node);
+    
+    print('Удаляем ${nodesToRemove.length} узлов: ${nodesToRemove.map((n) => n.text).toList()}');
+    
+    // Для каждого узла удаляем из тайлов
+    for (final nodeToRemove in nodesToRemove) {
+      final tileIndices = state.nodeToTiles[nodeToRemove];
+      if (tileIndices == null || tileIndices.isEmpty) {
+        print('Узел "${nodeToRemove.text}" не найден в тайлах');
+        continue;
+      }
+      
+      print('Обновление тайлов для узла "${nodeToRemove.text}": ${tileIndices.toList()}');
+      
+      // Обновляем каждый тайл, удаляя узел
+      for (final tileIndex in tileIndices) {
+        await _updateTileWithoutNode(tileIndex, nodeToRemove);
+      }
+      
+      // Удаляем узел из кэша
+      state.nodeToTiles.remove(nodeToRemove);
+    }
+  }
+  
+  /// Собирает все узлы в иерархии (сам узел + все его дети рекурсивно)
+  List<TableNode> _collectAllNodes(TableNode rootNode) {
+    final List<TableNode> allNodes = [rootNode];
+    
+    void collectChildren(TableNode node) {
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          allNodes.add(child);
+          collectChildren(child);
+        }
+      }
     }
     
-    print('Обновление тайлов: ${tileIndices.toList()}');
-    
-    // Обновляем каждый тайл, удаляя узел
-    for (final tileIndex in tileIndices) {
-      await _updateTileWithoutNode(tileIndex, node);
-    }
-    
-    // Удаляем узел из кэша
-    state.nodeToTiles.remove(node);
+    collectChildren(rootNode);
+    return allNodes;
   }
   
   Future<void> _updateTileWithoutNode(int tileIndex, TableNode nodeToRemove) async {
@@ -224,8 +312,11 @@ class TileManager {
       // Получаем текущие узлы для этого тайла
       final currentNodes = state.tileToNodes[tileIndex] ?? [];
       
-      // Фильтруем узлы, исключая удаляемый
-      final filteredNodes = currentNodes.where((node) => node.id != nodeToRemove.id).toList();
+      // Фильтруем узлы, исключая удаляемый и всех его детей
+      final List<TableNode> nodesToRemove = _collectAllNodes(nodeToRemove);
+      final Set<String> nodesToRemoveIds = nodesToRemove.map((n) => n.id).toSet();
+      
+      final filteredNodes = currentNodes.where((node) => !nodesToRemoveIds.contains(node.id)).toList();
       
       // Обновляем кэш
       state.tileToNodes[tileIndex] = filteredNodes;
@@ -248,35 +339,75 @@ class TileManager {
   Future<void> addNodeToTiles(TableNode node, Offset nodePosition) async {
     print('Добавление узла "${node.text}" в тайлы на позиции $nodePosition');
     
-    // Определяем, в какие тайлы попадает узел с новой позицией
-    final tileIndices = _boundsCalculator.getTileIndicesForNode(
-      node: node,
-      nodePosition: nodePosition,
-      imageTiles: state.imageTiles,
-    );
+    // Собираем ВСЕ узлы для добавления (сам узел + все его дети)
+    final List<TableNode> nodesToAdd = _collectAllNodes(node);
     
-    if (tileIndices.isEmpty) {
-      print('Узел не попадает ни в один тайл');
-      return;
-    }
+    print('Добавляем ${nodesToAdd.length} узлов: ${nodesToAdd.map((n) => n.text).toList()}');
     
-    print('Узел попадает в тайлы: ${tileIndices.toList()}');
-    
-    // Обновляем кэш
-    state.nodeToTiles[node] = tileIndices;
-    
-    // Обновляем каждый тайл
-    for (final tileIndex in tileIndices) {
-      // Добавляем узел в список узлов тайла (если еще нет)
-      final nodesInTile = state.tileToNodes[tileIndex] ?? [];
-      if (!nodesInTile.any((n) => n.id == node.id)) {
-        nodesInTile.add(node);
-        state.tileToNodes[tileIndex] = nodesInTile;
+    // Для каждого узла определяем тайлы и добавляем
+    for (final nodeToAdd in nodesToAdd) {
+      // Для детей позиция рассчитывается относительно родителя
+      final childNodePosition = nodePosition + _getRelativePosition(node, nodeToAdd);
+      
+      // Определяем, в какие тайлы попадает узел с его позицией
+      final tileIndices = _boundsCalculator.getTileIndicesForNode(
+        node: nodeToAdd,
+        nodePosition: childNodePosition,
+        imageTiles: state.imageTiles,
+      );
+      
+      if (tileIndices.isEmpty) {
+        print('Узел "${nodeToAdd.text}" не попадает ни в один тайл');
+        continue;
       }
       
-      // Обновляем тайл
-      await _updateTileWithAllNodes(tileIndex);
+      print('Узел "${nodeToAdd.text}" попадает в тайлы: ${tileIndices.toList()}');
+      
+      // Обновляем кэш
+      state.nodeToTiles[nodeToAdd] = tileIndices;
+      
+      // Обновляем каждый тайл
+      for (final tileIndex in tileIndices) {
+        // Добавляем узел в список узлов тайла (если еще нет)
+        final nodesInTile = state.tileToNodes[tileIndex] ?? [];
+        if (!nodesInTile.any((n) => n.id == nodeToAdd.id)) {
+          nodesInTile.add(nodeToAdd);
+          state.tileToNodes[tileIndex] = nodesInTile;
+        }
+        
+        // Обновляем тайл
+        await _updateTileWithAllNodes(tileIndex);
+      }
     }
+  }
+  
+  /// Получает позицию дочернего узла относительно корневого родителя
+  Offset _getRelativePosition(TableNode rootNode, TableNode targetNode) {
+    if (rootNode.id == targetNode.id) {
+      return Offset.zero;
+    }
+    
+    // Ищем путь от rootNode к targetNode
+    Offset? findPath(TableNode currentNode, Offset currentOffset) {
+      if (currentNode.id == targetNode.id) {
+        return currentOffset;
+      }
+      
+      if (currentNode.children != null) {
+        for (final child in currentNode.children!) {
+          final childOffset = currentOffset + child.position;
+          final found = findPath(child, childOffset);
+          if (found != null) {
+            return found;
+          }
+        }
+      }
+      
+      return null;
+    }
+    
+    final path = findPath(rootNode, Offset.zero);
+    return path ?? Offset.zero;
   }
   
   Future<void> _updateTileWithAllNodes(int tileIndex) async {
@@ -308,6 +439,9 @@ class TileManager {
   
   Future<ImageTile?> _createUpdatedTile(Rect bounds, int tileIndex, List<TableNode> nodes) async {
     try {
+      // Фильтруем узлы, оставляя только корневые
+      final rootNodes = _filterRootNodes(nodes);
+      
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       
@@ -322,16 +456,14 @@ class TileManager {
           ..blendMode = BlendMode.src,
       );
       
-      // Рисуем все узлы
-      for (final node in nodes) {
-        _nodeRenderer.drawNodeToTile(
-          canvas: canvas,
-          node: node,
-          tileBounds: bounds,
-          delta: state.delta,
-          cache: state.nodeBoundsCache,
-        );
-      }
+      // Рисуем только корневые узлы
+      _nodeRenderer.drawRootNodesToTile(
+        canvas: canvas,
+        rootNodes: rootNodes,
+        tileBounds: bounds,
+        delta: state.delta,
+        cache: state.nodeBoundsCache,
+      );
       
       final picture = recorder.endRecording();
       
@@ -356,6 +488,32 @@ class TileManager {
       print('Ошибка создания обновленного тайла [$tileIndex]: $e');
       return null;
     }
+  }
+  
+  /// Фильтрует список узлов, оставляя только корневые (без родителей в списке)
+  List<TableNode> _filterRootNodes(List<TableNode> allNodes) {
+    // Создаем Set ID всех узлов для быстрой проверки
+    final allIds = allNodes.map((n) => n.id).toSet();
+    
+    return allNodes.where((node) {
+      // Проверяем, есть ли у этого узла родитель в списке
+      bool hasParentInList = false;
+      
+      // Ищем родителя (нужно пройти по всем узлам и проверить их children)
+      for (final potentialParent in allNodes) {
+        if (potentialParent.children != null) {
+          for (final child in potentialParent.children!) {
+            if (child.id == node.id) {
+              hasParentInList = true;
+              break;
+            }
+          }
+        }
+        if (hasParentInList) break;
+      }
+      
+      return !hasParentInList;
+    }).toList();
   }
   
   Future<void> createFallbackTiles() async {
