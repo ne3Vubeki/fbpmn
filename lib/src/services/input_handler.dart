@@ -180,22 +180,14 @@ class InputHandler {
     double constrainedX = offset.dx;
     double constrainedY = offset.dy;
 
-    final double maxXOffset = state.viewportSize.width - canvasSize.width;
-    final double maxYOffset = state.viewportSize.height - canvasSize.height;
+    final double maxX = state.viewportSize.width - canvasSize.width;
+    final double maxY = state.viewportSize.height - canvasSize.height;
 
-    if (constrainedX > 0) {
-      constrainedX = 0;
-    }
-    if (constrainedX < maxXOffset) {
-      constrainedX = maxXOffset;
-    }
-
-    if (constrainedY > 0) {
-      constrainedY = 0;
-    }
-    if (constrainedY < maxYOffset) {
-      constrainedY = maxYOffset;
-    }
+    // Простое ограничение
+    if (constrainedX > 0) constrainedX = 0;
+    if (constrainedX < maxX) constrainedX = maxX;
+    if (constrainedY > 0) constrainedY = 0;
+    if (constrainedY < maxY) constrainedY = maxY;
 
     return Offset(constrainedX, constrainedY);
   }

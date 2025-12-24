@@ -5,26 +5,17 @@ import '../services/node_manager.dart';
 
 class ScrollHandler {
   final EditorState state;
-  final NodeManager? nodeManager; // Делаем необязательным
+  final NodeManager? nodeManager;
   final VoidCallback onStateUpdate;
   
   final ScrollController horizontalScrollController = ScrollController();
   final ScrollController verticalScrollController = ScrollController();
-  bool _updatingFromScroll = false;
   
   final double canvasSizeMultiplier = 3.0;
   
-  // Для работы с скроллбарами
-  bool isHorizontalScrollbarDragging = false;
-  bool isVerticalScrollbarDragging = false;
-  Offset horizontalScrollbarDragStart = Offset.zero;
-  Offset verticalScrollbarDragStart = Offset.zero;
-  double horizontalScrollbarStartOffset = 0.0;
-  double verticalScrollbarStartOffset = 0.0;
-  
   ScrollHandler({
     required this.state,
-    this.nodeManager, // Делаем необязательным
+    this.nodeManager,
     required this.onStateUpdate,
   }) {
     horizontalScrollController.addListener(_onHorizontalScroll);
@@ -32,12 +23,15 @@ class ScrollHandler {
   }
   
   void centerCanvas() {
+    final Size canvasSize = _calculateCanvasSize();
+    
+    // Простое центрирование
     state.offset = Offset(
-      (state.viewportSize.width - state.viewportSize.width * canvasSizeMultiplier) / 2,
-      (state.viewportSize.height - state.viewportSize.height * canvasSizeMultiplier) / 2,
+      (state.viewportSize.width - canvasSize.width) / 2,
+      (state.viewportSize.height - canvasSize.height) / 2,
     );
     
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию узла при центрировании
+    // Обновляем позицию выделенного узла
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
@@ -53,36 +47,26 @@ class ScrollHandler {
     onStateUpdate();
   }
   
-  // ОБНОВЛЕНО: Метод теперь публичный и вызывается при любом изменении offset
   void updateScrollControllers() {
-    if (_updatingFromScroll) return;
-    
     final Size canvasSize = _calculateCanvasSize();
     
-    final double horizontalMaxScroll = max(0, canvasSize.width - state.viewportSize.width);
-    final double verticalMaxScroll = max(0, canvasSize.height - state.viewportSize.height);
+    final double horizontalMaxScroll = _max(0, canvasSize.width - state.viewportSize.width);
+    final double verticalMaxScroll = _max(0, canvasSize.height - state.viewportSize.height);
     
-    // Рассчитываем позицию скроллбара на основе offset холста
-    final double horizontalPosition = _calculateScrollPosition(
-      offset: -state.offset.dx,
-      maxScroll: horizontalMaxScroll,
-    );
+    // Рассчитываем позицию скроллбара на основе offset
+    final double horizontalPosition = _clamp(-state.offset.dx, 0, horizontalMaxScroll);
+    final double verticalPosition = _clamp(-state.offset.dy, 0, verticalMaxScroll);
     
-    final double verticalPosition = _calculateScrollPosition(
-      offset: -state.offset.dy,
-      maxScroll: verticalMaxScroll,
-    );
+    // Обновляем скроллбары
+    if (horizontalScrollController.hasClients) {
+      horizontalScrollController.jumpTo(horizontalPosition);
+    }
     
-    // Плавное обновление позиции скроллбара
-    _updateScrollPosition(
-      horizontalPosition,
-      verticalPosition,
-      horizontalMaxScroll,
-      verticalMaxScroll,
-    );
+    if (verticalScrollController.hasClients) {
+      verticalScrollController.jumpTo(verticalPosition);
+    }
   }
   
-  // НОВЫЙ: Расчет размера канваса
   Size _calculateCanvasSize() {
     return Size(
       state.viewportSize.width * canvasSizeMultiplier * state.scale,
@@ -90,171 +74,72 @@ class ScrollHandler {
     );
   }
   
-  // НОВЫЙ: Расчет позиции скроллбара
-  double _calculateScrollPosition({required double offset, required double maxScroll}) {
-    if (maxScroll <= 0) return 0;
-    return offset.clamp(0, maxScroll).toDouble();
-  }
-  
-  // НОВЫЙ: Обновление позиций скроллбаров
-  void _updateScrollPosition(
-    double horizontalPosition,
-    double verticalPosition,
-    double horizontalMaxScroll,
-    double verticalMaxScroll,
-  ) {
-    // Обновляем горизонтальный скроллбар
-    if (horizontalMaxScroll > 0) {
-      final double normalizedHorizontalPos = horizontalPosition.clamp(0, horizontalMaxScroll).toDouble();
-      if (horizontalScrollController.hasClients) {
-        horizontalScrollController.jumpTo(normalizedHorizontalPos);
-      }
-    }
-    
-    // Обновляем вертикальный скроллбар
-    if (verticalMaxScroll > 0) {
-      final double normalizedVerticalPos = verticalPosition.clamp(0, verticalMaxScroll).toDouble();
-      if (verticalScrollController.hasClients) {
-        verticalScrollController.jumpTo(normalizedVerticalPos);
-      }
-    }
-  }
-  
   void _onHorizontalScroll() {
-    if (_updatingFromScroll) return;
-    
-    _updatingFromScroll = true;
-    
+    final double scrollPosition = horizontalScrollController.offset;
     final Size canvasSize = _calculateCanvasSize();
-    final double horizontalMaxScroll = max(0, canvasSize.width - state.viewportSize.width);
+    final double maxScroll = _max(0, canvasSize.width - state.viewportSize.width);
     
-    // Получаем позицию из скроллбара
-    final double scrollbarPosition = horizontalScrollController.offset;
-    final double newOffsetX = -scrollbarPosition.clamp(0, horizontalMaxScroll).toDouble();
+    final double clampedScroll = _clamp(scrollPosition, 0, maxScroll);
+    state.offset = Offset(-clampedScroll, state.offset.dy);
     
-    // Обновляем offset холста
-    state.offset = Offset(newOffsetX, state.offset.dy);
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при скроллинге
+    // Обновляем позицию выделенного узла
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
     
-    _updatingFromScroll = false;
     onStateUpdate();
   }
   
   void _onVerticalScroll() {
-    if (_updatingFromScroll) return;
-    
-    _updatingFromScroll = true;
-    
+    final double scrollPosition = verticalScrollController.offset;
     final Size canvasSize = _calculateCanvasSize();
-    final double verticalMaxScroll = max(0, canvasSize.height - state.viewportSize.height);
+    final double maxScroll = _max(0, canvasSize.height - state.viewportSize.height);
     
-    // Получаем позицию из скроллбара
-    final double scrollbarPosition = verticalScrollController.offset;
-    final double newOffsetY = -scrollbarPosition.clamp(0, verticalMaxScroll).toDouble();
+    final double clampedScroll = _clamp(scrollPosition, 0, maxScroll);
+    state.offset = Offset(state.offset.dx, -clampedScroll);
     
-    // Обновляем offset холста
-    state.offset = Offset(state.offset.dx, newOffsetY);
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при скроллинге
+    // Обновляем позицию выделенного узла
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
     
-    _updatingFromScroll = false;
     onStateUpdate();
   }
   
-  // Методы для обработки перетаскивания скроллбаров
+  // Методы для перетаскивания скроллбаров (упрощенные)
   void handleHorizontalScrollbarDragStart(PointerDownEvent details) {
-    isHorizontalScrollbarDragging = true;
-    horizontalScrollbarDragStart = details.localPosition;
-    horizontalScrollbarStartOffset = horizontalScrollController.offset;
-    onStateUpdate();
+    // Можно оставить пустым для простоты
   }
   
   void handleHorizontalScrollbarDragUpdate(PointerMoveEvent details) {
-    if (!isHorizontalScrollbarDragging) return;
-    
-    final Size canvasSize = _calculateCanvasSize();
-    final double horizontalMaxScroll = max(0, canvasSize.width - state.viewportSize.width);
-    if (horizontalMaxScroll == 0) return;
-    
-    final double viewportToCanvasRatio = canvasSize.width / state.viewportSize.width;
-    final double delta = (details.localPosition.dx - horizontalScrollbarDragStart.dx) * viewportToCanvasRatio;
-    final double newScrollOffset = (horizontalScrollbarStartOffset + delta).clamp(0, horizontalMaxScroll).toDouble();
-    
-    _updatingFromScroll = true;
-    if (horizontalScrollController.hasClients) {
-      horizontalScrollController.jumpTo(newScrollOffset);
-    }
-    _updatingFromScroll = false;
-    
-    final double newOffsetX = -newScrollOffset;
-    state.offset = Offset(newOffsetX, state.offset.dy);
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла
-    if (state.isNodeOnTopLayer) {
-      nodeManager?.onOffsetChanged();
-    }
-    
-    onStateUpdate();
+    // Можно оставить пустым для простоты
   }
   
   void handleHorizontalScrollbarDragEnd(PointerUpEvent details) {
-    isHorizontalScrollbarDragging = false;
-    onStateUpdate();
+    // Можно оставить пустым для простоты
   }
   
   void handleVerticalScrollbarDragStart(PointerDownEvent details) {
-    isVerticalScrollbarDragging = true;
-    verticalScrollbarDragStart = details.localPosition;
-    verticalScrollbarStartOffset = verticalScrollController.offset;
-    onStateUpdate();
+    // Можно оставить пустым для простоты
   }
   
   void handleVerticalScrollbarDragUpdate(PointerMoveEvent details) {
-    if (!isVerticalScrollbarDragging) return;
-    
-    final Size canvasSize = _calculateCanvasSize();
-    final double verticalMaxScroll = max(0, canvasSize.height - state.viewportSize.height);
-    if (verticalMaxScroll == 0) return;
-    
-    final double viewportToCanvasRatio = canvasSize.height / state.viewportSize.height;
-    final double delta = (details.localPosition.dy - verticalScrollbarDragStart.dy) * viewportToCanvasRatio;
-    final double newScrollOffset = (verticalScrollbarStartOffset + delta).clamp(0, verticalMaxScroll).toDouble();
-    
-    _updatingFromScroll = true;
-    if (verticalScrollController.hasClients) {
-      verticalScrollController.jumpTo(newScrollOffset);
-    }
-    _updatingFromScroll = false;
-    
-    final double newOffsetY = -newScrollOffset;
-    state.offset = Offset(state.offset.dx, newOffsetY);
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла
-    if (state.isNodeOnTopLayer) {
-      nodeManager?.onOffsetChanged();
-    }
-    
-    onStateUpdate();
+    // Можно оставить пустым для простоты
   }
   
   void handleVerticalScrollbarDragEnd(PointerUpEvent details) {
-    isVerticalScrollbarDragging = false;
-    onStateUpdate();
+    // Можно оставить пустым для простоты
+  }
+  
+  double _max(double a, double b) => a > b ? a : b;
+  double _clamp(double value, double min, double max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
   }
   
   void dispose() {
     horizontalScrollController.dispose();
     verticalScrollController.dispose();
-  }
-  
-  double max(double a, double b) {
-    return a > b ? a : b;
   }
 }
