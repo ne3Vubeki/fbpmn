@@ -10,27 +10,27 @@ class InputHandler {
   final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
   final VoidCallback onStateUpdate;
-  
+
   final FocusNode _focusNode = FocusNode();
-  
+
   Offset _panStartOffset = Offset.zero;
   Offset _panStartMousePosition = Offset.zero;
   bool _isDirectNodeDrag = false; // Флаг для прямого перетаскивания узла
-  
+
   InputHandler({
     required this.state,
     required this.nodeManager,
     required this.scrollHandler,
     required this.onStateUpdate,
   });
-  
+
   void handleKeyEvent(KeyEvent event) {
     if (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
         event.logicalKey == LogicalKeyboardKey.shiftRight) {
       state.isShiftPressed = event is KeyDownEvent || event is KeyRepeatEvent;
       onStateUpdate();
     }
-    
+
     if (event is KeyDownEvent) {
       switch (event.logicalKey) {
         case LogicalKeyboardKey.delete:
@@ -45,69 +45,66 @@ class InputHandler {
       }
     }
   }
-  
+
   void toggleTileBorders() {
     state.showTileBorders = !state.showTileBorders;
     onStateUpdate();
   }
-  
+
   void handleZoom(double delta, Offset localPosition) {
     final oldScale = state.scale;
-    
+
     double newScale = state.scale * (1 + delta * 0.001);
-    
+
     if (newScale < 0.35) {
       newScale = 0.35;
     } else if (newScale > 5.0) {
       newScale = 5.0;
     }
-    
+
     final double zoomFactor = newScale / oldScale;
     final Offset mouseInCanvas = (localPosition - state.offset);
     final Offset newOffset = localPosition - mouseInCanvas * zoomFactor;
-    
+
     state.scale = newScale;
     state.offset = _constrainOffset(newOffset);
-    
+
     // ВАЖНОЕ ИСПРАВЛЕНИЕ: Корректируем позицию выделенного узла при изменении масштаба
     if (oldScale != newScale) {
       nodeManager.onScaleChanged();
     }
-    
+
     scrollHandler.updateScrollControllers();
     onStateUpdate();
   }
-  
- void handlePanStart(Offset position) {
+
+  void handlePanStart(Offset position) {
     _isDirectNodeDrag = false;
-    
+
     if (state.isShiftPressed) {
       state.isPanning = true;
       _panStartOffset = state.offset;
       _panStartMousePosition = position;
       onStateUpdate();
     } else {
-      // Проверяем, кликнули ли мы на выделенный узел
       bool clickedOnSelectedNode = false;
       if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
         final node = state.selectedNodeOnTopLayer!;
         final scaledWidth = node.size.width * state.scale;
         final scaledHeight = node.size.height * state.scale;
-        
-        // Используем ту же формулу, что и в node_manager
-        final double totalOffsetInScreen = 
-            NodeManager.selectionPadding * state.scale + NodeManager.visualCompensationPixels;
-        
+
+        // Рамка окружает узел с фиксированным отступом
+        final double frameOffset = NodeManager.frameTotalOffset;
         final nodeScreenRect = Rect.fromLTWH(
           state.selectedNodeOffset.dx,
           state.selectedNodeOffset.dy,
-          scaledWidth + totalOffsetInScreen * 2,
-          scaledHeight + totalOffsetInScreen * 2,
+          scaledWidth + frameOffset * 2,
+          scaledHeight + frameOffset * 2,
         );
-        
+
         clickedOnSelectedNode = nodeScreenRect.contains(position);
       }
-      
+
       if (clickedOnSelectedNode) {
         _isDirectNodeDrag = true;
         nodeManager.startNodeDrag(position);
@@ -115,25 +112,25 @@ class InputHandler {
         nodeManager.selectNodeAtPosition(position, immediateDrag: true);
       }
     }
-    
+
     _focusNode.requestFocus();
   }
-  
+
   void handlePanUpdate(Offset position, Offset delta) {
     state.mousePosition = position;
-    
+
     if (state.isPanning && state.isShiftPressed) {
       // Панорамирование
       final Offset deltaMove = position - _panStartMousePosition;
       final Offset newOffset = _panStartOffset + deltaMove;
-      
+
       state.offset = _constrainOffset(newOffset);
-      
+
       // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при панорамировании
       if (state.isNodeOnTopLayer) {
         nodeManager.onOffsetChanged();
       }
-      
+
       scrollHandler.updateScrollControllers();
       onStateUpdate();
     } else if (state.isNodeDragging || _isDirectNodeDrag) {
@@ -141,66 +138,70 @@ class InputHandler {
       nodeManager.updateNodeDrag(position);
     }
   }
-  
+
   void handlePanEnd() {
     if (state.isPanning) {
       state.isPanning = false;
     }
-    
+
     // Завершаем перетаскивание узла, если оно было
     if (state.isNodeDragging) {
       nodeManager.endNodeDrag();
     }
-    
+
     _isDirectNodeDrag = false;
     onStateUpdate();
   }
-  
+
   void handlePanCancel() {
     if (state.isPanning) {
       state.isPanning = false;
     }
-    
+
     // Отменяем перетаскивание узла, если оно было
     if (state.isNodeDragging) {
       nodeManager.endNodeDrag();
     }
-    
+
     _isDirectNodeDrag = false;
     onStateUpdate();
   }
-  
+
   Offset _constrainOffset(Offset offset) {
     final Size canvasSize = Size(
-      state.viewportSize.width * scrollHandler.canvasSizeMultiplier * state.scale,
-      state.viewportSize.height * scrollHandler.canvasSizeMultiplier * state.scale,
+      state.viewportSize.width *
+          scrollHandler.canvasSizeMultiplier *
+          state.scale,
+      state.viewportSize.height *
+          scrollHandler.canvasSizeMultiplier *
+          state.scale,
     );
-    
+
     double constrainedX = offset.dx;
     double constrainedY = offset.dy;
-    
+
     final double maxXOffset = state.viewportSize.width - canvasSize.width;
     final double maxYOffset = state.viewportSize.height - canvasSize.height;
-    
+
     if (constrainedX > 0) {
       constrainedX = 0;
     }
     if (constrainedX < maxXOffset) {
       constrainedX = maxXOffset;
     }
-    
+
     if (constrainedY > 0) {
       constrainedY = 0;
     }
     if (constrainedY < maxYOffset) {
       constrainedY = maxYOffset;
     }
-    
+
     return Offset(constrainedX, constrainedY);
   }
-  
+
   FocusNode get focusNode => _focusNode;
-  
+
   void dispose() {
     _focusNode.dispose();
   }
