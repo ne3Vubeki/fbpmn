@@ -4,10 +4,10 @@ import 'package:flutter/services.dart';
 
 import '../editor_state.dart';
 import '../services/input_handler.dart';
-import '../services/node_manager.dart'; // Добавляем импорт
+import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
 import '../painters/tile_border_painter.dart';
-import '../painters/node_painter.dart';
+import '../painters/node_custom_painter.dart'; // Импортируем новый класс
 import 'hierarchical_grid_painter.dart';
 
 class CanvasArea extends StatefulWidget {
@@ -15,7 +15,7 @@ class CanvasArea extends StatefulWidget {
   final InputHandler inputHandler;
   final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
-  
+
   const CanvasArea({
     super.key,
     required this.state,
@@ -23,7 +23,7 @@ class CanvasArea extends StatefulWidget {
     required this.nodeManager,
     required this.scrollHandler,
   });
-  
+
   @override
   State<CanvasArea> createState() => _CanvasAreaState();
 }
@@ -33,17 +33,23 @@ class _CanvasAreaState extends State<CanvasArea> {
   double get framePadding => NodeManager.framePadding;
   double get frameBorderWidth => NodeManager.frameBorderWidth;
   double get frameTotalOffset => NodeManager.frameTotalOffset;
-  
+
   @override
   Widget build(BuildContext context) {
     final Size scaledCanvasSize = Size(
-      widget.state.viewportSize.width * widget.scrollHandler.canvasSizeMultiplier * widget.state.scale,
-      widget.state.viewportSize.height * widget.scrollHandler.canvasSizeMultiplier * widget.state.scale,
+      widget.state.viewportSize.width *
+          widget.scrollHandler.canvasSizeMultiplier *
+          widget.state.scale,
+      widget.state.viewportSize.height *
+          widget.scrollHandler.canvasSizeMultiplier *
+          widget.state.scale,
     );
-    
-    final bool needsHorizontalScrollbar = scaledCanvasSize.width > widget.state.viewportSize.width;
-    final bool needsVerticalScrollbar = scaledCanvasSize.height > widget.state.viewportSize.height;
-    
+
+    final bool needsHorizontalScrollbar =
+        scaledCanvasSize.width > widget.state.viewportSize.width;
+    final bool needsVerticalScrollbar =
+        scaledCanvasSize.height > widget.state.viewportSize.height;
+
     return Stack(
       children: [
         Positioned(
@@ -76,7 +82,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                 },
                 onPointerMove: (PointerMoveEvent event) {
                   widget.state.mousePosition = event.localPosition;
-                  
+
                   if (widget.state.isPanning && widget.state.isShiftPressed) {
                     widget.inputHandler.handlePanUpdate(
                       event.localPosition,
@@ -111,7 +117,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                           tileScale: 2.0,
                         ),
                       ),
-                      
+
                       if (widget.state.showTileBorders)
                         CustomPaint(
                           size: scaledCanvasSize,
@@ -122,8 +128,9 @@ class _CanvasAreaState extends State<CanvasArea> {
                             totalBounds: widget.state.totalBounds,
                           ),
                         ),
-                      
-                      if (widget.state.isNodeOnTopLayer && widget.state.selectedNodeOnTopLayer != null)
+
+                      if (widget.state.isNodeOnTopLayer &&
+                          widget.state.selectedNodeOnTopLayer != null)
                         _buildSelectedNode(),
                     ],
                   ),
@@ -132,7 +139,7 @@ class _CanvasAreaState extends State<CanvasArea> {
             ),
           ),
         ),
-        
+
         if (needsHorizontalScrollbar)
           Positioned(
             left: 0,
@@ -140,9 +147,12 @@ class _CanvasAreaState extends State<CanvasArea> {
             bottom: 0,
             height: 10,
             child: Listener(
-              onPointerDown: widget.scrollHandler.handleHorizontalScrollbarDragStart,
-              onPointerMove: widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
-              onPointerUp: widget.scrollHandler.handleHorizontalScrollbarDragEnd,
+              onPointerDown:
+                  widget.scrollHandler.handleHorizontalScrollbarDragStart,
+              onPointerMove:
+                  widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
+              onPointerUp:
+                  widget.scrollHandler.handleHorizontalScrollbarDragEnd,
               child: MouseRegion(
                 cursor: SystemMouseCursors.grab,
                 child: Scrollbar(
@@ -154,16 +164,13 @@ class _CanvasAreaState extends State<CanvasArea> {
                     controller: widget.scrollHandler.horizontalScrollController,
                     scrollDirection: Axis.horizontal,
                     physics: const NeverScrollableScrollPhysics(),
-                    child: SizedBox(
-                      width: scaledCanvasSize.width,
-                      height: 10,
-                    ),
+                    child: SizedBox(width: scaledCanvasSize.width, height: 10),
                   ),
                 ),
               ),
             ),
           ),
-        
+
         if (needsVerticalScrollbar)
           Positioned(
             top: 0,
@@ -171,8 +178,10 @@ class _CanvasAreaState extends State<CanvasArea> {
             right: 0,
             width: 10,
             child: Listener(
-              onPointerDown: widget.scrollHandler.handleVerticalScrollbarDragStart,
-              onPointerMove: widget.scrollHandler.handleVerticalScrollbarDragUpdate,
+              onPointerDown:
+                  widget.scrollHandler.handleVerticalScrollbarDragStart,
+              onPointerMove:
+                  widget.scrollHandler.handleVerticalScrollbarDragUpdate,
               onPointerUp: widget.scrollHandler.handleVerticalScrollbarDragEnd,
               child: MouseRegion(
                 cursor: SystemMouseCursors.grab,
@@ -184,10 +193,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                   child: SingleChildScrollView(
                     controller: widget.scrollHandler.verticalScrollController,
                     physics: const NeverScrollableScrollPhysics(),
-                    child: SizedBox(
-                      width: 10,
-                      height: scaledCanvasSize.height,
-                    ),
+                    child: SizedBox(width: 10, height: scaledCanvasSize.height),
                   ),
                 ),
               ),
@@ -196,38 +202,36 @@ class _CanvasAreaState extends State<CanvasArea> {
       ],
     );
   }
-  
+
   Widget _buildSelectedNode() {
     if (widget.state.selectedNodeOnTopLayer == null) return Container();
-    
+
     final node = widget.state.selectedNodeOnTopLayer!;
-    
+
     // Размер узла (масштабированный)
     final nodeSize = Size(
       node.size.width * widget.state.scale,
       node.size.height * widget.state.scale,
     );
-    
+
     return Positioned(
       left: widget.state.selectedNodeOffset.dx,
       top: widget.state.selectedNodeOffset.dy,
       child: Container(
-        // Рамка окружает узел с фиксированными отступами
-        padding: EdgeInsets.all(framePadding), // 4 пикселя
+        padding: EdgeInsets.all(framePadding),
         decoration: BoxDecoration(
-          border: Border.all(
-            color: Colors.blue,
-            width: frameBorderWidth, // 2 пикселя
-          ),
+          border: Border.all(color: Colors.blue, width: frameBorderWidth),
           borderRadius: node.groupId != null
               ? BorderRadius.zero
               : BorderRadius.circular(12),
         ),
         child: CustomPaint(
           size: nodeSize,
-          painter: NodePainter(
+          painter: NodeCustomPainter(
             node: node,
             isSelected: true,
+            targetSize: nodeSize,
+            scale: widget.state.scale, // Передаем текущий масштаб
           ),
         ),
       ),
