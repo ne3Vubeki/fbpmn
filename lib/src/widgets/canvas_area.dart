@@ -210,6 +210,12 @@ class _CanvasAreaState extends State<CanvasArea> {
 
     final node = widget.state.selectedNodeOnTopLayer!;
 
+    // Получаем расчетный размер узла
+    final nodeSize = Size(
+      node.size.width * widget.state.scale,
+      node.size.height * widget.state.scale,
+    );
+
     return Positioned(
       left: widget.state.selectedNodeOffset.dx,
       top: widget.state.selectedNodeOffset.dy,
@@ -222,10 +228,7 @@ class _CanvasAreaState extends State<CanvasArea> {
               : BorderRadius.circular(12),
         ),
         child: CustomPaint(
-          size: Size(
-            node.size.width * widget.state.scale,
-            node.size.height * widget.state.scale,
-          ),
+          size: nodeSize,
           painter: NodePainter(node: node, isSelected: true),
         ),
       ),

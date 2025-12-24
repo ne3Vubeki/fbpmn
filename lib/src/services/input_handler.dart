@@ -78,40 +78,40 @@ class InputHandler {
     onStateUpdate();
   }
   
-  void handlePanStart(Offset position) {
+ void handlePanStart(Offset position) {
     _isDirectNodeDrag = false;
     
     if (state.isShiftPressed) {
-      // Если зажат Shift - начинаем панорамирование
       state.isPanning = true;
       _panStartOffset = state.offset;
       _panStartMousePosition = position;
       onStateUpdate();
     } else {
-      // Используем selectionPadding из NodeManager
-      final double selectionPadding = NodeManager.selectionPadding;
-      
-      // Проверяем, кликнули ли мы на уже выделенный узел
+      // Проверяем, кликнули ли мы на выделенный узел
       bool clickedOnSelectedNode = false;
       if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-        // Проверяем попадание в область узла (с учетом рамки выделения)
         final node = state.selectedNodeOnTopLayer!;
+        final scaledWidth = node.size.width * state.scale;
+        final scaledHeight = node.size.height * state.scale;
+        
+        // Используем ту же формулу, что и в node_manager
+        final double totalOffsetInScreen = 
+            NodeManager.selectionPadding * state.scale + NodeManager.visualCompensationPixels;
+        
         final nodeScreenRect = Rect.fromLTWH(
           state.selectedNodeOffset.dx,
           state.selectedNodeOffset.dy,
-          node.size.width * state.scale + selectionPadding * 2,
-          node.size.height * state.scale + selectionPadding * 2,
+          scaledWidth + totalOffsetInScreen * 2,
+          scaledHeight + totalOffsetInScreen * 2,
         );
         
         clickedOnSelectedNode = nodeScreenRect.contains(position);
       }
       
       if (clickedOnSelectedNode) {
-        // Клик на уже выделенный узел - начинаем прямое перетаскивание
         _isDirectNodeDrag = true;
         nodeManager.startNodeDrag(position);
       } else {
-        // Клик на другой узел или пустую область
         nodeManager.selectNodeAtPosition(position, immediateDrag: true);
       }
     }

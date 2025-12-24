@@ -12,8 +12,10 @@ class NodeManager {
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
 
-  // Константа для отступа рамки выделения от узла
+  // Константы для точных вычислений
   static const double selectionPadding = 4.0; // 4 пикселя отступа рамки
+  static const double visualCompensationPixels =
+      2.0; // Визуальный сдвиг в пикселях
 
   NodeManager({
     required this.state,
@@ -53,27 +55,37 @@ class NodeManager {
   void _updateScreenPosition() {
     if (state.selectedNodeOnTopLayer == null) return;
 
-    // Мировые координаты центра узла
-    final worldPosition = state.originalNodePosition;
-
-    // Экранные координаты центра узла
-    final screenCenter = _worldToScreen(worldPosition);
-
-    // Вычисляем offset для контейнера (левый верхний угол рамки)
-    // Учитываем, что рамка имеет отступ selectionPadding
-    // И узел будет нарисован с масштабированием внутри
     final node = state.selectedNodeOnTopLayer!;
-    final scaledWidth = node.size.width * state.scale;
-    final scaledHeight = node.size.height * state.scale;
 
-    // КОМПЕНСАЦИОННЫЙ СДВИГ: 2 пикселя с учетом масштаба
-    final double scaleAdjustedPadding = 2.0 / state.scale;
-    final double totalOffset = selectionPadding + scaleAdjustedPadding;
+    // Мировые координаты левого верхнего угла узла
+    // (не центра, а левого верхнего угла как в тайлах)
+    final worldTopLeft = state.originalNodePosition;
 
+    // Экранные координаты левого верхнего угла узла
+    final screenTopLeft = _worldToScreen(worldTopLeft);
+
+    // Размер узла с учетом минимальной высоты
+    final nodeSize = _calculateNodeSize(node);
+    final scaledWidth = nodeSize.width * state.scale;
+    final scaledHeight = nodeSize.height * state.scale;
+
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: используем только selectionPadding
+    // Компенсационный сдвиг не нужен, если позиционируем от левого верхнего угла
+    final double totalOffsetInScreen = selectionPadding * state.scale;
+
+    // Позиция рамки: смещаем от узла на padding
     state.selectedNodeOffset = Offset(
-      screenCenter.dx - scaledWidth / 2 - totalOffset,
-      screenCenter.dy - scaledHeight / 2 - totalOffset,
+      screenTopLeft.dx - totalOffsetInScreen,
+      screenTopLeft.dy - totalOffsetInScreen,
     );
+
+    print('=== ОБНОВЛЕНИЕ ПОЗИЦИИ ===');
+    print('Мировые координаты узла: $worldTopLeft');
+    print('Экранные координаты узла: $screenTopLeft');
+    print('Размер узла: $nodeSize');
+    print('Масштабированный размер: ${scaledWidth}x$scaledHeight');
+    print('Offset: $totalOffsetInScreen');
+    print('Позиция рамки: ${state.selectedNodeOffset}');
   }
 
   void selectNodeAtPosition(
@@ -160,8 +172,6 @@ class NodeManager {
 
   // Немедленный выбор узла с началом перетаскивания
   void _selectNodeImmediate(TableNode node, Offset screenPosition) {
-    print('Немедленный выбор узла ${node.text} с началом перетаскивания');
-
     // Снимаем выделение со всех узлов
     _deselectAllNodes();
 
@@ -169,18 +179,17 @@ class NodeManager {
     node.isSelected = true;
     state.selectedNode = node;
 
-    // Сохраняем мировую позицию центра узла
-    final worldCenter =
-        state.delta +
-        node.position +
-        Offset(node.size.width / 2, node.size.height / 2);
-    state.originalNodePosition = worldCenter;
+    // ВАЖНО: Сохраняем мировую позицию ЛЕВОГО ВЕРХНЕГО УГЛА узла
+    // (а не центра, как было раньше)
+    final worldTopLeft = state.delta + node.position;
+    state.originalNodePosition = worldTopLeft;
 
-    print('Мировая позиция центра узла: $worldCenter');
-    print('Дельта: ${state.delta}');
+    print('=== ВЫБОР УЗЛА ===');
     print('Позиция узла в данных: ${node.position}');
-    print('Размер узла: ${node.size}');
-    print('Текущий scale: ${state.scale}');
+    print('Дельта: ${state.delta}');
+    print('Мировая позиция левого верхнего угла: $worldTopLeft');
+    print('Размер узла в данных: ${node.size}');
+    print('Расчетный размер узла: ${_calculateNodeSize(node)}');
 
     // Перемещаем узел на верхний слой
     state.selectedNodeOnTopLayer = node;
@@ -188,10 +197,6 @@ class NodeManager {
 
     // Обновляем экранную позицию
     _updateScreenPosition();
-
-    print(
-      'Узел перемещен на верхний слой. Экранная позиция: ${state.selectedNodeOffset}',
-    );
 
     // Удаляем узел из тайлов (только визуально, не из данных)
     tileManager.removeNodeFromTiles(node);
@@ -210,18 +215,9 @@ class NodeManager {
     node.isSelected = true;
     state.selectedNode = node;
 
-    // Сохраняем мировую позицию центра узла
-    final worldCenter =
-        state.delta +
-        node.position +
-        Offset(node.size.width / 2, node.size.height / 2);
-    state.originalNodePosition = worldCenter;
-
-    print('Мировая позиция центра узла: $worldCenter');
-    print('Дельта: ${state.delta}');
-    print('Позиция узла в данных: ${node.position}');
-    print('Размер узла: ${node.size}');
-    print('Текущий scale: ${state.scale}');
+    // Сохраняем мировую позицию ЛЕВОГО ВЕРХНЕГО УГЛА узла
+    final worldTopLeft = state.delta + node.position;
+    state.originalNodePosition = worldTopLeft;
 
     // Перемещаем узел на верхний слой
     state.selectedNodeOnTopLayer = node;
@@ -229,10 +225,6 @@ class NodeManager {
 
     // Обновляем экранную позицию
     _updateScreenPosition();
-
-    print(
-      'Узел перемещен на верхний слой. Экранная позиция: ${state.selectedNodeOffset}',
-    );
 
     // Удаляем узел из тайлов (только визуально, не из данных)
     tileManager.removeNodeFromTiles(node);
@@ -242,28 +234,14 @@ class NodeManager {
 
   // Сохранение узла в фоне (асинхронно, без ожидания)
   Future<void> _saveNodeInBackground(TableNode node) async {
-    print('Фоновое сохранение узла "${node.text}"...');
-
-    // Мировые координаты центра узла
-    final worldCenter = state.originalNodePosition;
-
-    // Вычисляем мировые координаты левого верхнего угла
-    // Учитываем компенсационный сдвиг при восстановлении
-    final double scaleAdjustedPadding = 2.0 / state.scale;
-    final double totalOffset = selectionPadding + scaleAdjustedPadding;
-
-    // Чтобы получить правильные мировые координаты, нужно учесть,
-    // что selectedNodeOffset уже включает totalOffset
-    final screenTopLeft =
-        state.selectedNodeOffset + Offset(totalOffset, totalOffset);
-    final worldTopLeft = _screenToWorld(screenTopLeft);
+    // Мировые координаты левого верхнего угла узла
+    final worldTopLeft = state.originalNodePosition;
 
     // Ограничиваем позицию узла границами тайлов
     final constrainedWorldPosition = _constrainNodePosition(worldTopLeft, node);
 
     // Вычисляем новую позицию узла относительно дельты
     final newPosition = constrainedWorldPosition - state.delta;
-    print('Новая позиция узла: $newPosition (была: ${node.position})');
 
     // Обновляем позицию узла в оригинальных данных
     node.position = newPosition;
@@ -273,42 +251,28 @@ class NodeManager {
 
     // Снимаем выделение
     node.isSelected = false;
-
-    print('Узел "${node.text}" сохранен в фоне');
   }
 
   Future<void> _saveNodeToTiles() async {
     if (!state.isNodeOnTopLayer || state.selectedNodeOnTopLayer == null) {
-      print('Нет узла для сохранения');
       return;
     }
 
     final node = state.selectedNodeOnTopLayer!;
-    print('Сохранение узла "${node.text}" обратно в тайлы...');
 
-    // Чтобы восстановить правильную позицию, нужно учесть
-    // что selectedNodeOffset уже включает totalOffset
-    final double scaleAdjustedPadding = 2.0 / state.scale;
-    final double totalOffset = selectionPadding + scaleAdjustedPadding;
+    // Мировые координаты левого верхнего угла узла
+    final worldTopLeft = state.originalNodePosition;
 
-    // Экранные координаты левого верхнего угла узла (без рамки)
-    final screenTopLeft =
-        state.selectedNodeOffset + Offset(totalOffset, totalOffset);
-
-    // Мировые координаты левого верхнего угла
-    final worldTopLeft = _screenToWorld(screenTopLeft);
-
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: ограничиваем позицию узла границами тайлов
+    // Ограничиваем позицию узла границами тайлов
     final constrainedWorldPosition = _constrainNodePosition(worldTopLeft, node);
 
     // Вычисляем новую позицию узла относительно дельты
     final newPosition = constrainedWorldPosition - state.delta;
-    print('Новая позиция узла: $newPosition (была: ${node.position})');
 
     // Обновляем позицию узла в оригинальных данных
     node.position = newPosition;
 
-    // Добавляем узел обратно в тайлы с СКОРРЕКТИРОВАННОЙ И ОГРАНИЧЕННОЙ позицией
+    // Добавляем узел обратно в тайлы
     await tileManager.addNodeToTiles(node, constrainedWorldPosition);
 
     // Снимаем выделение
@@ -325,7 +289,6 @@ class NodeManager {
     state.originalNodePosition = Offset.zero;
 
     onStateUpdate();
-    print('Узел сохранен обратно в тайлы');
   }
 
   // ВАЖНОЕ ИСПРАВЛЕНИЕ: ограничение позиции узла границами тайлов
@@ -411,17 +374,9 @@ class NodeManager {
 
   void startNodeDrag(Offset screenPosition) {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-      print(
-        'Начало перетаскивания узла "${state.selectedNodeOnTopLayer!.text}"',
-      );
-      print('Позиция мыши: $screenPosition');
-      print(
-        'Текущая мировая позиция центра узла: ${state.originalNodePosition}',
-      );
-
-      // Сохраняем начальные позиции
       _nodeDragStart = screenPosition;
-      _nodeStartWorldPosition = state.originalNodePosition;
+      _nodeStartWorldPosition =
+          state.originalNodePosition; // Теперь это левый верхний угол
 
       state.isNodeDragging = true;
       onStateUpdate();
@@ -432,17 +387,13 @@ class NodeManager {
     if (state.isNodeDragging &&
         state.isNodeOnTopLayer &&
         state.selectedNodeOnTopLayer != null) {
-      // Вычисляем дельту в мировых координатах
       final screenDelta = screenPosition - _nodeDragStart;
       final worldDelta = screenDelta / state.scale;
 
-      // Новая мировая позиция (центра)
+      // Обновляем мировую позицию ЛЕВОГО ВЕРХНЕГО УГЛА
       final newWorldPosition = _nodeStartWorldPosition + worldDelta;
-
-      // Обновляем мировую позицию
       state.originalNodePosition = newWorldPosition;
 
-      // Обновляем экранную позицию
       _updateScreenPosition();
 
       onStateUpdate();
@@ -486,5 +437,19 @@ class NodeManager {
     }
 
     deselectRecursive(state.nodes);
+  }
+
+  // Единый метод расчета размеров узла (должен совпадать с NodeRenderer)
+  Size _calculateNodeSize(TableNode node) {
+    final headerHeight = 30.0; // EditorConfig.headerHeight
+    final minRowHeight = 18.0; // EditorConfig.minRowHeight
+
+    // Расчет минимальной высоты как в NodeRenderer
+    final minHeight = headerHeight + (node.attributes.length * minRowHeight);
+    final actualHeight = node.size.height > minHeight
+        ? node.size.height
+        : minHeight;
+
+    return Size(node.size.width, actualHeight);
   }
 }
