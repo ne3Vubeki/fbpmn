@@ -15,7 +15,7 @@ class CanvasArea extends StatefulWidget {
   final InputHandler inputHandler;
   final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
-  
+
   const CanvasArea({
     super.key,
     required this.state,
@@ -23,7 +23,7 @@ class CanvasArea extends StatefulWidget {
     required this.nodeManager,
     required this.scrollHandler,
   });
-  
+
   @override
   State<CanvasArea> createState() => _CanvasAreaState();
 }
@@ -33,11 +33,11 @@ class _CanvasAreaState extends State<CanvasArea> {
   double get framePadding => NodeManager.framePadding;
   double get frameBorderWidth => NodeManager.frameBorderWidth;
   double get frameTotalOffset => NodeManager.frameTotalOffset;
-  
+
   // GlobalKey для получения реального размера
   final GlobalKey _containerKey = GlobalKey();
   Size _actualSize = Size.zero;
-  
+
   @override
   void initState() {
     super.initState();
@@ -46,15 +46,16 @@ class _CanvasAreaState extends State<CanvasArea> {
       _updateActualSize();
     });
   }
-  
+
   void _updateActualSize() {
     if (_containerKey.currentContext != null) {
-      final RenderBox renderBox = _containerKey.currentContext!.findRenderObject() as RenderBox;
+      final RenderBox renderBox =
+          _containerKey.currentContext!.findRenderObject() as RenderBox;
       final newSize = renderBox.size;
-      
+
       if (_actualSize != newSize) {
         _actualSize = newSize;
-        
+
         // Обновляем viewportSize в состоянии
         if (widget.state.viewportSize != _actualSize) {
           widget.state.viewportSize = _actualSize;
@@ -63,7 +64,7 @@ class _CanvasAreaState extends State<CanvasArea> {
       }
     }
   }
-  
+
   @override
   void didUpdateWidget(covariant CanvasArea oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -72,18 +73,20 @@ class _CanvasAreaState extends State<CanvasArea> {
       _updateActualSize();
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
-    // Используем актуальный размер из state (который будет обновлен)
+    // Используем статичный размер холста 6000x6000 с учетом масштаба
     final Size scaledCanvasSize = Size(
-      widget.state.viewportSize.width * widget.scrollHandler.canvasSizeMultiplier * widget.state.scale,
-      widget.state.viewportSize.height * widget.scrollHandler.canvasSizeMultiplier * widget.state.scale,
+      ScrollHandler.staticCanvasWidth * widget.state.scale,
+      ScrollHandler.staticCanvasHeight * widget.state.scale,
     );
-    
-    final bool needsHorizontalScrollbar = scaledCanvasSize.width > widget.state.viewportSize.width;
-    final bool needsVerticalScrollbar = scaledCanvasSize.height > widget.state.viewportSize.height;
-    
+
+    final bool needsHorizontalScrollbar =
+        scaledCanvasSize.width > widget.state.viewportSize.width;
+    final bool needsVerticalScrollbar =
+        scaledCanvasSize.height > widget.state.viewportSize.height;
+
     return Container(
       key: _containerKey,
       child: Stack(
@@ -118,7 +121,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                   },
                   onPointerMove: (PointerMoveEvent event) {
                     widget.state.mousePosition = event.localPosition;
-                    
+
                     if (widget.state.isPanning && widget.state.isShiftPressed) {
                       widget.inputHandler.handlePanUpdate(
                         event.localPosition,
@@ -153,7 +156,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                             tileScale: 2.0,
                           ),
                         ),
-                        
+
                         if (widget.state.showTileBorders)
                           CustomPaint(
                             size: scaledCanvasSize,
@@ -164,8 +167,9 @@ class _CanvasAreaState extends State<CanvasArea> {
                               totalBounds: widget.state.totalBounds,
                             ),
                           ),
-                        
-                        if (widget.state.isNodeOnTopLayer && widget.state.selectedNodeOnTopLayer != null)
+
+                        if (widget.state.isNodeOnTopLayer &&
+                            widget.state.selectedNodeOnTopLayer != null)
                           _buildSelectedNode(),
                       ],
                     ),
@@ -174,7 +178,7 @@ class _CanvasAreaState extends State<CanvasArea> {
               ),
             ),
           ),
-          
+
           if (needsHorizontalScrollbar)
             Positioned(
               left: 0,
@@ -182,9 +186,12 @@ class _CanvasAreaState extends State<CanvasArea> {
               bottom: 0,
               height: 10,
               child: Listener(
-                onPointerDown: widget.scrollHandler.handleHorizontalScrollbarDragStart,
-                onPointerMove: widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
-                onPointerUp: widget.scrollHandler.handleHorizontalScrollbarDragEnd,
+                onPointerDown:
+                    widget.scrollHandler.handleHorizontalScrollbarDragStart,
+                onPointerMove:
+                    widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
+                onPointerUp:
+                    widget.scrollHandler.handleHorizontalScrollbarDragEnd,
                 child: MouseRegion(
                   cursor: SystemMouseCursors.grab,
                   child: Scrollbar(
@@ -193,7 +200,8 @@ class _CanvasAreaState extends State<CanvasArea> {
                     trackVisibility: false,
                     thickness: 10,
                     child: SingleChildScrollView(
-                      controller: widget.scrollHandler.horizontalScrollController,
+                      controller:
+                          widget.scrollHandler.horizontalScrollController,
                       scrollDirection: Axis.horizontal,
                       physics: const NeverScrollableScrollPhysics(),
                       child: SizedBox(
@@ -205,7 +213,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                 ),
               ),
             ),
-          
+
           if (needsVerticalScrollbar)
             Positioned(
               top: 0,
@@ -213,9 +221,12 @@ class _CanvasAreaState extends State<CanvasArea> {
               right: 0,
               width: 10,
               child: Listener(
-                onPointerDown: widget.scrollHandler.handleVerticalScrollbarDragStart,
-                onPointerMove: widget.scrollHandler.handleVerticalScrollbarDragUpdate,
-                onPointerUp: widget.scrollHandler.handleVerticalScrollbarDragEnd,
+                onPointerDown:
+                    widget.scrollHandler.handleVerticalScrollbarDragStart,
+                onPointerMove:
+                    widget.scrollHandler.handleVerticalScrollbarDragUpdate,
+                onPointerUp:
+                    widget.scrollHandler.handleVerticalScrollbarDragEnd,
                 child: MouseRegion(
                   cursor: SystemMouseCursors.grab,
                   child: Scrollbar(
@@ -239,28 +250,25 @@ class _CanvasAreaState extends State<CanvasArea> {
       ),
     );
   }
-  
+
   Widget _buildSelectedNode() {
     if (widget.state.selectedNodeOnTopLayer == null) return Container();
-    
+
     final node = widget.state.selectedNodeOnTopLayer!;
-    
+
     // Размер узла (масштабированный)
     final nodeSize = Size(
       node.size.width * widget.state.scale,
       node.size.height * widget.state.scale,
     );
-    
+
     return Positioned(
       left: widget.state.selectedNodeOffset.dx,
       top: widget.state.selectedNodeOffset.dy,
       child: Container(
         padding: EdgeInsets.all(framePadding),
         decoration: BoxDecoration(
-          border: Border.all(
-            color: Colors.blue,
-            width: frameBorderWidth,
-          ),
+          border: Border.all(color: Colors.blue, width: frameBorderWidth),
           borderRadius: node.groupId != null
               ? BorderRadius.zero
               : BorderRadius.circular(12),

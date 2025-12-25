@@ -168,26 +168,40 @@ class InputHandler {
   }
 
   Offset _constrainOffset(Offset offset) {
+    // Используем статичный размер холста
     final Size canvasSize = Size(
-      state.viewportSize.width *
-          scrollHandler.canvasSizeMultiplier *
-          state.scale,
-      state.viewportSize.height *
-          scrollHandler.canvasSizeMultiplier *
-          state.scale,
+      ScrollHandler.staticCanvasWidth * state.scale,
+      ScrollHandler.staticCanvasHeight * state.scale,
     );
 
     double constrainedX = offset.dx;
     double constrainedY = offset.dy;
 
-    final double maxX = state.viewportSize.width - canvasSize.width;
-    final double maxY = state.viewportSize.height - canvasSize.height;
+    // Максимальные смещения
+    final double maxRight = 0;
+    final double maxLeft = state.viewportSize.width - canvasSize.width;
+    final double maxBottom = 0;
+    final double maxTop = state.viewportSize.height - canvasSize.height;
 
-    // Простое ограничение
-    if (constrainedX > 0) constrainedX = 0;
-    if (constrainedX < maxX) constrainedX = maxX;
-    if (constrainedY > 0) constrainedY = 0;
-    if (constrainedY < maxY) constrainedY = maxY;
+    // Ограничиваем по X
+    if (canvasSize.width <= state.viewportSize.width) {
+      // Холст меньше viewport - центрируем
+      constrainedX = (state.viewportSize.width - canvasSize.width) / 2;
+    } else {
+      // Холст больше viewport - ограничиваем
+      if (constrainedX > maxRight) constrainedX = maxRight;
+      if (constrainedX < maxLeft) constrainedX = maxLeft;
+    }
+
+    // Ограничиваем по Y
+    if (canvasSize.height <= state.viewportSize.height) {
+      // Холст меньше viewport - центрируем
+      constrainedY = (state.viewportSize.height - canvasSize.height) / 2;
+    } else {
+      // Холст больше viewport - ограничиваем
+      if (constrainedY > maxBottom) constrainedY = maxBottom;
+      if (constrainedY < maxTop) constrainedY = maxTop;
+    }
 
     return Offset(constrainedX, constrainedY);
   }
