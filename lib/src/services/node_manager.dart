@@ -66,13 +66,6 @@ class NodeManager {
       screenNodePosition.dx - frameTotalOffset,
       screenNodePosition.dy - frameTotalOffset,
     );
-
-    print('=== ОБНОВЛЕНИЕ ПОЗИЦИИ РАМКИ ===');
-    print('МИР: узел на $worldNodePosition');
-    print('ЭКРАН: узел на $screenNodePosition');
-    print('ЭКРАН: рамка на ${state.selectedNodeOffset}');
-    print('Смещение рамки: -$frameTotalOffset пикселей');
-    print('Scale: ${state.scale}, Offset: ${state.offset}');
   }
 
   void selectNodeAtPosition(
@@ -163,9 +156,9 @@ class NodeManager {
 
     print('=== ВЫБОР УЗЛА ===');
     print('Узел: ${node.text}');
-    print('Позиция в данных: ${node.position}');
-    print('Дельта: ${state.delta}');
-    print('Мировые координаты узла: $worldNodePosition');
+    print('Позиция в данных: ${node.position.dx}:${node.position.dy}');
+    print('Дельта: ${state.delta.dx}:${state.delta.dy}');
+    print('Мировые координаты узла: ${worldNodePosition.dx}:${worldNodePosition.dy}');
 
     state.selectedNodeOnTopLayer = node;
     state.isNodeOnTopLayer = true;
@@ -229,8 +222,8 @@ class NodeManager {
     final newPosition = constrainedWorldPosition - state.delta;
 
     print('=== СОХРАНЕНИЕ УЗЛА В ТАЙЛЫ (без ограничений) ===');
-    print('Старая позиция: ${node.position}');
-    print('Новая позиция: $newPosition');
+    print('Старая позиция: ${node.position.dx}:${node.position.dy}');
+    print('Новая позиция: ${newPosition.dx}:${newPosition.dy}');
 
     // Обновляем позицию родителя
     node.position = newPosition;
