@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../models/image_tile.dart';
+import '../editor_state.dart';
 
 class TileBorderPainter extends CustomPainter {
   final double scale;
   final Offset offset;
-  final List<ImageTile> imageTiles;
-  final Rect totalBounds;
+  final EditorState state;
   
   TileBorderPainter({
     required this.scale,
     required this.offset,
-    required this.imageTiles,
-    required this.totalBounds,
+    required this.state,
   });
   
   @override
@@ -39,16 +37,14 @@ class TileBorderPainter extends CustomPainter {
       ..strokeWidth = 1.0 / scale
       ..isAntiAlias = true;
     
-   
-    for (int i = 0; i < imageTiles.length; i++) {
-      final tile = imageTiles[i];
-      
+    for (final tile in state.imageTiles) {
       if (tile.bounds.overlaps(visibleRect)) {
         canvas.drawRect(tile.bounds, tileBorderPaint);
         
-        final textPainter = TextPainter(
+        // Отображаем id тайла
+        final idTextPainter = TextPainter(
           text: TextSpan(
-            text: '${tile.index}',
+            text: '${tile.id}',
             style: TextStyle(
               color: Colors.red,
               fontSize: 12 / scale,
@@ -58,7 +54,7 @@ class TileBorderPainter extends CustomPainter {
           textDirection: TextDirection.ltr,
         )..layout();
         
-        textPainter.paint(
+        idTextPainter.paint(
           canvas,
           Offset(
             tile.bounds.left + 2 / scale,
@@ -66,57 +62,30 @@ class TileBorderPainter extends CustomPainter {
           ),
         );
         
-        final sizeText = '${tile.image.width}x${tile.image.height}';
-        final sizeTextPainter = TextPainter(
+        // Отображаем количество узлов в тайле
+        final tileIndex = state.imageTiles.indexOf(tile);
+        final nodesCount = state.tileToNodes[tileIndex]?.length ?? 0;
+        final countText = 'узлов: $nodesCount';
+        
+        final countTextPainter = TextPainter(
           text: TextSpan(
-            text: sizeText,
+            text: countText,
             style: TextStyle(
-              color: Colors.red.withOpacity(0.8),
+              color: Colors.blue.withOpacity(0.8),
               fontSize: 10 / scale,
             ),
           ),
           textDirection: TextDirection.ltr,
         )..layout();
         
-        sizeTextPainter.paint(
+        countTextPainter.paint(
           canvas,
           Offset(
-            tile.bounds.right - sizeTextPainter.width - 2 / scale,
-            tile.bounds.bottom - sizeTextPainter.height - 2 / scale,
+            tile.bounds.right - countTextPainter.width - 2 / scale,
+            tile.bounds.top + 2 / scale,
           ),
         );
       }
-    }
-    
-    if (imageTiles.isNotEmpty) {
-      final totalBorderPaint = Paint()
-        ..color = Colors.red.withOpacity(0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0 / scale
-        ..isAntiAlias = true;
-      
-      canvas.drawRect(totalBounds, totalBorderPaint);
-      
-      final totalText = 'Total bounds: ${totalBounds.width.toStringAsFixed(0)}x${totalBounds.height.toStringAsFixed(0)}';
-      final totalTextPainter = TextPainter(
-        text: TextSpan(
-          text: totalText,
-          style: TextStyle(
-            color: Colors.red.withOpacity(0.8),
-            fontSize: 12 / scale,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      
-      totalTextPainter.paint(
-        canvas,
-        Offset(
-          totalBounds.left + 5 / scale,
-          totalBounds.top + 5 / scale,
-        ),
-      );
     }
     
     canvas.restore();
@@ -126,7 +95,6 @@ class TileBorderPainter extends CustomPainter {
   bool shouldRepaint(covariant TileBorderPainter oldDelegate) {
     return oldDelegate.scale != scale ||
         oldDelegate.offset != offset ||
-        oldDelegate.imageTiles.length != imageTiles.length ||
-        oldDelegate.totalBounds != totalBounds;
+        oldDelegate.state.imageTiles.length != state.imageTiles.length;
   }
 }

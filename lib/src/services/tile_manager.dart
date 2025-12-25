@@ -17,6 +17,9 @@ class TileManager {
   final BoundsCalculator _boundsCalculator = BoundsCalculator();
   final NodeRenderer _nodeRenderer = NodeRenderer();
   
+  // Временное хранилище для узлов, которые перемещаются
+  final Map<TableNode, Set<String>> _movedNodesSourceTiles = {};
+  
   TileManager({
     required this.state,
     required this.onStateUpdate,
@@ -32,21 +35,14 @@ class TileManager {
       // Очищаем старые данные
       _disposeTiles();
       
-      final bounds = _boundsCalculator.calculateTotalBounds(
-        nodes: nodes,
-        delta: state.delta,
-        cache: state.nodeBoundsCache,
-      );
-      
-      if (bounds == null) {
-        await createFallbackTiles();
+      if (nodes.isEmpty) {
+        // Если узлов нет, создаем несколько пустых тайлов для начала
+        await _createInitialTiles();
         return;
       }
       
-      state.totalBounds = bounds;
-      print('Общие границы: $bounds');
-      
-      final tiles = await _createAllTiles(bounds, nodes);
+      // Создаем тайлы только там где есть узлы
+      final tiles = await _createTilesForNodes(nodes);
       
       state.imageTiles = tiles;
       print('Создано ${tiles.length} тайлов');
@@ -62,44 +58,57 @@ class TileManager {
     }
   }
   
-  Future<List<ImageTile>> _createAllTiles(Rect bounds, List<TableNode> allNodes) async {
+  // Создание начальных тайлов
+  Future<void> _createInitialTiles() async {
+    print('Создание начальных тайлов...');
+    
+    // Создаем 4 тайла для начальной видимой области
+    final tiles = await _createTilesInGrid(0, 0, 2, 2, []);
+    
+    state.imageTiles = tiles;
+    state.isLoading = false;
+    onStateUpdate();
+  }
+  
+  // Создание тайлов для узлов
+  Future<List<ImageTile>> _createTilesForNodes(List<TableNode> allNodes) async {
     final List<ImageTile> tiles = [];
-    final double tileWorldSize = EditorConfig.tileSize / EditorConfig.tileScale;
+    final Set<String> createdTileIds = {}; // Для отслеживания созданных тайлов
     
-    final int tilesX = math.max(1, (bounds.width / tileWorldSize).ceil());
-    final int tilesY = math.max(1, (bounds.height / tileWorldSize).ceil());
-    
-    print('Создаем $tilesX x $tilesY тайлов');
-    
-    // Создаем все тайлы
-    for (int y = 0; y < tilesY; y++) {
-      for (int x = 0; x < tilesX; x++) {
-        try {
-          final tileWorldLeft = bounds.left + (x * tileWorldSize);
-          final tileWorldTop = bounds.top + (y * tileWorldSize);
-          final tileWorldRight = math.min(bounds.right, tileWorldLeft + tileWorldSize);
-          final tileWorldBottom = math.min(bounds.bottom, tileWorldTop + tileWorldSize);
-          
-          final tileBounds = Rect.fromLTRB(
-            tileWorldLeft,
-            tileWorldTop,
-            tileWorldRight,
-            tileWorldBottom,
-          );
-          
-          final tileIndex = y * tilesX + x;
-          
-          final tile = await _createTile(tileBounds, tileIndex, allNodes);
-          if (tile != null) {
-            tiles.add(tile);
+    // Для каждого узла создаем тайлы в нужных позициях
+    for (final node in allNodes) {
+      final nodesInHierarchy = _collectAllNodes(node);
+      
+      for (final currentNode in nodesInHierarchy) {
+        final nodePosition = _getAbsolutePosition(currentNode, node);
+        final nodeRect = _boundsCalculator.calculateNodeRect(
+          node: currentNode,
+          position: nodePosition,
+        );
+        
+        // Рассчитываем grid позиции, которые покрывает узел
+        final tileWorldSize = EditorConfig.tileSize.toDouble();
+        final gridXStart = (nodeRect.left / tileWorldSize).floor();
+        final gridYStart = (nodeRect.top / tileWorldSize).floor();
+        final gridXEnd = (nodeRect.right / tileWorldSize).ceil();
+        final gridYEnd = (nodeRect.bottom / tileWorldSize).ceil();
+        
+        // Создаем тайлы для всех grid позиций
+        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            final tileId = _generateTileId(left, top);
+            
+            if (!createdTileIds.contains(tileId)) {
+              // Создаем тайл в этой позиции
+              final tile = await _createTileAtPosition(left, top, allNodes);
+              if (tile != null) {
+                tiles.add(tile);
+                createdTileIds.add(tileId);
+              }
+            }
           }
-          
-          // Небольшая пауза для предотвращения перегрузки
-          if ((x + y * tilesX) % 2 == 0) {
-            await Future.delayed(Duration(milliseconds: 1));
-          }
-        } catch (e) {
-          print('Ошибка создания тайла [$x, $y]: $e');
         }
       }
     }
@@ -107,287 +116,141 @@ class TileManager {
     return tiles;
   }
   
-  Future<ImageTile?> _createTile(Rect bounds, int tileIndex, List<TableNode> allNodes) async {
+  // Генерация ID тайла на основе мировых координат
+  String _generateTileId(double left, double top) {
+    return '${left.toInt()}:${top.toInt()}';
+  }
+  
+  // Создание тайла в указанной позиции
+  Future<ImageTile?> _createTileAtPosition(double left, double top, List<TableNode> allNodes) async {
     try {
-      // Получаем только КОРНЕВЫЕ узлы для этого тайла
-      final rootNodesInTile = _getRootNodesForTile(
-        bounds: bounds,
-        allNodes: allNodes,
-        delta: state.delta,
-        excludedNode: state.isNodeOnTopLayer ? state.selectedNodeOnTopLayer : null,
+      final tileWorldSize = EditorConfig.tileSize.toDouble();
+      
+      // Всегда создаем тайл фиксированного размера, кратного 1024
+      final tileBounds = Rect.fromLTRB(
+        left,
+        top,
+        left + tileWorldSize,
+        top + tileWorldSize,
       );
       
-      // Даже если корневых узлов нет, создаем пустой тайл для сохранения структуры
+      // ID тайла в формате 'left:top' (мировые координаты)
+      final tileId = _generateTileId(left, top);
       
-      // Рассчитываем размеры изображения
-      final double width = bounds.width;
-      final double height = bounds.height;
+      // Получаем узлы для этого тайла (исключая выделенные)
+      final nodesInTile = _getNodesForTile(tileBounds, allNodes);
       
-      final int tileWidth = math.max(1, (width * EditorConfig.tileScale).ceil());
-      final int tileHeight = math.max(1, (height * EditorConfig.tileScale).ceil());
-      
-      final int finalWidth = math.min(EditorConfig.tileSize, tileWidth);
-      final int finalHeight = math.min(EditorConfig.tileSize, tileHeight);
-      
-      if (finalWidth <= 0 || finalHeight <= 0) {
-        return null;
-      }
+      // Фиксированный размер изображения
+      final int tileImageSize = EditorConfig.tileSize;
+      final double scale = 1.0; // Масштаб 1:1
       
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       
-      canvas.scale(EditorConfig.tileScale, EditorConfig.tileScale);
-      canvas.translate(-bounds.left, -bounds.top);
+      canvas.scale(scale, scale);
+      canvas.translate(-tileBounds.left, -tileBounds.top);
       
       // Прозрачный фон
       canvas.drawRect(
-        bounds,
+        tileBounds,
         Paint()
           ..color = Colors.transparent
           ..blendMode = BlendMode.src,
       );
       
-      // Рисуем только КОРНЕВЫЕ узлы, их дети нарисуются рекурсивно
-      _nodeRenderer.drawRootNodesToTile(
-        canvas: canvas,
-        rootNodes: rootNodesInTile,
-        tileBounds: bounds,
-        delta: state.delta,
-        cache: state.nodeBoundsCache,
-      );
+      // Рисуем узлы, если они есть
+      if (nodesInTile.isNotEmpty) {
+        final rootNodes = _filterRootNodes(nodesInTile);
+        _nodeRenderer.drawRootNodesToTile(
+          canvas: canvas,
+          rootNodes: rootNodes,
+          tileBounds: tileBounds,
+          delta: state.delta,
+          cache: state.nodeBoundsCache,
+        );
+      }
       
       final picture = recorder.endRecording();
-      final image = await picture.toImage(finalWidth, finalHeight);
+      final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
       
-      // Создаем карту узлов для этого тайла (включая детей через рекурсию)
-      _updateNodeTileMappings(tileIndex, _getAllNodesFromRoots(rootNodesInTile));
+      // Создаем карту узлов для этого тайла
+      _updateNodeTileMappings(tileId, nodesInTile);
       
       return ImageTile(
         image: image,
-        bounds: bounds,
-        scale: EditorConfig.tileScale,
-        index: tileIndex,
+        bounds: tileBounds,
+        scale: scale,
+        id: tileId,
       );
       
     } catch (e) {
-      print('Ошибка создания тайла [$tileIndex]: $e');
+      print('Ошибка создания тайла в позиции [$left, $top]: $e');
       return null;
     }
   }
   
-  /// Получает только корневые узлы для тайла (узлы без родителей в этом тайле)
-  List<TableNode> _getRootNodesForTile({
-    required Rect bounds,
-    required List<TableNode> allNodes,
-    required Offset delta,
-    required TableNode? excludedNode,
-  }) {
-    final List<TableNode> rootNodes = [];
+  // Получение узлов для тайла (исключая выделенные)
+  List<TableNode> _getNodesForTile(Rect bounds, List<TableNode> allNodes) {
+    final List<TableNode> nodesInTile = [];
     
-    void checkNode(TableNode node, Offset parentOffset, bool isRoot) {
-      // Пропускаем исключенный узел
-      if (excludedNode != null && node.id == excludedNode.id) {
-        return;
-      }
-      
+    void checkNode(TableNode node, Offset parentOffset) {
       final shiftedPosition = node.position + parentOffset;
       final nodeRect = _boundsCalculator.calculateNodeRect(
         node: node,
         position: shiftedPosition,
       );
       
-      // Проверяем пересечение с тайлом
-      if (nodeRect.overlaps(bounds)) {
-        // Если это корневой узел (без родителя в списке), добавляем его
-        if (isRoot) {
-          rootNodes.add(node);
-        }
+      // Проверяем, является ли узел выделенным (на верхнем слое)
+      final isSelectedNode = state.isNodeOnTopLayer && 
+          state.selectedNodeOnTopLayer != null &&
+          _isNodeInHierarchy(node, state.selectedNodeOnTopLayer!);
+      
+      // Если узел не выделенный и пересекается с тайлом, добавляем его
+      if (!isSelectedNode && nodeRect.overlaps(bounds)) {
+        nodesInTile.add(node);
       }
       
       // Рекурсивно проверяем детей
       if (node.children != null && node.children!.isNotEmpty) {
         for (final child in node.children!) {
-          checkNode(child, shiftedPosition, false); // Дети не корневые
+          checkNode(child, shiftedPosition);
         }
       }
     }
     
-    // Начинаем с корневых узлов
     for (final node in allNodes) {
-      checkNode(node, delta, true);
+      checkNode(node, state.delta);
     }
     
-    return rootNodes;
+    return nodesInTile;
   }
   
-  /// Получает все узлы (включая детей) из списка корневых узлов
-  List<TableNode> _getAllNodesFromRoots(List<TableNode> rootNodes) {
-    final List<TableNode> allNodes = [];
+  // Создание тайлов в grid сетке
+  Future<List<ImageTile>> _createTilesInGrid(int startX, int startY, int width, int height, List<TableNode> allNodes) async {
+    final List<ImageTile> tiles = [];
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
     
-    void collectNodes(TableNode node) {
-      allNodes.add(node);
-      if (node.children != null && node.children!.isNotEmpty) {
-        for (final child in node.children!) {
-          collectNodes(child);
+    for (int y = startY; y < startY + height; y++) {
+      for (int x = startX; x < startX + width; x++) {
+        final left = x * tileWorldSize;
+        final top = y * tileWorldSize;
+        final tile = await _createTileAtPosition(left, top, allNodes);
+        if (tile != null) {
+          tiles.add(tile);
         }
       }
     }
     
-    for (final root in rootNodes) {
-      collectNodes(root);
-    }
-    
-    return allNodes;
+    return tiles;
   }
   
-  void _updateNodeTileMappings(int tileIndex, List<TableNode> nodesInTile) {
-    // Сохраняем узлы для этого тайла
-    state.tileToNodes[tileIndex] = nodesInTile;
-    
-    // Обновляем обратное отображение (узел -> тайлы)
-    for (final node in nodesInTile) {
-      if (!state.nodeToTiles.containsKey(node)) {
-        state.nodeToTiles[node] = {};
-      }
-      state.nodeToTiles[node]!.add(tileIndex);
-    }
-  }
-  
-  Future<void> removeNodeFromTiles(TableNode node) async {
-    print('Удаление узла "${node.text}" из тайлов');
-    
-    // Собираем ВСЕ узлы для удаления (сам узел + все его дети)
-    final List<TableNode> nodesToRemove = _collectAllNodes(node);
-    
-    print('Удаляем ${nodesToRemove.length} узлов: ${nodesToRemove.map((n) => n.text).toList()}');
-    
-    // Для каждого узла удаляем из тайлов
-    for (final nodeToRemove in nodesToRemove) {
-      final tileIndices = state.nodeToTiles[nodeToRemove];
-      if (tileIndices == null || tileIndices.isEmpty) {
-        print('Узел "${nodeToRemove.text}" не найден в тайлах');
-        continue;
-      }
-      
-      print('Обновление тайлов для узла "${nodeToRemove.text}": ${tileIndices.toList()}');
-      
-      // Обновляем каждый тайл, удаляя узел
-      for (final tileIndex in tileIndices) {
-        await _updateTileWithoutNode(tileIndex, nodeToRemove);
-      }
-      
-      // Удаляем узел из кэша
-      state.nodeToTiles.remove(nodeToRemove);
-    }
-  }
-  
-  /// Собирает все узлы в иерархии (сам узел + все его дети рекурсивно)
-  List<TableNode> _collectAllNodes(TableNode rootNode) {
-    final List<TableNode> allNodes = [rootNode];
-    
-    void collectChildren(TableNode node) {
-      if (node.children != null && node.children!.isNotEmpty) {
-        for (final child in node.children!) {
-          allNodes.add(child);
-          collectChildren(child);
-        }
-      }
+  // Получение абсолютной позиции узла в иерархии
+  Offset _getAbsolutePosition(TableNode targetNode, TableNode rootNode) {
+    if (targetNode.id == rootNode.id) {
+      return state.delta + rootNode.position;
     }
     
-    collectChildren(rootNode);
-    return allNodes;
-  }
-  
-  Future<void> _updateTileWithoutNode(int tileIndex, TableNode nodeToRemove) async {
-    if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
-      print('Неверный индекс тайла: $tileIndex');
-      return;
-    }
-    
-    try {
-      final oldTile = state.imageTiles[tileIndex];
-      final bounds = oldTile.bounds;
-      
-      // Получаем текущие узлы для этого тайла
-      final currentNodes = state.tileToNodes[tileIndex] ?? [];
-      
-      // Фильтруем узлы, исключая удаляемый и всех его детей
-      final List<TableNode> nodesToRemove = _collectAllNodes(nodeToRemove);
-      final Set<String> nodesToRemoveIds = nodesToRemove.map((n) => n.id).toSet();
-      
-      final filteredNodes = currentNodes.where((node) => !nodesToRemoveIds.contains(node.id)).toList();
-      
-      // Обновляем кэш
-      state.tileToNodes[tileIndex] = filteredNodes;
-      
-      // Освобождаем старое изображение
-      oldTile.image.dispose();
-      
-      // Создаем новый тайл
-      final newTile = await _createUpdatedTile(bounds, tileIndex, filteredNodes);
-      if (newTile != null) {
-        state.imageTiles[tileIndex] = newTile;
-      }
-      
-      onStateUpdate();
-    } catch (e) {
-      print('Ошибка обновления тайла [$tileIndex] без узла: $e');
-    }
-  }
-  
-  Future<void> addNodeToTiles(TableNode node, Offset nodePosition) async {
-    print('Добавление узла "${node.text}" в тайлы на позиции $nodePosition');
-    
-    // Собираем ВСЕ узлы для добавления (сам узел + все его дети)
-    final List<TableNode> nodesToAdd = _collectAllNodes(node);
-    
-    print('Добавляем ${nodesToAdd.length} узлов: ${nodesToAdd.map((n) => n.text).toList()}');
-    
-    // Для каждого узла определяем тайлы и добавляем
-    for (final nodeToAdd in nodesToAdd) {
-      // Для детей позиция рассчитывается относительно родителя
-      final childNodePosition = nodePosition + _getRelativePosition(node, nodeToAdd);
-      
-      // Определяем, в какие тайлы попадает узел с его позицией
-      final tileIndices = _boundsCalculator.getTileIndicesForNode(
-        node: nodeToAdd,
-        nodePosition: childNodePosition,
-        imageTiles: state.imageTiles,
-      );
-      
-      if (tileIndices.isEmpty) {
-        print('Узел "${nodeToAdd.text}" не попадает ни в один тайл');
-        continue;
-      }
-      
-      print('Узел "${nodeToAdd.text}" попадает в тайлы: ${tileIndices.toList()}');
-      
-      // Обновляем кэш
-      state.nodeToTiles[nodeToAdd] = tileIndices;
-      
-      // Обновляем каждый тайл
-      for (final tileIndex in tileIndices) {
-        // Добавляем узел в список узлов тайла (если еще нет)
-        final nodesInTile = state.tileToNodes[tileIndex] ?? [];
-        if (!nodesInTile.any((n) => n.id == nodeToAdd.id)) {
-          nodesInTile.add(nodeToAdd);
-          state.tileToNodes[tileIndex] = nodesInTile;
-        }
-        
-        // Обновляем тайл
-        await _updateTileWithAllNodes(tileIndex);
-      }
-    }
-  }
-  
-  /// Получает позицию дочернего узла относительно корневого родителя
-  Offset _getRelativePosition(TableNode rootNode, TableNode targetNode) {
-    if (rootNode.id == targetNode.id) {
-      return Offset.zero;
-    }
-    
-    // Ищем путь от rootNode к targetNode
     Offset? findPath(TableNode currentNode, Offset currentOffset) {
       if (currentNode.id == targetNode.id) {
         return currentOffset;
@@ -395,8 +258,7 @@ class TileManager {
       
       if (currentNode.children != null) {
         for (final child in currentNode.children!) {
-          final childOffset = currentOffset + child.position;
-          final found = findPath(child, childOffset);
+          final found = findPath(child, currentOffset + child.position);
           if (found != null) {
             return found;
           }
@@ -406,100 +268,60 @@ class TileManager {
       return null;
     }
     
-    final path = findPath(rootNode, Offset.zero);
-    return path ?? Offset.zero;
+    final rootPosition = state.delta + rootNode.position;
+    final found = findPath(rootNode, rootPosition);
+    return found ?? rootPosition;
   }
   
-  Future<void> _updateTileWithAllNodes(int tileIndex) async {
-    if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
-      print('Неверный индекс тайла для обновления: $tileIndex');
+  // Проверка, находится ли узел в иерархии другого узла
+  bool _isNodeInHierarchy(TableNode node, TableNode rootNode) {
+    if (node.id == rootNode.id) return true;
+    
+    if (rootNode.children != null) {
+      for (final child in rootNode.children!) {
+        if (_isNodeInHierarchy(node, child)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  // Обновляем метод для работы с String id
+  void _updateNodeTileMappings(String tileId, List<TableNode> nodesInTile) {
+    // Ищем индекс тайла по id
+    final tileIndex = _findTileIndexById(tileId);
+    if (tileIndex == null) {
+      print('Тайл с id $tileId не найден для обновления маппинга');
       return;
     }
     
-    try {
-      final oldTile = state.imageTiles[tileIndex];
-      final bounds = oldTile.bounds;
-      
-      final nodesInTile = state.tileToNodes[tileIndex] ?? [];
-      
-      // Освобождаем старое изображение
-      oldTile.image.dispose();
-      
-      // Создаем новый тайл со всеми узлами
-      final newTile = await _createUpdatedTile(bounds, tileIndex, nodesInTile);
-      if (newTile != null) {
-        state.imageTiles[tileIndex] = newTile;
-      }
-      
-      onStateUpdate();
-    } catch (e) {
-      print('Ошибка обновления тайла [$tileIndex]: $e');
-    }
-  }
-  
-  Future<ImageTile?> _createUpdatedTile(Rect bounds, int tileIndex, List<TableNode> nodes) async {
-    try {
-      // Фильтруем узлы, оставляя только корневые
-      final rootNodes = _filterRootNodes(nodes);
-      
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      
-      canvas.scale(EditorConfig.tileScale, EditorConfig.tileScale);
-      canvas.translate(-bounds.left, -bounds.top);
-      
-      // Прозрачный фон
-      canvas.drawRect(
-        bounds,
-        Paint()
-          ..color = Colors.transparent
-          ..blendMode = BlendMode.src,
-      );
-      
-      // Рисуем только корневые узлы
-      _nodeRenderer.drawRootNodesToTile(
-        canvas: canvas,
-        rootNodes: rootNodes,
-        tileBounds: bounds,
-        delta: state.delta,
-        cache: state.nodeBoundsCache,
-      );
-      
-      final picture = recorder.endRecording();
-      
-      final double width = bounds.width;
-      final double height = bounds.height;
-      final int tileWidth = math.max(1, (width * EditorConfig.tileScale).ceil());
-      final int tileHeight = math.max(1, (height * EditorConfig.tileScale).ceil());
-      final int finalWidth = math.min(EditorConfig.tileSize, tileWidth);
-      final int finalHeight = math.min(EditorConfig.tileSize, tileHeight);
-      
-      final image = await picture.toImage(finalWidth, finalHeight);
-      picture.dispose();
-      
-      return ImageTile(
-        image: image,
-        bounds: bounds,
-        scale: EditorConfig.tileScale,
-        index: tileIndex,
-      );
-      
-    } catch (e) {
-      print('Ошибка создания обновленного тайла [$tileIndex]: $e');
-      return null;
-    }
-  }
-  
-  /// Фильтрует список узлов, оставляя только корневые (без родителей в списке)
-  List<TableNode> _filterRootNodes(List<TableNode> allNodes) {
-    // Создаем Set ID всех узлов для быстрой проверки
-    final allIds = allNodes.map((n) => n.id).toSet();
+    state.tileToNodes[tileIndex] = nodesInTile;
     
+    for (final node in nodesInTile) {
+      if (!state.nodeToTiles.containsKey(node)) {
+        state.nodeToTiles[node] = {};
+      }
+      state.nodeToTiles[node]!.add(tileIndex);
+    }
+  }
+  
+  // Поиск индекса тайла по id
+  int? _findTileIndexById(String tileId) {
+    for (int i = 0; i < state.imageTiles.length; i++) {
+      if (state.imageTiles[i].id == tileId) {
+        return i;
+      }
+    }
+    return null;
+  }
+  
+  // Фильтрация корневых узлов
+  List<TableNode> _filterRootNodes(List<TableNode> allNodes) {
     return allNodes.where((node) {
-      // Проверяем, есть ли у этого узла родитель в списке
       bool hasParentInList = false;
       
-      // Ищем родителя (нужно пройти по всем узлам и проверить их children)
       for (final potentialParent in allNodes) {
         if (potentialParent.children != null) {
           for (final child in potentialParent.children!) {
@@ -516,36 +338,398 @@ class TileManager {
     }).toList();
   }
   
-  Future<void> createFallbackTiles() async {
-    try {
-      print('Создание запасных тайлов...');
+  // Удаление выделенного узла из тайлов
+  Future<void> removeSelectedNodeFromTiles(TableNode node) async {
+    print('=== УДАЛЕНИЕ ВЫДЕЛЕННОГО УЗЛА "${node.text}" ИЗ ТАЙЛОВ ===');
+    
+    final nodesToRemove = _collectAllNodes(node);
+    
+    print('Удаляем ${nodesToRemove.length} узлов иерархии');
+    
+    // Сохраняем информацию о исходных тайлах для последующей проверки
+    for (final nodeToRemove in nodesToRemove) {
+      final tileIndices = state.nodeToTiles[nodeToRemove];
+      if (tileIndices == null || tileIndices.isEmpty) {
+        print('Узел "${nodeToRemove.text}" не найден в тайлах');
+        continue;
+      }
       
-      state.totalBounds = Rect.fromLTRB(0, 0, 2000, 2000);
-      final bounds = Rect.fromLTRB(0, 0, 2000, 2000);
+      // Сохраняем id тайлов, из которых удаляем узел
+      final sourceTileIds = <String>{};
+      for (final tileIndex in tileIndices) {
+        if (tileIndex < state.imageTiles.length) {
+          sourceTileIds.add(state.imageTiles[tileIndex].id);
+        }
+      }
+      
+      _movedNodesSourceTiles[nodeToRemove] = sourceTileIds;
+      
+      print('Узел "${nodeToRemove.text}" находится в тайлах: ${sourceTileIds.toList()}');
+      
+      // Удаляем узел из тайлов
+      for (final tileIndex in tileIndices) {
+        await _removeNodeFromTile(tileIndex, nodeToRemove);
+      }
+      
+      // Удаляем узел из кэша
+      state.nodeToTiles.remove(nodeToRemove);
+    }
+  }
+  
+  // Удаление конкретного узла из тайла
+  Future<void> _removeNodeFromTile(int tileIndex, TableNode nodeToRemove) async {
+    if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
+      print('Неверный индекс тайла: $tileIndex');
+      return;
+    }
+    
+    try {
+      final oldTile = state.imageTiles[tileIndex];
+      final tileId = oldTile.id;
+      final bounds = oldTile.bounds;
+      
+      final currentNodes = state.tileToNodes[tileIndex] ?? [];
+      
+      // Удаляем узел и всех его детей
+      final nodesToRemove = _collectAllNodes(nodeToRemove);
+      final nodesToRemoveIds = nodesToRemove.map((n) => n.id).toSet();
+      final filteredNodes = currentNodes.where((node) => !nodesToRemoveIds.contains(node.id)).toList();
+      
+      print('Тайл $tileId: было ${currentNodes.length} узлов, осталось ${filteredNodes.length}');
+      
+      state.tileToNodes[tileIndex] = filteredNodes;
+      
+      oldTile.image.dispose();
+      
+      // Перерисовываем тайл со всеми оставшимися узлами
+      final newTile = await _createUpdatedTile(bounds, tileId, filteredNodes);
+      if (newTile != null) {
+        state.imageTiles[tileIndex] = newTile;
+      }
+      
+      onStateUpdate();
+    } catch (e) {
+      print('Ошибка удаления узла "${nodeToRemove.text}" из тайла: $e');
+    }
+  }
+  
+  // Проверка и удаление пустого тайла
+  Future<void> _checkAndRemoveEmptyTile(String tileId) async {
+    final tileIndex = _findTileIndexById(tileId);
+    if (tileIndex == null) return;
+    
+    final nodesInTile = state.tileToNodes[tileIndex];
+    if (nodesInTile == null || nodesInTile.isEmpty) {
+      print('Тайл $tileId пустой, удаляем...');
+      await _removeTile(tileId);
+    }
+  }
+  
+  // Удаление тайла по id
+  Future<void> _removeTile(String tileId) async {
+    final tileIndex = _findTileIndexById(tileId);
+    if (tileIndex == null) return;
+    
+    try {
+      final tile = state.imageTiles[tileIndex];
+      tile.image.dispose();
+      
+      // Удаляем тайл из списка
+      state.imageTiles.removeAt(tileIndex);
+      
+      // Удаляем связанные данные
+      state.tileToNodes.remove(tileIndex);
+      
+      // Обновляем маппинги индексов для остальных тайлов
+      _reindexTileMappings(tileIndex);
+      
+      print('Тайл $tileId удален');
+      
+      onStateUpdate();
+    } catch (e) {
+      print('Ошибка удаления тайла $tileId: $e');
+    }
+  }
+  
+  // Переиндексация маппингов после удаления тайла
+  void _reindexTileMappings(int removedIndex) {
+    // Обновляем tileToNodes
+    final newTileToNodes = <int, List<TableNode>>{};
+    for (final entry in state.tileToNodes.entries) {
+      if (entry.key > removedIndex) {
+        newTileToNodes[entry.key - 1] = entry.value;
+      } else if (entry.key < removedIndex) {
+        newTileToNodes[entry.key] = entry.value;
+      }
+    }
+    state.tileToNodes.clear();
+    state.tileToNodes.addAll(newTileToNodes);
+    
+    // Обновляем nodeToTiles
+    for (final entry in state.nodeToTiles.entries) {
+      final newIndices = <int>{};
+      for (final index in entry.value) {
+        if (index > removedIndex) {
+          newIndices.add(index - 1);
+        } else if (index < removedIndex) {
+          newIndices.add(index);
+        }
+      }
+      state.nodeToTiles[entry.key] = newIndices;
+    }
+  }
+  
+  List<TableNode> _collectAllNodes(TableNode rootNode) {
+    final List<TableNode> allNodes = [rootNode];
+    
+    void collectChildren(TableNode node) {
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          allNodes.add(child);
+          collectChildren(child);
+        }
+      }
+    }
+    
+    collectChildren(rootNode);
+    return allNodes;
+  }
+  
+  // Добавление узла в тайлы (после перемещения)
+  Future<void> addNodeToTiles(TableNode node, Offset nodePosition) async {
+    print('=== СОХРАНЕНИЕ УЗЛА В НОВОМ МЕСТЕ ===');
+    print('Узел: "${node.text}" на позиции $nodePosition');
+    
+    final nodesToAdd = _collectAllNodes(node);
+    
+    print('Добавляем ${nodesToAdd.length} узлов иерархии');
+    
+    // Создаем новые тайлы для нового положения узла
+    for (final nodeToAdd in nodesToAdd) {
+      final childNodePosition = nodePosition + _getRelativePosition(node, nodeToAdd);
+      
+      // Рассчитываем границы узла
+      final nodeRect = _boundsCalculator.calculateNodeRect(
+        node: nodeToAdd,
+        position: childNodePosition,
+      );
+      
+      // Рассчитываем grid позиции, которые покрывает узел
+      final tileWorldSize = EditorConfig.tileSize.toDouble();
+      final gridXStart = (nodeRect.left / tileWorldSize).floor();
+      final gridYStart = (nodeRect.top / tileWorldSize).floor();
+      final gridXEnd = (nodeRect.right / tileWorldSize).ceil();
+      final gridYEnd = (nodeRect.bottom / tileWorldSize).ceil();
+      
+      print('Узел "${nodeToAdd.text}" покрывает grid позиции: X[$gridXStart..$gridXEnd], Y[$gridYStart..$gridYEnd]');
+      
+      // Обрабатываем все grid позиции
+      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+          final left = gridX * tileWorldSize;
+          final top = gridY * tileWorldSize;
+          final tileId = _generateTileId(left, top);
+          
+          // Ищем существующий тайл в этой позиции
+          int? existingTileIndex = _findTileIndexById(tileId);
+          
+          if (existingTileIndex == null) {
+            // СОЗДАЕМ НОВЫЙ ТАЙЛ в этой позиции
+            print('Создаем новый тайл $tileId в позиции [$left, $top]');
+            await _createNewTileAtPosition(left, top, nodeToAdd);
+          } else {
+            // Добавляем узел в существующий тайл
+            final nodesInTile = state.tileToNodes[existingTileIndex] ?? [];
+            if (!nodesInTile.any((n) => n.id == nodeToAdd.id)) {
+              nodesInTile.add(nodeToAdd);
+              state.tileToNodes[existingTileIndex] = nodesInTile;
+              
+              // Обновляем кэш
+              if (!state.nodeToTiles.containsKey(nodeToAdd)) {
+                state.nodeToTiles[nodeToAdd] = {};
+              }
+              state.nodeToTiles[nodeToAdd]!.add(existingTileIndex);
+              
+              // Перерисовываем тайл со ВСЕМИ узлами
+              await _updateTileWithAllNodes(existingTileIndex);
+            }
+          }
+        }
+      }
+    }
+    
+    // Теперь проверяем исходные тайлы на пустоту (после того как узел добавлен в новые места)
+    await _checkSourceTilesAfterMove(nodesToAdd);
+    
+    onStateUpdate();
+  }
+  
+  // Проверка исходных тайлов после перемещения узла
+  Future<void> _checkSourceTilesAfterMove(List<TableNode> movedNodes) async {
+    print('=== ПРОВЕРКА ИСХОДНЫХ ТАЙЛОВ ПОСЛЕ ПЕРЕМЕЩЕНИЯ ===');
+    
+    final Set<String> sourceTilesToCheck = {};
+    
+    // Собираем все исходные тайлы для перемещенных узлов
+    for (final node in movedNodes) {
+      final sourceTileIds = _movedNodesSourceTiles[node];
+      if (sourceTileIds != null) {
+        sourceTilesToCheck.addAll(sourceTileIds);
+      }
+    }
+    
+    // Проверяем каждый исходный тайл
+    for (final tileId in sourceTilesToCheck) {
+      await _checkAndRemoveEmptyTile(tileId);
+    }
+    
+    // Очищаем временное хранилище
+    for (final node in movedNodes) {
+      _movedNodesSourceTiles.remove(node);
+    }
+  }
+  
+  // Создание нового тайла в указанной позиции
+  Future<void> _createNewTileAtPosition(double left, double top, TableNode nodeToAdd) async {
+    try {
+      final tileId = _generateTileId(left, top);
+      
+      // Проверяем, не существует ли уже тайл с таким id
+      if (_findTileIndexById(tileId) != null) {
+        print('Тайл $tileId уже существует');
+        return;
+      }
+      
+      // Создаем новый тайл только с этим узлом
+      final tile = await _createTileAtPosition(left, top, [nodeToAdd]);
+      
+      if (tile != null) {
+        state.imageTiles.add(tile);
+        
+        // Обновляем маппинги
+        final tileIndex = state.imageTiles.length - 1;
+        final nodesInTile = [nodeToAdd];
+        state.tileToNodes[tileIndex] = nodesInTile;
+        
+        if (!state.nodeToTiles.containsKey(nodeToAdd)) {
+          state.nodeToTiles[nodeToAdd] = {};
+        }
+        state.nodeToTiles[nodeToAdd]!.add(tileIndex);
+        
+        print('Создан новый тайл $tileId в позиции [$left, $top]');
+      }
+    } catch (e) {
+      print('Ошибка создания нового тайла: $e');
+    }
+  }
+  
+  Offset _getRelativePosition(TableNode rootNode, TableNode targetNode) {
+    if (rootNode.id == targetNode.id) return Offset.zero;
+    
+    Offset? findPath(TableNode currentNode, Offset currentOffset) {
+      if (currentNode.id == targetNode.id) return currentOffset;
+      
+      if (currentNode.children != null) {
+        for (final child in currentNode.children!) {
+          final childOffset = currentOffset + child.position;
+          final found = findPath(child, childOffset);
+          if (found != null) return found;
+        }
+      }
+      
+      return null;
+    }
+    
+    return findPath(rootNode, Offset.zero) ?? Offset.zero;
+  }
+  
+  // Обновление тайла со ВСЕМИ узлами
+  Future<void> _updateTileWithAllNodes(int tileIndex) async {
+    if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
+      print('Неверный индекс тайла для обновления: $tileIndex');
+      return;
+    }
+    
+    try {
+      final oldTile = state.imageTiles[tileIndex];
+      final tileId = oldTile.id;
+      final bounds = oldTile.bounds;
+      
+      final nodesInTile = state.tileToNodes[tileIndex] ?? [];
+      
+      oldTile.image.dispose();
+      
+      // Перерисовываем тайл со ВСЕМИ узлами
+      final newTile = await _createUpdatedTile(bounds, tileId, nodesInTile);
+      if (newTile != null) {
+        state.imageTiles[tileIndex] = newTile;
+      }
+      
+      onStateUpdate();
+    } catch (e) {
+      print('Ошибка обновления тайла [$tileIndex]: $e');
+    }
+  }
+  
+  // Создание обновленного тайла
+  Future<ImageTile?> _createUpdatedTile(Rect bounds, String tileId, List<TableNode> nodes) async {
+    try {
+      final rootNodes = _filterRootNodes(nodes);
+      
+      final int tileImageSize = EditorConfig.tileSize;
+      final double scale = 1.0;
       
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       
+      canvas.scale(scale, scale);
+      canvas.translate(-bounds.left, -bounds.top);
+      
       canvas.drawRect(
         bounds,
-        Paint()..color = Colors.transparent,
+        Paint()
+          ..color = Colors.transparent
+          ..blendMode = BlendMode.src,
       );
       
+      if (rootNodes.isNotEmpty) {
+        _nodeRenderer.drawRootNodesToTile(
+          canvas: canvas,
+          rootNodes: rootNodes,
+          tileBounds: bounds,
+          delta: state.delta,
+          cache: state.nodeBoundsCache,
+        );
+      }
+      
       final picture = recorder.endRecording();
-      final image = await picture.toImage(100, 100);
+      
+      final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
+      
+      return ImageTile(
+        image: image,
+        bounds: bounds,
+        scale: scale,
+        id: tileId,
+      );
+      
+    } catch (e) {
+      print('Ошибка создания обновленного тайла [$tileId]: $e');
+      return null;
+    }
+  }
+  
+  Future<void> createFallbackTiles() async {
+    try {
+      print('Создание запасных тайлов...');
       
       _disposeTiles();
       
-      state.imageTiles = [
-        ImageTile(
-          image: image,
-          bounds: bounds,
-          scale: 1.0,
-          index: 0,
-        )
-      ];
+      // Создаем 4 начальных тайла
+      final tiles = await _createTilesInGrid(0, 0, 2, 2, []);
       
+      state.imageTiles = tiles;
       state.isLoading = false;
       onStateUpdate();
       
@@ -564,6 +748,7 @@ class TileManager {
     state.nodeBoundsCache.clear();
     state.tileToNodes.clear();
     state.nodeToTiles.clear();
+    _movedNodesSourceTiles.clear();
   }
   
   void dispose() {

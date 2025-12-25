@@ -30,7 +30,6 @@ class EditorState {
   
   // Тайлы
   List<ImageTile> imageTiles = [];
-  Rect totalBounds = Rect.zero;
   bool showTileBorders = true;
   
   // Загрузка

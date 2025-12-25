@@ -172,7 +172,8 @@ class NodeManager {
 
     _updateFramePosition();
 
-    tileManager.removeNodeFromTiles(node);
+    // ИСПРАВЛЕНИЕ: Удаляем выделенный узел из тайлов сразу
+    tileManager.removeSelectedNodeFromTiles(node);
 
     startNodeDrag(screenPosition);
 
@@ -193,7 +194,8 @@ class NodeManager {
 
     _updateFramePosition();
 
-    tileManager.removeNodeFromTiles(node);
+    // ИСПРАВЛЕНИЕ: Удаляем выделенный узел из тайлов сразу
+    tileManager.removeSelectedNodeFromTiles(node);
 
     onStateUpdate();
   }
@@ -202,19 +204,16 @@ class NodeManager {
     // Мировые координаты узла уже сохранены в originalNodePosition
     final worldNodePosition = state.originalNodePosition;
 
-    final constrainedWorldPosition = _constrainNodePosition(
-      worldNodePosition,
-      node,
-    );
+    final constrainedWorldPosition = worldNodePosition;
     final newPosition = constrainedWorldPosition - state.delta;
 
-    print('=== СОХРАНЕНИЕ УЗЛА ===');
+    print('=== СОХРАНЕНИЕ УЗЛА (без ограничений) ===');
     print('Старая позиция: ${node.position}');
     print('Новая позиция: $newPosition');
     print('На основе мировых координат: $worldNodePosition');
 
     node.position = newPosition;
-    await tileManager.addNodeToTiles(node, constrainedWorldPosition);
+    // ИСПРАВЛЕНИЕ: Не добавляем узел в тайлы здесь - это делает основной метод
     node.isSelected = false;
   }
 
@@ -226,11 +225,12 @@ class NodeManager {
     final node = state.selectedNodeOnTopLayer!;
     final worldNodePosition = state.originalNodePosition;
 
-    final constrainedWorldPosition = _constrainNodePosition(
-      worldNodePosition,
-      node,
-    );
+    final constrainedWorldPosition = worldNodePosition;
     final newPosition = constrainedWorldPosition - state.delta;
+
+    print('=== СОХРАНЕНИЕ УЗЛА В ТАЙЛЫ (без ограничений) ===');
+    print('Старая позиция: ${node.position}');
+    print('Новая позиция: $newPosition');
 
     // Обновляем позицию родителя
     node.position = newPosition;
@@ -238,7 +238,7 @@ class NodeManager {
     // Обновляем позиции всех детей относительно родителя
     _updateChildrenPositions(node, newPosition);
 
-    // Добавляем в тайлы родителя и всех его детей
+    // ДОБАВЛЯЕМ узел в тайлы на новом месте
     await tileManager.addNodeToTiles(node, constrainedWorldPosition);
 
     node.isSelected = false;
@@ -268,25 +268,6 @@ class NodeManager {
     }
 
     updateRecursive(parentNode, parentNewPosition);
-  }
-
-  Offset _constrainNodePosition(Offset worldPosition, TableNode node) {
-    if (state.imageTiles.isEmpty) return worldPosition;
-
-    final totalBounds = state.totalBounds;
-    final nodeWidth = node.size.width;
-    final nodeHeight = node.size.height;
-
-    double x = worldPosition.dx;
-    double y = worldPosition.dy;
-
-    if (x < totalBounds.left) x = totalBounds.left;
-    if (y < totalBounds.top) y = totalBounds.top;
-    if (x + nodeWidth > totalBounds.right) x = totalBounds.right - nodeWidth;
-    if (y + nodeHeight > totalBounds.bottom)
-      y = totalBounds.bottom - nodeHeight;
-
-    return Offset(x, y);
   }
 
   void deleteSelectedNode() {

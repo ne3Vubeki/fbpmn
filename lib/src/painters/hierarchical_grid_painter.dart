@@ -1,8 +1,8 @@
-import 'dart:math';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import '../../src/models/image_tile.dart';
-import '../../src/models/table.node.dart';
+import '../editor_state.dart';
+import '../models/table.node.dart';
 
 class HierarchicalGridPainter extends CustomPainter {
   final double scale;
@@ -10,10 +10,9 @@ class HierarchicalGridPainter extends CustomPainter {
   final Offset delta;
   final Size canvasSize;
   final List<TableNode> nodes;
+  final EditorState state;
 
-  // Тайловое изображение
-  final List<ImageTile> imageTiles;
-  final Rect totalBounds;
+  // Убираем totalBounds
   final double tileScale;
 
   HierarchicalGridPainter({
@@ -22,8 +21,7 @@ class HierarchicalGridPainter extends CustomPainter {
     required this.canvasSize,
     required this.nodes,
     required this.delta,
-    required this.imageTiles,
-    required this.totalBounds,
+    required this.state,
     required this.tileScale,
   });
 
@@ -75,7 +73,7 @@ class HierarchicalGridPainter extends CustomPainter {
     double visibleRight,
     double visibleBottom,
   ) {
-    if (imageTiles.isEmpty) return;
+    if (state.imageTiles.isEmpty) return;
     
     final visibleRect = Rect.fromLTRB(
       visibleLeft,
@@ -90,7 +88,7 @@ class HierarchicalGridPainter extends CustomPainter {
       ..blendMode = BlendMode.srcOver;
     
     // Ищем тайлы, которые пересекаются с видимой областью
-    for (final tile in imageTiles) {
+    for (final tile in state.imageTiles) {
       if (tile.bounds.overlaps(visibleRect)) {
         try {
           // Находим пересечение тайла с видимой областью
@@ -110,10 +108,10 @@ class HierarchicalGridPainter extends CustomPainter {
           }
           
           final srcRect = Rect.fromLTRB(
-            max(0.0, srcLeft),
-            max(0.0, srcTop),
-            min(tile.image.width.toDouble(), srcRight),
-            min(tile.image.height.toDouble(), srcBottom),
+            math.max(0.0, srcLeft),
+            math.max(0.0, srcTop),
+            math.min(tile.image.width.toDouble(), srcRight),
+            math.min(tile.image.height.toDouble(), srcBottom),
           );
           
           final dstRect = intersection;
@@ -149,7 +147,7 @@ class HierarchicalGridPainter extends CustomPainter {
     final double extendedBottom = visibleBottom + baseParentSize * 4;
 
     for (int level = -2; level <= 5; level++) {
-      double levelParentSize = baseParentSize * pow(4, level);
+      double levelParentSize = baseParentSize * math.pow(4, level).toDouble();
       _drawGridLevel(
         canvas,
         extendedLeft,
@@ -236,8 +234,8 @@ class HierarchicalGridPainter extends CustomPainter {
   }
 
   double _calculateAlphaForLevel(int level) {
-    double idealScale = 1.0 / pow(4, level);
-    double logDifference = (log(scale) - log(idealScale)).abs();
+    double idealScale = 1.0 / math.pow(4, level).toDouble();
+    double logDifference = (math.log(scale) - math.log(idealScale)).abs();
     double maxLogDifference = 2.0;
     double alpha =
         (1.0 - (logDifference / maxLogDifference)).clamp(0.0, 1.0) * 0.8;
@@ -250,16 +248,6 @@ class HierarchicalGridPainter extends CustomPainter {
         oldDelegate.offset != offset ||
         oldDelegate.canvasSize != canvasSize ||
         oldDelegate.delta != delta ||
-        !_listEquals(oldDelegate.imageTiles, imageTiles);
-  }
-  
-  bool _listEquals(List<ImageTile> a, List<ImageTile> b) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (a[i].image != b[i].image || a[i].bounds != b[i].bounds) {
-        return false;
-      }
-    }
-    return true;
+        oldDelegate.state.imageTiles.length != state.imageTiles.length;
   }
 }

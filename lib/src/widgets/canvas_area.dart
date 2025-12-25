@@ -8,7 +8,7 @@ import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
 import '../painters/tile_border_painter.dart';
 import '../painters/node_custom_painter.dart';
-import 'hierarchical_grid_painter.dart';
+import '../painters/hierarchical_grid_painter.dart';
 
 class CanvasArea extends StatefulWidget {
   final EditorState state;
@@ -151,9 +151,9 @@ class _CanvasAreaState extends State<CanvasArea> {
                             canvasSize: scaledCanvasSize,
                             nodes: widget.state.nodes,
                             delta: widget.state.delta,
-                            imageTiles: widget.state.imageTiles,
-                            totalBounds: widget.state.totalBounds,
+                            state: widget.state,
                             tileScale: 2.0,
+                            // УБИРАЕМ totalBounds
                           ),
                         ),
 
@@ -163,11 +163,11 @@ class _CanvasAreaState extends State<CanvasArea> {
                             painter: TileBorderPainter(
                               scale: widget.state.scale,
                               offset: widget.state.offset,
-                              imageTiles: widget.state.imageTiles,
-                              totalBounds: widget.state.totalBounds,
+                              state: widget.state,
                             ),
                           ),
 
+                        // Отображение выделенного узла на верхнем слое
                         if (widget.state.isNodeOnTopLayer &&
                             widget.state.selectedNodeOnTopLayer != null)
                           _buildSelectedNode(),

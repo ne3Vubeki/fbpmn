@@ -6,62 +6,7 @@ import '../models/table.node.dart';
 import 'editor_config.dart';
 
 class BoundsCalculator {
-  Rect? calculateTotalBounds({
-    required List<TableNode> nodes,
-    required Offset delta,
-    required Map<TableNode, Rect> cache,
-  }) {
-    double minX = double.infinity;
-    double minY = double.infinity;
-    double maxX = -double.infinity;
-    double maxY = -double.infinity;
-
-    bool hasNodes = false;
-
-    void calculateBounds(List<TableNode> nodeList, Offset currentOffset) {
-      for (final node in nodeList) {
-        hasNodes = true;
-        final shiftedPosition = node.position + currentOffset;
-        final nodeRect = calculateNodeRect(
-          node: node,
-          position: shiftedPosition,
-        );
-
-        cache[node] = nodeRect;
-
-        minX = math.min(minX, nodeRect.left);
-        minY = math.min(minY, nodeRect.top);
-        maxX = math.max(maxX, nodeRect.right);
-        maxY = math.max(maxY, nodeRect.bottom);
-
-        if (node.children != null && node.children!.isNotEmpty) {
-          calculateBounds(node.children!, shiftedPosition);
-        }
-      }
-    }
-
-    calculateBounds(nodes, delta);
-
-    if (!hasNodes) {
-      return null;
-    }
-
-    return Rect.fromLTRB(
-      minX - EditorConfig.tilePadding,
-      minY - EditorConfig.tilePadding,
-      maxX + EditorConfig.tilePadding,
-      maxY + EditorConfig.tilePadding,
-    );
-  }
-
-  Rect calculateNodeRect({required TableNode node, required Offset position}) {
-    final actualWidth = node.size.width;
-    final minHeight = _calculateMinHeight(node);
-    final actualHeight = math.max(node.size.height, minHeight);
-
-    return Rect.fromLTWH(position.dx, position.dy, actualWidth, actualHeight);
-  }
-
+  // УБИРАЕМ общие границы - теперь метод просто собирает узлы для тайла
   List<TableNode> getNodesForTile({
     required Rect bounds,
     required List<TableNode> allNodes,
@@ -97,6 +42,14 @@ class BoundsCalculator {
     }
 
     return nodesInTile;
+  }
+
+  Rect calculateNodeRect({required TableNode node, required Offset position}) {
+    final actualWidth = node.size.width;
+    final minHeight = _calculateMinHeight(node);
+    final actualHeight = math.max(node.size.height, minHeight);
+
+    return Rect.fromLTWH(position.dx, position.dy, actualWidth, actualHeight);
   }
 
   Set<int> getTileIndicesForNode({

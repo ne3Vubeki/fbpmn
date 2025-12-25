@@ -5,13 +5,13 @@ class ImageTile {
   final Image image;
   final Rect bounds; // Границы тайла в мировых координатах
   final double scale; // Масштаб тайла
-  final int index; // Индекс тайла
+  final String id; // id тайла
   
   ImageTile({
     required this.image,
     required this.bounds,
     required this.scale,
-    required this.index,
+    required this.id,
   });
 }
 
