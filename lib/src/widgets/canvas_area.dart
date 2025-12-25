@@ -34,183 +34,209 @@ class _CanvasAreaState extends State<CanvasArea> {
   double get frameBorderWidth => NodeManager.frameBorderWidth;
   double get frameTotalOffset => NodeManager.frameTotalOffset;
   
+  // GlobalKey для получения реального размера
+  final GlobalKey _containerKey = GlobalKey();
+  Size _actualSize = Size.zero;
+  
+  @override
+  void initState() {
+    super.initState();
+    // Отложенное обновление после построения
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateActualSize();
+    });
+  }
+  
+  void _updateActualSize() {
+    if (_containerKey.currentContext != null) {
+      final RenderBox renderBox = _containerKey.currentContext!.findRenderObject() as RenderBox;
+      final newSize = renderBox.size;
+      
+      if (_actualSize != newSize) {
+        _actualSize = newSize;
+        
+        // Обновляем viewportSize в состоянии
+        if (widget.state.viewportSize != _actualSize) {
+          widget.state.viewportSize = _actualSize;
+          widget.scrollHandler.handleViewportResize(_actualSize);
+        }
+      }
+    }
+  }
+  
+  @override
+  void didUpdateWidget(covariant CanvasArea oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Обновляем размер после изменения виджета
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateActualSize();
+    });
+  }
+  
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Обновляем viewportSize из constraints
-        final newViewportSize = Size(constraints.maxWidth, constraints.maxHeight);
-        if (widget.state.viewportSize != newViewportSize) {
-          widget.state.viewportSize = newViewportSize;
-          
-          // Вызываем пересчет скроллбаров после обновления размера
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              widget.scrollHandler.updateScrollControllers();
-            }
-          });
-        }
-        
-        final Size scaledCanvasSize = Size(
-          widget.state.viewportSize.width * widget.scrollHandler.canvasSizeMultiplier * widget.state.scale,
-          widget.state.viewportSize.height * widget.scrollHandler.canvasSizeMultiplier * widget.state.scale,
-        );
-        
-        final bool needsHorizontalScrollbar = scaledCanvasSize.width > widget.state.viewportSize.width;
-        final bool needsVerticalScrollbar = scaledCanvasSize.height > widget.state.viewportSize.height;
-        
-        return Stack(
-          children: [
-            Positioned(
-              left: 0,
-              top: 0,
-              right: needsVerticalScrollbar ? 10 : 0,
-              bottom: needsHorizontalScrollbar ? 10 : 0,
-              child: KeyboardListener(
-                focusNode: widget.inputHandler.focusNode,
-                autofocus: true,
-                onKeyEvent: widget.inputHandler.handleKeyEvent,
-                child: MouseRegion(
-                  cursor: widget.state.isShiftPressed && widget.state.isPanning
-                      ? SystemMouseCursors.grabbing
-                      : widget.state.isShiftPressed
-                      ? SystemMouseCursors.grab
-                      : SystemMouseCursors.basic,
-                  onHover: (PointerHoverEvent event) {
-                    widget.state.mousePosition = event.localPosition;
+    // Используем актуальный размер из state (который будет обновлен)
+    final Size scaledCanvasSize = Size(
+      widget.state.viewportSize.width * widget.scrollHandler.canvasSizeMultiplier * widget.state.scale,
+      widget.state.viewportSize.height * widget.scrollHandler.canvasSizeMultiplier * widget.state.scale,
+    );
+    
+    final bool needsHorizontalScrollbar = scaledCanvasSize.width > widget.state.viewportSize.width;
+    final bool needsVerticalScrollbar = scaledCanvasSize.height > widget.state.viewportSize.height;
+    
+    return Container(
+      key: _containerKey,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            top: 0,
+            right: needsVerticalScrollbar ? 10 : 0,
+            bottom: needsHorizontalScrollbar ? 10 : 0,
+            child: KeyboardListener(
+              focusNode: widget.inputHandler.focusNode,
+              autofocus: true,
+              onKeyEvent: widget.inputHandler.handleKeyEvent,
+              child: MouseRegion(
+                cursor: widget.state.isShiftPressed && widget.state.isPanning
+                    ? SystemMouseCursors.grabbing
+                    : widget.state.isShiftPressed
+                    ? SystemMouseCursors.grab
+                    : SystemMouseCursors.basic,
+                onHover: (PointerHoverEvent event) {
+                  widget.state.mousePosition = event.localPosition;
+                },
+                child: Listener(
+                  onPointerSignal: (pointerSignal) {
+                    if (pointerSignal is PointerScrollEvent &&
+                        widget.state.isShiftPressed) {
+                      widget.inputHandler.handleZoom(
+                        pointerSignal.scrollDelta.dy,
+                        widget.state.mousePosition,
+                      );
+                    }
                   },
-                  child: Listener(
-                    onPointerSignal: (pointerSignal) {
-                      if (pointerSignal is PointerScrollEvent &&
-                          widget.state.isShiftPressed) {
-                        widget.inputHandler.handleZoom(
-                          pointerSignal.scrollDelta.dy,
-                          widget.state.mousePosition,
-                        );
-                      }
-                    },
-                    onPointerMove: (PointerMoveEvent event) {
-                      widget.state.mousePosition = event.localPosition;
-                      
-                      if (widget.state.isPanning && widget.state.isShiftPressed) {
-                        widget.inputHandler.handlePanUpdate(
-                          event.localPosition,
-                          event.delta,
-                        );
-                      } else if (widget.state.isNodeDragging) {
-                        widget.nodeManager.updateNodeDrag(event.localPosition);
-                      }
-                    },
-                    onPointerDown: (PointerDownEvent event) {
-                      widget.inputHandler.handlePanStart(event.localPosition);
-                    },
-                    onPointerUp: (PointerUpEvent event) {
-                      widget.inputHandler.handlePanEnd();
-                    },
-                    onPointerCancel: (PointerCancelEvent event) {
-                      widget.inputHandler.handlePanCancel();
-                    },
-                    child: ClipRect(
-                      child: Stack(
-                        children: [
+                  onPointerMove: (PointerMoveEvent event) {
+                    widget.state.mousePosition = event.localPosition;
+                    
+                    if (widget.state.isPanning && widget.state.isShiftPressed) {
+                      widget.inputHandler.handlePanUpdate(
+                        event.localPosition,
+                        event.delta,
+                      );
+                    } else if (widget.state.isNodeDragging) {
+                      widget.nodeManager.updateNodeDrag(event.localPosition);
+                    }
+                  },
+                  onPointerDown: (PointerDownEvent event) {
+                    widget.inputHandler.handlePanStart(event.localPosition);
+                  },
+                  onPointerUp: (PointerUpEvent event) {
+                    widget.inputHandler.handlePanEnd();
+                  },
+                  onPointerCancel: (PointerCancelEvent event) {
+                    widget.inputHandler.handlePanCancel();
+                  },
+                  child: ClipRect(
+                    child: Stack(
+                      children: [
+                        CustomPaint(
+                          size: scaledCanvasSize,
+                          painter: HierarchicalGridPainter(
+                            scale: widget.state.scale,
+                            offset: widget.state.offset,
+                            canvasSize: scaledCanvasSize,
+                            nodes: widget.state.nodes,
+                            delta: widget.state.delta,
+                            imageTiles: widget.state.imageTiles,
+                            totalBounds: widget.state.totalBounds,
+                            tileScale: 2.0,
+                          ),
+                        ),
+                        
+                        if (widget.state.showTileBorders)
                           CustomPaint(
                             size: scaledCanvasSize,
-                            painter: HierarchicalGridPainter(
+                            painter: TileBorderPainter(
                               scale: widget.state.scale,
                               offset: widget.state.offset,
-                              canvasSize: scaledCanvasSize,
-                              nodes: widget.state.nodes,
-                              delta: widget.state.delta,
                               imageTiles: widget.state.imageTiles,
                               totalBounds: widget.state.totalBounds,
-                              tileScale: 2.0,
                             ),
                           ),
-                          
-                          if (widget.state.showTileBorders)
-                            CustomPaint(
-                              size: scaledCanvasSize,
-                              painter: TileBorderPainter(
-                                scale: widget.state.scale,
-                                offset: widget.state.offset,
-                                imageTiles: widget.state.imageTiles,
-                                totalBounds: widget.state.totalBounds,
-                              ),
-                            ),
-                          
-                          if (widget.state.isNodeOnTopLayer && widget.state.selectedNodeOnTopLayer != null)
-                            _buildSelectedNode(),
-                        ],
+                        
+                        if (widget.state.isNodeOnTopLayer && widget.state.selectedNodeOnTopLayer != null)
+                          _buildSelectedNode(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          if (needsHorizontalScrollbar)
+            Positioned(
+              left: 0,
+              right: needsVerticalScrollbar ? 10 : 0,
+              bottom: 0,
+              height: 10,
+              child: Listener(
+                onPointerDown: widget.scrollHandler.handleHorizontalScrollbarDragStart,
+                onPointerMove: widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
+                onPointerUp: widget.scrollHandler.handleHorizontalScrollbarDragEnd,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.grab,
+                  child: Scrollbar(
+                    controller: widget.scrollHandler.horizontalScrollController,
+                    thumbVisibility: true,
+                    trackVisibility: false,
+                    thickness: 10,
+                    child: SingleChildScrollView(
+                      controller: widget.scrollHandler.horizontalScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: SizedBox(
+                        width: scaledCanvasSize.width,
+                        height: 10,
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-            
-            if (needsHorizontalScrollbar)
-              Positioned(
-                left: 0,
-                right: needsVerticalScrollbar ? 10 : 0,
-                bottom: 0,
-                height: 10,
-                child: Listener(
-                  onPointerDown: widget.scrollHandler.handleHorizontalScrollbarDragStart,
-                  onPointerMove: widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
-                  onPointerUp: widget.scrollHandler.handleHorizontalScrollbarDragEnd,
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.grab,
-                    child: Scrollbar(
-                      controller: widget.scrollHandler.horizontalScrollController,
-                      thumbVisibility: true,
-                      trackVisibility: false,
-                      thickness: 10,
-                      child: SingleChildScrollView(
-                        controller: widget.scrollHandler.horizontalScrollController,
-                        scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: SizedBox(
-                          width: scaledCanvasSize.width,
-                          height: 10,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            
-            if (needsVerticalScrollbar)
-              Positioned(
-                top: 0,
-                bottom: needsHorizontalScrollbar ? 10 : 0,
-                right: 0,
-                width: 10,
-                child: Listener(
-                  onPointerDown: widget.scrollHandler.handleVerticalScrollbarDragStart,
-                  onPointerMove: widget.scrollHandler.handleVerticalScrollbarDragUpdate,
-                  onPointerUp: widget.scrollHandler.handleVerticalScrollbarDragEnd,
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.grab,
-                    child: Scrollbar(
+          
+          if (needsVerticalScrollbar)
+            Positioned(
+              top: 0,
+              bottom: needsHorizontalScrollbar ? 10 : 0,
+              right: 0,
+              width: 10,
+              child: Listener(
+                onPointerDown: widget.scrollHandler.handleVerticalScrollbarDragStart,
+                onPointerMove: widget.scrollHandler.handleVerticalScrollbarDragUpdate,
+                onPointerUp: widget.scrollHandler.handleVerticalScrollbarDragEnd,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.grab,
+                  child: Scrollbar(
+                    controller: widget.scrollHandler.verticalScrollController,
+                    thumbVisibility: true,
+                    trackVisibility: false,
+                    thickness: 10,
+                    child: SingleChildScrollView(
                       controller: widget.scrollHandler.verticalScrollController,
-                      thumbVisibility: true,
-                      trackVisibility: false,
-                      thickness: 10,
-                      child: SingleChildScrollView(
-                        controller: widget.scrollHandler.verticalScrollController,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: SizedBox(
-                          width: 10,
-                          height: scaledCanvasSize.height,
-                        ),
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: SizedBox(
+                        width: 10,
+                        height: scaledCanvasSize.height,
                       ),
                     ),
                   ),
                 ),
               ),
-          ],
-        );
-      },
+            ),
+        ],
+      ),
     );
   }
   

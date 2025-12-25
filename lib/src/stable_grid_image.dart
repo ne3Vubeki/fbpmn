@@ -97,7 +97,6 @@ class _StableGridImageState extends State<StableGridImage> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        _editorState.viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
         
         return Stack(
           children: [
