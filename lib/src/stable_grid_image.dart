@@ -119,6 +119,8 @@ class _StableGridImageState extends State<StableGridImage> {
                 showTileBorders: _editorState.showTileBorders,
                 onResetZoom: () => _scrollHandler.resetZoom(),
                 onToggleTileBorders: () => _inputHandler.toggleTileBorders(),
+                canvasWidth: _scrollHandler.dynamicCanvasWidth,
+                canvasHeight: _scrollHandler.dynamicCanvasHeight,
               ),
             ),
 
