@@ -77,7 +77,7 @@ class InputHandler {
     scrollHandler.updateScrollControllers();
     onStateUpdate();
   }
-
+  
   void handlePanStart(Offset position) {
     _isDirectNodeDrag = false;
 
@@ -168,10 +168,10 @@ class InputHandler {
   }
 
   Offset _constrainOffset(Offset offset) {
-    // Используем статичный размер холста
+    // Используем динамический размер холста из ScrollHandler
     final Size canvasSize = Size(
-      ScrollHandler.staticCanvasWidth * state.scale,
-      ScrollHandler.staticCanvasHeight * state.scale,
+      scrollHandler.dynamicCanvasWidth * state.scale,
+      scrollHandler.dynamicCanvasHeight * state.scale,
     );
 
     double constrainedX = offset.dx;
