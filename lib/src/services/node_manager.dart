@@ -68,10 +68,141 @@ class NodeManager {
     );
   }
 
-  void selectNodeAtPosition(
+  Future<void> _selectNodeImmediate(
+    TableNode node,
+    Offset screenPosition,
+  ) async {
+    _deselectAllNodes();
+
+    node.isSelected = true;
+    state.selectedNode = node;
+
+    // Сохраняем мировые координаты ЛЕВОГО ВЕРХНЕГО УГЛА узла
+    final worldNodePosition = state.delta + node.position;
+    state.originalNodePosition = worldNodePosition;
+
+    print('=== ВЫБОР УЗЛА (immediate) ===');
+    print('Узел: ${node.text}');
+    print('Позиция в данных: ${node.position.dx}:${node.position.dy}');
+    print('Дельта: ${state.delta.dx}:${state.delta.dy}');
+    print(
+      'Мировые координаты узла: ${worldNodePosition.dx}:${worldNodePosition.dy}',
+    );
+
+    state.selectedNodeOnTopLayer = node;
+    state.isNodeOnTopLayer = true;
+
+    _updateFramePosition();
+
+    // ВАЖНО: Сначала удаляем узел из state.nodes
+    _removeNodeFromNodesList(node);
+
+    // Затем удаляем узел из тайлов и ЖДЕМ завершения
+    await tileManager.removeSelectedNodeFromTiles(node);
+
+    startNodeDrag(screenPosition);
+
+    onStateUpdate();
+  }
+
+  Future<void> _selectNode(TableNode node) async {
+    _deselectAllNodes();
+
+    node.isSelected = true;
+    state.selectedNode = node;
+
+    final worldNodePosition = state.delta + node.position;
+    state.originalNodePosition = worldNodePosition;
+
+    state.selectedNodeOnTopLayer = node;
+    state.isNodeOnTopLayer = true;
+
+    _updateFramePosition();
+
+    // ВАЖНО: Сначала удаляем узел из state.nodes
+    _removeNodeFromNodesList(node);
+
+    // Затем удаляем узел из тайлов и ЖДЕМ завершения
+    await tileManager.removeSelectedNodeFromTiles(node);
+
+    onStateUpdate();
+  }
+
+  // Новый метод: удаление узла из основного списка узлов
+  void _removeNodeFromNodesList(TableNode node) {
+    print('Удаляем узел "${node.text}" из state.nodes');
+
+    // Удаляем только корневой узел из основного списка
+    // Вложенные узлы НЕ хранятся отдельно в state.nodes
+    state.nodes.removeWhere((n) => n.id == node.id);
+  }
+
+  // Новый метод: добавление узла обратно в основной список узлов
+  void _addNodeBackToNodesList(TableNode node) {
+    // Проверяем, что узел еще не в списке
+    if (!state.nodes.any((n) => n.id == node.id)) {
+      // Добавляем только корневой узел
+      // Вложенные узлы уже являются частью иерархии родителя
+      state.nodes.add(node);
+    }
+  }
+
+  Future<void> _saveNodeToTiles() async {
+    if (!state.isNodeOnTopLayer || state.selectedNodeOnTopLayer == null) {
+      return;
+    }
+
+    final node = state.selectedNodeOnTopLayer!;
+    final worldNodePosition = state.originalNodePosition;
+
+    final constrainedWorldPosition = worldNodePosition;
+    final newPosition = constrainedWorldPosition - state.delta;
+
+    print('=== СОХРАНЕНИЕ УЗЛА В ТАЙЛЫ (без ограничений) ===');
+    print('Старая позиция: ${node.position.dx}:${node.position.dy}');
+    print('Новая позиция: ${newPosition.dx}:${newPosition.dy}');
+
+    // Обновляем позицию родителя
+    node.position = newPosition;
+
+    // Обновляем позиции всех детей относительно родителя
+    _updateChildrenPositions(node, newPosition);
+
+    // Добавляем узел обратно в основной список узлов
+    _addNodeBackToNodesList(node);
+
+    // Добавляем узел в тайлы на новом месте
+    await tileManager.addNodeToTiles(node, constrainedWorldPosition);
+
+    node.isSelected = false;
+    state.isNodeDragging = false;
+    state.isNodeOnTopLayer = false;
+    state.selectedNodeOnTopLayer = null;
+    state.selectedNode = null;
+    state.selectedNodeOffset = Offset.zero;
+    state.originalNodePosition = Offset.zero;
+
+    onStateUpdate();
+  }
+
+  void handleEmptyAreaClick() {
+    if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
+      _saveNodeToTiles();
+    } else {
+      _deselectAllNodes();
+      state.selectedNode = null;
+      state.isNodeOnTopLayer = false;
+      state.selectedNodeOnTopLayer = null;
+      state.selectedNodeOffset = Offset.zero;
+      state.originalNodePosition = Offset.zero;
+      onStateUpdate();
+    }
+  }
+
+  Future<void> selectNodeAtPosition(
     Offset screenPosition, {
     bool immediateDrag = false,
-  }) {
+  }) async {
     final worldPos = _screenToWorld(screenPosition);
 
     TableNode? foundNode;
@@ -125,124 +256,26 @@ class NodeManager {
             endNodeDrag();
           }
 
-          _saveNodeInBackground(state.selectedNodeOnTopLayer!);
-          _selectNodeImmediate(foundNode, screenPosition);
+          // Сохраняем текущий выделенный узел в тайлы
+          await _saveNodeToTiles();
+          // Выделяем новый узел
+          await _selectNodeImmediate(foundNode, screenPosition);
         } else {
-          _saveNodeToTiles().then((_) {
-            _selectNode(foundNode!);
-          });
+          // Сохраняем текущий выделенный узел в тайлы
+          await _saveNodeToTiles();
+          // Выделяем новый узел
+          await _selectNode(foundNode);
         }
       } else {
         if (immediateDrag) {
-          _selectNodeImmediate(foundNode, screenPosition);
+          await _selectNodeImmediate(foundNode, screenPosition);
         } else {
-          _selectNode(foundNode);
+          await _selectNode(foundNode);
         }
       }
     } else {
       handleEmptyAreaClick();
     }
-  }
-
-  void _selectNodeImmediate(TableNode node, Offset screenPosition) {
-    _deselectAllNodes();
-
-    node.isSelected = true;
-    state.selectedNode = node;
-
-    // Сохраняем мировые координаты ЛЕВОГО ВЕРХНЕГО УГЛА узла
-    final worldNodePosition = state.delta + node.position;
-    state.originalNodePosition = worldNodePosition;
-
-    print('=== ВЫБОР УЗЛА ===');
-    print('Узел: ${node.text}');
-    print('Позиция в данных: ${node.position.dx}:${node.position.dy}');
-    print('Дельта: ${state.delta.dx}:${state.delta.dy}');
-    print('Мировые координаты узла: ${worldNodePosition.dx}:${worldNodePosition.dy}');
-
-    state.selectedNodeOnTopLayer = node;
-    state.isNodeOnTopLayer = true;
-
-    _updateFramePosition();
-
-    // ИСПРАВЛЕНИЕ: Удаляем выделенный узел из тайлов сразу
-    tileManager.removeSelectedNodeFromTiles(node);
-
-    startNodeDrag(screenPosition);
-
-    onStateUpdate();
-  }
-
-  void _selectNode(TableNode node) {
-    _deselectAllNodes();
-
-    node.isSelected = true;
-    state.selectedNode = node;
-
-    final worldNodePosition = state.delta + node.position;
-    state.originalNodePosition = worldNodePosition;
-
-    state.selectedNodeOnTopLayer = node;
-    state.isNodeOnTopLayer = true;
-
-    _updateFramePosition();
-
-    // ИСПРАВЛЕНИЕ: Удаляем выделенный узел из тайлов сразу
-    tileManager.removeSelectedNodeFromTiles(node);
-
-    onStateUpdate();
-  }
-
-  Future<void> _saveNodeInBackground(TableNode node) async {
-    // Мировые координаты узла уже сохранены в originalNodePosition
-    final worldNodePosition = state.originalNodePosition;
-
-    final constrainedWorldPosition = worldNodePosition;
-    final newPosition = constrainedWorldPosition - state.delta;
-
-    print('=== СОХРАНЕНИЕ УЗЛА (без ограничений) ===');
-    print('Старая позиция: ${node.position}');
-    print('Новая позиция: $newPosition');
-    print('На основе мировых координат: $worldNodePosition');
-
-    node.position = newPosition;
-    // ИСПРАВЛЕНИЕ: Не добавляем узел в тайлы здесь - это делает основной метод
-    node.isSelected = false;
-  }
-
-  Future<void> _saveNodeToTiles() async {
-    if (!state.isNodeOnTopLayer || state.selectedNodeOnTopLayer == null) {
-      return;
-    }
-
-    final node = state.selectedNodeOnTopLayer!;
-    final worldNodePosition = state.originalNodePosition;
-
-    final constrainedWorldPosition = worldNodePosition;
-    final newPosition = constrainedWorldPosition - state.delta;
-
-    print('=== СОХРАНЕНИЕ УЗЛА В ТАЙЛЫ (без ограничений) ===');
-    print('Старая позиция: ${node.position.dx}:${node.position.dy}');
-    print('Новая позиция: ${newPosition.dx}:${newPosition.dy}');
-
-    // Обновляем позицию родителя
-    node.position = newPosition;
-
-    // Обновляем позиции всех детей относительно родителя
-    _updateChildrenPositions(node, newPosition);
-
-    // ДОБАВЛЯЕМ узел в тайлы на новом месте
-    await tileManager.addNodeToTiles(node, constrainedWorldPosition);
-
-    node.isSelected = false;
-    state.isNodeDragging = false;
-    state.isNodeOnTopLayer = false;
-    state.selectedNodeOnTopLayer = null;
-    state.selectedNode = null;
-    state.selectedNodeOffset = Offset.zero;
-    state.originalNodePosition = Offset.zero;
-
-    onStateUpdate();
   }
 
   /// Обновляет позиции всех детей относительно нового положения родителя
@@ -312,20 +345,6 @@ class NodeManager {
   void endNodeDrag() {
     if (state.isNodeDragging) {
       state.isNodeDragging = false;
-      onStateUpdate();
-    }
-  }
-
-  void handleEmptyAreaClick() {
-    if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-      _saveNodeToTiles();
-    } else {
-      _deselectAllNodes();
-      state.selectedNode = null;
-      state.isNodeOnTopLayer = false;
-      state.selectedNodeOnTopLayer = null;
-      state.selectedNodeOffset = Offset.zero;
-      state.originalNodePosition = Offset.zero;
       onStateUpdate();
     }
   }
