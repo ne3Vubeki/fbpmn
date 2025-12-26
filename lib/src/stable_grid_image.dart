@@ -6,7 +6,7 @@ import 'services/scroll_handler.dart';
 import 'services/tile_manager.dart';
 import 'services/node_manager.dart';
 import 'editor_state.dart';
-import 'widgets/zoom_panel.dart';
+import 'widgets/zoom_container.dart';
 import 'widgets/loading_indicator.dart';
 import 'widgets/canvas_area.dart';
 
@@ -110,20 +110,23 @@ class _StableGridImageState extends State<StableGridImage> {
               scrollHandler: _scrollHandler,
             ),
 
-            // Панель зума
+            // Контейнер с миниатюрой и панелью зума
             Positioned(
-              right: 20,
-              bottom: 20,
-              child: ZoomPanel(
+              right: 0,
+              bottom: 0,
+              child: ZoomContainer(
                 scale: _editorState.scale,
                 showTileBorders: _editorState.showTileBorders,
-                onResetZoom: () => _scrollHandler.resetZoom(),
-                onToggleTileBorders: () => _inputHandler.toggleTileBorders(),
                 canvasWidth: _scrollHandler.dynamicCanvasWidth,
                 canvasHeight: _scrollHandler.dynamicCanvasHeight,
+                canvasOffset: _editorState.offset,
+                viewportSize: _editorState.viewportSize,
+                imageTiles: _editorState.imageTiles,
+                onResetZoom: () => _scrollHandler.resetZoom(),
+                onToggleTileBorders: () => _inputHandler.toggleTileBorders(),
               ),
             ),
-
+            
             // Индикатор загрузки
             if (_editorState.isLoading) const LoadingIndicator(),
           ],
