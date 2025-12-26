@@ -219,6 +219,11 @@ class NodePainter {
     final scaleY = nodeRect.height / node.size.height;
     final lineWidth = 1.0 / math.min(scaleX, scaleY);
 
+    final attributes = node.attributes;
+    final hasAttributes = attributes.isNotEmpty;
+    final isEnum = node.qType == 'enum';
+    final isNotGroup = node.groupId != null;
+
     // Рисуем закругленный прямоугольник для всей таблицы
     final tablePaint = Paint()
       ..color = backgroundColor
@@ -233,7 +238,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (node.groupId != null) {
+    if (isNotGroup || isEnum || !hasAttributes) {
       canvas.drawRect(nodeRect, tablePaint);
       canvas.drawRect(nodeRect, tableBorderPaint);
     } else {
@@ -243,7 +248,6 @@ class NodePainter {
     }
 
     // Вычисляем размеры
-    final attributes = node.attributes;
     final headerHeight = EditorConfig.headerHeight;
     final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
     final minRowHeight = EditorConfig.minRowHeight;
@@ -263,7 +267,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (node.groupId != null) {
+    if (isNotGroup || isEnum || !hasAttributes) {
       canvas.drawRect(headerRect, headerPaint);
     } else {
       final headerRoundedRect = RRect.fromRectAndCorners(
@@ -281,7 +285,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (node.groupId == null) {
+    if (!isNotGroup && hasAttributes) {
       canvas.drawLine(
         Offset(nodeRect.left, nodeRect.top + headerHeight),
         Offset(nodeRect.right, nodeRect.top + headerHeight),
@@ -322,7 +326,7 @@ class NodePainter {
       final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
       final rowBottom = rowTop + actualRowHeight;
 
-      final columnSplit = node.qType == 'enum' ? 20 : nodeRect.width - 20;
+      final columnSplit = isEnum ? 20 : nodeRect.width - 20;
 
       // Вертикальная граница
       canvas.drawLine(
@@ -341,7 +345,7 @@ class NodePainter {
       }
 
       // Текст в левой колонке
-      final leftText = node.qType == 'enum'
+      final leftText = isEnum
           ? attribute['position']
           : attribute['label'];
       if (leftText.isNotEmpty) {
@@ -367,7 +371,7 @@ class NodePainter {
       }
 
       // Текст в правой колонке
-      final rightText = node.qType == 'enum' ? attribute['label'] : '';
+      final rightText = isEnum ? attribute['label'] : '';
       if (rightText.isNotEmpty) {
         final rightTextPainter = TextPainter(
           text: TextSpan(

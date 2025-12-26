@@ -76,10 +76,11 @@ class _CanvasAreaState extends State<CanvasArea> {
 
   @override
   Widget build(BuildContext context) {
-    // Используем статичный размер холста 6000x6000 с учетом масштаба
+    // Используем динамический размер холста с учетом масштаба
+    // Размер рассчитывается в ScrollHandler на основе расположения узлов
     final Size scaledCanvasSize = Size(
-      ScrollHandler.staticCanvasWidth * widget.state.scale,
-      ScrollHandler.staticCanvasHeight * widget.state.scale,
+      widget.scrollHandler.dynamicCanvasWidth * widget.state.scale,
+      widget.scrollHandler.dynamicCanvasHeight * widget.state.scale,
     );
 
     final bool needsHorizontalScrollbar =
@@ -255,6 +256,9 @@ class _CanvasAreaState extends State<CanvasArea> {
     if (widget.state.selectedNodeOnTopLayer == null) return Container();
 
     final node = widget.state.selectedNodeOnTopLayer!;
+    final hasAttributes = node.attributes.isNotEmpty;
+    final isEnum = node.qType == 'enum';
+    final isNotGroup = node.groupId != null;
 
     // Размер узла (масштабированный)
     final nodeSize = Size(
@@ -269,7 +273,7 @@ class _CanvasAreaState extends State<CanvasArea> {
         padding: EdgeInsets.all(framePadding),
         decoration: BoxDecoration(
           border: Border.all(color: Colors.blue, width: frameBorderWidth),
-          borderRadius: node.groupId != null
+          borderRadius: isNotGroup || isEnum || !hasAttributes
               ? BorderRadius.zero
               : BorderRadius.circular(12),
         ),

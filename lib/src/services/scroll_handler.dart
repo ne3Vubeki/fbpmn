@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 import '../editor_state.dart';
+import '../models/table.node.dart';
 import '../services/node_manager.dart';
+import '../utils/editor_config.dart';
 
 class ScrollHandler {
   final EditorState state;
@@ -11,9 +14,13 @@ class ScrollHandler {
   final ScrollController horizontalScrollController = ScrollController();
   final ScrollController verticalScrollController = ScrollController();
   
-  // Статичный размер холста
-  static const double staticCanvasWidth = 12000.0;
-  static const double staticCanvasHeight = 6000.0;
+  // Статичный размер холста (используется по умолчанию)
+  static const double staticCanvasWidth = 12288.0;
+  static const double staticCanvasHeight = 6144.0;
+  
+  // Динамически рассчитанные размеры холста
+  double _dynamicCanvasWidth = staticCanvasWidth;
+  double _dynamicCanvasHeight = staticCanvasHeight;
   
   // Для перетаскивания скроллбаров
   bool _isHorizontalDragging = false;
@@ -22,6 +29,10 @@ class ScrollHandler {
   Offset _verticalDragStart = Offset.zero;
   double _horizontalDragStartOffset = 0.0;
   double _verticalDragStartOffset = 0.0;
+
+  // Геттеры для динамических размеров холста
+  double get dynamicCanvasWidth => _dynamicCanvasWidth;
+  double get dynamicCanvasHeight => _dynamicCanvasHeight;
   
   ScrollHandler({
     required this.state,
@@ -32,11 +43,78 @@ class ScrollHandler {
     verticalScrollController.addListener(_onVerticalScroll);
   }
   
-  /// Размер холста с учетом масштаба (статические размеры)
+  /// Рассчитывает размер холста на основе расположения узлов
+  void calculateCanvasSizeFromNodes(List<TableNode> nodes) {
+    if (nodes.isEmpty) {
+      // Если узлов нет, используем статические размеры
+      _dynamicCanvasWidth = staticCanvasWidth;
+      _dynamicCanvasHeight = staticCanvasHeight;
+      return;
+    }
+    
+    // Находим границы всех узлов
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = double.negativeInfinity;
+    double maxY = double.negativeInfinity;
+    
+    void calculateNodeBounds(TableNode node, Offset parentOffset) {
+      final nodePosition = parentOffset + node.position;
+      final nodeRect = Rect.fromLTWH(
+        nodePosition.dx,
+        nodePosition.dy,
+        node.size.width,
+        node.size.height,
+      );
+      
+      // Обновляем границы
+      minX = math.min(minX, nodeRect.left);
+      minY = math.min(minY, nodeRect.top);
+      maxX = math.max(maxX, nodeRect.right);
+      maxY = math.max(maxY, nodeRect.bottom);
+      
+      // Рекурсивно проверяем детей
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          calculateNodeBounds(child, nodePosition);
+        }
+      }
+    }
+    
+    // Рассчитываем границы для всех корневых узлов
+    for (final node in nodes) {
+      calculateNodeBounds(node, state.delta);
+    }
+    
+    // Добавляем отступы
+    const double padding = 500.0; // Отступ от крайних узлов
+    final double width = (maxX - minX) + padding * 2;
+    final double height = (maxY - minY) + padding * 2;
+    
+    // Округляем до ближайшего кратного размеру тайла
+    final tileSize = EditorConfig.tileSize.toDouble();
+    _dynamicCanvasWidth = _roundToTileMultiple(width, tileSize);
+    _dynamicCanvasHeight = _roundToTileMultiple(height, tileSize);
+    
+    // Минимальный размер - статические размеры
+    _dynamicCanvasWidth = math.max(_dynamicCanvasWidth, staticCanvasWidth);
+    _dynamicCanvasHeight = math.max(_dynamicCanvasHeight, staticCanvasHeight);
+    
+    print('Рассчитан размер холста: ${_dynamicCanvasWidth.toInt()}x${_dynamicCanvasHeight.toInt()}');
+    print('Границы узлов: X[$minX..$maxX], Y[$minY..$maxY]');
+  }
+  
+  /// Округляет значение до ближайшего кратного размеру тайла
+  double _roundToTileMultiple(double value, double tileSize) {
+    final double tilesCount = (value / tileSize).ceil().toDouble();
+    return tilesCount * tileSize;
+  }
+  
+  /// Размер холста с учетом масштаба (динамические размеры)
   Size _calculateCanvasSize() {
     return Size(
-      staticCanvasWidth * state.scale,
-      staticCanvasHeight * state.scale,
+      _dynamicCanvasWidth * state.scale,
+      _dynamicCanvasHeight * state.scale,
     );
   }
   
@@ -189,7 +267,7 @@ class ScrollHandler {
     onStateUpdate();
   }
   
-void handleHorizontalScrollbarDragUpdate(PointerMoveEvent details) {
+  void handleHorizontalScrollbarDragUpdate(PointerMoveEvent details) {
     if (!_isHorizontalDragging) return;
     
     final Size canvasSize = _calculateCanvasSize();
@@ -235,7 +313,7 @@ void handleHorizontalScrollbarDragUpdate(PointerMoveEvent details) {
     onStateUpdate();
   }
   
-void handleVerticalScrollbarDragUpdate(PointerMoveEvent details) {
+  void handleVerticalScrollbarDragUpdate(PointerMoveEvent details) {
     if (!_isVerticalDragging) return;
     
     final Size canvasSize = _calculateCanvasSize();

@@ -24,67 +24,70 @@ class _StableGridImageState extends State<StableGridImage> {
   late ScrollHandler _scrollHandler;
   late TileManager _tileManager;
   late NodeManager _nodeManager;
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     _editorState = EditorState();
-    
+
     // Сначала создаем TileManager и NodeManager
     _tileManager = TileManager(
       state: _editorState,
       onStateUpdate: () => setState(() {}),
     );
-    
+
     _nodeManager = NodeManager(
       state: _editorState,
       tileManager: _tileManager,
       onStateUpdate: () => setState(() {}),
     );
-    
+
     // Теперь создаем ScrollHandler с передачей NodeManager
     _scrollHandler = ScrollHandler(
       state: _editorState,
       nodeManager: _nodeManager, // Передаем NodeManager
       onStateUpdate: () => setState(() {}),
     );
-    
+
     _inputHandler = InputHandler(
       state: _editorState,
       nodeManager: _nodeManager,
       scrollHandler: _scrollHandler,
       onStateUpdate: () => setState(() {}),
     );
-    
+
     // Инициализация
     _initEditor();
   }
-  
+
   Future<void> _initEditor() async {
     final objects = widget.diagram['objects'];
     final metadata = widget.diagram['metadata'];
     final double dx = (metadata['dx'] as num).toDouble();
     final double dy = (metadata['dy'] as num).toDouble();
-    
+
     _editorState.delta = Offset(dx, dy);
-    
+
     if (objects != null && objects.isNotEmpty) {
       for (final object in objects) {
         _editorState.nodes.add(TableNode.fromJson(object));
       }
-      
+
+      // Рассчитываем размер холста на основе расположения узлов
+      _scrollHandler.calculateCanvasSizeFromNodes(_editorState.nodes);
+
       await _tileManager.createTiledImage(_editorState.nodes);
     } else {
       print('Нет объектов для отрисовки');
       await _tileManager.createFallbackTiles();
     }
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollHandler.centerCanvas();
     });
   }
-  
+
   @override
   void dispose() {
     _inputHandler.dispose();
@@ -92,12 +95,11 @@ class _StableGridImageState extends State<StableGridImage> {
     _tileManager.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        
         return Stack(
           children: [
             // Основной канвас с скроллбарами
@@ -107,7 +109,7 @@ class _StableGridImageState extends State<StableGridImage> {
               nodeManager: _nodeManager,
               scrollHandler: _scrollHandler,
             ),
-            
+
             // Панель зума
             Positioned(
               right: 20,
@@ -119,10 +121,9 @@ class _StableGridImageState extends State<StableGridImage> {
                 onToggleTileBorders: () => _inputHandler.toggleTileBorders(),
               ),
             ),
-            
+
             // Индикатор загрузки
-            if (_editorState.isLoading)
-              const LoadingIndicator(),
+            if (_editorState.isLoading) const LoadingIndicator(),
           ],
         );
       },
