@@ -125,9 +125,19 @@ class _StableGridImageState extends State<StableGridImage> {
                 imageTiles: _editorState.imageTiles,
                 onResetZoom: () => _scrollHandler.resetZoom(),
                 onToggleTileBorders: () => _inputHandler.toggleTileBorders(),
+                onThumbnailClick: (Offset newOffset) {
+                  // Обновляем offset в состоянии
+                  _editorState.offset = _inputHandler.constrainOffset(newOffset);
+
+                  // Обновляем скроллбары
+                  _scrollHandler.updateScrollControllers();
+
+                  // Перерисовываем
+                  setState(() {});
+                },
               ),
             ),
-            
+
             // Индикатор загрузки
             if (_editorState.isLoading) const LoadingIndicator(),
           ],

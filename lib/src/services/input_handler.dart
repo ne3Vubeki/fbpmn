@@ -67,7 +67,7 @@ class InputHandler {
     final Offset newOffset = localPosition - mouseInCanvas * zoomFactor;
 
     state.scale = newScale;
-    state.offset = _constrainOffset(newOffset);
+    state.offset = constrainOffset(newOffset);
 
     // ВАЖНОЕ ИСПРАВЛЕНИЕ: Корректируем позицию выделенного узла при изменении масштаба
     if (oldScale != newScale) {
@@ -124,7 +124,7 @@ class InputHandler {
       final Offset deltaMove = position - _panStartMousePosition;
       final Offset newOffset = _panStartOffset + deltaMove;
 
-      state.offset = _constrainOffset(newOffset);
+      state.offset = constrainOffset(newOffset);
 
       // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при панорамировании
       if (state.isNodeOnTopLayer) {
@@ -167,7 +167,7 @@ class InputHandler {
     onStateUpdate();
   }
 
-  Offset _constrainOffset(Offset offset) {
+  Offset constrainOffset(Offset offset) {
     // Используем динамический размер холста из ScrollHandler
     final Size canvasSize = Size(
       scrollHandler.dynamicCanvasWidth * state.scale,

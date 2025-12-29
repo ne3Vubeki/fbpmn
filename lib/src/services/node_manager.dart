@@ -173,6 +173,7 @@ class NodeManager {
 
     // Добавляем узел в тайлы на новом месте
     await tileManager.addNodeToTiles(node, constrainedWorldPosition);
+    await tileManager.updateTilesAfterNodeChange();
 
     node.isSelected = false;
     state.isNodeDragging = false;

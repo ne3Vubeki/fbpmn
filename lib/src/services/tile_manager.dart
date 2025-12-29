@@ -593,6 +593,14 @@ class TileManager {
     }
   }
 
+  Future<void> updateTilesAfterNodeChange() async {
+    // Пересоздаем тайлы с текущими узлами
+    await createTiledImage(state.nodes);
+
+    // Уведомляем об изменении
+    onStateUpdate();
+  }
+
   // Обновление тайла со ВСЕМИ узлами
   Future<void> _updateTileWithAllNodes(int tileIndex) async {
     if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {

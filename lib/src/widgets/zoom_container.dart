@@ -15,7 +15,8 @@ class ZoomContainer extends StatefulWidget {
   final List<ImageTile> imageTiles;
   final VoidCallback onResetZoom;
   final VoidCallback onToggleTileBorders;
-  
+  final Function(Offset)? onThumbnailClick;
+
   const ZoomContainer({
     super.key,
     required this.scale,
@@ -28,28 +29,41 @@ class ZoomContainer extends StatefulWidget {
     required this.imageTiles,
     required this.onResetZoom,
     required this.onToggleTileBorders,
+    required this.onThumbnailClick,
   });
-  
+
   @override
   State<ZoomContainer> createState() => _ZoomContainerState();
 }
 
 class _ZoomContainerState extends State<ZoomContainer> {
   bool _showThumbnail = true;
-  
+
   void _toggleThumbnail() {
     setState(() {
       _showThumbnail = !_showThumbnail;
     });
   }
-  
+
+  void _handleThumbnailClick(Offset newCanvasOffset) {
+    // Нужно обновить offset в основном состоянии
+    // Для этого нужно передать callback дальше или иметь доступ к EditorState
+
+    // Если ZoomContainer не имеет доступа к EditorState,
+    // нужно добавить callback в конструктор ZoomContainer:
+    // final Function(Offset) onThumbnailClick;
+
+    // И вызывать его:
+    if (widget.onThumbnailClick != null) {
+      widget.onThumbnailClick!(newCanvasOffset);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Ширина контейнера (равна ширине миниатюры или минимальная ширина панели)
-    const double thumbnailWidth = 300;
-    const double minPanelWidth = 200;
-    final double containerWidth = _showThumbnail ? thumbnailWidth : minPanelWidth;
-    
+    final double containerWidth = 300;
+
     return Container(
       margin: const EdgeInsets.only(right: 20, bottom: 20),
       width: containerWidth,
@@ -63,14 +77,16 @@ class _ZoomContainerState extends State<ZoomContainer> {
               canvasWidth: widget.canvasWidth,
               canvasHeight: widget.canvasHeight,
               canvasOffset: widget.canvasOffset,
+              panelWidth: containerWidth,
               delta: widget.delta, // Передаем delta
               viewportSize: widget.viewportSize,
               scale: widget.scale,
               imageTiles: widget.imageTiles,
+              onThumbnailClick: _handleThumbnailClick,
             ),
             const SizedBox(height: 8),
           ],
-          
+
           // Панель управления зумом (ширина равна ширине контейнера)
           ZoomPanel(
             scale: widget.scale,
