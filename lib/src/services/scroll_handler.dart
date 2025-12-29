@@ -77,9 +77,6 @@ class ScrollHandler {
     final double requiredRight = maxX + padding;
     final double requiredBottom = maxY + padding;
 
-    final double width = requiredRight - requiredLeft;
-    final double height = requiredBottom - requiredTop;
-
     // Корректируем delta так, чтобы requiredLeft был в 0
     // Это сместит все узлы вправо, чтобы они поместились в холст
     final Offset deltaCorrection = Offset(-requiredLeft, -requiredTop);
@@ -108,8 +105,13 @@ class ScrollHandler {
     final double finalWidth = (maxX - minX) + padding * 2;
     final double finalHeight = (maxY - minY) + padding * 2;
 
-    _dynamicCanvasWidth = _roundToTileMultiple(finalWidth, tileSize);
-    _dynamicCanvasHeight = _roundToTileMultiple(finalHeight, tileSize);
+    // Округляем до размера тайла
+    final double calculatedWidth = _roundToTileMultiple(finalWidth, tileSize);
+    final double calculatedHeight = _roundToTileMultiple(finalHeight, tileSize);
+
+    // Используем бОльший размер: расчетный или статический
+    _dynamicCanvasWidth = math.max(calculatedWidth, staticCanvasWidth);
+    _dynamicCanvasHeight = math.max(calculatedHeight, staticCanvasHeight);
 
     // Отладочная информация
     print('=== calculateCanvasSizeFromNodes ===');
@@ -130,10 +132,13 @@ class ScrollHandler {
 
   /// Размер холста с учетом масштаба (динамические размеры)
   Size _calculateCanvasSize() {
-    return Size(
-      _dynamicCanvasWidth * state.scale,
-      _dynamicCanvasHeight * state.scale,
-    );
+    // Используем динамический размер, но не меньше минимального
+    final double width =
+        math.max(_dynamicCanvasWidth, staticCanvasWidth) * state.scale;
+    final double height =
+        math.max(_dynamicCanvasHeight, staticCanvasHeight) * state.scale;
+
+    return Size(width, height);
   }
 
   void centerCanvas() {
