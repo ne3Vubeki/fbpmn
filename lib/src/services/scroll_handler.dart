@@ -4,24 +4,27 @@ import 'dart:math' as math;
 import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../services/node_manager.dart';
-import '../utils/editor_config.dart';
+import '../utils/bounds_calculator.dart';
 
 class ScrollHandler {
   final EditorState state;
   final NodeManager? nodeManager;
   final VoidCallback onStateUpdate;
-  
+
+  final BoundsCalculator _boundsCalculator = BoundsCalculator();
+  static const double tileSize = 1024.0; // Размер тайла
+
   final ScrollController horizontalScrollController = ScrollController();
   final ScrollController verticalScrollController = ScrollController();
-  
+
   // Статичный размер холста (используется по умолчанию)
   static const double staticCanvasWidth = 12288.0;
   static const double staticCanvasHeight = 6144.0;
-  
+
   // Динамически рассчитанные размеры холста
   double _dynamicCanvasWidth = staticCanvasWidth;
   double _dynamicCanvasHeight = staticCanvasHeight;
-  
+
   // Для перетаскивания скроллбаров
   bool _isHorizontalDragging = false;
   bool _isVerticalDragging = false;
@@ -33,7 +36,7 @@ class ScrollHandler {
   // Геттеры для динамических размеров холста
   double get dynamicCanvasWidth => _dynamicCanvasWidth;
   double get dynamicCanvasHeight => _dynamicCanvasHeight;
-  
+
   ScrollHandler({
     required this.state,
     this.nodeManager,
@@ -42,74 +45,89 @@ class ScrollHandler {
     horizontalScrollController.addListener(_onHorizontalScroll);
     verticalScrollController.addListener(_onVerticalScroll);
   }
-  
+
   /// Рассчитывает размер холста на основе расположения узлов
   void calculateCanvasSizeFromNodes(List<TableNode> nodes) {
-    if (nodes.isEmpty) {
-      // Если узлов нет, используем статические размеры
-      _dynamicCanvasWidth = staticCanvasWidth;
-      _dynamicCanvasHeight = staticCanvasHeight;
-      return;
-    }
-    
-    // Находим границы всех узлов
+    if (nodes.isEmpty) return;
+
     double minX = double.infinity;
     double minY = double.infinity;
-    double maxX = double.negativeInfinity;
-    double maxY = double.negativeInfinity;
-    
-    void calculateNodeBounds(TableNode node, Offset parentOffset) {
-      final nodePosition = parentOffset + node.position;
-      final nodeRect = Rect.fromLTWH(
-        nodePosition.dx,
-        nodePosition.dy,
-        node.size.width,
-        node.size.height,
+    double maxX = -double.infinity;
+    double maxY = -double.infinity;
+
+    // Сначала рассчитываем границы узлов с текущим delta
+    for (final node in nodes) {
+      final nodePosition = state.delta + node.position;
+      final nodeRect = _boundsCalculator.calculateNodeRect(
+        node: node,
+        position: nodePosition,
       );
-      
-      // Обновляем границы
+
       minX = math.min(minX, nodeRect.left);
       minY = math.min(minY, nodeRect.top);
       maxX = math.max(maxX, nodeRect.right);
       maxY = math.max(maxY, nodeRect.bottom);
-      
-      // Рекурсивно проверяем детей
-      if (node.children != null && node.children!.isNotEmpty) {
-        for (final child in node.children!) {
-          calculateNodeBounds(child, nodePosition);
-        }
-      }
     }
-    
-    // Рассчитываем границы для всех корневых узлов
+
+    const double padding = 1000;
+
+    // Рассчитываем необходимые границы холста
+    final double requiredLeft = minX - padding;
+    final double requiredTop = minY - padding;
+    final double requiredRight = maxX + padding;
+    final double requiredBottom = maxY + padding;
+
+    final double width = requiredRight - requiredLeft;
+    final double height = requiredBottom - requiredTop;
+
+    // Корректируем delta так, чтобы requiredLeft был в 0
+    // Это сместит все узлы вправо, чтобы они поместились в холст
+    final Offset deltaCorrection = Offset(-requiredLeft, -requiredTop);
+    state.delta += deltaCorrection;
+
+    // Теперь пересчитываем границы с новым delta
+    minX = double.infinity;
+    minY = double.infinity;
+    maxX = -double.infinity;
+    maxY = -double.infinity;
+
     for (final node in nodes) {
-      calculateNodeBounds(node, state.delta);
+      final nodePosition = state.delta + node.position;
+      final nodeRect = _boundsCalculator.calculateNodeRect(
+        node: node,
+        position: nodePosition,
+      );
+
+      minX = math.min(minX, nodeRect.left);
+      minY = math.min(minY, nodeRect.top);
+      maxX = math.max(maxX, nodeRect.right);
+      maxY = math.max(maxY, nodeRect.bottom);
     }
-    
-    // Добавляем отступы
-    const double padding = 500.0; // Отступ от крайних узлов
-    final double width = (maxX - minX) + padding * 2;
-    final double height = (maxY - minY) + padding * 2;
-    
-    // Округляем до ближайшего кратного размеру тайла
-    final tileSize = EditorConfig.tileSize.toDouble();
-    _dynamicCanvasWidth = _roundToTileMultiple(width, tileSize);
-    _dynamicCanvasHeight = _roundToTileMultiple(height, tileSize);
-    
-    // Минимальный размер - статические размеры
-    _dynamicCanvasWidth = math.max(_dynamicCanvasWidth, staticCanvasWidth);
-    _dynamicCanvasHeight = math.max(_dynamicCanvasHeight, staticCanvasHeight);
-    
-    print('Рассчитан размер холста: ${_dynamicCanvasWidth.toInt()}x${_dynamicCanvasHeight.toInt()}');
-    print('Границы узлов: X[$minX..$maxX], Y[$minY..$maxY]');
+
+    // Рассчитываем окончательный размер холста
+    final double finalWidth = (maxX - minX) + padding * 2;
+    final double finalHeight = (maxY - minY) + padding * 2;
+
+    _dynamicCanvasWidth = _roundToTileMultiple(finalWidth, tileSize);
+    _dynamicCanvasHeight = _roundToTileMultiple(finalHeight, tileSize);
+
+    // Отладочная информация
+    print('=== calculateCanvasSizeFromNodes ===');
+    print('Original bounds: ($minX, $minY) to ($maxX, $maxY)');
+    print(
+      'Required canvas: ($requiredLeft, $requiredTop) to ($requiredRight, $requiredBottom)',
+    );
+    print('Delta correction: (${deltaCorrection.dx}, ${deltaCorrection.dy})');
+    print('New delta: (${state.delta.dx}, ${state.delta.dy})');
+    print('Canvas size: ${_dynamicCanvasWidth}x${_dynamicCanvasHeight}');
   }
-  
+
   /// Округляет значение до ближайшего кратного размеру тайла
   double _roundToTileMultiple(double value, double tileSize) {
     final double tilesCount = (value / tileSize).ceil().toDouble();
     return tilesCount * tileSize;
   }
-  
+
   /// Размер холста с учетом масштаба (динамические размеры)
   Size _calculateCanvasSize() {
     return Size(
@@ -117,49 +135,51 @@ class ScrollHandler {
       _dynamicCanvasHeight * state.scale,
     );
   }
-  
+
   void centerCanvas() {
     final Size canvasSize = _calculateCanvasSize();
-    
+
     // Центрируем холст в видимой области
     state.offset = Offset(
       (state.viewportSize.width - canvasSize.width) / 2,
       (state.viewportSize.height - canvasSize.height) / 2,
     );
-    
+
     // Корректируем offset, чтобы не выходить за границы
     _constrainCurrentOffset();
-    
+
     // Обновляем позицию выделенного узла
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
-    
+
     updateScrollControllers();
     state.isInitialized = true;
     onStateUpdate();
   }
-  
+
   void resetZoom() {
     state.scale = 1.0;
     centerCanvas();
     onStateUpdate();
   }
-  
+
   /// Ограничивает текущий offset границами
   void _constrainCurrentOffset() {
     final Size canvasSize = _calculateCanvasSize();
-    
+
     double constrainedX = state.offset.dx;
     double constrainedY = state.offset.dy;
-    
+
     // Максимальные смещения
     final double maxRight = 0; // Нельзя двигать вправо за левую границу
-    final double maxLeft = state.viewportSize.width - canvasSize.width; // Максимум влево
-    
+    final double maxLeft =
+        state.viewportSize.width - canvasSize.width; // Максимум влево
+
     final double maxBottom = 0; // Нельзя двигать вниз за верхнюю границу
-    final double maxTop = state.viewportSize.height - canvasSize.height; // Максимум вверх
-    
+    final double maxTop =
+        state.viewportSize.height - canvasSize.height; // Максимум вверх
+
     // Ограничиваем по X
     if (canvasSize.width <= state.viewportSize.width) {
       // Холст меньше viewport - центрируем
@@ -169,7 +189,7 @@ class ScrollHandler {
       if (constrainedX > maxRight) constrainedX = maxRight;
       if (constrainedX < maxLeft) constrainedX = maxLeft;
     }
-    
+
     // Ограничиваем по Y
     if (canvasSize.height <= state.viewportSize.height) {
       // Холст меньше viewport - центрируем
@@ -179,125 +199,150 @@ class ScrollHandler {
       if (constrainedY > maxBottom) constrainedY = maxBottom;
       if (constrainedY < maxTop) constrainedY = maxTop;
     }
-    
+
     state.offset = Offset(constrainedX, constrainedY);
   }
-  
+
   void updateScrollControllers() {
     final Size canvasSize = _calculateCanvasSize();
-    
+
     // Максимальная прокрутка
-    final double horizontalMaxScroll = _max(0, canvasSize.width - state.viewportSize.width);
-    final double verticalMaxScroll = _max(0, canvasSize.height - state.viewportSize.height);
-    
+    final double horizontalMaxScroll = _max(
+      0,
+      canvasSize.width - state.viewportSize.width,
+    );
+    final double verticalMaxScroll = _max(
+      0,
+      canvasSize.height - state.viewportSize.height,
+    );
+
     // Текущая позиция в координатах скроллбара
-    final double horizontalPosition = _clamp(-state.offset.dx, 0, horizontalMaxScroll);
-    final double verticalPosition = _clamp(-state.offset.dy, 0, verticalMaxScroll);
-    
+    final double horizontalPosition = _clamp(
+      -state.offset.dx,
+      0,
+      horizontalMaxScroll,
+    );
+    final double verticalPosition = _clamp(
+      -state.offset.dy,
+      0,
+      verticalMaxScroll,
+    );
+
     // Обновляем скроллбары
     if (horizontalScrollController.hasClients) {
       horizontalScrollController.jumpTo(horizontalPosition);
     }
-    
+
     if (verticalScrollController.hasClients) {
       verticalScrollController.jumpTo(verticalPosition);
     }
   }
-  
+
   /// Вызывается при изменении размера viewport
   void handleViewportResize(Size newViewportSize) {
     state.viewportSize = newViewportSize;
-    
+
     // Корректируем текущий offset под новый размер viewport
     _constrainCurrentOffset();
-    
+
     // Обновляем скроллбары
     updateScrollControllers();
-    
+
     // Обновляем позицию выделенного узла
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
-    
+
     onStateUpdate();
   }
-  
+
   void _onHorizontalScroll() {
     if (_isHorizontalDragging) return; // Игнорируем при перетаскивании
-    
+
     final double scrollPosition = horizontalScrollController.offset;
     final Size canvasSize = _calculateCanvasSize();
-    final double maxScroll = _max(0, canvasSize.width - state.viewportSize.width);
-    
+    final double maxScroll = _max(
+      0,
+      canvasSize.width - state.viewportSize.width,
+    );
+
     final double clampedScroll = _clamp(scrollPosition, 0, maxScroll);
     state.offset = Offset(-clampedScroll, state.offset.dy);
-    
+
     // Обновляем позицию выделенного узла
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
-    
+
     onStateUpdate();
   }
-  
+
   void _onVerticalScroll() {
     if (_isVerticalDragging) return; // Игнорируем при перетаскивании
-    
+
     final double scrollPosition = verticalScrollController.offset;
     final Size canvasSize = _calculateCanvasSize();
-    final double maxScroll = _max(0, canvasSize.height - state.viewportSize.height);
-    
+    final double maxScroll = _max(
+      0,
+      canvasSize.height - state.viewportSize.height,
+    );
+
     final double clampedScroll = _clamp(scrollPosition, 0, maxScroll);
     state.offset = Offset(state.offset.dx, -clampedScroll);
-    
+
     // Обновляем позицию выделенного узла
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
-    
+
     onStateUpdate();
   }
-  
+
   // === МЕТОДЫ ДЛЯ ПЕРЕТАСКИВАНИЯ СКРОЛЛБАРОВ ===
-  
+
   void handleHorizontalScrollbarDragStart(PointerDownEvent details) {
     _isHorizontalDragging = true;
     _horizontalDragStart = details.localPosition;
     _horizontalDragStartOffset = horizontalScrollController.offset;
     onStateUpdate();
   }
-  
+
   void handleHorizontalScrollbarDragUpdate(PointerMoveEvent details) {
     if (!_isHorizontalDragging) return;
-    
+
     final Size canvasSize = _calculateCanvasSize();
-    final double maxScroll = _max(0, canvasSize.width - state.viewportSize.width);
-    
+    final double maxScroll = _max(
+      0,
+      canvasSize.width - state.viewportSize.width,
+    );
+
     if (maxScroll == 0) return;
-    
-    final double mouseDelta = details.localPosition.dx - _horizontalDragStart.dx;
-    
+
+    final double mouseDelta =
+        details.localPosition.dx - _horizontalDragStart.dx;
+
     // САМЫЙ ПРОСТОЙ И ТОЧНЫЙ РАСЧЕТ:
     // Если холст в N раз больше viewport, то движение мыши на 1px = движение скроллбара на N px
-    final double canvasToViewportWidthRatio = canvasSize.width / state.viewportSize.width;
+    final double canvasToViewportWidthRatio =
+        canvasSize.width / state.viewportSize.width;
     final double adjustedDelta = mouseDelta * canvasToViewportWidthRatio;
-    
+
     final double newScrollOffset = _clamp(
       _horizontalDragStartOffset + adjustedDelta,
       0,
-      maxScroll
+      maxScroll,
     );
-    
+
     if (horizontalScrollController.hasClients) {
       horizontalScrollController.jumpTo(newScrollOffset);
     }
-    
+
     state.offset = Offset(-newScrollOffset, state.offset.dy);
-    
+
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
-    
+
     onStateUpdate();
   }
 
@@ -305,60 +350,64 @@ class ScrollHandler {
     _isHorizontalDragging = false;
     onStateUpdate();
   }
-  
+
   void handleVerticalScrollbarDragStart(PointerDownEvent details) {
     _isVerticalDragging = true;
     _verticalDragStart = details.localPosition;
     _verticalDragStartOffset = verticalScrollController.offset;
     onStateUpdate();
   }
-  
+
   void handleVerticalScrollbarDragUpdate(PointerMoveEvent details) {
     if (!_isVerticalDragging) return;
-    
+
     final Size canvasSize = _calculateCanvasSize();
-    final double maxScroll = _max(0, canvasSize.height - state.viewportSize.height);
-    
+    final double maxScroll = _max(
+      0,
+      canvasSize.height - state.viewportSize.height,
+    );
+
     if (maxScroll == 0) return;
-    
+
     final double mouseDelta = details.localPosition.dy - _verticalDragStart.dy;
-    
+
     // САМЫЙ ПРОСТОЙ И ТОЧНЫЙ РАСЧЕТ:
-    final double canvasToViewportHeightRatio = canvasSize.height / state.viewportSize.height;
+    final double canvasToViewportHeightRatio =
+        canvasSize.height / state.viewportSize.height;
     final double adjustedDelta = mouseDelta * canvasToViewportHeightRatio;
-    
+
     final double newScrollOffset = _clamp(
       _verticalDragStartOffset + adjustedDelta,
       0,
-      maxScroll
+      maxScroll,
     );
-    
+
     if (verticalScrollController.hasClients) {
       verticalScrollController.jumpTo(newScrollOffset);
     }
-    
+
     state.offset = Offset(state.offset.dx, -newScrollOffset);
-    
+
     if (state.isNodeOnTopLayer) {
       nodeManager?.onOffsetChanged();
     }
-    
+
     onStateUpdate();
   }
-  
+
   void handleVerticalScrollbarDragEnd(PointerUpEvent details) {
     _isVerticalDragging = false;
     onStateUpdate();
   }
-  
+
   double _max(double a, double b) => a > b ? a : b;
-  
+
   double _clamp(double value, double min, double max) {
     if (value < min) return min;
     if (value > max) return max;
     return value;
   }
-  
+
   void dispose() {
     horizontalScrollController.dispose();
     verticalScrollController.dispose();

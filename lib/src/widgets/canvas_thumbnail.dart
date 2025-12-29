@@ -7,6 +7,7 @@ class CanvasThumbnail extends StatefulWidget {
   final double canvasWidth;
   final double canvasHeight;
   final Offset canvasOffset;
+  final Offset delta;
   final Size viewportSize;
   final double scale;
   final List<ImageTile> imageTiles;
@@ -16,6 +17,7 @@ class CanvasThumbnail extends StatefulWidget {
     required this.canvasWidth,
     required this.canvasHeight,
     required this.canvasOffset,
+    required this.delta,
     required this.viewportSize,
     required this.scale,
     required this.imageTiles,
@@ -27,6 +29,9 @@ class CanvasThumbnail extends StatefulWidget {
 
 class _CanvasThumbnailState extends State<CanvasThumbnail> {
   ui.Image? _thumbnailImage;
+  double _thumbnailScale = 1.0;
+  double _thumbnailWidth = 0;
+  double _thumbnailHeight = 0;
   
   @override
   void initState() {
@@ -41,8 +46,16 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     // Обновляем миниатюру если изменились тайлы или размер холста
     if (widget.imageTiles != oldWidget.imageTiles ||
         widget.canvasWidth != oldWidget.canvasWidth ||
-        widget.canvasHeight != oldWidget.canvasHeight) {
+        widget.canvasHeight != oldWidget.canvasHeight ||
+        widget.delta != oldWidget.delta) {
       _createThumbnail();
+    }
+    
+    // Перерисовываем видимую область при изменении параметров отображения
+    if (widget.canvasOffset != oldWidget.canvasOffset ||
+        widget.scale != oldWidget.scale ||
+        widget.viewportSize != oldWidget.viewportSize) {
+      setState(() {});
     }
   }
   
@@ -53,7 +66,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       // Максимальный размер миниатюры
       const double maxThumbnailSize = 300;
       
-      // Рассчитываем масштаб для миниатюры
+      // Рассчитываем масштаб для миниатюры с сохранением пропорций
       final double scaleX = maxThumbnailSize / widget.canvasWidth;
       final double scaleY = maxThumbnailSize / widget.canvasHeight;
       final double thumbnailScale = scaleX < scaleY ? scaleX : scaleY;
@@ -62,13 +75,17 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       final double thumbnailWidth = widget.canvasWidth * thumbnailScale;
       final double thumbnailHeight = widget.canvasHeight * thumbnailScale;
       
-      // Создаем PictureRecorder для миниатюры с увеличенным разрешением для лучшего качества
+      // Сохраняем расчетные значения для использования в build()
+      _thumbnailScale = thumbnailScale;
+      _thumbnailWidth = thumbnailWidth;
+      _thumbnailHeight = thumbnailHeight;
+      
+      // Создаем PictureRecorder для миниатюры
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       
-      // Увеличиваем разрешение в 2 раза для лучшего качества, затем масштабируем
-      final double qualityScale = 2.0;
-      canvas.scale(thumbnailScale * qualityScale, thumbnailScale * qualityScale);
+      // Применяем масштаб миниатюры
+      canvas.scale(thumbnailScale, thumbnailScale);
       
       // Рисуем все тайлы с улучшенным качеством
       for (final tile in widget.imageTiles) {
@@ -82,15 +99,15 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
             tile.image.width.toDouble(), 
             tile.image.height.toDouble()),
           tileRect,
-          Paint()..filterQuality = FilterQuality.medium, // Улучшенное качество
+          Paint()..filterQuality = FilterQuality.medium,
         );
       }
       
-      // Завершаем запись и создаем изображение с уменьшением масштаба
+      // Завершаем запись и создаем изображение
       final picture = recorder.endRecording();
       final image = await picture.toImage(
-        (thumbnailWidth * qualityScale).toInt(),
-        (thumbnailHeight * qualityScale).toInt(),
+        thumbnailWidth.toInt(),
+        thumbnailHeight.toInt(),
       );
       picture.dispose();
       
@@ -127,29 +144,52 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       );
     }
     
-    // Рассчитываем размеры миниатюры с сохранением пропорций
-    const double maxThumbnailWidth = 300;
-    final double aspectRatio = widget.canvasWidth / widget.canvasHeight;
-    final double thumbnailWidth = maxThumbnailWidth;
-    final double thumbnailHeight = thumbnailWidth / aspectRatio;
+    // Используем расчетные размеры из _createThumbnail()
+    final double thumbnailWidth = _thumbnailWidth;
+    final double thumbnailHeight = _thumbnailHeight;
+    final double thumbnailScale = _thumbnailScale;
     
-    // Масштаб для миниатюры
-    final double thumbnailScale = thumbnailWidth / widget.canvasWidth;
-    
-    // КОРРЕКТНЫЙ РАСЧЕТ видимой области с учетом масштаба
+    // КОРРЕКТНЫЙ РАСЧЕТ видимой области
     // Видимая область на основном холсте (в мировых координатах)
     final double visibleWorldWidth = widget.viewportSize.width / widget.scale;
     final double visibleWorldHeight = widget.viewportSize.height / widget.scale;
     
     // Позиция видимой области в мировых координатах
+    // offset - это смещение холста относительно viewport
+    // Формула: visibleWorldLeft = -offset.dx / scale
     final double visibleWorldLeft = -widget.canvasOffset.dx / widget.scale;
     final double visibleWorldTop = -widget.canvasOffset.dy / widget.scale;
     
     // Переводим в координаты миниатюры
+    // Тайлы содержат узлы в мировых координатах (уже с delta)
+    // Начало координат миниатюры = начало координат холста (0,0)
+    // Поэтому преобразование прямое: visibleLeft = visibleWorldLeft * thumbnailScale
     final double visibleLeft = visibleWorldLeft * thumbnailScale;
     final double visibleTop = visibleWorldTop * thumbnailScale;
     final double visibleWidth = visibleWorldWidth * thumbnailScale;
     final double visibleHeight = visibleWorldHeight * thumbnailScale;
+    
+    // Ограничиваем координаты видимой области границами миниатюры
+    final double clampedVisibleLeft = visibleLeft.clamp(0, thumbnailWidth - visibleWidth);
+    final double clampedVisibleTop = visibleTop.clamp(0, thumbnailHeight - visibleHeight);
+    final double clampedVisibleWidth = visibleWidth.clamp(0, thumbnailWidth);
+    final double clampedVisibleHeight = visibleHeight.clamp(0, thumbnailHeight);
+    
+    // Отладочная информация
+    print('=== CanvasThumbnail Debug ===');
+    print('Canvas size: ${widget.canvasWidth}x${widget.canvasHeight}');
+    print('Thumbnail size: ${thumbnailWidth}x${thumbnailHeight}');
+    print('Thumbnail scale: $thumbnailScale');
+    print('Main scale: ${widget.scale}');
+    print('Canvas offset: (${widget.canvasOffset.dx}, ${widget.canvasOffset.dy})');
+    print('Delta: (${widget.delta.dx}, ${widget.delta.dy})');
+    print('Viewport size: ${widget.viewportSize.width}x${widget.viewportSize.height}');
+    print('Visible world: (${visibleWorldLeft.toStringAsFixed(1)}, ${visibleWorldTop.toStringAsFixed(1)}) '
+          '${visibleWorldWidth.toStringAsFixed(1)}x${visibleWorldHeight.toStringAsFixed(1)}');
+    print('Visible thumb: (${visibleLeft.toStringAsFixed(1)}, ${visibleTop.toStringAsFixed(1)}) '
+          '${visibleWidth.toStringAsFixed(1)}x${visibleHeight.toStringAsFixed(1)}');
+    print('Clamped: (${clampedVisibleLeft.toStringAsFixed(1)}, ${clampedVisibleTop.toStringAsFixed(1)}) '
+          '${clampedVisibleWidth.toStringAsFixed(1)}x${clampedVisibleHeight.toStringAsFixed(1)}');
     
     return Container(
       width: thumbnailWidth,
@@ -168,24 +208,21 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       ),
       child: Stack(
         children: [
-          // Миниатюра холста (готовое изображение с улучшенным качеством)
-          Transform.scale(
-            scale: 0.5, // Компенсируем увеличенное разрешение
-            child: RawImage(
-              image: _thumbnailImage,
-              width: thumbnailWidth * 2,
-              height: thumbnailHeight * 2,
-              fit: BoxFit.fill,
-            ),
+          // Миниатюра холста
+          RawImage(
+            image: _thumbnailImage,
+            width: thumbnailWidth,
+            height: thumbnailHeight,
+            fit: BoxFit.fill,
           ),
           
           // Видимая область (прозрачный голубой прямоугольник)
           Positioned(
-            left: visibleLeft.clamp(0, thumbnailWidth - visibleWidth),
-            top: visibleTop.clamp(0, thumbnailHeight - visibleHeight),
+            left: clampedVisibleLeft,
+            top: clampedVisibleTop,
             child: Container(
-              width: visibleWidth.clamp(0, thumbnailWidth),
-              height: visibleHeight.clamp(0, thumbnailHeight),
+              width: clampedVisibleWidth,
+              height: clampedVisibleHeight,
               decoration: BoxDecoration(
                 color: Colors.blue.withOpacity(0.2),
                 border: Border.all(
@@ -207,7 +244,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
                 borderRadius: BorderRadius.circular(3),
               ),
               child: Text(
-                '${visibleWidth.toInt()}×${visibleHeight.toInt()}',
+                '${clampedVisibleWidth.toInt()}×${clampedVisibleHeight.toInt()}',
                 style: const TextStyle(
                   fontSize: 10,
                   color: Colors.white,

@@ -56,10 +56,10 @@ class InputHandler {
 
     double newScale = state.scale * (1 + delta * 0.001);
 
-    if (newScale < 0.25) {
-      newScale = 0.25;
+    if (newScale < 0.3) {
+      newScale = 0.3;
     } else if (newScale > 2.0) {
-      newScale = 1.0;
+      newScale = 2.0;
     }
 
     final double zoomFactor = newScale / oldScale;

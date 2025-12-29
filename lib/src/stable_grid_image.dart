@@ -120,6 +120,7 @@ class _StableGridImageState extends State<StableGridImage> {
                 canvasWidth: _scrollHandler.dynamicCanvasWidth,
                 canvasHeight: _scrollHandler.dynamicCanvasHeight,
                 canvasOffset: _editorState.offset,
+                delta: _editorState.delta, // Передаем delta
                 viewportSize: _editorState.viewportSize,
                 imageTiles: _editorState.imageTiles,
                 onResetZoom: () => _scrollHandler.resetZoom(),

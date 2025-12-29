@@ -10,6 +10,7 @@ class ZoomContainer extends StatefulWidget {
   final double canvasWidth;
   final double canvasHeight;
   final Offset canvasOffset;
+  final Offset delta; // Добавляем delta
   final Size viewportSize;
   final List<ImageTile> imageTiles;
   final VoidCallback onResetZoom;
@@ -22,6 +23,7 @@ class ZoomContainer extends StatefulWidget {
     required this.canvasWidth,
     required this.canvasHeight,
     required this.canvasOffset,
+    required this.delta, // Добавляем delta
     required this.viewportSize,
     required this.imageTiles,
     required this.onResetZoom,
@@ -61,6 +63,7 @@ class _ZoomContainerState extends State<ZoomContainer> {
               canvasWidth: widget.canvasWidth,
               canvasHeight: widget.canvasHeight,
               canvasOffset: widget.canvasOffset,
+              delta: widget.delta, // Передаем delta
               viewportSize: widget.viewportSize,
               scale: widget.scale,
               imageTiles: widget.imageTiles,
