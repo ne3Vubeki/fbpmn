@@ -27,6 +27,9 @@ class EditorState {
   Offset selectedNodeOffset = Offset.zero;
   Offset originalNodePosition = Offset.zero;
   bool isNodeDragging = false;
+
+  // Размер выделенного узла (для правильной отрисовки рамки)
+  Size selectedNodeSize = Size.zero;
   
   // Тайлы
   List<ImageTile> imageTiles = [];

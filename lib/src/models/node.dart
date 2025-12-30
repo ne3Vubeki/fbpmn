@@ -4,7 +4,7 @@ import 'dart:ui';
 class Node {
   final String id;
   Offset position;
-  final Size size;
+  Size size;
   String text;
   bool isSelected;
 

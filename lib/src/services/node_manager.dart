@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../services/tile_manager.dart';
+import '../utils/editor_config.dart';
 
 class NodeManager {
   final EditorState state;
@@ -54,17 +57,72 @@ class NodeManager {
   void _updateFramePosition() {
     if (state.selectedNodeOnTopLayer == null) return;
 
-    // Мировые координаты левого верхнего угла узла
-    final worldNodePosition = state.originalNodePosition;
+    final node = state.selectedNodeOnTopLayer!;
 
-    // Экранные координаты левого верхнего угла узла
+    // Для swimlane в раскрытом состоянии рассчитываем общие границы
+    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      _updateSwimlaneFramePosition(node);
+      return;
+    }
+
+    // Для обычных узлов и свернутых swimlane
+    final worldNodePosition = state.originalNodePosition;
     final screenNodePosition = _worldToScreen(worldNodePosition);
 
-    // Позиция рамки: смещаем ОТ узла на общий отступ рамки
-    // Рамка окружает узел, поэтому она находится левее и выше узла
     state.selectedNodeOffset = Offset(
       screenNodePosition.dx - frameTotalOffset,
       screenNodePosition.dy - frameTotalOffset,
+    );
+  }
+
+  // Метод для обновления рамки выделения swimlane
+  void _updateSwimlaneFramePosition(TableNode swimlaneNode) {
+    // Находим минимальные и максимальные координаты всех узлов swimlane
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = -double.infinity;
+    double maxY = -double.infinity;
+
+    // Добавляем родительский узел
+    final parentWorldPos = state.originalNodePosition;
+    final parentRect = Rect.fromLTWH(
+      parentWorldPos.dx,
+      parentWorldPos.dy,
+      swimlaneNode.size.width,
+      swimlaneNode.size.height,
+    );
+
+    minX = parentRect.left;
+    minY = parentRect.top;
+    maxX = parentRect.right;
+    maxY = parentRect.bottom;
+
+    // Добавляем детей
+    if (swimlaneNode.children != null) {
+      for (final child in swimlaneNode.children!) {
+        final childWorldPos = parentWorldPos + child.position;
+        final childRect = Rect.fromLTWH(
+          childWorldPos.dx,
+          childWorldPos.dy,
+          child.size.width,
+          child.size.height,
+        );
+
+        minX = math.min(minX, childRect.left);
+        minY = math.min(minY, childRect.top);
+        maxX = math.max(maxX, childRect.right);
+        maxY = math.max(maxY, childRect.bottom);
+      }
+    }
+
+    // Экранные координаты
+    final screenMin = _worldToScreen(Offset(minX, minY));
+    final screenMax = _worldToScreen(Offset(maxX, maxY));
+
+    // Позиция рамки с отступом
+    state.selectedNodeOffset = Offset(
+      screenMin.dx - frameTotalOffset,
+      screenMin.dy - frameTotalOffset,
     );
   }
 
@@ -80,15 +138,6 @@ class NodeManager {
     // Сохраняем мировые координаты ЛЕВОГО ВЕРХНЕГО УГЛА узла
     final worldNodePosition = state.delta + node.position;
     state.originalNodePosition = worldNodePosition;
-
-    print('=== ВЫБОР УЗЛА (immediate) ===');
-    print('Узел: ${node.text}');
-    print('Позиция в данных: ${node.position.dx}:${node.position.dy}');
-    print('Дельта: ${state.delta.dx}:${state.delta.dy}');
-    print(
-      'Мировые координаты узла: ${worldNodePosition.dx}:${worldNodePosition.dy}',
-    );
-
     state.selectedNodeOnTopLayer = node;
     state.isNodeOnTopLayer = true;
 
@@ -117,21 +166,46 @@ class NodeManager {
     state.selectedNodeOnTopLayer = node;
     state.isNodeOnTopLayer = true;
 
+    // Для swimlane в раскрытом состоянии выделяем все узлы
+    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      // Помечаем всех детей как выделенные
+      if (node.children != null) {
+        for (final child in node.children!) {
+          child.isSelected = true;
+        }
+      }
+    }
+
     _updateFramePosition();
 
-    // ВАЖНО: Сначала удаляем узел из state.nodes
+    // Удаляем узел из state.nodes
     _removeNodeFromNodesList(node);
 
-    // Затем удаляем узел из тайлов и ЖДЕМ завершения
+    // Для swimlane в раскрытом состоянии удаляем всех детей из тайлов
+    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      await _removeSwimlaneChildrenFromTiles(node);
+    }
+
+    // Удаляем узел из тайлов и ЖДЕМ завершения
     await tileManager.removeSelectedNodeFromTiles(node);
 
     onStateUpdate();
   }
 
+  // Добавляем метод для удаления детей swimlane из тайлов
+  Future<void> _removeSwimlaneChildrenFromTiles(TableNode swimlaneNode) async {
+    if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
+      return;
+    }
+
+    // Удаляем всех детей из тайлов
+    for (final child in swimlaneNode.children!) {
+      await tileManager.removeSelectedNodeFromTiles(child);
+    }
+  }
+
   // Новый метод: удаление узла из основного списка узлов
   void _removeNodeFromNodesList(TableNode node) {
-    print('Удаляем узел "${node.text}" из state.nodes');
-
     // Удаляем только корневой узел из основного списка
     // Вложенные узлы НЕ хранятся отдельно в state.nodes
     state.nodes.removeWhere((n) => n.id == node.id);
@@ -158,24 +232,36 @@ class NodeManager {
     final constrainedWorldPosition = worldNodePosition;
     final newPosition = constrainedWorldPosition - state.delta;
 
-    print('=== СОХРАНЕНИЕ УЗЛА В ТАЙЛЫ (без ограничений) ===');
-    print('Старая позиция: ${node.position.dx}:${node.position.dy}');
-    print('Новая позиция: ${newPosition.dx}:${newPosition.dy}');
-
     // Обновляем позицию родителя
     node.position = newPosition;
 
-    // Обновляем позиции всех детей относительно родителя
-    _updateChildrenPositions(node, newPosition);
+    // Для swimlane обновляем позиции детей относительно родителя
+    if (node.qType == 'swimlane') {
+      _updateSwimlaneChildrenPositions(node, newPosition);
+    }
 
     // Добавляем узел обратно в основной список узлов
     _addNodeBackToNodesList(node);
 
     // Добавляем узел в тайлы на новом месте
     await tileManager.addNodeToTiles(node, constrainedWorldPosition);
+
+    // Для swimlane в раскрытом состоянии добавляем детей
+    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      await _addSwimlaneChildrenToTiles(node);
+    }
+
     await tileManager.updateTilesAfterNodeChange();
 
     node.isSelected = false;
+
+    // Снимаем выделение с детей swimlane
+    if (node.qType == 'swimlane' && node.children != null) {
+      for (final child in node.children!) {
+        child.isSelected = false;
+      }
+    }
+
     state.isNodeDragging = false;
     state.isNodeOnTopLayer = false;
     state.selectedNodeOnTopLayer = null;
@@ -186,6 +272,14 @@ class NodeManager {
     onStateUpdate();
   }
 
+  // Метод для обновления позиций детей swimlane
+  void _updateSwimlaneChildrenPositions(
+    TableNode swimlaneNode,
+    Offset parentNewPosition,
+  ) {
+    // Для swimlane позиции детей уже правильные относительно родителя
+    // Не нужно их обновлять, они уже в правильных относительных координатах
+  }
   void handleEmptyAreaClick() {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
       _saveNodeToTiles();
@@ -207,6 +301,7 @@ class NodeManager {
     final worldPos = _screenToWorld(screenPosition);
 
     TableNode? foundNode;
+    Offset? foundNodeWorldPosition;
 
     // Ищем узел под курсором (с учетом иерархии)
     TableNode? findNodeRecursive(List<TableNode> nodes, Offset parentOffset) {
@@ -228,10 +323,18 @@ class NodeManager {
         }
 
         if (nodeRect.contains(worldPos)) {
+          foundNodeWorldPosition = nodeOffset;
           return node;
         }
 
-        if (node.children != null && node.children!.isNotEmpty) {
+        // Проверяем, является ли узел свернутым swimlane
+        final isCollapsedSwimlane =
+            node.qType == 'swimlane' && (node.isCollapsed ?? false);
+
+        // Если узел не свернут, проверяем детей
+        if (!isCollapsedSwimlane &&
+            node.children != null &&
+            node.children!.isNotEmpty) {
           final childNode = findNodeRecursive(node.children!, nodeOffset);
           if (childNode != null) {
             return childNode;
@@ -243,7 +346,17 @@ class NodeManager {
 
     foundNode = findNodeRecursive(state.nodes, state.delta);
 
-    if (foundNode != null) {
+    if (foundNode != null && foundNodeWorldPosition != null) {
+      // Проверяем клик по иконке swimlane
+      if (foundNode.qType == 'swimlane' &&
+          _isSwimlaneIconClicked(
+            foundNode,
+            worldPos,
+            foundNodeWorldPosition!,
+          )) {
+        await _toggleSwimlaneCollapsed(foundNode);
+        return;
+      }
       if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
         if (state.selectedNodeOnTopLayer!.id == foundNode.id) {
           if (immediateDrag) {
@@ -279,22 +392,72 @@ class NodeManager {
     }
   }
 
-  /// Обновляет позиции всех детей относительно нового положения родителя
-  void _updateChildrenPositions(
-    TableNode parentNode,
-    Offset parentNewPosition,
-  ) {
-    void updateRecursive(TableNode node, Offset parentOffset) {
-      // Для детей позиция уже правильная относительно родителя
-      // Не нужно их перемещать, они уже в правильных относительных координатах
-      if (node.children != null && node.children!.isNotEmpty) {
-        for (final child in node.children!) {
-          updateRecursive(child, parentOffset + node.position);
-        }
-      }
+  // Метод для переключения состояния swimlane
+  Future<void> _toggleSwimlaneCollapsed(TableNode swimlaneNode) async {
+    // Переключаем состояние
+    final toggledNode = swimlaneNode.toggleCollapsed();
+
+    // Обновляем узел в списке узлов
+    _updateNodeInList(toggledNode);
+
+    if (toggledNode.isCollapsed ?? false) {
+      // Удаляем детей из тайлов
+      await _removeSwimlaneChildrenFromTiles(swimlaneNode);
+    } else {
+      // Добавляем детей в тайлы
+      await _addSwimlaneChildrenToTiles(swimlaneNode);
     }
 
-    updateRecursive(parentNode, parentNewPosition);
+    // Обновляем тайлы
+    await tileManager.updateTilesAfterNodeChange();
+    onStateUpdate();
+  }
+
+  // Вспомогательный метод для обновления узла в списке
+  void _updateNodeInList(TableNode updatedNode) {
+    for (int i = 0; i < state.nodes.length; i++) {
+      if (state.nodes[i].id == updatedNode.id) {
+        state.nodes[i] = updatedNode;
+        return;
+      }
+    }
+  }
+
+  // Метод для добавления детей swimlane в тайлы
+  Future<void> _addSwimlaneChildrenToTiles(TableNode swimlaneNode) async {
+    if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
+      return;
+    }
+
+    // Добавляем всех детей в тайлы
+    for (final child in swimlaneNode.children!) {
+      // Вычисляем мировые координаты ребенка
+      final childWorldPosition =
+          state.delta + swimlaneNode.position + child.position;
+      await tileManager.addNodeToTiles(child, childWorldPosition);
+    }
+  }
+
+  // Добавляем метод для проверки клика по иконке swimlane
+  bool _isSwimlaneIconClicked(
+    TableNode node,
+    Offset worldPosition,
+    Offset nodeWorldPosition,
+  ) {
+    if (node.qType != 'swimlane') return false;
+
+    final headerHeight = EditorConfig.headerHeight;
+    final iconSize = 16.0;
+    final iconMargin = 8.0;
+
+    final iconRect = Rect.fromLTWH(
+      nodeWorldPosition.dx + iconMargin,
+      nodeWorldPosition.dy + (headerHeight - iconSize) / 2,
+      iconSize,
+      iconSize,
+    );
+
+    return iconRect.contains(worldPosition);
   }
 
   void deleteSelectedNode() {

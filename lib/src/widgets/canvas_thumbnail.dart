@@ -151,7 +151,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
         });
       }
     } catch (e) {
-      print('Ошибка создания миниатюры: $e');
+      
     }
   }
 
@@ -312,43 +312,8 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     _clampedVisibleWidth = visibleWidth.clamp(0, thumbnailWidth);
     _clampedVisibleHeight = visibleHeight.clamp(0, thumbnailHeight);
 
-    // Ограничиваем координаты видимой области границами миниатюры
-    final double clampedVisibleLeft = visibleLeft.clamp(
-      0,
-      thumbnailWidth - visibleWidth,
-    );
-    final double clampedVisibleTop = visibleTop.clamp(
-      0,
-      thumbnailHeight - visibleHeight,
-    );
     final double clampedVisibleWidth = visibleWidth.clamp(0, thumbnailWidth);
     final double clampedVisibleHeight = visibleHeight.clamp(0, thumbnailHeight);
-
-    // Отладочная информация
-    print('=== CanvasThumbnail Debug ===');
-    print('Canvas size: ${widget.canvasWidth}x${widget.canvasHeight}');
-    print('Thumbnail size: ${thumbnailWidth}x${thumbnailHeight}');
-    print('Thumbnail scale: $thumbnailScale');
-    print('Main scale: ${widget.scale}');
-    print(
-      'Canvas offset: (${widget.canvasOffset.dx}, ${widget.canvasOffset.dy})',
-    );
-    print('Delta: (${widget.delta.dx}, ${widget.delta.dy})');
-    print(
-      'Viewport size: ${widget.viewportSize.width}x${widget.viewportSize.height}',
-    );
-    print(
-      'Visible world: (${visibleWorldLeft.toStringAsFixed(1)}, ${visibleWorldTop.toStringAsFixed(1)}) '
-      '${visibleWorldWidth.toStringAsFixed(1)}x${visibleWorldHeight.toStringAsFixed(1)}',
-    );
-    print(
-      'Visible thumb: (${visibleLeft.toStringAsFixed(1)}, ${visibleTop.toStringAsFixed(1)}) '
-      '${visibleWidth.toStringAsFixed(1)}x${visibleHeight.toStringAsFixed(1)}',
-    );
-    print(
-      'Clamped: (${clampedVisibleLeft.toStringAsFixed(1)}, ${clampedVisibleTop.toStringAsFixed(1)}) '
-      '${clampedVisibleWidth.toStringAsFixed(1)}x${clampedVisibleHeight.toStringAsFixed(1)}',
-    );
 
     return GestureDetector(
       onPanStart: (details) => _handleDragStart(details.localPosition),

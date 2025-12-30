@@ -79,7 +79,7 @@ class _StableGridImageState extends State<StableGridImage> {
 
       await _tileManager.createTiledImage(_editorState.nodes);
     } else {
-      print('Нет объектов для отрисовки');
+      
       await _tileManager.createFallbackTiles();
     }
 

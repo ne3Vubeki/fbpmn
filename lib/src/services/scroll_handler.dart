@@ -111,17 +111,7 @@ class ScrollHandler {
 
     // Используем бОльший размер: расчетный или статический
     _dynamicCanvasWidth = math.max(calculatedWidth, staticCanvasWidth);
-    _dynamicCanvasHeight = math.max(calculatedHeight, staticCanvasHeight);
-
-    // Отладочная информация
-    print('=== calculateCanvasSizeFromNodes ===');
-    print('Original bounds: ($minX, $minY) to ($maxX, $maxY)');
-    print(
-      'Required canvas: ($requiredLeft, $requiredTop) to ($requiredRight, $requiredBottom)',
-    );
-    print('Delta correction: (${deltaCorrection.dx}, ${deltaCorrection.dy})');
-    print('New delta: (${state.delta.dx}, ${state.delta.dy})');
-    print('Canvas size: ${_dynamicCanvasWidth}x${_dynamicCanvasHeight}');
+    _dynamicCanvasHeight = math.max(calculatedHeight, staticCanvasHeight);    
   }
 
   /// Округляет значение до ближайшего кратного размеру тайла

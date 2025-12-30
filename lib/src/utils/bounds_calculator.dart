@@ -15,9 +15,18 @@ class BoundsCalculator {
   }) {
     final List<TableNode> nodesInTile = [];
 
-    void collectNodes(TableNode node, Offset parentOffset) {
+    void collectNodes(
+      TableNode node,
+      Offset parentOffset,
+      bool isParentCollapsedSwimlane,
+    ) {
       // Пропускаем исключенный узел
       if (excludedNode != null && node.id == excludedNode.id) {
+        return;
+      }
+
+      // Если родительский swimlane свернут, пропускаем детей
+      if (isParentCollapsedSwimlane && node.qType != 'swimlane') {
         return;
       }
 
@@ -29,16 +38,22 @@ class BoundsCalculator {
         nodesInTile.add(node);
       }
 
-      // Рекурсивно проверяем детей
-      if (node.children != null && node.children!.isNotEmpty) {
+      // Проверяем, является ли текущий узел свернутым swimlane
+      final isCurrentCollapsedSwimlane =
+          node.qType == 'swimlane' && (node.isCollapsed ?? false);
+
+      // Рекурсивно проверяем детей, если узел не свернут
+      if (!isCurrentCollapsedSwimlane &&
+          node.children != null &&
+          node.children!.isNotEmpty) {
         for (final child in node.children!) {
-          collectNodes(child, shiftedPosition);
+          collectNodes(child, shiftedPosition, isCurrentCollapsedSwimlane);
         }
       }
     }
 
     for (final node in allNodes) {
-      collectNodes(node, delta);
+      collectNodes(node, delta, false);
     }
 
     return nodesInTile;

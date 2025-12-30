@@ -8,4 +8,9 @@ class EditorConfig {
   static const double minRowHeight = 18.0;
   static const double headerHeight = 30.0;
   static const double tileBorderVisibleMargin = 10.0;
+  static const double swimlaneIconSize = 16.0;
+  static const double swimlaneIconMargin = 8.0;
+  static const double swimlaneShadowBlur = 4.0;
+  static const double swimlaneShadowOpacity = 0.1;
+  static const double swimlaneShadowOffset = 2.0;
 }
