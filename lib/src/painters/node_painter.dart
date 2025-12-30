@@ -59,12 +59,11 @@ class NodePainter {
       nodeBoundsCache[currentNode] = nodeWorldRect;
     }
 
-    // Проверяем видимость
-    if (!nodeWorldRect.overlaps(visibleBounds.inflate(10.0))) {
-      // Даже если узел не виден, проверяем его детей (если не свернут)
-      if (isCollapsed) {
-        return; // Свернутый узел - детей не рисуем
-      }
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Для тайлов всегда проверяем детей, даже если родитель не виден
+    // Это нужно для вложенных узлов swimlane, которые могут быть в других тайлах
+
+    // Сначала рисуем детей (если это развернутый swimlane)
+    if (currentNode.qType == 'swimlane' && !isCollapsed) {
       _drawChildren(
         canvas: canvas,
         parentNode: currentNode,
@@ -73,7 +72,17 @@ class NodePainter {
         forTile: forTile,
         nodeBoundsCache: nodeBoundsCache,
       );
-      return;
+    }
+
+    // Проверяем видимость текущего узла (с увеличенными границами)
+    final expandedBounds = visibleBounds.inflate(100.0);
+
+    if (!nodeWorldRect.overlaps(expandedBounds)) {
+      // Если узел не виден и это не swimlane, выходим
+      if (currentNode.qType != 'swimlane') {
+        return;
+      }
+      // Для swimlane продолжаем (дети уже нарисованы выше)
     }
 
     canvas.save();
@@ -110,19 +119,17 @@ class NodePainter {
 
     canvas.restore();
 
-    // Рисуем детей (если узел не свернут)
-    if (isCollapsed) {
-      return; // Свернутый узел - детей не рисуем
+    // Для обычных узлов рисуем детей после родителя
+    if (currentNode.qType != 'swimlane' || isCollapsed) {
+      _drawChildren(
+        canvas: canvas,
+        parentNode: currentNode,
+        parentAbsolutePosition: nodeAbsolutePosition,
+        visibleBounds: visibleBounds,
+        forTile: forTile,
+        nodeBoundsCache: nodeBoundsCache,
+      );
     }
-
-    _drawChildren(
-      canvas: canvas,
-      parentNode: currentNode,
-      parentAbsolutePosition: nodeAbsolutePosition,
-      visibleBounds: visibleBounds,
-      forTile: forTile,
-      nodeBoundsCache: nodeBoundsCache,
-    );
   }
 
   /// Отрисовка дочерних узлов
@@ -147,6 +154,8 @@ class NodePainter {
     }
 
     for (final child in parentNode.children!) {
+      // ВАЖНО: Для тайлов рисуем детей независимо от видимости родителя
+      // Вложенные узлы могут быть в других тайлах
       _drawNodeRecursive(
         canvas: canvas,
         currentNode: child,

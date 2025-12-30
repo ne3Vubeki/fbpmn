@@ -150,9 +150,11 @@ class TileManager {
       // Рисуем узлы, если они есть
       if (nodesInTile.isNotEmpty) {
         final rootNodes = _filterRootNodes(nodesInTile);
+        // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
+        final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
         _nodeRenderer.drawRootNodesToTile(
           canvas: canvas,
-          rootNodes: rootNodes,
+          rootNodes: sortedNodes,
           tileBounds: tileBounds,
           delta: state.delta,
           cache: state.nodeBoundsCache,
@@ -181,7 +183,7 @@ class TileManager {
   List<TableNode> _getNodesForTile(Rect bounds, List<TableNode> allNodes) {
     final List<TableNode> nodesInTile = [];
 
-    void checkNode(TableNode node, Offset parentOffset) {
+    void checkNode(TableNode node, Offset parentOffset, bool parentCollapsed) {
       final shiftedPosition = node.position + parentOffset;
       final nodeRect = _boundsCalculator.calculateNodeRect(
         node: node,
@@ -190,26 +192,32 @@ class TileManager {
 
       // Проверяем пересечение с тайлом
       if (nodeRect.overlaps(bounds)) {
-        nodesInTile.add(node);
+        // Проверяем, не скрыт ли узел из-за свернутого swimlane родителя
+        if (!parentCollapsed) {
+          nodesInTile.add(node);
+        }
       }
 
-      // Рекурсивно проверяем детей
-      // Проверяем, является ли узел свернутым swimlane
-      final isCollapsedSwimlane =
+      // Проверяем, свернут ли текущий swimlane
+      final isCurrentCollapsed =
           node.qType == 'swimlane' && (node.isCollapsed ?? false);
 
       // Если узел не свернут, проверяем детей
-      if (!isCollapsedSwimlane &&
+      if (!isCurrentCollapsed &&
           node.children != null &&
           node.children!.isNotEmpty) {
         for (final child in node.children!) {
-          checkNode(child, shiftedPosition);
+          checkNode(
+            child,
+            shiftedPosition,
+            parentCollapsed || isCurrentCollapsed,
+          );
         }
       }
     }
 
     for (final node in allNodes) {
-      checkNode(node, state.delta);
+      checkNode(node, state.delta, false);
     }
 
     return nodesInTile;
@@ -298,6 +306,23 @@ class TileManager {
 
       return !hasParentInList;
     }).toList();
+  }
+
+  /// Сортирует узлы так, чтобы swimlane были после своих детей
+  List<TableNode> _sortNodesWithSwimlaneLast(List<TableNode> nodes) {
+    final List<TableNode> nonSwimlaneNodes = [];
+    final List<TableNode> swimlaneNodes = [];
+
+    for (final node in nodes) {
+      if (node.qType == 'swimlane') {
+        swimlaneNodes.add(node);
+      } else {
+        nonSwimlaneNodes.add(node);
+      }
+    }
+
+    // Сначала не-swimlane узлы, потом swimlane
+    return [...nonSwimlaneNodes, ...swimlaneNodes];
   }
 
   /// Удаление детей swimlane из тайлов
@@ -648,6 +673,7 @@ class TileManager {
   }
 
   // Создание обновленного тайла
+  // Создание обновленного тайла
   Future<ImageTile?> _createUpdatedTile(
     Rect bounds,
     String tileId,
@@ -655,6 +681,8 @@ class TileManager {
   ) async {
     try {
       final rootNodes = _filterRootNodes(nodes);
+      // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
+      final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
 
       final int tileImageSize = EditorConfig.tileSize;
       final double scale = 1.0;
@@ -672,10 +700,10 @@ class TileManager {
           ..blendMode = BlendMode.src,
       );
 
-      if (rootNodes.isNotEmpty) {
+      if (sortedNodes.isNotEmpty) {
         _nodeRenderer.drawRootNodesToTile(
           canvas: canvas,
-          rootNodes: rootNodes,
+          rootNodes: sortedNodes,
           tileBounds: bounds,
           delta: state.delta,
           cache: state.nodeBoundsCache,
