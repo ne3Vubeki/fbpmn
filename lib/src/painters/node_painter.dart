@@ -19,106 +19,15 @@ class NodePainter {
     bool forTile = false,
     Map<TableNode, Rect>? nodeBoundsCache,
   }) {
-    // Для виджета (верхнего слоя) используем особую логику
-    if (!forTile) {
-      _drawNodeForWidget(
-        canvas: canvas,
-        currentNode: node,
-        parentAbsolutePosition: baseOffset,
-        visibleBounds: visibleBounds,
-        nodeBoundsCache: nodeBoundsCache,
-      );
-    } else {
-      // Для тайлов - обычная логика
-      _drawNodeRecursive(
-        canvas: canvas,
-        currentNode: node,
-        parentAbsolutePosition: baseOffset,
-        visibleBounds: visibleBounds,
-        forTile: true,
-        nodeBoundsCache: nodeBoundsCache,
-      );
-    }
-  }
-
-  /// Отрисовка узла для виджета (с масштабированием детей)
-  void _drawNodeForWidget({
-    required Canvas canvas,
-    required TableNode currentNode,
-    required Offset parentAbsolutePosition,
-    required Rect visibleBounds,
-    Map<TableNode, Rect>? nodeBoundsCache,
-  }) {
-    // Проверяем, является ли узел раскрытым swimlane
-    final isExpandedSwimlane =
-        currentNode.qType == 'swimlane' && !(currentNode.isCollapsed ?? false);
-
-    if (isExpandedSwimlane) {
-      // Для раскрытого swimlane сначала рисуем детей
-      if (currentNode.children != null && currentNode.children!.isNotEmpty) {
-        for (final child in currentNode.children!) {
-          canvas.save();
-
-          // Позиция ребенка относительно родителя
-          final childLocalRect = Rect.fromLTWH(
-            child.position.dx,
-            child.position.dy,
-            child.size.width,
-            child.size.height,
-          );
-
-          // Рисуем ребенка
-          _drawSingleNode(
-            canvas: canvas,
-            node: child,
-            nodeRect: childLocalRect,
-            forTile: false,
-          );
-
-          canvas.restore();
-        }
-      }
-    }
-
-    // Рисуем текущий узел (для виджета координаты локальные)
-    _drawSingleNode(
+    // Для всех случаев используем единую рекурсивную логику
+    _drawNodeRecursive(
       canvas: canvas,
-      node: currentNode,
-      nodeRect: Rect.fromLTWH(
-        0,
-        0,
-        currentNode.size.width,
-        currentNode.size.height,
-      ),
-      forTile: false,
+      currentNode: node,
+      parentAbsolutePosition: baseOffset,
+      visibleBounds: visibleBounds,
+      forTile: forTile,
+      nodeBoundsCache: nodeBoundsCache,
     );
-
-    // Для обычных узлов (не swimlane) рисуем детей после родителя
-    if (!isExpandedSwimlane &&
-        currentNode.children != null &&
-        currentNode.children!.isNotEmpty) {
-      for (final child in currentNode.children!) {
-        canvas.save();
-
-        // Позиция ребенка относительно родителя
-        final childLocalRect = Rect.fromLTWH(
-          child.position.dx,
-          child.position.dy,
-          child.size.width,
-          child.size.height,
-        );
-
-        // Рисуем ребенка
-        _drawSingleNode(
-          canvas: canvas,
-          node: child,
-          nodeRect: childLocalRect,
-          forTile: false,
-        );
-
-        canvas.restore();
-      }
-    }
   }
 
   /// Рекурсивная отрисовка узла и его детей
@@ -130,86 +39,8 @@ class NodePainter {
     required bool forTile,
     Map<TableNode, Rect>? nodeBoundsCache,
   }) {
-    // Проверяем, является ли узел swimlane
-    final isSwimlane = currentNode.qType == 'swimlane';
+    // Проверяем, свернут ли узел
     final isCollapsed = currentNode.isCollapsed ?? false;
-
-    // Для swimlane в раскрытом состоянии меняем порядок отрисовки
-    if (isSwimlane && !isCollapsed) {
-      _drawSwimlaneWithChildrenOnTop(
-        canvas: canvas,
-        swimlaneNode: currentNode,
-        parentAbsolutePosition: parentAbsolutePosition,
-        visibleBounds: visibleBounds,
-        forTile: forTile,
-        nodeBoundsCache: nodeBoundsCache,
-      );
-      return;
-    }
-
-    // Оригинальная логика для остальных узлов...
-    final isCollapsedSwimlane = isSwimlane && isCollapsed;
-
-    // Если узел свернут, не рисуем его детей
-    if (isCollapsedSwimlane) {
-      // Рассчитываем абсолютную позицию текущего узла
-      final nodeAbsolutePosition =
-          currentNode.position + parentAbsolutePosition;
-
-      // Создаем Rect узла в мировых координатах
-      final nodeWorldRect = Rect.fromPoints(
-        nodeAbsolutePosition,
-        Offset(
-          nodeAbsolutePosition.dx + currentNode.size.width,
-          nodeAbsolutePosition.dy + currentNode.size.height,
-        ),
-      );
-
-      // Сохраняем в кэш
-      if (nodeBoundsCache != null) {
-        nodeBoundsCache[currentNode] = nodeWorldRect;
-      }
-
-      // Проверяем видимость
-      if (!nodeWorldRect.overlaps(visibleBounds.inflate(10.0))) {
-        return; // Не рисуем свернутый узел, если он не виден
-      }
-
-      canvas.save();
-
-      if (forTile) {
-        // Для тайла: рисуем в мировых координатах
-        _drawSingleNode(
-          canvas: canvas,
-          node: currentNode,
-          nodeRect: nodeWorldRect,
-          forTile: true,
-        );
-      } else {
-        // Для виджета: преобразуем координаты
-        final scaleX = nodeWorldRect.width / currentNode.size.width;
-        final scaleY = nodeWorldRect.height / currentNode.size.height;
-
-        canvas.scale(scaleX, scaleY);
-
-        final nodeLocalRect = Rect.fromLTWH(
-          0,
-          0,
-          currentNode.size.width,
-          currentNode.size.height,
-        );
-
-        _drawSingleNode(
-          canvas: canvas,
-          node: currentNode,
-          nodeRect: nodeLocalRect,
-          forTile: false,
-        );
-      }
-
-      canvas.restore();
-      return; // Выходим, не рисуем детей
-    }
 
     // Рассчитываем абсолютную позицию текущего узла
     final nodeAbsolutePosition = currentNode.position + parentAbsolutePosition;
@@ -230,7 +61,10 @@ class NodePainter {
 
     // Проверяем видимость
     if (!nodeWorldRect.overlaps(visibleBounds.inflate(10.0))) {
-      // Даже если узел не виден, проверяем его детей
+      // Даже если узел не виден, проверяем его детей (если не свернут)
+      if (isCollapsed) {
+        return; // Свернутый узел - детей не рисуем
+      }
       _drawChildren(
         canvas: canvas,
         parentNode: currentNode,
@@ -277,6 +111,10 @@ class NodePainter {
     canvas.restore();
 
     // Рисуем детей (если узел не свернут)
+    if (isCollapsed) {
+      return; // Свернутый узел - детей не рисуем
+    }
+
     _drawChildren(
       canvas: canvas,
       parentNode: currentNode,
@@ -285,88 +123,6 @@ class NodePainter {
       forTile: forTile,
       nodeBoundsCache: nodeBoundsCache,
     );
-  }
-
-  /// Новый метод для отрисовки swimlane с детьми под родителем
-  void _drawSwimlaneWithChildrenOnTop({
-    required Canvas canvas,
-    required TableNode swimlaneNode,
-    required Offset parentAbsolutePosition,
-    required Rect visibleBounds,
-    required bool forTile,
-    Map<TableNode, Rect>? nodeBoundsCache,
-  }) {
-    // Рассчитываем абсолютную позицию swimlane
-    final swimlaneAbsolutePosition =
-        swimlaneNode.position + parentAbsolutePosition;
-
-    // Создаем Rect swimlane в мировых координатах
-    final swimlaneWorldRect = Rect.fromPoints(
-      swimlaneAbsolutePosition,
-      Offset(
-        swimlaneAbsolutePosition.dx + swimlaneNode.size.width,
-        swimlaneAbsolutePosition.dy + swimlaneNode.size.height,
-      ),
-    );
-
-    // Сохраняем в кэш
-    if (nodeBoundsCache != null) {
-      nodeBoundsCache[swimlaneNode] = swimlaneWorldRect;
-    }
-
-    // Сначала рисуем детей (они будут под родителем)
-    if (swimlaneNode.children != null && swimlaneNode.children!.isNotEmpty) {
-      for (final child in swimlaneNode.children!) {
-        _drawNodeRecursive(
-          canvas: canvas,
-          currentNode: child,
-          parentAbsolutePosition: swimlaneAbsolutePosition,
-          visibleBounds: visibleBounds,
-          forTile: forTile,
-          nodeBoundsCache: nodeBoundsCache,
-        );
-      }
-    }
-
-    // Проверяем видимость родителя
-    if (!swimlaneWorldRect.overlaps(visibleBounds.inflate(10.0))) {
-      return;
-    }
-
-    canvas.save();
-
-    // Затем рисуем родителя (он будет поверх детей)
-    if (forTile) {
-      // Для тайла: рисуем в мировых координатах
-      _drawSingleNode(
-        canvas: canvas,
-        node: swimlaneNode,
-        nodeRect: swimlaneWorldRect,
-        forTile: true,
-      );
-    } else {
-      // Для виджета: преобразуем координаты
-      final scaleX = swimlaneWorldRect.width / swimlaneNode.size.width;
-      final scaleY = swimlaneWorldRect.height / swimlaneNode.size.height;
-
-      canvas.scale(scaleX, scaleY);
-
-      final nodeLocalRect = Rect.fromLTWH(
-        0,
-        0,
-        swimlaneNode.size.width,
-        swimlaneNode.size.height,
-      );
-
-      _drawSingleNode(
-        canvas: canvas,
-        node: swimlaneNode,
-        nodeRect: nodeLocalRect,
-        forTile: false,
-      );
-    }
-
-    canvas.restore();
   }
 
   /// Отрисовка дочерних узлов
@@ -384,15 +140,6 @@ class NodePainter {
 
     if (isParentCollapsedSwimlane) {
       return; // Не рисуем детей свернутого swimlane
-    }
-
-    // Проверяем, является ли родитель раскрытым swimlane
-    final isParentExpandedSwimlane =
-        parentNode.qType == 'swimlane' && !(parentNode.isCollapsed ?? false);
-
-    // Для раскрытого swimlane дети уже были нарисованы в _drawSwimlaneWithChildrenOnTop
-    if (isParentExpandedSwimlane) {
-      return;
     }
 
     if (parentNode.children == null || parentNode.children!.isEmpty) {
@@ -418,62 +165,13 @@ class NodePainter {
     required Rect nodeRect,
     required bool forTile,
   }) {
-    // Проверяем, является ли узел swimlane
     final isSwimlane = node.qType == 'swimlane';
+    // Проверяем, является ли узел свернутым
     final isCollapsed = node.isCollapsed ?? false;
 
-    // Для swimlane в свернутом состоянии
-    if (isSwimlane && isCollapsed) {
-      _drawCollapsedSwimlane(canvas, node, nodeRect);
-      return;
-    }
-
-    // Для swimlane в раскрытом состоянии
-    if (isSwimlane && !isCollapsed) {
-      // Добавляем тень под swimlane
-      _drawSwimlaneShadow(canvas, nodeRect);
-
-      // Белый фон для всего узла
-      final backgroundPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.fill
-        ..isAntiAlias = true
-        ..filterQuality = FilterQuality.high;
-
-      canvas.drawRect(nodeRect, backgroundPaint);
-
-      // Белый фон для заголовка
-      final headerPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.fill
-        ..isAntiAlias = true
-        ..filterQuality = FilterQuality.high;
-
-      final headerHeight = EditorConfig.headerHeight;
-      final headerRect = Rect.fromLTWH(
-        nodeRect.left + 1,
-        nodeRect.top + 1,
-        nodeRect.width - 2,
-        headerHeight - 2,
-      );
-
-      canvas.drawRect(headerRect, headerPaint);
-
-      // Черная рамка без радиусов
-      final scaleX = nodeRect.width / node.size.width;
-      final scaleY = nodeRect.height / node.size.height;
-      final lineWidth = 1.0 / math.min(scaleX, scaleY);
-
-      final borderPaint = Paint()
-        ..color = Colors.black
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = lineWidth
-        ..isAntiAlias = true;
-
-      canvas.drawRect(nodeRect, borderPaint);
-
-      // Рисуем иконку и текст заголовка
-      _drawSwimlaneHeader(canvas, node, nodeRect, isCollapsed: false);
+    // Для swimlane
+    if (node.qType == 'swimlane') {
+      _drawSwimlane(canvas, node, nodeRect, isCollapsed: isCollapsed);
       return;
     }
 
@@ -700,7 +398,12 @@ class NodePainter {
   }
 
   /// Метод для отрисовки свернутого swimlane
-  void _drawCollapsedSwimlane(Canvas canvas, TableNode node, Rect nodeRect) {
+  void _drawSwimlane(
+    Canvas canvas,
+    TableNode node,
+    Rect nodeRect, {
+    required bool isCollapsed,
+  }) {
     // Рассчитываем толщину линии
     final scaleX = nodeRect.width / node.size.width;
     final scaleY = nodeRect.height / node.size.height;
@@ -732,7 +435,7 @@ class NodePainter {
     canvas.drawRect(nodeRect, headerPaint);
 
     // Рисуем иконку и текст заголовка
-    _drawSwimlaneHeader(canvas, node, nodeRect, isCollapsed: true);
+    _drawSwimlaneHeader(canvas, node, nodeRect, isCollapsed: isCollapsed);
   }
 
   /// Метод для отрисовки заголовка swimlane с иконкой
@@ -832,41 +535,6 @@ class NodePainter {
         nodeRect.top + (actualHeaderHeight - textPainter.height) / 2,
       ),
     );
-  }
-
-  /// Метод для отрисовки тени swimlane в раскрытом состоянии
-  void _drawSwimlaneShadow(Canvas canvas, Rect nodeRect) {
-    // Создаем Paint для тени
-    final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.1)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4)
-      ..isAntiAlias = true;
-
-    // Создаем немного увеличенный прямоугольник для тени
-    final shadowRect = Rect.fromLTRB(
-      nodeRect.left - 2,
-      nodeRect.top - 2,
-      nodeRect.right + 2,
-      nodeRect.bottom + 2,
-    );
-
-    // Рисуем тень
-    canvas.drawRect(shadowRect, shadowPaint);
-
-    // Создаем вторую, более мягкую тень
-    final softShadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.05)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8)
-      ..isAntiAlias = true;
-
-    final softShadowRect = Rect.fromLTRB(
-      nodeRect.left - 4,
-      nodeRect.top - 4,
-      nodeRect.right + 4,
-      nodeRect.bottom + 4,
-    );
-
-    canvas.drawRect(softShadowRect, softShadowPaint);
   }
 
   /// Простая отрисовка одного узла (без детей) - для обратной совместимости

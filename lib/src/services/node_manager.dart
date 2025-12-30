@@ -165,30 +165,24 @@ class NodeManager {
     state.selectedNodeOnTopLayer = node;
     state.isNodeOnTopLayer = true;
 
-    // Для swimlane в раскрытом состоянии выделяем все узлы
-    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-      // Помечаем всех детей как выделенные
-      if (node.children != null) {
-        for (final child in node.children!) {
-          child.isSelected = true;
-        }
-      }
-    }
+    await _prepareNodeForTopLayer(node);
 
     _updateFramePosition();
+    onStateUpdate();
+  }
 
+  /// Подготовка узла для перемещения на верхний слой
+  Future<void> _prepareNodeForTopLayer(TableNode node) async {
     // Удаляем узел из state.nodes
     _removeNodeFromNodesList(node);
 
-    // Для swimlane в раскрытом состоянии удаляем всех детей из тайлов
+    // Для swimlane в развернутом состоянии удаляем всех детей из тайлов
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
       await _removeSwimlaneChildrenFromTiles(node);
     }
 
-    // Удаляем узел из тайлов и ЖДЕМ завершения
+    // Удаляем узел из тайлов
     await tileManager.removeSelectedNodeFromTiles(node);
-
-    onStateUpdate();
   }
 
   // Добавляем метод для удаления детей swimlane из тайлов
@@ -234,21 +228,16 @@ class NodeManager {
     // Обновляем позицию родителя
     node.position = newPosition;
 
-    // Для swimlane обновляем позиции детей относительно родителя
-    if (node.qType == 'swimlane') {
-      _updateSwimlaneChildrenPositions(node, newPosition);
-    }
-
     // Добавляем узел обратно в основной список узлов
     _addNodeBackToNodesList(node);
 
-    // Добавляем узел в тайлы на новом месте
-    await tileManager.addNodeToTiles(node, constrainedWorldPosition);
-
-    // Для swimlane в раскрытом состоянии добавляем детей
+    // Для swimlane в развернутом состоянии добавляем детей в тайлы
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-      await _addSwimlaneChildrenToTiles(node);
+      await _addSwimlaneChildrenToTiles(node, constrainedWorldPosition);
     }
+
+    // Добавляем родительский узел в тайлы
+    await tileManager.addNodeToTiles(node, constrainedWorldPosition);
 
     await tileManager.updateTilesAfterNodeChange();
 
@@ -267,18 +256,12 @@ class NodeManager {
     state.selectedNode = null;
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
+    state.selectedNodeSize = Size.zero;
 
     onStateUpdate();
   }
 
   // Метод для обновления позиций детей swimlane
-  void _updateSwimlaneChildrenPositions(
-    TableNode swimlaneNode,
-    Offset parentNewPosition,
-  ) {
-    // Для swimlane позиции детей уже правильные относительно родителя
-    // Не нужно их обновлять, они уже в правильных относительных координатах
-  }
   void handleEmptyAreaClick() {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
       _saveNodeToTiles();
@@ -393,18 +376,25 @@ class NodeManager {
 
   // Метод для переключения состояния swimlane
   Future<void> _toggleSwimlaneCollapsed(TableNode swimlaneNode) async {
-    // Переключаем состояние
+    // Создаем копию узла с переключенным состоянием
     final toggledNode = swimlaneNode.toggleCollapsed();
+
+    // Если узел был выделен, снимаем выделение
+    if (state.selectedNode?.id == swimlaneNode.id) {
+      await _saveNodeToTiles();
+    }
 
     // Обновляем узел в списке узлов
     _updateNodeInList(toggledNode);
 
+    // В зависимости от состояния обновляем тайлы
     if (toggledNode.isCollapsed ?? false) {
       // Удаляем детей из тайлов
       await _removeSwimlaneChildrenFromTiles(swimlaneNode);
     } else {
       // Добавляем детей в тайлы
-      await _addSwimlaneChildrenToTiles(swimlaneNode);
+      final parentWorldPosition = state.delta + toggledNode.position;
+      await _addSwimlaneChildrenToTiles(toggledNode, parentWorldPosition);
     }
 
     // Обновляем тайлы
@@ -423,7 +413,10 @@ class NodeManager {
   }
 
   // Метод для добавления детей swimlane в тайлы
-  Future<void> _addSwimlaneChildrenToTiles(TableNode swimlaneNode) async {
+  Future<void> _addSwimlaneChildrenToTiles(
+    TableNode swimlaneNode,
+    Offset parentWorldPosition,
+  ) async {
     if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
       return;
     }
@@ -431,8 +424,7 @@ class NodeManager {
     // Добавляем всех детей в тайлы
     for (final child in swimlaneNode.children!) {
       // Вычисляем мировые координаты ребенка
-      final childWorldPosition =
-          state.delta + swimlaneNode.position + child.position;
+      final childWorldPosition = parentWorldPosition + child.position;
       await tileManager.addNodeToTiles(child, childWorldPosition);
     }
   }

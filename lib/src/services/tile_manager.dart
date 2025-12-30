@@ -300,55 +300,44 @@ class TileManager {
     }).toList();
   }
 
-  // Удаление выделенного узла из тайлов
-  Future<void> removeSelectedNodeFromTiles(TableNode node) async {
-    // Собираем все тайлы, которые нужно обновить
-    final Set<int> tilesToUpdate = {};
+  /// Удаление детей swimlane из тайлов
+  Future<void> _removeSwimlaneChildrenFromTiles(
+    TableNode swimlaneNode,
+    Set<int> tilesToUpdate,
+  ) async {
+    if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
+      return;
+    }
 
-    // Для swimlane в раскрытом состоянии удаляем всех детей
-    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-      if (node.children != null) {
-        for (final child in node.children!) {
-          final childTileIndices = _findTilesContainingNode(child);
-          for (final tileIndex in childTileIndices) {
-            if (tileIndex < state.imageTiles.length) {
-              tilesToUpdate.add(tileIndex);
-            }
-          }
+    // Удаляем всех детей из тайлов
+    for (final child in swimlaneNode.children!) {
+      final childTileIndices = _findTilesContainingNode(child);
+      for (final tileIndex in childTileIndices) {
+        if (tileIndex < state.imageTiles.length) {
+          tilesToUpdate.add(tileIndex);
         }
       }
+    }
+  }
+
+  // Удаление выделенного узла из тайлов
+  Future<void> removeSelectedNodeFromTiles(TableNode node) async {
+    final Set<int> tilesToUpdate = {};
+
+    // Для swimlane в развернутом состоянии удаляем всех детей
+    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      await _removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
     }
 
     // Ищем тайлы, содержащие этот узел
     final tileIndices = _findTilesContainingNode(node);
-
-    if (tileIndices.isEmpty && tilesToUpdate.isEmpty) {
-      return;
-    }
-
-    // Сохраняем id тайлов, из которых удаляем узел
-    final sourceTileIds = <String>{};
     for (final tileIndex in tileIndices) {
       if (tileIndex < state.imageTiles.length) {
-        sourceTileIds.add(state.imageTiles[tileIndex].id);
         tilesToUpdate.add(tileIndex);
       }
     }
 
-    _movedNodesSourceTiles[node] = sourceTileIds;
-
-    // Удаляем узел из кэша nodeToTiles
-    state.nodeToTiles.remove(node);
-
-    // Для swimlane удаляем детей из кэша
-    if (node.qType == 'swimlane' && node.children != null) {
-      for (final child in node.children!) {
-        state.nodeToTiles.remove(child);
-      }
-    }
-
-    // Теперь обновляем все тайлы, из которых удаляли узлы
-
+    // Обновляем все тайлы, из которых удаляли узлы
     for (final tileIndex in tilesToUpdate) {
       await _updateTileWithAllNodes(tileIndex);
     }
@@ -410,20 +399,6 @@ class TileManager {
     return state.delta + node.position;
   }
 
-  // Проверка и удаление пустого тайла
-  Future<void> _checkAndRemoveEmptyTile(String tileId) async {
-    final tileIndex = _findTileIndexById(tileId);
-    if (tileIndex == null) return;
-
-    // Получаем узлы для этого тайла из state.nodes
-    final tile = state.imageTiles[tileIndex];
-    final nodesInTile = _getNodesForTile(tile.bounds, state.nodes);
-
-    if (nodesInTile.isEmpty) {
-      await _removeTile(tileId);
-    }
-  }
-
   // Удаление тайла по id
   Future<void> _removeTile(String tileId) async {
     final tileIndex = _findTileIndexById(tileId);
@@ -476,16 +451,20 @@ class TileManager {
 
   // Добавление узла в тайлы (после перемещения)
   Future<void> addNodeToTiles(TableNode node, Offset nodePosition) async {
-    // Собираем все тайлы, которые нужно обновить
     final Set<int> tilesToUpdate = {};
 
-    // Рассчитываем границы корневого узла (включая детей)
+    // Для swimlane в развернутом состоянии добавляем всех детей
+    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      await _addSwimlaneChildrenToTiles(node, nodePosition, tilesToUpdate);
+    }
+
+    // Рассчитываем границы корневого узла
     final nodeRect = _boundsCalculator.calculateNodeRect(
       node: node,
       position: nodePosition,
     );
 
-    // Рассчитываем grid позиции, которые покрывает узел (включая детей)
+    // Рассчитываем grid позиции, которые покрывает узел
     final tileWorldSize = EditorConfig.tileSize.toDouble();
     final gridXStart = (nodeRect.left / tileWorldSize).floor();
     final gridYStart = (nodeRect.top / tileWorldSize).floor();
@@ -504,7 +483,6 @@ class TileManager {
 
         if (existingTileIndex == null) {
           // СОЗДАЕМ НОВЫЙ ТАЙЛ в этой позиции
-
           await _createNewTileAtPosition(left, top, node);
         } else {
           // Добавляем тайл в список для обновления
@@ -518,32 +496,55 @@ class TileManager {
       await _updateTileWithAllNodes(tileIndex);
     }
 
-    // Теперь проверяем исходные тайлы на пустоту (после того как узел добавлен в новые места)
-    await _checkSourceTilesAfterMove([node]);
-
     onStateUpdate();
   }
 
-  // Проверка исходных тайлов после перемещения узла
-  Future<void> _checkSourceTilesAfterMove(List<TableNode> movedNodes) async {
-    final Set<String> sourceTilesToCheck = {};
+  /// Добавление детей swimlane в тайлы
+  Future<void> _addSwimlaneChildrenToTiles(
+    TableNode swimlaneNode,
+    Offset parentWorldPosition,
+    Set<int> tilesToUpdate,
+  ) async {
+    if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
+      return;
+    }
 
-    // Собираем все исходные тайлы для перемещенных узлов
-    for (final node in movedNodes) {
-      final sourceTileIds = _movedNodesSourceTiles[node];
-      if (sourceTileIds != null) {
-        sourceTilesToCheck.addAll(sourceTileIds);
+    // Добавляем всех детей в тайлы
+    for (final child in swimlaneNode.children!) {
+      // Вычисляем мировые координаты ребенка
+      final childWorldPosition = parentWorldPosition + child.position;
+
+      final childRect = _boundsCalculator.calculateNodeRect(
+        node: child,
+        position: childWorldPosition,
+      );
+
+      // Рассчитываем grid позиции для ребенка
+      final tileWorldSize = EditorConfig.tileSize.toDouble();
+      final gridXStart = (childRect.left / tileWorldSize).floor();
+      final gridYStart = (childRect.top / tileWorldSize).floor();
+      final gridXEnd = (childRect.right / tileWorldSize).ceil();
+      final gridYEnd = (childRect.bottom / tileWorldSize).ceil();
+
+      // Обрабатываем все grid позиции ребенка
+      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+          final left = gridX * tileWorldSize;
+          final top = gridY * tileWorldSize;
+          final tileId = _generateTileId(left, top);
+
+          // Ищем существующий тайл в этой позиции
+          int? existingTileIndex = _findTileIndexById(tileId);
+
+          if (existingTileIndex == null) {
+            // СОЗДАЕМ НОВЫЙ ТАЙЛ в этой позиции
+            await _createNewTileAtPosition(left, top, child);
+          } else {
+            // Добавляем тайл в список для обновления
+            tilesToUpdate.add(existingTileIndex);
+          }
+        }
       }
-    }
-
-    // Проверяем каждый исходный тайл
-    for (final tileId in sourceTilesToCheck) {
-      await _checkAndRemoveEmptyTile(tileId);
-    }
-
-    // Очищаем временное хранилище
-    for (final node in movedNodes) {
-      _movedNodesSourceTiles.remove(node);
     }
   }
 

@@ -40,38 +40,4 @@ class NodeRenderer {
     }
   }
 
-  /// Старый метод для обратной совместимости
-  void drawNodeToTile({
-    required Canvas canvas,
-    required TableNode node,
-    required Rect tileBounds,
-    required Offset delta,
-    required Map<TableNode, Rect> cache,
-  }) {
-    // Пропускаем свернутые swimlane, которые не видны в тайле
-    if (node.qType == 'swimlane' && (node.isCollapsed ?? false)) {
-      final nodeWorldPosition = delta + node.position;
-      final nodeRect = Rect.fromLTWH(
-        nodeWorldPosition.dx,
-        nodeWorldPosition.dy,
-        node.size.width,
-        node.size.height,
-      );
-
-      // Проверяем, пересекается ли узел с тайлом
-      if (!nodeRect.overlaps(tileBounds)) {
-        return;
-      }
-    }
-
-    final painter = NodePainter(node: node);
-
-    painter.paintWithOffset(
-      canvas: canvas,
-      baseOffset: delta,
-      visibleBounds: tileBounds,
-      forTile: true,
-      nodeBoundsCache: cache,
-    );
-  }
 }

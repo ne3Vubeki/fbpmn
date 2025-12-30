@@ -154,7 +154,6 @@ class _CanvasAreaState extends State<CanvasArea> {
                             delta: widget.state.delta,
                             state: widget.state,
                             tileScale: 2.0,
-                            // УБИРАЕМ totalBounds
                           ),
                         ),
 
