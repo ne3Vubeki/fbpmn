@@ -42,7 +42,7 @@ class TileManager {
 
       state.isLoading = false;
       onStateUpdate();
-    } catch (e, stackTrace) {
+    } catch (e) {
       await createFallbackTiles();
     }
   }
@@ -614,8 +614,6 @@ class TileManager {
 
       // Получаем ВСЕ узлы для этого тайла из state.nodes
       final nodesInTile = _getNodesForTile(bounds, state.nodes);
-
-      for (final node in nodesInTile) {}
 
       // Очищаем старый кэш для этого тайла
       state.tileToNodes.remove(tileIndex);

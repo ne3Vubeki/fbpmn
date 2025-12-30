@@ -129,14 +129,10 @@ class NodePainter {
     required Rect visibleBounds,
     required bool forTile,
     Map<TableNode, Rect>? nodeBoundsCache,
-    bool isSelected = false, // Добавляем параметр
   }) {
     // Проверяем, является ли узел swimlane
     final isSwimlane = currentNode.qType == 'swimlane';
     final isCollapsed = currentNode.isCollapsed ?? false;
-
-    // Определяем, выделен ли этот узел
-    final nodeIsSelected = currentNode.isSelected || isSelected;
 
     // Для swimlane в раскрытом состоянии меняем порядок отрисовки
     if (isSwimlane && !isCollapsed) {

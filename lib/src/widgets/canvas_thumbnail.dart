@@ -150,9 +150,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
           _thumbnailImage = image;
         });
       }
-    } catch (e) {
-      
-    }
+    } catch (e) {}
   }
 
   // Обработчик начала перетаскивания в миниатюре

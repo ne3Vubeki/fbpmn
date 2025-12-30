@@ -74,8 +74,6 @@ class ScrollHandler {
     // Рассчитываем необходимые границы холста
     final double requiredLeft = minX - padding;
     final double requiredTop = minY - padding;
-    final double requiredRight = maxX + padding;
-    final double requiredBottom = maxY + padding;
 
     // Корректируем delta так, чтобы requiredLeft был в 0
     // Это сместит все узлы вправо, чтобы они поместились в холст

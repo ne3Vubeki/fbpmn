@@ -117,7 +117,6 @@ class NodeManager {
 
     // Экранные координаты
     final screenMin = _worldToScreen(Offset(minX, minY));
-    final screenMax = _worldToScreen(Offset(maxX, maxY));
 
     // Позиция рамки с отступом
     state.selectedNodeOffset = Offset(
