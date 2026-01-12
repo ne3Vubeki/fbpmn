@@ -484,6 +484,11 @@ class TileManager {
       await _addSwimlaneChildrenToTiles(node, nodePosition, tilesToUpdate);
     }
 
+    // Для group обновляем позиции всех детей
+    if (node.qType == 'group' && node.children != null) {
+      node.calculateAbsolutePositions(state.delta);
+    }
+
     // Рассчитываем границы корневого узла
     final nodeRect = _boundsCalculator.calculateNodeRect(
       node: node,
