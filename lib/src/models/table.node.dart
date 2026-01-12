@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import 'node.dart';
 
-// В файле table.node.dart
 class TableNode extends Node {
   final String? groupId;
   final Map<String, dynamic> objectData;
@@ -13,7 +12,8 @@ class TableNode extends Node {
   final String style;
   final Color borderColor;
   final Color backgroundColor;
-  final bool? isCollapsed; // Добавляем новое свойство
+  final bool? isCollapsed;
+  final Offset? aPosition;
 
   TableNode({
     required super.id,
@@ -26,10 +26,11 @@ class TableNode extends Node {
     required this.style,
     required this.borderColor,
     required this.backgroundColor,
+    super.isSelected,
     this.groupId,
     this.children,
-    this.isCollapsed, // Добавляем в конструктор
-    super.isSelected,
+    this.isCollapsed,
+    this.aPosition,
   });
 
   factory TableNode.fromJson(Map<String, dynamic> object) {
@@ -40,7 +41,7 @@ class TableNode extends Node {
     final children = (object['children'] as List<dynamic>? ?? [])
         .map<TableNode>((object) => TableNode.fromJson(object))
         .toList();
-    
+
     // Извлекаем свойство collapsed
     final isCollapsed = object['collapsed'] == '1';
 
@@ -65,9 +66,7 @@ class TableNode extends Node {
             );
           }
         }
-      } catch (e) {
-        
-      }
+      } catch (e) {}
       return Colors.black;
     }
 
@@ -84,7 +83,7 @@ class TableNode extends Node {
       style: style,
       borderColor: parseColor(style, 'fillColor'),
       backgroundColor: parseColor(style, 'fillColor'),
-      isCollapsed: isCollapsed, // Передаем в конструктор
+      isCollapsed: isCollapsed,
     );
   }
 
@@ -93,7 +92,7 @@ class TableNode extends Node {
     String? text,
     bool? isSelected,
     Map<String, dynamic>? objectData,
-    bool? isCollapsed, // Добавляем в copyWith
+    bool? isCollapsed,
   }) {
     return TableNode(
       id: id,
