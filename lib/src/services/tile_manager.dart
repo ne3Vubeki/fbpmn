@@ -184,6 +184,8 @@ class TileManager {
     final List<TableNode> nodesInTile = [];
 
     void checkNode(TableNode node, Offset parentOffset, bool parentCollapsed) {
+      // Для развернутого swimlane используем абсолютную позицию напрямую
+      // Это позволяет детям сохранять свои независимые позиции
       final nodePosition = node.aPosition ?? (node.position + parentOffset);
       final nodeRect = _boundsCalculator.calculateNodeRect(
         node: node,
@@ -198,21 +200,38 @@ class TileManager {
         }
       }
 
-      // Проверяем, свернут ли текущий swimlane
-      final isCurrentCollapsed =
-          node.qType == 'swimlane' && (node.isCollapsed ?? false);
+      // Проверяем, является ли текущий узел развернутым swimlane
+      // Если да, то его дети должны быть обработаны независимо
+      final isCurrentExpandedSwimlane = 
+          node.qType == 'swimlane' && !(node.isCollapsed ?? false);
 
-      // Если узел не свернут, проверяем детей
-      if (!isCurrentCollapsed &&
-          node.children != null &&
-          node.children!.isNotEmpty) {
-        for (final child in node.children!) {
-          final childPosition = child.aPosition ?? (child.position + nodePosition);
-          checkNode(
-            child,
-            childPosition,
-            parentCollapsed || isCurrentCollapsed,
-          );
+      if (node.children != null && node.children!.isNotEmpty) {
+        if (isCurrentExpandedSwimlane) {
+          // Для развернутого swimlane обрабатываем детей как независимые узлы
+          // Они должны использовать свои абсолютные позиции, которые уже рассчитаны
+          for (final child in node.children!) {
+            // Дети развернутого swimlane обрабатываются независимо, 
+            // используя свои предварительно рассчитанные абсолютные позиции
+            checkNode(
+              child,
+              child.aPosition ?? Offset.zero, // Используем абсолютную позицию ребенка напрямую
+              parentCollapsed, // Дети развернутого swimlane не скрыты из-за родительского состояния
+            );
+          }
+        } else {
+          // Для свернутого swimlane или обычных узлов - традиционная логика
+          final isCurrentCollapsed = node.qType == 'swimlane' && (node.isCollapsed ?? false);
+          
+          if (!isCurrentCollapsed) {
+            for (final child in node.children!) {
+              final childPosition = child.aPosition ?? (child.position + nodePosition);
+              checkNode(
+                child,
+                childPosition,
+                parentCollapsed || isCurrentCollapsed,
+              );
+            }
+          }
         }
       }
     }

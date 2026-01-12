@@ -156,10 +156,15 @@ class NodePainter {
     for (final child in parentNode.children!) {
       // ВАЖНО: Для тайлов рисуем детей независимо от видимости родителя
       // Вложенные узлы могут быть в других тайлах
+      
+      // Используем абсолютную позицию ребенка, если она уже рассчитана
+      // иначе рассчитываем как позиция ребенка + позиция родителя
+      final childAbsolutePosition = child.aPosition ?? (child.position + parentAbsolutePosition);
+      
       _drawNodeRecursive(
         canvas: canvas,
         currentNode: child,
-        parentAbsolutePosition: parentAbsolutePosition,
+        parentAbsolutePosition: childAbsolutePosition,
         visibleBounds: visibleBounds,
         forTile: forTile,
         nodeBoundsCache: nodeBoundsCache,
