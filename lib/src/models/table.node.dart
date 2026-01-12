@@ -13,7 +13,7 @@ class TableNode extends Node {
   final Color borderColor;
   final Color backgroundColor;
   final bool? isCollapsed;
-  final Offset? aPosition;
+  Offset? aPosition;
 
   TableNode({
     required super.id,
@@ -30,7 +30,7 @@ class TableNode extends Node {
     this.groupId,
     this.children,
     this.isCollapsed,
-    this.aPosition,
+    super.aPosition,
   });
 
   factory TableNode.fromJson(Map<String, dynamic> object) {
@@ -87,6 +87,11 @@ class TableNode extends Node {
     );
   }
 
+  // Метод для инициализации абсолютных позиций после создания узла
+  void initializeAbsolutePositions() {
+    calculateAbsolutePositions();
+  }
+
   TableNode copyWithTable({
     Offset? position,
     String? text,
@@ -109,11 +114,25 @@ class TableNode extends Node {
       backgroundColor: backgroundColor,
       isSelected: isSelected ?? this.isSelected,
       isCollapsed: isCollapsed ?? this.isCollapsed, // Копируем состояние
+      aPosition: aPosition, // Сохраняем абсолютную позицию
     );
   }
 
   // Добавляем метод для переключения состояния collapsed
   TableNode toggleCollapsed() {
     return copyWithTable(isCollapsed: !(isCollapsed ?? false));
+  }
+
+  // Метод для вычисления абсолютных позиций рекурсивно
+  void calculateAbsolutePositions([Offset parentPosition = Offset.zero]) {
+    // Абсолютная позиция текущего узла - это позиция родителя + собственная позиция
+    aPosition = parentPosition + position;
+    
+    // Если есть дети, вычисляем их абсолютные позиции
+    if (children != null) {
+      for (final child in children!) {
+        child.calculateAbsolutePositions(aPosition!);
+      }
+    }
   }
 }

@@ -43,7 +43,7 @@ class NodePainter {
     final isCollapsed = currentNode.isCollapsed ?? false;
 
     // Рассчитываем абсолютную позицию текущего узла
-    final nodeAbsolutePosition = currentNode.position + parentAbsolutePosition;
+    final nodeAbsolutePosition = currentNode.aPosition ?? (currentNode.position + parentAbsolutePosition);
 
     // Создаем Rect узла в мировых координатах
     final nodeWorldRect = Rect.fromPoints(

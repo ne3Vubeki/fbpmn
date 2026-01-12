@@ -100,7 +100,7 @@ class NodeManager {
     // Добавляем детей
     if (swimlaneNode.children != null) {
       for (final child in swimlaneNode.children!) {
-        final childWorldPos = parentWorldPos + child.position;
+        final childWorldPos = child.aPosition ?? (parentWorldPos + child.position);
         final childRect = Rect.fromLTWH(
           childWorldPos.dx,
           childWorldPos.dy,
@@ -135,7 +135,7 @@ class NodeManager {
     state.selectedNode = node;
 
     // Сохраняем мировые координаты ЛЕВОГО ВЕРХНЕГО УГЛА узла
-    final worldNodePosition = state.delta + node.position;
+    final worldNodePosition = node.aPosition ?? (state.delta + node.position);
     state.originalNodePosition = worldNodePosition;
     state.selectedNodeOnTopLayer = node;
     state.isNodeOnTopLayer = true;
@@ -159,7 +159,7 @@ class NodeManager {
     node.isSelected = true;
     state.selectedNode = node;
 
-    final worldNodePosition = state.delta + node.position;
+    final worldNodePosition = node.aPosition ?? (state.delta + node.position);
     state.originalNodePosition = worldNodePosition;
 
     state.selectedNodeOnTopLayer = node;
@@ -220,8 +220,11 @@ class NodeManager {
     }
 
     final node = state.selectedNodeOnTopLayer!;
-    final worldNodePosition = state.originalNodePosition;
 
+    // Обновляем абсолютную позицию узла перед сохранением
+    node.aPosition = state.originalNodePosition;
+    
+    final worldNodePosition = state.originalNodePosition;
     final constrainedWorldPosition = worldNodePosition;
     final newPosition = constrainedWorldPosition - state.delta;
 
@@ -248,6 +251,11 @@ class NodeManager {
       for (final child in node.children!) {
         child.isSelected = false;
       }
+    }
+
+    // Пересчитываем абсолютные позиции для всех узлов
+    for (final node in state.nodes) {
+      node.initializeAbsolutePositions();
     }
 
     state.isNodeDragging = false;
@@ -289,7 +297,7 @@ class NodeManager {
     TableNode? findNodeRecursive(List<TableNode> nodes, Offset parentOffset) {
       for (int i = nodes.length - 1; i >= 0; i--) {
         final node = nodes[i];
-        final nodeOffset = parentOffset + node.position;
+        final nodeOffset = node.aPosition ?? (parentOffset + node.position);
         final nodeRect = Rect.fromLTWH(
           nodeOffset.dx,
           nodeOffset.dy,
@@ -399,6 +407,12 @@ class NodeManager {
 
     // Обновляем тайлы
     await tileManager.updateTilesAfterNodeChange();
+    
+    // Пересчитываем абсолютные позиции для всех узлов
+    for (final node in state.nodes) {
+      node.initializeAbsolutePositions();
+    }
+    
     onStateUpdate();
   }
 
@@ -424,7 +438,7 @@ class NodeManager {
     // Добавляем всех детей в тайлы
     for (final child in swimlaneNode.children!) {
       // Вычисляем мировые координаты ребенка
-      final childWorldPosition = parentWorldPosition + child.position;
+      final childWorldPosition = child.aPosition ?? (parentWorldPosition + child.position);
       await tileManager.addNodeToTiles(child, childWorldPosition);
     }
   }
@@ -457,11 +471,23 @@ class NodeManager {
         _saveNodeToTiles().then((_) {
           state.nodes.removeWhere((node) => node.id == state.selectedNode!.id);
           state.selectedNode = null;
+          
+          // Пересчитываем абсолютные позиции для всех оставшихся узлов
+          for (final node in state.nodes) {
+            node.initializeAbsolutePositions();
+          }
+          
           tileManager.createTiledImage(state.nodes);
         });
       } else {
         state.nodes.removeWhere((node) => node.id == state.selectedNode!.id);
         state.selectedNode = null;
+        
+        // Пересчитываем абсолютные позиции для всех оставшихся узлов
+        for (final node in state.nodes) {
+          node.initializeAbsolutePositions();
+        }
+        
         tileManager.createTiledImage(state.nodes);
       }
 

@@ -1,6 +1,31 @@
-/.idea/
+```dart
+# Build outputs
 /build/
-/.vscode/
-/test/
-/.dart_tool/
-/pubspec.lock
+/dist/
+
+# Dependencies
+.pub-cache/
+.dart_tool/
+.packages
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+```
