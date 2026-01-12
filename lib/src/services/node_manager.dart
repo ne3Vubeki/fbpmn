@@ -240,6 +240,7 @@ class NodeManager {
     }
 
     final node = state.selectedNodeOnTopLayer!;
+    final newPositionDelta = node.aPosition! - state.originalNodePosition;
 
     // Обновляем абсолютную позицию узла перед сохранением
     node.aPosition = state.originalNodePosition;
@@ -254,25 +255,18 @@ class NodeManager {
       // Для обычных узлов (не дочерних развернутого swimlane)
       final newPosition = node.aPosition! - state.delta;
       node.position = newPosition;
-    }
 
-    // Если это swimlane с детьми, обновляем относительные позиции детей
-    if (node.children != null) {
-      for (final child in node.children!) {
-        if (child.aPosition != null) {
-          // Рассчитываем относительные координаты ребенка из абсолютных,
-          // вычитая delta и позицию родителя
-          child.position = child.aPosition! - state.delta - node.position;
+      // Если это swimlane с детьми, обновляем относительные позиции детей
+      if (node.children != null) {
+        for (final child in node.children!) {
+          if (child.aPosition != null) {
+            // Рассчитываем новую авсолютную позицию, если изменилась позиция родителя
+            child.aPosition = child.aPosition! - newPositionDelta;
+            // Рассчитываем относительные координаты ребенка из абсолютных,
+            // вычитая delta и позицию родителя
+            child.position = child.aPosition! - state.delta - node.position;
+          }
         }
-      }
-      
-      // When a swimlane is moved (whether collapsed or expanded),
-      // we need to update the absolute positions of its children
-      // because their relative positions stay the same but the parent has moved
-      for (final child in node.children!) {
-        // Update child's absolute position based on new parent position
-        // The child's absolute position should be parent's absolute position + child's relative position
-        child.aPosition = node.aPosition! + child.position;
       }
     }
 
