@@ -93,16 +93,16 @@ class NodeManager {
       swimlaneNode.size.height,
     );
 
-    minX = parentRect.left;
-    minY = parentRect.top;
-    maxX = parentRect.right;
-    maxY = parentRect.bottom;
+    minX = math.min(minX, parentRect.left);
+    minY = math.min(minY, parentRect.top);
+    maxX = math.max(maxX, parentRect.right);
+    maxY = math.max(maxY, parentRect.bottom);
 
     // Добавляем детей
     if (swimlaneNode.children != null) {
       for (final child in swimlaneNode.children!) {
-        final childWorldPos =
-            child.aPosition ?? (parentWorldPos + child.position);
+        // Для детей используем их абсолютные позиции, если они установлены
+        final childWorldPos = child.aPosition ?? (parentWorldPos + child.position);
         final childRect = Rect.fromLTWH(
           childWorldPos.dx,
           childWorldPos.dy,
@@ -117,6 +117,9 @@ class NodeManager {
       }
     }
 
+    // Вычисляем размер охватывающего прямоугольника
+    final overallRect = Rect.fromLTWH(minX, minY, maxX - minX, maxY - minY);
+    
     // Экранные координаты
     final screenMin = _worldToScreen(Offset(minX, minY));
 
@@ -146,6 +149,20 @@ class NodeManager {
 
     // ВАЖНО: Сначала удаляем узел из state.nodes
     _removeNodeFromNodesList(node);
+
+    // Для swimlane в развернутом состоянии удаляем узел и детей из тайлов
+    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      // Сохраняем абсолютные позиции детей перед удалением
+      if (node.children != null) {
+        for (final child in node.children!) {
+          if (child.aPosition == null) {
+            // Если у ребенка нет абсолютной позиции, вычисляем её
+            child.aPosition = state.delta + node.position + child.position;
+          }
+        }
+      }
+      await _removeSwimlaneChildrenFromTiles(node);
+    }
 
     // Затем удаляем узел из тайлов и ЖДЕМ завершения
     await tileManager.removeSelectedNodeFromTiles(node);
@@ -180,6 +197,15 @@ class NodeManager {
 
     // Для swimlane в развернутом состоянии удаляем всех детей из тайлов
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      // Сохраняем абсолютные позиции детей перед удалением
+      if (node.children != null) {
+        for (final child in node.children!) {
+          if (child.aPosition == null) {
+            // Если у ребенка нет абсолютной позиции, вычисляем её
+            child.aPosition = state.delta + node.position + child.position;
+          }
+        }
+      }
       await _removeSwimlaneChildrenFromTiles(node);
     }
 
