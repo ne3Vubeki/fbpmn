@@ -80,6 +80,11 @@ class ScrollHandler {
     final Offset deltaCorrection = Offset(-requiredLeft, -requiredTop);
     state.delta += deltaCorrection;
 
+    // После изменения delta нужно обновить абсолютные позиции всех узлов
+    for (final node in nodes) {
+      node.calculateAbsolutePositions(state.delta);
+    }
+
     // Теперь пересчитываем границы с новым delta
     minX = double.infinity;
     minY = double.infinity;
