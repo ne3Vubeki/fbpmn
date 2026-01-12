@@ -62,17 +62,39 @@ class TileManager {
     final List<ImageTile> tiles = [];
     final Set<String> createdTileIds = {}; // Для отслеживания созданных тайлов
 
-    // Для каждого КОРНЕВОГО узла создаем тайлы в нужных позициях
-    // Вложенные узлы обрабатываются рекурсивно внутри родительского узла
-    for (final node in allNodes) {
-      // Получаем абсолютную позицию корневого узла
-      final nodePosition = state.delta + node.position;
+    // Собираем все узлы (включая вложенные) для определения, где создавать тайлы
+    final allNodesIncludingChildren = <TableNode>[];
+    
+    void collectAllNodes(List<TableNode> nodes) {
+      for (final node in nodes) {
+        allNodesIncludingChildren.add(node);
+        
+        // Если это развернутый swimlane, добавляем детей как независимые узлы
+        if (node.qType == 'swimlane' && !(node.isCollapsed ?? false) && 
+            node.children != null && node.children!.isNotEmpty) {
+          for (final child in node.children!) {
+            allNodesIncludingChildren.add(child);
+          }
+        } else if (node.children != null && node.children!.isNotEmpty && 
+                  !(node.qType == 'swimlane' && (node.isCollapsed ?? false))) {
+          // Для других узлов или свернутых swimlane обрабатываем детей традиционно
+          collectAllNodes(node.children!);
+        }
+      }
+    }
+    
+    collectAllNodes(allNodes);
+
+    // Для каждого узла (включая вложенные) создаем тайлы в нужных позициях
+    for (final node in allNodesIncludingChildren) {
+      // Получаем абсолютную позицию узла
+      final nodePosition = node.aPosition ?? (state.delta + node.position);
       final nodeRect = _boundsCalculator.calculateNodeRect(
         node: node,
         position: nodePosition,
       );
 
-      // Рассчитываем grid позиции, которые покрывает узел (включая детей)
+      // Рассчитываем grid позиции, которые покрывает узел
       final tileWorldSize = EditorConfig.tileSize.toDouble();
       final gridXStart = (nodeRect.left / tileWorldSize).floor();
       final gridYStart = (nodeRect.top / tileWorldSize).floor();
@@ -183,10 +205,13 @@ class TileManager {
   List<TableNode> _getNodesForTile(Rect bounds, List<TableNode> allNodes) {
     final List<TableNode> nodesInTile = [];
 
-    void checkNode(TableNode node, Offset parentOffset, bool parentCollapsed) {
-      // Для развернутого swimlane используем абсолютную позицию напрямую
-      // Это позволяет детям сохранять свои независимые позиции
-      final nodePosition = node.aPosition ?? (node.position + parentOffset);
+    void checkNode(TableNode node, Offset parentOffset, bool parentCollapsed, {bool isChildOfExpandedSwimlane = false}) {
+      // Для детей развернутого swimlane используем абсолютную позицию напрямую
+      // Для остальных случаев - стандартную логику
+      final nodePosition = isChildOfExpandedSwimlane 
+          ? (node.aPosition ?? node.position) 
+          : (node.aPosition ?? (node.position + parentOffset));
+      
       final nodeRect = _boundsCalculator.calculateNodeRect(
         node: node,
         position: nodePosition,
@@ -208,14 +233,15 @@ class TileManager {
       if (node.children != null && node.children!.isNotEmpty) {
         if (isCurrentExpandedSwimlane) {
           // Для развернутого swimlane обрабатываем детей как независимые узлы
-          // Они должны использовать свои абсолютные позиции, которые уже рассчитаны
+          // Они должны использовать свои абсолютные позиции
           for (final child in node.children!) {
             // Дети развернутого swimlane обрабатываются независимо, 
             // используя свои предварительно рассчитанные абсолютные позиции
             checkNode(
               child,
-              child.aPosition ?? Offset.zero, // Используем абсолютную позицию ребенка напрямую
+              Offset.zero, // Используем нулевое смещение, т.к. позиция будет браться напрямую
               parentCollapsed, // Дети развернутого swimlane не скрыты из-за родительского состояния
+              isChildOfExpandedSwimlane: true, // Отмечаем, что это дети развернутого swimlane
             );
           }
         } else {
@@ -224,10 +250,9 @@ class TileManager {
           
           if (!isCurrentCollapsed) {
             for (final child in node.children!) {
-              final childPosition = child.aPosition ?? (child.position + nodePosition);
               checkNode(
                 child,
-                childPosition,
+                nodePosition, // Передаем позицию родителя как смещение
                 parentCollapsed || isCurrentCollapsed,
               );
             }
@@ -237,7 +262,7 @@ class TileManager {
     }
 
     for (final node in allNodes) {
-      checkNode(node, state.delta, false);
+      checkNode(node, state.delta, false, isChildOfExpandedSwimlane: false);
     }
 
     return nodesInTile;
@@ -559,10 +584,16 @@ class TileManager {
       return;
     }
 
+    // Определяем, является ли swimlane развернутым
+    final isExpanded = swimlaneNode.qType == 'swimlane' && !(swimlaneNode.isCollapsed ?? false);
+
     // Добавляем всех детей в тайлы
     for (final child in swimlaneNode.children!) {
       // Вычисляем мировые координаты ребенка
-      final childWorldPosition = child.aPosition ?? (parentWorldPosition + child.position);
+      // Для развернутого swimlane используем абсолютную позицию ребенка напрямую
+      final childWorldPosition = isExpanded 
+          ? (child.aPosition ?? child.position)
+          : (child.aPosition ?? (parentWorldPosition + child.position));
 
       final childRect = _boundsCalculator.calculateNodeRect(
         node: child,
