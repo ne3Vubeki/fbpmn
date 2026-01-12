@@ -46,8 +46,16 @@ class NodeCustomPainter extends CustomPainter {
         // Сохраняем состояние для каждого ребенка
         canvas.save();
 
+        // Для дочерних узлов swimlane используем абсолютные позиции
+        // относительно родительского swimlane узла
+        final relativePosition = child.aPosition != null
+            ? Offset(
+                (child.aPosition!.dx - (node.aPosition?.dx ?? 0)),
+                (child.aPosition!.dy - (node.aPosition?.dy ?? 0)))
+            : child.position;
+
         // Перемещаемся к позиции ребенка (в координатах родителя)
-        canvas.translate(child.position.dx, child.position.dy);
+        canvas.translate(relativePosition.dx, relativePosition.dy);
 
         // Рисуем ребенка
         final childPainter = node_painter_lib.NodePainter(node: child);
