@@ -80,6 +80,7 @@ class _StableGridImageState extends State<StableGridImage> {
       }
 
       // Рассчитываем размер холста на основе расположения узлов
+      // Этот метод сам обновит абсолютные позиции после коррекции delta
       _scrollHandler.calculateCanvasSizeFromNodes(_editorState.nodes);
 
       await _tileManager.createTiledImage(_editorState.nodes);
