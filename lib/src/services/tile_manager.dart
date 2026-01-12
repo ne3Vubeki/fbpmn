@@ -592,7 +592,7 @@ class TileManager {
       // Вычисляем мировые координаты ребенка
       // Для развернутого swimlane используем абсолютную позицию ребенка напрямую
       final childWorldPosition = isExpanded 
-          ? (child.aPosition ?? child.position)
+          ? (child.aPosition ?? (parentWorldPosition + child.position))
           : (child.aPosition ?? (parentWorldPosition + child.position));
 
       final childRect = _boundsCalculator.calculateNodeRect(

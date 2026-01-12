@@ -229,6 +229,17 @@ class NodeManager {
     // Обновляем позицию родителя
     node.position = newPosition;
 
+    // Если это swimlane с детьми, обновляем относительные позиции детей
+    if (node.children != null) {
+      for (final child in node.children!) {
+        if (child.aPosition != null) {
+          // Рассчитываем относительные координаты ребенка из абсолютных, 
+          // вычитая delta и позицию родителя
+          child.position = child.aPosition! - state.delta - node.position;
+        }
+      }
+    }
+
     // Добавляем узел обратно в основной список узлов
     _addNodeBackToNodesList(node);
 
@@ -323,6 +334,24 @@ class NodeManager {
         if (!isCollapsedSwimlane &&
             node.children != null &&
             node.children!.isNotEmpty) {
+          // Для развернутого swimlane, дети используют свои абсолютные позиции
+          for (int j = node.children!.length - 1; j >= 0; j--) {
+            final child = node.children![j];
+            final childOffset = child.aPosition ?? (nodeOffset + child.position);
+            final childRect = Rect.fromLTWH(
+              childOffset.dx,
+              childOffset.dy,
+              child.size.width,
+              child.size.height,
+            );
+            
+            if (childRect.contains(worldPos)) {
+              foundNodeWorldPosition = childOffset;
+              return child;
+            }
+          }
+          
+          // Если мы не нашли дочерний узел под курсором, продолжаем с остальными узлами
           final childNode = findNodeRecursive(node.children!, nodeOffset);
           if (childNode != null) {
             return childNode;
@@ -398,6 +427,18 @@ class NodeManager {
       // Удаляем детей из тайлов
       await _removeSwimlaneChildrenFromTiles(swimlaneNode);
     } else {
+      // При раскрытии swimlane, когда у детей есть абсолютные позиции, 
+      // нужно правильно рассчитать их относительные позиции
+      if (toggledNode.children != null) {
+        for (final child in toggledNode.children!) {
+          if (child.aPosition != null) {
+            // Рассчитываем относительные координаты ребенка из абсолютных, 
+            // вычитая delta и позицию родителя
+            child.position = child.aPosition! - state.delta - toggledNode.position;
+          }
+        }
+      }
+      
       // Добавляем детей в тайлы
       final parentWorldPosition = state.delta + toggledNode.position;
       await _addSwimlaneChildrenToTiles(toggledNode, parentWorldPosition);
