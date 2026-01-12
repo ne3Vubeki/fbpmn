@@ -76,7 +76,7 @@ class _StableGridImageState extends State<StableGridImage> {
 
       // Вычисляем абсолютные позиции для всех узлов
       for (final node in _editorState.nodes) {
-        node.initializeAbsolutePositions();
+        node.initializeAbsolutePositions(_editorState.delta);
       }
 
       // Рассчитываем размер холста на основе расположения узлов

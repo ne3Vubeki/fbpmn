@@ -88,8 +88,8 @@ class TableNode extends Node {
   }
 
   // Метод для инициализации абсолютных позиций после создания узла
-  void initializeAbsolutePositions() {
-    calculateAbsolutePositions();
+  void initializeAbsolutePositions(Offset parentPosition) {
+    calculateAbsolutePositions(parentPosition);
   }
 
   TableNode copyWithTable({

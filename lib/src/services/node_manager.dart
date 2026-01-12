@@ -255,7 +255,7 @@ class NodeManager {
 
     // Пересчитываем абсолютные позиции для всех узлов
     for (final node in state.nodes) {
-      node.initializeAbsolutePositions();
+      node.initializeAbsolutePositions(state.delta);
     }
 
     state.isNodeDragging = false;
@@ -410,7 +410,7 @@ class NodeManager {
     
     // Пересчитываем абсолютные позиции для всех узлов
     for (final node in state.nodes) {
-      node.initializeAbsolutePositions();
+      node.initializeAbsolutePositions(state.delta);
     }
     
     onStateUpdate();
@@ -474,7 +474,7 @@ class NodeManager {
           
           // Пересчитываем абсолютные позиции для всех оставшихся узлов
           for (final node in state.nodes) {
-            node.initializeAbsolutePositions();
+            node.initializeAbsolutePositions(state.delta);
           }
           
           tileManager.createTiledImage(state.nodes);
@@ -485,7 +485,7 @@ class NodeManager {
         
         // Пересчитываем абсолютные позиции для всех оставшихся узлов
         for (final node in state.nodes) {
-          node.initializeAbsolutePositions();
+          node.initializeAbsolutePositions(state.delta);
         }
         
         tileManager.createTiledImage(state.nodes);
