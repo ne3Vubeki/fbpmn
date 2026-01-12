@@ -47,7 +47,7 @@ class NodeRenderer {
   ) {
       // Пропускаем свернутые swimlane, которые не видны в тайле
       if (node.qType == 'swimlane' && (node.isCollapsed ?? false)) {
-        final nodeWorldPosition = delta + node.position;
+        final nodeWorldPosition = node.aPosition ?? (delta + node.position);
         final nodeRect = Rect.fromLTWH(
           nodeWorldPosition.dx,
           nodeWorldPosition.dy,

@@ -30,8 +30,8 @@ class BoundsCalculator {
         return;
       }
 
-      final shiftedPosition = node.position + parentOffset;
-      final nodeRect = calculateNodeRect(node: node, position: shiftedPosition);
+      final nodePosition = node.aPosition ?? (node.position + parentOffset);
+      final nodeRect = calculateNodeRect(node: node, position: nodePosition);
 
       // Проверяем пересечение с тайлом
       if (nodeRect.overlaps(bounds)) {
@@ -47,7 +47,8 @@ class BoundsCalculator {
           node.children != null &&
           node.children!.isNotEmpty) {
         for (final child in node.children!) {
-          collectNodes(child, shiftedPosition, isCurrentCollapsedSwimlane);
+          final childPosition = child.aPosition ?? (child.position + nodePosition);
+          collectNodes(child, childPosition, isCurrentCollapsedSwimlane);
         }
       }
     }
@@ -105,8 +106,8 @@ class BoundsCalculator {
         return;
       }
 
-      final shiftedPosition = node.position + parentOffset;
-      final nodeRect = calculateNodeRect(node: node, position: shiftedPosition);
+      final nodePosition = node.aPosition ?? (node.position + parentOffset);
+      final nodeRect = calculateNodeRect(node: node, position: nodePosition);
 
       if (nodeRect.overlaps(bounds)) {
         if (isRoot) {
@@ -116,7 +117,8 @@ class BoundsCalculator {
 
       if (node.children != null && node.children!.isNotEmpty) {
         for (final child in node.children!) {
-          checkNode(child, shiftedPosition, false);
+          final childPosition = child.aPosition ?? (child.position + nodePosition);
+          checkNode(child, childPosition, false);
         }
       }
     }
