@@ -199,18 +199,40 @@ class NodeManager {
 
   // Новый метод: удаление узла из основного списка узлов
   void _removeNodeFromNodesList(TableNode node) {
-    // Удаляем только корневой узел из основного списка
-    // Вложенные узлы НЕ хранятся отдельно в state.nodes
-    state.nodes.removeWhere((n) => n.id == node.id);
+    // Проверяем, является ли узел дочерним для какого-либо swimlane
+    TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
+    if (parentSwimlane != null) {
+      // Если узел является дочерним для swimlane, удаляем его из детей родителя
+      if (parentSwimlane.children != null) {
+        parentSwimlane.children!.removeWhere((child) => child.id == node.id);
+      }
+    } else {
+      // Удаляем только корневой узел из основного списка
+      // Вложенные узлы НЕ хранятся отдельно в state.nodes
+      state.nodes.removeWhere((n) => n.id == node.id);
+    }
   }
 
   // Новый метод: добавление узла обратно в основной список узлов
   void _addNodeBackToNodesList(TableNode node) {
-    // Проверяем, что узел еще не в списке
-    if (!state.nodes.any((n) => n.id == node.id)) {
-      // Добавляем только корневой узел
-      // Вложенные узлы уже являются частью иерархии родителя
-      state.nodes.add(node);
+    // Проверяем, является ли узел дочерним для какого-либо swimlane
+    TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
+    if (parentSwimlane != null) {
+      // Если узел является дочерним для swimlane, добавляем его обратно к родителю
+      if (parentSwimlane.children == null) {
+        parentSwimlane.children = [];
+      }
+      // Проверяем, что узел еще не в списке детей
+      if (!parentSwimlane.children!.any((child) => child.id == node.id)) {
+        parentSwimlane.children!.add(node);
+      }
+    } else {
+      // Проверяем, что узел еще не в списке
+      if (!state.nodes.any((n) => n.id == node.id)) {
+        // Добавляем только корневой узел
+        // Вложенные узлы уже являются частью иерархии родителя
+        state.nodes.add(node);
+      }
     }
   }
 
