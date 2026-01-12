@@ -224,9 +224,7 @@ class NodeManager {
     // Обновляем абсолютную позицию узла перед сохранением
     node.aPosition = state.originalNodePosition;
     
-    final worldNodePosition = state.originalNodePosition;
-    final constrainedWorldPosition = worldNodePosition;
-    final newPosition = constrainedWorldPosition - state.delta;
+    final newPosition = node.aPosition! - state.delta;
 
     // Обновляем позицию родителя
     node.position = newPosition;
@@ -236,11 +234,11 @@ class NodeManager {
 
     // Для swimlane в развернутом состоянии добавляем детей в тайлы
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-      await _addSwimlaneChildrenToTiles(node, constrainedWorldPosition);
+      await _addSwimlaneChildrenToTiles(node, node.aPosition!);
     }
 
     // Добавляем родительский узел в тайлы
-    await tileManager.addNodeToTiles(node, constrainedWorldPosition);
+    await tileManager.addNodeToTiles(node, node.aPosition!);
 
     await tileManager.updateTilesAfterNodeChange();
 
