@@ -184,10 +184,10 @@ class TileManager {
     final List<TableNode> nodesInTile = [];
 
     void checkNode(TableNode node, Offset parentOffset, bool parentCollapsed) {
-      final shiftedPosition = node.position + parentOffset;
+      final nodePosition = node.aPosition ?? (node.position + parentOffset);
       final nodeRect = _boundsCalculator.calculateNodeRect(
         node: node,
-        position: shiftedPosition,
+        position: nodePosition,
       );
 
       // Проверяем пересечение с тайлом
@@ -207,9 +207,10 @@ class TileManager {
           node.children != null &&
           node.children!.isNotEmpty) {
         for (final child in node.children!) {
+          final childPosition = child.aPosition ?? (child.position + nodePosition);
           checkNode(
             child,
-            shiftedPosition,
+            childPosition,
             parentCollapsed || isCurrentCollapsed,
           );
         }
@@ -397,13 +398,13 @@ class TileManager {
     Offset? findPositionRecursive(List<TableNode> nodes, Offset parentOffset) {
       for (final currentNode in nodes) {
         if (currentNode.id == node.id) {
-          return parentOffset + currentNode.position;
+          return currentNode.aPosition ?? (parentOffset + currentNode.position);
         }
 
         if (currentNode.children != null && currentNode.children!.isNotEmpty) {
           final found = findPositionRecursive(
             currentNode.children!,
-            parentOffset + currentNode.position,
+            currentNode.aPosition ?? (parentOffset + currentNode.position),
           );
           if (found != null) {
             return found;
@@ -421,7 +422,7 @@ class TileManager {
 
     // Если не нашли, используем приблизительную позицию
     // (узел уже удален из state.nodes, но нам нужна его старая позиция)
-    return state.delta + node.position;
+    return node.aPosition ?? (state.delta + node.position);
   }
 
   // Удаление тайла по id
@@ -537,7 +538,7 @@ class TileManager {
     // Добавляем всех детей в тайлы
     for (final child in swimlaneNode.children!) {
       // Вычисляем мировые координаты ребенка
-      final childWorldPosition = parentWorldPosition + child.position;
+      final childWorldPosition = child.aPosition ?? (parentWorldPosition + child.position);
 
       final childRect = _boundsCalculator.calculateNodeRect(
         node: child,
