@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../editor_state.dart';
 import '../models/table.node.dart';
@@ -308,69 +309,9 @@ class NodeManager {
     onStateUpdate();
   }
 
-  // Метод для обновления позиций детей swimlane
+  // Метод для поиска родителя swimlane
   TableNode? _findParentExpandedSwimlaneNode(TableNode node) {
-    TableNode? findParentRecursive(List<TableNode> nodes) {
-      for (final currentNode in nodes) {
-        // Проверяем, является ли текущий узел развернутым swimlane и содержит ли он искомый узел
-        if (currentNode.qType == 'swimlane' &&
-            !(currentNode.isCollapsed ?? false)) {
-          if (currentNode.children != null) {
-            for (final child in currentNode.children!) {
-              if (child.id == node.id) {
-                return currentNode; // Нашли родительский развернутый swimlane
-              }
-
-              // Рекурсивно проверяем вложенные узлы
-              TableNode? nestedParent = _findParentExpandedSwimlaneInNode(
-                child,
-                node,
-              );
-              if (nestedParent != null) {
-                return nestedParent;
-              }
-            }
-          }
-        }
-
-        // Продолжаем рекурсивный поиск в дочерних узлах
-        if (currentNode.children != null) {
-          TableNode? result = findParentRecursive(currentNode.children!);
-          if (result != null) {
-            return result;
-          }
-        }
-      }
-      return null;
-    }
-
-    return findParentRecursive(state.nodes);
-  }
-
-  // Вспомогательный метод для поиска родительского swimlane в иерархии конкретного узла
-  TableNode? _findParentExpandedSwimlaneInNode(
-    TableNode parent,
-    TableNode targetNode,
-  ) {
-    if (parent.children != null) {
-      for (final child in parent.children!) {
-        if (child.id == targetNode.id) {
-          if (parent.qType == 'swimlane' && !(parent.isCollapsed ?? false)) {
-            return parent; // Нашли родительский развернутый swimlane
-          }
-        }
-
-        // Рекурсивно проверяем вложенные узлы
-        TableNode? result = _findParentExpandedSwimlaneInNode(
-          child,
-          targetNode,
-        );
-        if (result != null) {
-          return result;
-        }
-      }
-    }
-    return null;
+    return state.nodes.firstWhereOrNull((n) => n.id == node.parent);
   }
 
   void handleEmptyAreaClick() {

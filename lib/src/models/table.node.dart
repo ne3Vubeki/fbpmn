@@ -13,7 +13,6 @@ class TableNode extends Node {
   final Color borderColor;
   final Color backgroundColor;
   final bool? isCollapsed;
-  Offset? aPosition;
 
   TableNode({
     required super.id,
@@ -31,15 +30,17 @@ class TableNode extends Node {
     this.children,
     this.isCollapsed,
     super.aPosition,
+    super.parent,
   });
 
-  factory TableNode.fromJson(Map<String, dynamic> object) {
+  factory TableNode.fromJson(Map<String, dynamic> object, [String? parent]) {
+    final id = object['id'] as String;
     final geometry = object['geometry'] as Map<String, dynamic>;
     final style = object['style'] as String? ?? '';
     final attributes = (object['attributes'] as List<dynamic>? ?? [])
         .cast<Map<String, dynamic>>();
     final children = (object['children'] as List<dynamic>? ?? [])
-        .map<TableNode>((object) => TableNode.fromJson(object))
+        .map<TableNode>((object) => TableNode.fromJson(object, id))
         .toList();
 
     // Извлекаем свойство collapsed
@@ -70,8 +71,8 @@ class TableNode extends Node {
       return Colors.black;
     }
 
-    return TableNode(
-      id: object['id'] as String,
+    final node = TableNode(
+      id: id,
       groupId: object['groupId'] as String?,
       position: Offset(x, y),
       size: Size(width, height),
@@ -85,6 +86,12 @@ class TableNode extends Node {
       backgroundColor: parseColor(style, 'fillColor'),
       isCollapsed: isCollapsed,
     );
+    
+    // Если это вложенный узел, добавляем parent родителя
+    if(parent != null) {
+      node.parent = parent;
+    }
+    return node;
   }
 
   // Метод для инициализации абсолютных позиций после создания узла

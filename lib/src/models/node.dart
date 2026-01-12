@@ -3,6 +3,7 @@ import 'dart:ui';
 
 class Node {
   final String id;
+  String? parent;
   Offset position;
   Size size;
   String text;
@@ -12,15 +13,17 @@ class Node {
   Node({
     required this.id,
     required this.position,
+    this.parent,
     this.size = const Size(100, 60),
     this.text = 'Node',
     this.isSelected = false,
     this.aPosition,
   });
 
-  Node copyWith({Offset? position, String? text, bool? isSelected, Offset? aPosition}) {
+  Node copyWith({ String? parent, Offset? position, String? text, bool? isSelected, Offset? aPosition}) {
     return Node(
       id: id,
+      parent: parent,
       position: position ?? this.position,
       size: size,
       text: text ?? this.text,
