@@ -24,12 +24,12 @@ class EditorState {
   Node? selectedNode;
   TableNode? selectedNodeOnTopLayer;
   bool isNodeOnTopLayer = false;
-  Offset selectedNodeOffset = Offset.zero;
   Offset originalNodePosition = Offset.zero;
   bool isNodeDragging = false;
 
-  // Размер выделенного узла (для правильной отрисовки рамки)
-  Size selectedNodeSize = Size.zero;
+  // Позиция, Размер и Отступы в рамке выделенного узла (для правильной отрисовки рамки)
+  Offset selectedNodeOffset = Offset.zero;
+  EdgeInsets framePadding = EdgeInsets.all(0);
   
   // Тайлы
   List<ImageTile> imageTiles = [];

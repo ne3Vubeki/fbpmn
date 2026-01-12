@@ -269,7 +269,7 @@ class _CanvasAreaState extends State<CanvasArea> {
       left: widget.state.selectedNodeOffset.dx,
       top: widget.state.selectedNodeOffset.dy,
       child: Container(
-        padding: EdgeInsets.all(framePadding),
+        padding: widget.state.framePadding,
         decoration: BoxDecoration(
           border: Border.all(color: Colors.blue, width: frameBorderWidth),
           borderRadius: isNotGroup || isEnum || !hasAttributes

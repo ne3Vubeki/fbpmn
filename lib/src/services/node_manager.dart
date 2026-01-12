@@ -74,6 +74,7 @@ class NodeManager {
       screenNodePosition.dx - frameTotalOffset,
       screenNodePosition.dy - frameTotalOffset,
     );
+    state.framePadding = EdgeInsets.all(framePadding);
   }
 
   // Метод для обновления рамки выделения swimlane
@@ -98,11 +99,15 @@ class NodeManager {
     maxX = math.max(maxX, parentRect.right);
     maxY = math.max(maxY, parentRect.bottom);
 
+    final screenLeftTop = _worldToScreen(Offset(minX, minY));
+    final screenRightBottom = _worldToScreen(Offset(maxX, maxY));
+
     // Добавляем детей
     if (swimlaneNode.children != null) {
       for (final child in swimlaneNode.children!) {
         // Для детей используем их абсолютные позиции, если они установлены
-        final childWorldPos = child.aPosition ?? (parentWorldPos + child.position);
+        final childWorldPos =
+            child.aPosition ?? (parentWorldPos + child.position);
         final childRect = Rect.fromLTWH(
           childWorldPos.dx,
           childWorldPos.dy,
@@ -117,16 +122,22 @@ class NodeManager {
       }
     }
 
-    // Вычисляем размер охватывающего прямоугольника
-    final overallRect = Rect.fromLTWH(minX, minY, maxX - minX, maxY - minY);
-    
     // Экранные координаты
     final screenMin = _worldToScreen(Offset(minX, minY));
+    final screenMax = _worldToScreen(Offset(maxX, maxY));
 
     // Позиция рамки с отступом
     state.selectedNodeOffset = Offset(
       screenMin.dx - frameTotalOffset,
       screenMin.dy - frameTotalOffset,
+    );
+
+    // Размер отступов рамки слева и сверху для родительского узла
+    state.framePadding = EdgeInsets.only(
+      left: screenLeftTop.dx - screenMin.dx + framePadding,
+      top: screenLeftTop.dy - screenMin.dy + framePadding,
+      right: screenMax.dx - screenRightBottom.dx + framePadding,
+      bottom: screenMax.dy - screenRightBottom.dy + framePadding,
     );
   }
 
@@ -330,7 +341,6 @@ class NodeManager {
     state.selectedNode = null;
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
-    state.selectedNodeSize = Size.zero;
 
     onStateUpdate();
   }
