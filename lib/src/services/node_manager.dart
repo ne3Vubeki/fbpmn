@@ -267,6 +267,15 @@ class NodeManager {
           child.position = child.aPosition! - state.delta - node.position;
         }
       }
+      
+      // When a swimlane is moved (whether collapsed or expanded),
+      // we need to update the absolute positions of its children
+      // because their relative positions stay the same but the parent has moved
+      for (final child in node.children!) {
+        // Update child's absolute position based on new parent position
+        // The child's absolute position should be parent's absolute position + child's relative position
+        child.aPosition = node.aPosition! + child.position;
+      }
     }
 
     // Добавляем узел обратно в основной список узлов
