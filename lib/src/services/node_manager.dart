@@ -100,7 +100,8 @@ class NodeManager {
     // Добавляем детей
     if (swimlaneNode.children != null) {
       for (final child in swimlaneNode.children!) {
-        final childWorldPos = child.aPosition ?? (parentWorldPos + child.position);
+        final childWorldPos =
+            child.aPosition ?? (parentWorldPos + child.position);
         final childRect = Rect.fromLTWH(
           childWorldPos.dx,
           childWorldPos.dy,
@@ -218,12 +219,9 @@ class NodeManager {
     // Проверяем, является ли узел дочерним для какого-либо swimlane
     TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
     if (parentSwimlane != null) {
-      // Если узел является дочерним для swimlane, добавляем его обратно к родителю
-      if (parentSwimlane.children == null) {
-        parentSwimlane.children = [];
-      }
       // Проверяем, что узел еще не в списке детей
-      if (!parentSwimlane.children!.any((child) => child.id == node.id)) {
+      if (parentSwimlane.children != null &&
+          !parentSwimlane.children!.any((child) => child.id == node.id)) {
         parentSwimlane.children!.add(node);
       }
     } else {
@@ -245,7 +243,7 @@ class NodeManager {
 
     // Обновляем абсолютную позицию узла перед сохранением
     node.aPosition = state.originalNodePosition;
-    
+
     // Находим родительский swimlane, если он существует и развернут
     TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
     if (parentSwimlane != null) {
@@ -262,7 +260,7 @@ class NodeManager {
     if (node.children != null) {
       for (final child in node.children!) {
         if (child.aPosition != null) {
-          // Рассчитываем относительные координаты ребенка из абсолютных, 
+          // Рассчитываем относительные координаты ребенка из абсолютных,
           // вычитая delta и позицию родителя
           child.position = child.aPosition! - state.delta - node.position;
         }
@@ -321,22 +319,26 @@ class NodeManager {
     TableNode? findParentRecursive(List<TableNode> nodes) {
       for (final currentNode in nodes) {
         // Проверяем, является ли текущий узел развернутым swimlane и содержит ли он искомый узел
-        if (currentNode.qType == 'swimlane' && !(currentNode.isCollapsed ?? false)) {
+        if (currentNode.qType == 'swimlane' &&
+            !(currentNode.isCollapsed ?? false)) {
           if (currentNode.children != null) {
             for (final child in currentNode.children!) {
               if (child.id == node.id) {
                 return currentNode; // Нашли родительский развернутый swimlane
               }
-              
+
               // Рекурсивно проверяем вложенные узлы
-              TableNode? nestedParent = _findParentExpandedSwimlaneInNode(child, node);
+              TableNode? nestedParent = _findParentExpandedSwimlaneInNode(
+                child,
+                node,
+              );
               if (nestedParent != null) {
                 return nestedParent;
               }
             }
           }
         }
-        
+
         // Продолжаем рекурсивный поиск в дочерних узлах
         if (currentNode.children != null) {
           TableNode? result = findParentRecursive(currentNode.children!);
@@ -347,12 +349,15 @@ class NodeManager {
       }
       return null;
     }
-    
+
     return findParentRecursive(state.nodes);
   }
 
   // Вспомогательный метод для поиска родительского swimlane в иерархии конкретного узла
-  TableNode? _findParentExpandedSwimlaneInNode(TableNode parent, TableNode targetNode) {
+  TableNode? _findParentExpandedSwimlaneInNode(
+    TableNode parent,
+    TableNode targetNode,
+  ) {
     if (parent.children != null) {
       for (final child in parent.children!) {
         if (child.id == targetNode.id) {
@@ -360,9 +365,12 @@ class NodeManager {
             return parent; // Нашли родительский развернутый swimlane
           }
         }
-        
+
         // Рекурсивно проверяем вложенные узлы
-        TableNode? result = _findParentExpandedSwimlaneInNode(child, targetNode);
+        TableNode? result = _findParentExpandedSwimlaneInNode(
+          child,
+          targetNode,
+        );
         if (result != null) {
           return result;
         }
@@ -370,6 +378,7 @@ class NodeManager {
     }
     return null;
   }
+
   void handleEmptyAreaClick() {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
       _saveNodeToTiles();
@@ -428,20 +437,21 @@ class NodeManager {
           // Для развернутого swimlane, дети используют свои абсолютные позиции
           for (int j = node.children!.length - 1; j >= 0; j--) {
             final child = node.children![j];
-            final childOffset = child.aPosition ?? (nodeOffset + child.position);
+            final childOffset =
+                child.aPosition ?? (nodeOffset + child.position);
             final childRect = Rect.fromLTWH(
               childOffset.dx,
               childOffset.dy,
               child.size.width,
               child.size.height,
             );
-            
+
             if (childRect.contains(worldPos)) {
               foundNodeWorldPosition = childOffset;
               return child;
             }
           }
-          
+
           // Если мы не нашли дочерний узел под курсором, продолжаем с остальными узлами
           final childNode = findNodeRecursive(node.children!, nodeOffset);
           if (childNode != null) {
@@ -465,7 +475,7 @@ class NodeManager {
         await _toggleSwimlaneCollapsed(foundNode);
         return;
       }
-      
+
       if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
         if (state.selectedNodeOnTopLayer!.id == foundNode.id) {
           if (immediateDrag) {
@@ -481,13 +491,13 @@ class NodeManager {
 
           // Сохраняем текущий выделенный узел в тайлы
           await _saveNodeToTiles();
-          
+
           // Выделяем новый узел
           await _selectNodeImmediate(foundNode, screenPosition);
         } else {
           // Сохраняем текущий выделенный узел в тайлы
           await _saveNodeToTiles();
-          
+
           // Выделяем новый узел
           await _selectNode(foundNode);
         }
@@ -521,22 +531,24 @@ class NodeManager {
       // Удаляем детей из тайлов
       await _removeSwimlaneChildrenFromTiles(swimlaneNode);
     } else {
-      // При раскрытии swimlane, когда у детей есть абсолютные позиции, 
+      // При раскрытии swimlane, когда у детей есть абсолютные позиции,
       // нужно правильно рассчитать их относительные позиции
       if (toggledNode.children != null) {
         for (final child in toggledNode.children!) {
           if (child.aPosition != null) {
-            // Рассчитываем относительные координаты ребенка из абсолютных, 
+            // Рассчитываем относительные координаты ребенка из абсолютных,
             // вычитая delta и позицию родителя
-            child.position = child.aPosition! - state.delta - toggledNode.position;
+            child.position =
+                child.aPosition! - state.delta - toggledNode.position;
           } else {
             // Если у ребенка нет абсолютной позиции, используем текущую относительную
             // Это важно для сохранения перемещенных дочерних узлов
-            child.aPosition = state.delta + toggledNode.position + child.position;
+            child.aPosition =
+                state.delta + toggledNode.position + child.position;
           }
         }
       }
-      
+
       // Добавляем детей в тайлы
       final parentWorldPosition = state.delta + toggledNode.position;
       await _addSwimlaneChildrenToTiles(toggledNode, parentWorldPosition);
@@ -544,12 +556,12 @@ class NodeManager {
 
     // Обновляем тайлы
     await tileManager.updateTilesAfterNodeChange();
-    
+
     // Пересчитываем абсолютные позиции для всех узлов
     for (final node in state.nodes) {
       node.initializeAbsolutePositions(state.delta);
     }
-    
+
     onStateUpdate();
   }
 
@@ -575,7 +587,8 @@ class NodeManager {
     // Добавляем всех детей в тайлы
     for (final child in swimlaneNode.children!) {
       // Вычисляем мировые координаты ребенка
-      final childWorldPosition = child.aPosition ?? (parentWorldPosition + child.position);
+      final childWorldPosition =
+          child.aPosition ?? (parentWorldPosition + child.position);
       await tileManager.addNodeToTiles(child, childWorldPosition);
     }
   }
@@ -608,23 +621,23 @@ class NodeManager {
         _saveNodeToTiles().then((_) {
           state.nodes.removeWhere((node) => node.id == state.selectedNode!.id);
           state.selectedNode = null;
-          
+
           // Пересчитываем абсолютные позиции для всех оставшихся узлов
           for (final node in state.nodes) {
             node.initializeAbsolutePositions(state.delta);
           }
-          
+
           tileManager.createTiledImage(state.nodes);
         });
       } else {
         state.nodes.removeWhere((node) => node.id == state.selectedNode!.id);
         state.selectedNode = null;
-        
+
         // Пересчитываем абсолютные позиции для всех оставшихся узлов
         for (final node in state.nodes) {
           node.initializeAbsolutePositions(state.delta);
         }
-        
+
         tileManager.createTiledImage(state.nodes);
       }
 
