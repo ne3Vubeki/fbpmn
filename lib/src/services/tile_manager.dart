@@ -394,16 +394,29 @@ class TileManager {
   Future<void> removeSelectedNodeFromTiles(TableNode node) async {
     final Set<int> tilesToUpdate = {};
 
-    // Для swimlane в развернутом состоянии удаляем всех детей
-    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-      await _removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
-    }
+    // Проверяем, является ли этот узел дочерним для развернутого swimlane
+    TableNode? parentSwimlane = _findParentExpandedSwimlane(node);
+    if (parentSwimlane != null) {
+      // Если узел является дочерним для развернутого swimlane, 
+      // удаляем его как самостоятельный узел
+      final tileIndices = _findTilesContainingNode(node);
+      for (final tileIndex in tileIndices) {
+        if (tileIndex < state.imageTiles.length) {
+          tilesToUpdate.add(tileIndex);
+        }
+      }
+    } else {
+      // Для swimlane в развернутом состоянии удаляем всех детей
+      if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+        await _removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+      }
 
-    // Ищем тайлы, содержащие этот узел
-    final tileIndices = _findTilesContainingNode(node);
-    for (final tileIndex in tileIndices) {
-      if (tileIndex < state.imageTiles.length) {
-        tilesToUpdate.add(tileIndex);
+      // Ищем тайлы, содержащие этот узел
+      final tileIndices = _findTilesContainingNode(node);
+      for (final tileIndex in tileIndices) {
+        if (tileIndex < state.imageTiles.length) {
+          tilesToUpdate.add(tileIndex);
+        }
       }
     }
 
@@ -434,6 +447,61 @@ class TileManager {
     }
 
     return tileIndices;
+  }
+
+  // Метод для поиска родительского развернутого swimlane узла
+  TableNode? _findParentExpandedSwimlane(TableNode node) {
+    TableNode? findParentRecursive(List<TableNode> nodes) {
+      for (final currentNode in nodes) {
+        // Проверяем, является ли текущий узел развернутым swimlane и содержит ли он искомый узел
+        if (currentNode.qType == 'swimlane' && !(currentNode.isCollapsed ?? false)) {
+          if (currentNode.children != null) {
+            for (final child in currentNode.children!) {
+              if (child.id == node.id) {
+                return currentNode; // Нашли родительский развернутый swimlane
+              }
+              
+              // Рекурсивно проверяем вложенные узлы
+              TableNode? nestedParent = _findParentExpandedSwimlaneInNode(child, node);
+              if (nestedParent != null) {
+                return nestedParent;
+              }
+            }
+          }
+        }
+        
+        // Продолжаем рекурсивный поиск в дочерних узлах
+        if (currentNode.children != null) {
+          TableNode? result = findParentRecursive(currentNode.children!);
+          if (result != null) {
+            return result;
+          }
+        }
+      }
+      return null;
+    }
+    
+    return findParentRecursive(state.nodes);
+  }
+
+  // Вспомогательный метод для поиска родительского swimlane в иерархии конкретного узла
+  TableNode? _findParentExpandedSwimlaneInNode(TableNode parent, TableNode targetNode) {
+    if (parent.children != null) {
+      for (final child in parent.children!) {
+        if (child.id == targetNode.id) {
+          if (parent.qType == 'swimlane' && !(parent.isCollapsed ?? false)) {
+            return parent; // Нашли родительский развернутый swimlane
+          }
+        }
+        
+        // Рекурсивно проверяем вложенные узлы
+        TableNode? result = _findParentExpandedSwimlaneInNode(child, targetNode);
+        if (result != null) {
+          return result;
+        }
+      }
+    }
+    return null;
   }
 
   // Поиск абсолютной позиции узла в иерархии

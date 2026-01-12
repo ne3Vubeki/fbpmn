@@ -224,10 +224,17 @@ class NodeManager {
     // Обновляем абсолютную позицию узла перед сохранением
     node.aPosition = state.originalNodePosition;
     
-    final newPosition = node.aPosition! - state.delta;
-
-    // Обновляем позицию родителя
-    node.position = newPosition;
+    // Находим родительский swimlane, если он существует и развернут
+    TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
+    if (parentSwimlane != null) {
+      // Если узел является дочерним для развернутого swimlane,
+      // вычисляем его относительную позицию по отношению к родителю
+      node.position = node.aPosition! - state.delta - parentSwimlane.position;
+    } else {
+      // Для обычных узлов (не дочерних развернутого swimlane)
+      final newPosition = node.aPosition! - state.delta;
+      node.position = newPosition;
+    }
 
     // Если это swimlane с детьми, обновляем относительные позиции детей
     if (node.children != null) {
@@ -279,6 +286,59 @@ class NodeManager {
   }
 
   // Метод для обновления позиций детей swimlane
+  TableNode? _findParentExpandedSwimlaneNode(TableNode node) {
+    TableNode? findParentRecursive(List<TableNode> nodes) {
+      for (final currentNode in nodes) {
+        // Проверяем, является ли текущий узел развернутым swimlane и содержит ли он искомый узел
+        if (currentNode.qType == 'swimlane' && !(currentNode.isCollapsed ?? false)) {
+          if (currentNode.children != null) {
+            for (final child in currentNode.children!) {
+              if (child.id == node.id) {
+                return currentNode; // Нашли родительский развернутый swimlane
+              }
+              
+              // Рекурсивно проверяем вложенные узлы
+              TableNode? nestedParent = _findParentExpandedSwimlaneInNode(child, node);
+              if (nestedParent != null) {
+                return nestedParent;
+              }
+            }
+          }
+        }
+        
+        // Продолжаем рекурсивный поиск в дочерних узлах
+        if (currentNode.children != null) {
+          TableNode? result = findParentRecursive(currentNode.children!);
+          if (result != null) {
+            return result;
+          }
+        }
+      }
+      return null;
+    }
+    
+    return findParentRecursive(state.nodes);
+  }
+
+  // Вспомогательный метод для поиска родительского swimlane в иерархии конкретного узла
+  TableNode? _findParentExpandedSwimlaneInNode(TableNode parent, TableNode targetNode) {
+    if (parent.children != null) {
+      for (final child in parent.children!) {
+        if (child.id == targetNode.id) {
+          if (parent.qType == 'swimlane' && !(parent.isCollapsed ?? false)) {
+            return parent; // Нашли родительский развернутый swimlane
+          }
+        }
+        
+        // Рекурсивно проверяем вложенные узлы
+        TableNode? result = _findParentExpandedSwimlaneInNode(child, targetNode);
+        if (result != null) {
+          return result;
+        }
+      }
+    }
+    return null;
+  }
   void handleEmptyAreaClick() {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
       _saveNodeToTiles();
@@ -374,6 +434,7 @@ class NodeManager {
         await _toggleSwimlaneCollapsed(foundNode);
         return;
       }
+      
       if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
         if (state.selectedNodeOnTopLayer!.id == foundNode.id) {
           if (immediateDrag) {
@@ -389,11 +450,13 @@ class NodeManager {
 
           // Сохраняем текущий выделенный узел в тайлы
           await _saveNodeToTiles();
+          
           // Выделяем новый узел
           await _selectNodeImmediate(foundNode, screenPosition);
         } else {
           // Сохраняем текущий выделенный узел в тайлы
           await _saveNodeToTiles();
+          
           // Выделяем новый узел
           await _selectNode(foundNode);
         }
@@ -435,6 +498,10 @@ class NodeManager {
             // Рассчитываем относительные координаты ребенка из абсолютных, 
             // вычитая delta и позицию родителя
             child.position = child.aPosition! - state.delta - toggledNode.position;
+          } else {
+            // Если у ребенка нет абсолютной позиции, используем текущую относительную
+            // Это важно для сохранения перемещенных дочерних узлов
+            child.aPosition = state.delta + toggledNode.position + child.position;
           }
         }
       }
