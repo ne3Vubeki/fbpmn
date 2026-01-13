@@ -1,7 +1,5 @@
-import 'dart:math' as math;
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../models/table.node.dart';
 import '../models/arrow.dart';
@@ -75,7 +73,7 @@ class ArrowPainter {
 
   /// Поиск узла по ID
   TableNode? _findNodeById(String id) {
-    return nodes.firstWhere((node) => node.id == id, orElse: () => null);
+    return nodes.firstWhereOrNull((node) => node.id == id);
   }
 
   /// Рисование стрелки
@@ -111,7 +109,7 @@ class ArrowPainter {
   }
 
   /// Расчет точек соединения для стрелки
-  (Offset? start, Offset? end) _calculateConnectionPoints(Rect sourceRect, Rect targetRect, TableNode sourceNode, TableNode targetNode) {
+  ({Offset? end, Offset? start}) _calculateConnectionPoints(Rect sourceRect, Rect targetRect, TableNode sourceNode, TableNode targetNode) {
     // Определяем, являются ли объекты атрибутами (узлы с маленькими размерами)
     final isSourceAttribute = sourceNode.size.width <= 40 || sourceNode.size.height <= 20;
     final isTargetAttribute = targetNode.size.width <= 40 || targetNode.size.height <= 20;
@@ -154,10 +152,10 @@ class ArrowPainter {
   /// Находит центр ближайшей стороны одного прямоугольника к другому
   Offset _getClosestSideCenter(Rect rect, Rect otherRect, {double offset = 0}) {
     final centerPoints = {
-      'top': Offset(rect.center.dx, rect.top + offset),
-      'bottom': Offset(rect.center.dx, rect.bottom - offset),
-      'left': Offset(rect.left + offset, rect.center.dy),
-      'right': Offset(rect.right - offset, rect.center.dy),
+      'top': Offset(rect.center.dx, rect.top - offset),
+      'bottom': Offset(rect.center.dx, rect.bottom + offset),
+      'left': Offset(rect.left - offset, rect.center.dy),
+      'right': Offset(rect.right + offset, rect.center.dy),
     };
 
     // Определяем, какие стороны могут быть использованы в зависимости от положения otherRect

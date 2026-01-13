@@ -1,14 +1,12 @@
 // Модель стрелки/связи
-import 'dart:ui';
-
 class Arrow {
   final String id;
   final String qType; // arrowObject, qRelationship, qEdgeToJson
   final String source; // ID источника
   final String target; // ID цели
   final String style;
-  final List<Map<String, dynamic>>? powers; // Опционально
-  final List<Map<String, dynamic>>? points; // Опционально
+  List<Map<String, dynamic>>? powers; // Опционально
+  List<Map<String, dynamic>>? points; // Опционально
   final double strokeWidth;
 
   Arrow({
@@ -23,20 +21,26 @@ class Arrow {
   });
 
   factory Arrow.fromJson(Map<String, dynamic> json) {
-    return Arrow(
+    final powers = (json['powers'] as List<dynamic>? ?? [])
+        .cast<Map<String, dynamic>>();
+    final points = (json['points'] as List<dynamic>? ?? [])
+        .cast<Map<String, dynamic>>();
+
+    final arrow = Arrow(
       id: json['id'] as String,
       qType: json['qType'] as String,
       source: json['source'] as String,
       target: json['target'] as String,
       style: json['style'] as String? ?? '',
-      powers: (json['powers'] as List<dynamic>?)
-          ?.map((e) => e.cast<String, dynamic>())
-          .toList(),
-      points: (json['points'] as List<dynamic>?)
-          ?.map((e) => e.cast<String, dynamic>())
-          .toList(),
       strokeWidth: 1.0, // по умолчанию толщина 1
     );
+    if (powers.isNotEmpty) {
+      arrow.powers = powers;
+    }
+    if (points.isNotEmpty) {
+      arrow.points = points;
+    }
+    return arrow;
   }
 
   Arrow copyWith({
