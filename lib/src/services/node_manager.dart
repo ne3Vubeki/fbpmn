@@ -15,7 +15,7 @@ class NodeManager {
 
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
-  
+
   // Переменные для хранения начальных параметров рамки swimlane
   Rect? _initialSwimlaneBounds;
   EdgeInsets? _initialFramePadding;
@@ -88,16 +88,20 @@ class NodeManager {
       // просто сдвигаем рамку на ту же величину, что и узел
       final currentWorldPos = state.originalNodePosition;
       final positionDelta = currentWorldPos - _nodeStartWorldPosition;
-      
+
       // Вычисляем новую позицию рамки
-      final newFrameScreenPos = _worldToScreen(_initialSwimlaneBounds!.topLeft) + 
-                                Offset(positionDelta.dx * state.scale, positionDelta.dy * state.scale);
-      
+      final newFrameScreenPos =
+          _worldToScreen(_initialSwimlaneBounds!.topLeft) +
+          Offset(
+            positionDelta.dx * state.scale,
+            positionDelta.dy * state.scale,
+          );
+
       state.selectedNodeOffset = Offset(
         newFrameScreenPos.dx - frameTotalOffset,
         newFrameScreenPos.dy - frameTotalOffset,
       );
-      
+
       // Используем сохраненные отступы
       state.framePadding = _initialFramePadding!;
     } else {
@@ -161,9 +165,14 @@ class NodeManager {
         right: screenMax.dx - screenRightBottom.dx + framePadding,
         bottom: screenMax.dy - screenRightBottom.dy + framePadding,
       );
-      
+
       // Сохраняем начальные параметры рамки при первом вычислении
-      _initialSwimlaneBounds = Rect.fromLTWH(minX, minY, maxX - minX, maxY - minY);
+      _initialSwimlaneBounds = Rect.fromLTWH(
+        minX,
+        minY,
+        maxX - minX,
+        maxY - minY,
+      );
       _initialFramePadding = state.framePadding;
     }
   }
@@ -193,10 +202,7 @@ class NodeManager {
       // Сохраняем абсолютные позиции детей перед удалением
       if (node.children != null) {
         for (final child in node.children!) {
-          if (child.aPosition == null) {
-            // Если у ребенка нет абсолютной позиции, вычисляем её
-            child.aPosition = state.delta + node.position + child.position;
-          }
+          child.aPosition ??= state.delta + node.position + child.position;
         }
       }
       await _removeSwimlaneChildrenFromTiles(node);
@@ -238,10 +244,7 @@ class NodeManager {
       // Сохраняем абсолютные позиции детей перед удалением
       if (node.children != null) {
         for (final child in node.children!) {
-          if (child.aPosition == null) {
-            // Если у ребенка нет абсолютной позиции, вычисляем её
-            child.aPosition = state.delta + node.position + child.position;
-          }
+          child.aPosition ??= state.delta + node.position + child.position;
         }
       }
       await _removeSwimlaneChildrenFromTiles(node);
@@ -591,7 +594,7 @@ class NodeManager {
     }
   }
 
-  // Добавляем метод для проверки клика по иконке swimlane
+  // Метод для проверки клика по иконке swimlane
   bool _isSwimlaneIconClicked(
     TableNode node,
     Offset worldPosition,
@@ -599,24 +602,25 @@ class NodeManager {
   ) {
     if (node.qType != 'swimlane') return false;
 
-    final headerHeight = EditorConfig.headerHeight;
-    final iconSize = 16.0;
-    final iconMargin = 8.0;
+    final iconSize = 16.0 * state.scale;
+    final iconMargin = 8.0 * state.scale;
 
-    // Рассчитываем размеры с учетом масштабирования
-    // Для корректного определения области клика нужно использовать размеры в мировых координатах
-    // которые соответствуют размерам в пикселях при текущем масштабе
-    final scaledIconSize = iconSize / state.scale;
-    final scaledIconMargin = iconMargin / state.scale;
+    // Преобразуем мировые координаты узла в экранные
+    final screenNodePosition = _worldToScreen(nodeWorldPosition);
 
+    // Преобразуем мировые координаты клика в экранные
+    final screenClickPosition = _worldToScreen(worldPosition);
+
+    // Рассчитываем область иконки в экранных координатах
+    // Иконка всегда имеет фиксированный размер в пикселях экрана
     final iconRect = Rect.fromLTWH(
-      nodeWorldPosition.dx + scaledIconMargin,
-      nodeWorldPosition.dy + (headerHeight - scaledIconSize) / 2,
-      scaledIconSize,
-      scaledIconSize,
+      screenNodePosition.dx + iconMargin,
+      screenNodePosition.dy + iconMargin,
+      iconSize,
+      iconSize,
     );
 
-    return iconRect.contains(worldPosition);
+    return iconRect.contains(screenClickPosition);
   }
 
   void deleteSelectedNode() {
@@ -653,7 +657,7 @@ class NodeManager {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
       _nodeDragStart = screenPosition;
       _nodeStartWorldPosition = state.originalNodePosition;
-      
+
       // Очищаем начальные параметры рамки при начале перетаскивания
       _initialSwimlaneBounds = null;
       _initialFramePadding = null;
