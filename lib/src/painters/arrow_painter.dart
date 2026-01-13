@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:math' as math;
@@ -97,7 +99,7 @@ class ArrowPainter {
     final endPoint = connectionPoints.end!;
 
     // Определяем точки пути для ортогональной стрелки (только горизонтальные/вертикальные линии)
-    Path path = _createOrthogonalPath(startPoint, endPoint);
+    Path? path = _createOrthogonalPath(startPoint, endPoint);
 
     // Проверяем, не пересекает ли путь другие узлы
     if (_orthogonalPathIntersectsOtherNodes(path, [sourceNode.id, targetNode.id])) {
@@ -270,11 +272,6 @@ class ArrowPainter {
   /// Извлекает сегменты из пути
   List<Map<String, Offset?>> _getPathSegments(Path path) {
     final segments = <Map<String, Offset?>>[];
-    var prevX = 0.0;
-    var prevY = 0.0;
-    var startX = 0.0;
-    var startY = 0.0;
-    var firstMove = true;
     
     // Для получения точек из Path мы будем использовать вычисление пути с высокой точностью
     // и анализировать изменения в координатах
