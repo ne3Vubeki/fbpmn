@@ -88,21 +88,37 @@ class InputHandler {
       onStateUpdate();
     } else {
       bool clickedOnSelectedNode = false;
+      
       if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
         final node = state.selectedNodeOnTopLayer!;
         final scaledWidth = node.size.width * state.scale;
         final scaledHeight = node.size.height * state.scale;
 
-        // Рамка окружает узел с фиксированным отступом
-        final double frameOffset = NodeManager.frameTotalOffset;
-        final nodeScreenRect = Rect.fromLTWH(
-          state.selectedNodeOffset.dx,
-          state.selectedNodeOffset.dy,
-          scaledWidth + frameOffset * 2,
-          scaledHeight + frameOffset * 2,
-        );
+        // Для раскрытого swimlane используем фактические границы рамки выделения,
+        // которые включают в себя детей
+        if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+          // Используем текущие границы рамки выделения
+          final nodeScreenRect = Rect.fromLTWH(
+            state.selectedNodeOffset.dx,
+            state.selectedNodeOffset.dy,
+            scaledWidth + state.framePadding.left + state.framePadding.right,
+            scaledHeight + state.framePadding.top + state.framePadding.bottom
+          );
 
-        clickedOnSelectedNode = nodeScreenRect.contains(position);
+          clickedOnSelectedNode = nodeScreenRect.contains(position);
+        } else {
+          // Для обычных узлов и свернутых swimlane используем стандартную логику
+          // Рамка окружает узел с фиксированным отступом
+          final double frameOffset = NodeManager.frameTotalOffset;
+          final nodeScreenRect = Rect.fromLTWH(
+            state.selectedNodeOffset.dx,
+            state.selectedNodeOffset.dy,
+            scaledWidth + frameOffset * 2,
+            scaledHeight + frameOffset * 2,
+          );
+
+          clickedOnSelectedNode = nodeScreenRect.contains(position);
+        }
       }
 
       if (clickedOnSelectedNode) {
