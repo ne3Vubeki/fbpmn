@@ -15,6 +15,10 @@ class NodeManager {
 
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
+  
+  // Переменные для хранения начальных параметров рамки swimlane
+  Rect? _initialSwimlaneBounds;
+  EdgeInsets? _initialFramePadding;
 
   // Константы для рамки выделения (в пикселях)
   static const double framePadding = 4.0; // Отступ рамки от узла
@@ -79,66 +83,89 @@ class NodeManager {
 
   // Метод для обновления рамки выделения swimlane
   void _updateSwimlaneFramePosition(TableNode swimlaneNode) {
-    // Находим минимальные и максимальные координаты всех узлов swimlane
-    double minX = double.infinity;
-    double minY = double.infinity;
-    double maxX = -double.infinity;
-    double maxY = -double.infinity;
+    if (state.isNodeDragging && _initialSwimlaneBounds != null) {
+      // Если мы перетаскиваем swimlane и у нас есть начальные параметры,
+      // просто сдвигаем рамку на ту же величину, что и узел
+      final currentWorldPos = state.originalNodePosition;
+      final positionDelta = currentWorldPos - _nodeStartWorldPosition;
+      
+      // Вычисляем новую позицию рамки
+      final newFrameScreenPos = _worldToScreen(_initialSwimlaneBounds!.topLeft) + 
+                                Offset(positionDelta.dx * state.scale, positionDelta.dy * state.scale);
+      
+      state.selectedNodeOffset = Offset(
+        newFrameScreenPos.dx - frameTotalOffset,
+        newFrameScreenPos.dy - frameTotalOffset,
+      );
+      
+      // Используем сохраненные отступы
+      state.framePadding = _initialFramePadding!;
+    } else {
+      // Находим минимальные и максимальные координаты всех узлов swimlane
+      double minX = double.infinity;
+      double minY = double.infinity;
+      double maxX = -double.infinity;
+      double maxY = -double.infinity;
 
-    // Добавляем родительский узел
-    final parentWorldPos = state.originalNodePosition;
-    final parentRect = Rect.fromLTWH(
-      parentWorldPos.dx,
-      parentWorldPos.dy,
-      swimlaneNode.size.width,
-      swimlaneNode.size.height,
-    );
+      // Добавляем родительский узел
+      final parentWorldPos = state.originalNodePosition;
+      final parentRect = Rect.fromLTWH(
+        parentWorldPos.dx,
+        parentWorldPos.dy,
+        swimlaneNode.size.width,
+        swimlaneNode.size.height,
+      );
 
-    minX = math.min(minX, parentRect.left);
-    minY = math.min(minY, parentRect.top);
-    maxX = math.max(maxX, parentRect.right);
-    maxY = math.max(maxY, parentRect.bottom);
+      minX = math.min(minX, parentRect.left);
+      minY = math.min(minY, parentRect.top);
+      maxX = math.max(maxX, parentRect.right);
+      maxY = math.max(maxY, parentRect.bottom);
 
-    final screenLeftTop = _worldToScreen(Offset(minX, minY));
-    final screenRightBottom = _worldToScreen(Offset(maxX, maxY));
+      final screenLeftTop = _worldToScreen(Offset(minX, minY));
+      final screenRightBottom = _worldToScreen(Offset(maxX, maxY));
 
-    // Добавляем детей
-    if (swimlaneNode.children != null) {
-      for (final child in swimlaneNode.children!) {
-        // Для детей используем их абсолютные позиции, если они установлены
-        final childWorldPos =
-            child.aPosition ?? (parentWorldPos + child.position);
-        final childRect = Rect.fromLTWH(
-          childWorldPos.dx,
-          childWorldPos.dy,
-          child.size.width,
-          child.size.height,
-        );
+      // Добавляем детей
+      if (swimlaneNode.children != null) {
+        for (final child in swimlaneNode.children!) {
+          // Для детей используем их абсолютные позиции, если они установлены
+          final childWorldPos =
+              child.aPosition ?? (parentWorldPos + child.position);
+          final childRect = Rect.fromLTWH(
+            childWorldPos.dx,
+            childWorldPos.dy,
+            child.size.width,
+            child.size.height,
+          );
 
-        minX = math.min(minX, childRect.left);
-        minY = math.min(minY, childRect.top);
-        maxX = math.max(maxX, childRect.right);
-        maxY = math.max(maxY, childRect.bottom);
+          minX = math.min(minX, childRect.left);
+          minY = math.min(minY, childRect.top);
+          maxX = math.max(maxX, childRect.right);
+          maxY = math.max(maxY, childRect.bottom);
+        }
       }
+
+      // Экранные координаты
+      final screenMin = _worldToScreen(Offset(minX, minY));
+      final screenMax = _worldToScreen(Offset(maxX, maxY));
+
+      // Позиция рамки с отступом
+      state.selectedNodeOffset = Offset(
+        screenMin.dx - frameTotalOffset,
+        screenMin.dy - frameTotalOffset,
+      );
+
+      // Размер отступов рамки слева и сверху для родительского узла
+      state.framePadding = EdgeInsets.only(
+        left: screenLeftTop.dx - screenMin.dx + framePadding,
+        top: screenLeftTop.dy - screenMin.dy + framePadding,
+        right: screenMax.dx - screenRightBottom.dx + framePadding,
+        bottom: screenMax.dy - screenRightBottom.dy + framePadding,
+      );
+      
+      // Сохраняем начальные параметры рамки при первом вычислении
+      _initialSwimlaneBounds = Rect.fromLTWH(minX, minY, maxX - minX, maxY - minY);
+      _initialFramePadding = state.framePadding;
     }
-
-    // Экранные координаты
-    final screenMin = _worldToScreen(Offset(minX, minY));
-    final screenMax = _worldToScreen(Offset(maxX, maxY));
-
-    // Позиция рамки с отступом
-    state.selectedNodeOffset = Offset(
-      screenMin.dx - frameTotalOffset,
-      screenMin.dy - frameTotalOffset,
-    );
-
-    // Размер отступов рамки слева и сверху для родительского узла
-    state.framePadding = EdgeInsets.only(
-      left: screenLeftTop.dx - screenMin.dx + framePadding,
-      top: screenLeftTop.dy - screenMin.dy + framePadding,
-      right: screenMax.dx - screenRightBottom.dx + framePadding,
-      bottom: screenMax.dy - screenRightBottom.dy + framePadding,
-    );
   }
 
   Future<void> _selectNodeImmediate(
@@ -620,6 +647,10 @@ class NodeManager {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
       _nodeDragStart = screenPosition;
       _nodeStartWorldPosition = state.originalNodePosition;
+      
+      // Очищаем начальные параметры рамки при начале перетаскивания
+      _initialSwimlaneBounds = null;
+      _initialFramePadding = null;
 
       state.isNodeDragging = true;
       onStateUpdate();
@@ -647,6 +678,9 @@ class NodeManager {
   void endNodeDrag() {
     if (state.isNodeDragging) {
       state.isNodeDragging = false;
+      // Очищаем начальные параметры рамки после завершения перетаскивания
+      _initialSwimlaneBounds = null;
+      _initialFramePadding = null;
       onStateUpdate();
     }
   }
