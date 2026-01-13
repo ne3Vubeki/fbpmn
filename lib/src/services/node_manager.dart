@@ -6,7 +6,6 @@ import 'package:get/get.dart';
 import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../services/tile_manager.dart';
-import '../utils/editor_config.dart';
 
 class NodeManager {
   final EditorState state;
