@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
 import '../models/table.node.dart';
+import '../models/arrow.dart';
+import 'arrow_painter.dart';
 
 class HierarchicalGridPainter extends CustomPainter {
   final double scale;
@@ -10,6 +12,7 @@ class HierarchicalGridPainter extends CustomPainter {
   final Offset delta;
   final Size canvasSize;
   final List<TableNode> nodes;
+  final List<Arrow> arrows;
   final EditorState state;
 
   // Убираем totalBounds
@@ -20,6 +23,7 @@ class HierarchicalGridPainter extends CustomPainter {
     required this.offset,
     required this.canvasSize,
     required this.nodes,
+    required this.arrows,
     required this.delta,
     required this.state,
     required this.tileScale,
@@ -55,6 +59,15 @@ class HierarchicalGridPainter extends CustomPainter {
 
     // 5. Рисуем видимые тайлы
     _drawVisibleTiles(
+      canvas,
+      visibleLeft,
+      visibleTop,
+      visibleRight,
+      visibleBottom,
+    );
+
+    // 6. Рисуем стрелки
+    _drawArrows(
       canvas,
       visibleLeft,
       visibleTop,
@@ -233,6 +246,38 @@ class HierarchicalGridPainter extends CustomPainter {
     }
   }
 
+  // Рисуем стрелки
+  void _drawArrows(
+    Canvas canvas,
+    double visibleLeft,
+    double visibleTop,
+    double visibleRight,
+    double visibleBottom,
+  ) {
+    final visibleRect = Rect.fromLTRB(
+      visibleLeft,
+      visibleTop,
+      visibleRight,
+      visibleBottom,
+    );
+
+    // Рисуем все стрелки
+    for (final arrow in arrows) {
+      final arrowPainter = ArrowPainter(
+        arrow: arrow,
+        nodes: nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      arrowPainter.paintWithOffset(
+        canvas: canvas,
+        baseOffset: state.delta,
+        visibleBounds: visibleRect,
+        forTile: false,
+      );
+    }
+  }
+
   double _calculateAlphaForLevel(int level) {
     double idealScale = 1.0 / math.pow(4, level).toDouble();
     double logDifference = (math.log(scale) - math.log(idealScale)).abs();
@@ -248,6 +293,7 @@ class HierarchicalGridPainter extends CustomPainter {
         oldDelegate.offset != offset ||
         oldDelegate.canvasSize != canvasSize ||
         oldDelegate.delta != delta ||
-        oldDelegate.state.imageTiles.length != state.imageTiles.length;
+        oldDelegate.state.imageTiles.length != state.imageTiles.length ||
+        oldDelegate.arrows.length != arrows.length;
   }
 }

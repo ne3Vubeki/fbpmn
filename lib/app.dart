@@ -25,13 +25,13 @@ class _AppState extends State<App> {
 
   Future<void> _loadXmlFile() async {
     try {
-      final diagram = await rootBundle.loadString('diagram3.json');
+      final diagram = await rootBundle.loadString('web/assets/diagram1.json');
       setState(() {
         _diagram = jsonDecode(diagram);
         _isLoading = false;
       });
     } catch (e) {
-      print('Ошибка загрузки файла 1.json: $e');
+      print('Ошибка загрузки файла diagram1.json: $e');
       setState(() {
         _isLoading = false;
       });
