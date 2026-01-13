@@ -603,11 +603,17 @@ class NodeManager {
     final iconSize = 16.0;
     final iconMargin = 8.0;
 
+    // Рассчитываем размеры с учетом масштабирования
+    // Для корректного определения области клика нужно использовать размеры в мировых координатах
+    // которые соответствуют размерам в пикселях при текущем масштабе
+    final scaledIconSize = iconSize / state.scale;
+    final scaledIconMargin = iconMargin / state.scale;
+
     final iconRect = Rect.fromLTWH(
-      nodeWorldPosition.dx + iconMargin,
-      nodeWorldPosition.dy + (headerHeight - iconSize) / 2,
-      iconSize,
-      iconSize,
+      nodeWorldPosition.dx + scaledIconMargin,
+      nodeWorldPosition.dy + (headerHeight - scaledIconSize) / 2,
+      scaledIconSize,
+      scaledIconSize,
     );
 
     return iconRect.contains(worldPosition);
