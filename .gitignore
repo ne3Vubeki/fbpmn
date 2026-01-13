@@ -1,87 +1,72 @@
-```
-# Dependencies
-.pub/
-.buildlog
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.class
+*.exe
+*.dll
+*.so
+*.a
+*.out
 
-# Generated plugin build files
-**/android/**/gradle-wrapper.properties
-**/android/key.properties
+# Dependencies
+node_modules/
+venv/
+.venv/
+.env
+.env.local
+.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Editors
+.vscode/
+.idea/
 
 # Coverage
 coverage/
+htmlcov/
+.coverage
 
-# Temporary upload directories
-/uploads/
+# Build directories
+dist/
+build/
+target/
+.gradle/
 
-# OS generated files
+# Python specific
+.mypy_cache/
+.pytest_cache/
+
+# System files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Log files
-*.log
-
-# Local configuration
-.idea/
-.vscode/
-*.iml
-*.ipr
-*.iws
-
-# Dart tooling
-.dart_tool/
-.dart_server/
-packages/
-*.dart.js
-*.dart.js.deps
-*.dart.js.map
-*.info.json
-
-# Flutter tooling
-flutter_export_environment.sh
-**/ios/Flutter/.symlinks
-flutter-version-check.stamp
-
-# Android
-**/android/*/.gradle
-**/android/captures/
-**/android/gradlew
-**/android/gradlew.bat
-**/android/local.properties
-**/android/**/GeneratedPluginRegistrant.java
-
-# iOS
-**/ios/Flutter/ephemeral
-**/ios/.symlinks
-**/ios/Pods
-**/ios/ podfile.lock
-**/ios/Runner/Assets.xcassets/LaunchImage.imageset/
-**/ios/Flutter/App.framework/flutter_assets/
-**/ios/Flutter/flutter_assets/
-**/ios/Flutter/Flutter.framework/
-**/ios/Flutter/Flutter.podspec
-**/ios/build/
-**/ios/derivedData/
-**/ios/Pods/
-**/ios/Runner.xcodeproj/
-**/ios/Runner.xcworkspace/
-
-# Web
-**/web/**
-
-# Windows
-**/windows/
-
-# Linux
-**/linux/
-
-# Build
-build/
-```
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
