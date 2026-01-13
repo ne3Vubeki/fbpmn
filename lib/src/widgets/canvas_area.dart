@@ -151,6 +151,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                             offset: widget.state.offset,
                             canvasSize: scaledCanvasSize,
                             nodes: widget.state.nodes,
+                            arrows: widget.state.arrows,
                             delta: widget.state.delta,
                             state: widget.state,
                             tileScale: 2.0,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'models/table.node.dart';
+import 'models/arrow.dart';
 import 'services/input_handler.dart';
 import 'services/scroll_handler.dart';
 import 'services/tile_manager.dart';
@@ -63,6 +64,7 @@ class _StableGridImageState extends State<StableGridImage> {
 
   Future<void> _initEditor() async {
     final objects = widget.diagram['objects'];
+    final arrows = widget.diagram['arrows'];
     final metadata = widget.diagram['metadata'];
     final double dx = (metadata['dx'] as num).toDouble();
     final double dy = (metadata['dy'] as num).toDouble();
@@ -87,6 +89,13 @@ class _StableGridImageState extends State<StableGridImage> {
     } else {
       
       await _tileManager.createFallbackTiles();
+    }
+
+    // Загружаем стрелки/связи
+    if (arrows != null && arrows.isNotEmpty) {
+      for (final arrow in arrows) {
+        _editorState.arrows.add(Arrow.fromJson(arrow));
+      }
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

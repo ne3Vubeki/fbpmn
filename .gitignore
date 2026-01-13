@@ -1,1 +1,38 @@
-Nothing should be ignored based on the provided file changes. The only modified file is a Dart source file (`lib/src/services/node_manager.dart`), which is a source code file that should not be ignored. There are no build artifacts, dependencies, temporary files, or other ignorable items in the changes provided.
+```
+# Build artifacts
+build/
+dist/
+
+# Dependencies
+.pub-cache/
+.dart_tool/
+packages/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Temporary files
+*.tmp
+*.temp
+```

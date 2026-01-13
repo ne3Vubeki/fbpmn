@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'models/image_tile.dart';
 import 'models/node.dart';
 import 'models/table.node.dart';
+import 'models/arrow.dart';
 
 class EditorState {
   // Масштаб и позиция
@@ -30,6 +31,9 @@ class EditorState {
   // Позиция, Размер и Отступы в рамке выделенного узла (для правильной отрисовки рамки)
   Offset selectedNodeOffset = Offset.zero;
   EdgeInsets framePadding = EdgeInsets.all(0);
+
+  // Связи/стрелки
+  final List<Arrow> arrows = [];
   
   // Тайлы
   List<ImageTile> imageTiles = [];
