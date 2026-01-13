@@ -98,26 +98,50 @@ class ArrowPainter {
     final startPoint = connectionPoints.start!;
     final endPoint = connectionPoints.end!;
 
-    // Определяем точки пути для ортогональной стрелки (только горизонтальные/вертикальные линии)
-    Path? path = _createOrthogonalPath(startPoint, endPoint);
+    // Создаем путь с отводами от узлов (перпендикулярные отрезки длиной 20)
+    Path? path = _createOrthogonalPathWithPerpendiculars(startPoint, endPoint, sourceRect, targetRect);
 
     // Проверяем, не пересекает ли путь другие узлы
-    if (_orthogonalPathIntersectsOtherNodes(path, [sourceNode.id, targetNode.id])) {
-      // Если путь пересекает другие узлы, пытаемся найти обходной путь
-      path = _createBypassPath(startPoint, endPoint, [sourceNode.id, targetNode.id]);
+    bool hasIntersection = _orthogonalPathIntersectsOtherNodes(path, [sourceNode.id, targetNode.id]);
+    
+    Path? finalPath;
+    if (hasIntersection) {
+      // Пытаемся найти обходной путь
+      finalPath = _createBypassPath(startPoint, endPoint, [sourceNode.id, targetNode.id]);
       
-      // Если обходной путь также пересекает узлы, не рисуем стрелку
-      if (path != null && _orthogonalPathIntersectsOtherNodes(path, [sourceNode.id, targetNode.id])) {
-        return; // Путь пересекает другие узлы даже после попытки обхода
+      // Если обходной путь также пересекает узлы, рисуем красную стрелку через узел
+      if (finalPath != null && _orthogonalPathIntersectsOtherNodes(finalPath, [sourceNode.id, targetNode.id])) {
+        // Рисуем красную стрелку через узел
+        finalPath = _createOrthogonalPathWithPerpendiculars(startPoint, endPoint, sourceRect, targetRect);
+        final paint = Paint()
+          ..color = Colors.red
+          ..strokeWidth = 2.0
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke;
+        
+        debugPrint('Рисование красной связи через узел ${arrow.id}: начало (${startPoint.dx}, ${startPoint.dy}), конец (${endPoint.dx}, ${endPoint.dy})');
+        canvas.drawPath(finalPath!, paint);
+        return;
       }
+    } else {
+      finalPath = path;
     }
 
-    // Если обходной путь не удалось найти, не рисуем стрелку
-    if (path == null) {
+    // Если обходной путь не удалось найти, рисуем красную стрелку через узел
+    if (finalPath == null) {
+      finalPath = _createOrthogonalPathWithPerpendiculars(startPoint, endPoint, sourceRect, targetRect);
+      final paint = Paint()
+        ..color = Colors.red
+        ..strokeWidth = 2.0
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      
+      debugPrint('Рисование красной связи через узел ${arrow.id}: начало (${startPoint.dx}, ${startPoint.dy}), конец (${endPoint.dx}, ${endPoint.dy})');
+      canvas.drawPath(finalPath!, paint);
       return;
     }
 
-    // Рисуем линию стрелки
+    // Рисуем обычную линию стрелки
     final paint = Paint()
       ..color = Colors.black
       ..strokeWidth = 1.0
@@ -127,7 +151,7 @@ class ArrowPainter {
     // Добавляем логирование
     debugPrint('Рисование связи ${arrow.id}: начало (${startPoint.dx}, ${startPoint.dy}), конец (${endPoint.dx}, ${endPoint.dy})');
 
-    canvas.drawPath(path, paint);
+    canvas.drawPath(finalPath, paint);
   }
 
   /// Расчет точек соединения для стрелки
@@ -141,13 +165,26 @@ class ArrowPainter {
     Offset? endConnectionPoint;
 
     if (isSourceAttribute) {
-      // Для атрибутов используем только левую или правую сторону
-      if (targetRect.center.dx < sourceRect.center.dx) {
-        // Цель слева от источника - используем левую сторону
-        startConnectionPoint = Offset(sourceRect.left, sourceRect.center.dy);
+      // Для атрибутов используем только горизонтальные или вертикальные стороны
+      // В зависимости от положения целевого узла относительно источника
+      if ((targetRect.center.dx - sourceRect.center.dx).abs() >= (targetRect.center.dy - sourceRect.center.dy).abs()) {
+        // Горизонтальное расстояние больше - используем левую или правую сторону
+        if (targetRect.center.dx < sourceRect.center.dx) {
+          // Цель слева от источника - используем левую сторону
+          startConnectionPoint = Offset(sourceRect.left, sourceRect.center.dy);
+        } else {
+          // Цель справа от источника - используем правую сторону
+          startConnectionPoint = Offset(sourceRect.right, sourceRect.center.dy);
+        }
       } else {
-        // Цель справа от источника - используем правую сторону
-        startConnectionPoint = Offset(sourceRect.right, sourceRect.center.dy);
+        // Вертикальное расстояние больше - используем верхнюю или нижнюю сторону
+        if (targetRect.center.dy < sourceRect.center.dy) {
+          // Цель сверху от источника - используем верхнюю сторону
+          startConnectionPoint = Offset(sourceRect.center.dx, sourceRect.top);
+        } else {
+          // Цель снизу от источника - используем нижнюю сторону
+          startConnectionPoint = Offset(sourceRect.center.dx, sourceRect.bottom);
+        }
       }
     } else {
       // Для обычных узлов используем все четыре стороны, с отступом 6
@@ -155,13 +192,26 @@ class ArrowPainter {
     }
 
     if (isTargetAttribute) {
-      // Для атрибутов используем только левую или правую сторону
-      if (sourceRect.center.dx < targetRect.center.dx) {
-        // Источник слева от цели - используем левую сторону
-        endConnectionPoint = Offset(targetRect.left, targetRect.center.dy);
+      // Для атрибутов используем только горизонтальные или вертикальные стороны
+      // В зависимости от положения источника узла относительно цели
+      if ((sourceRect.center.dx - targetRect.center.dx).abs() >= (sourceRect.center.dy - targetRect.center.dy).abs()) {
+        // Горизонтальное расстояние больше - используем левую или правую сторону
+        if (sourceRect.center.dx < targetRect.center.dx) {
+          // Источник слева от цели - используем левую сторону
+          endConnectionPoint = Offset(targetRect.left, targetRect.center.dy);
+        } else {
+          // Источник справа от цели - используем правую сторону
+          endConnectionPoint = Offset(targetRect.right, targetRect.center.dy);
+        }
       } else {
-        // Источник справа от цели - используем правую сторону
-        endConnectionPoint = Offset(targetRect.right, targetRect.center.dy);
+        // Вертикальное расстояние больше - используем верхнюю или нижнюю сторону
+        if (sourceRect.center.dy < targetRect.center.dy) {
+          // Источник сверху от цели - используем верхнюю сторону
+          endConnectionPoint = Offset(targetRect.center.dx, targetRect.top);
+        } else {
+          // Источник снизу от цели - используем нижнюю сторону
+          endConnectionPoint = Offset(targetRect.center.dx, targetRect.bottom);
+        }
       }
     } else {
       // Для обычных узлов используем все четыре стороны, с отступом 6
@@ -273,13 +323,14 @@ class ArrowPainter {
   List<Map<String, Offset?>> _getPathSegments(Path path) {
     final segments = <Map<String, Offset?>>[];
     
-    // Для получения точек из Path мы будем использовать вычисление пути с высокой точностью
-    // и анализировать изменения в координатах
+    // Используем более точный способ извлечения точек из Path
     final pathMetrics = path.computeMetrics();
     
     for (final metric in pathMetrics) {
+      // Получаем все точки пути с высокой плотностью для точного определения пересечений
       final pathPoints = _getPathPoints(metric);
       
+      // Создаем сегменты из соседних точек
       for (int i = 0; i < pathPoints.length - 1; i++) {
         final start = pathPoints[i];
         final end = pathPoints[i + 1];
@@ -341,14 +392,23 @@ class ArrowPainter {
     final intersectingNodes = _findIntersectingNodes(start, end, excludeIds);
     
     if (intersectingNodes.isEmpty) {
-      // Если нет пересекающихся узлов, используем стандартный путь
-      return _createOrthogonalPath(start, end);
+      // Если нет пересекающихся узлов, используем стандартный путь с перпендикулярами
+      return _createOrthogonalPathWithPerpendiculars(start, end, 
+          Rect.fromCenter(center: start, width: 1, height: 1), 
+          Rect.fromCenter(center: end, width: 1, height: 1));
     }
     
     // Попробуем несколько вариантов обхода:
     // 1. Обход через среднюю точку с отклонением вверх/вниз
     // 2. Обход через среднюю точку с отклонением влево/вправо
     // 3. Обход по внешней стороне препятствия
+    
+    // Путь с перпендикулярами
+    Offset startDir = _getExitDirection(start, Rect.fromCenter(center: start, width: 1, height: 1));
+    Offset endDir = _getEntryDirection(end, Rect.fromCenter(center: end, width: 1, height: 1));
+    
+    final perpStart = Offset(start.dx + startDir.dx * 20, start.dy + startDir.dy * 20);
+    final perpEnd = Offset(end.dx - endDir.dx * 20, end.dy - endDir.dy * 20);
     
     final pathsToTry = <Path>[];
     
@@ -357,10 +417,12 @@ class ArrowPainter {
     horizontalPath.moveTo(start.dx, start.dy);
     
     // Найдем среднюю X координату
-    final midX = (start.dx + end.dx) / 2;
+    final midX = (perpStart.dx + perpEnd.dx) / 2;
     
-    horizontalPath.lineTo(midX, start.dy);
-    horizontalPath.lineTo(midX, end.dy);
+    horizontalPath.lineTo(perpStart.dx, perpStart.dy);
+    horizontalPath.lineTo(midX, perpStart.dy);
+    horizontalPath.lineTo(midX, perpEnd.dy);
+    horizontalPath.lineTo(perpEnd.dx, perpEnd.dy);
     horizontalPath.lineTo(end.dx, end.dy);
     
     pathsToTry.add(horizontalPath);
@@ -370,10 +432,12 @@ class ArrowPainter {
     verticalPath.moveTo(start.dx, start.dy);
     
     // Найдем среднюю Y координату
-    final midY = (start.dy + end.dy) / 2;
+    final midY = (perpStart.dy + perpEnd.dy) / 2;
     
-    verticalPath.lineTo(start.dx, midY);
-    verticalPath.lineTo(end.dx, midY);
+    verticalPath.lineTo(perpStart.dx, perpStart.dy);
+    verticalPath.lineTo(perpStart.dx, midY);
+    verticalPath.lineTo(perpEnd.dx, midY);
+    verticalPath.lineTo(perpEnd.dx, perpEnd.dy);
     verticalPath.lineTo(end.dx, end.dy);
     
     pathsToTry.add(verticalPath);
@@ -407,57 +471,61 @@ class ArrowPainter {
     // Вариант 3: отклонение над препятствиями
     Path abovePath = Path();
     abovePath.moveTo(start.dx, start.dy);
+    abovePath.lineTo(perpStart.dx, perpStart.dy);
     
     // Выберем Y координату выше всех препятствий
     final aboveY = topBoundary - 40; // Отступ в 40 пикселей над препятствиями
     
-    // Путь: начальная точка -> средняя точка по X на уровне старта -> выше препятствий -> на уровень конца -> в конечную точку
-    abovePath.lineTo(midX, start.dy);  // Горизонтальный отрезок к середине
-    abovePath.lineTo(midX, aboveY);    // Вертикаль вверх
-    abovePath.lineTo(midX, end.dy);    // Вертикаль вниз до уровня конца
-    abovePath.lineTo(end.dx, end.dy);  // Горизонтальный отрезок к концу
+    // Путь: начальная точка -> перпендикуляр -> над препятствиями -> перпендикуляр к цели -> конечная точка
+    abovePath.lineTo(perpStart.dx, aboveY);  // Вертикаль вверх от перпендикуляра начала
+    abovePath.lineTo(perpEnd.dx, aboveY);    // Горизонталь к перпендикуляру конца
+    abovePath.lineTo(perpEnd.dx, perpEnd.dy);  // Вертикаль к перпендикуляру конца
+    abovePath.lineTo(end.dx, end.dy);  // Завершение
     
     bypassPaths.add(abovePath);
     
     // Вариант 4: отклонение под препятствиями
     Path belowPath = Path();
     belowPath.moveTo(start.dx, start.dy);
+    belowPath.lineTo(perpStart.dx, perpStart.dy);
     
     // Выберем Y координату ниже всех препятствий
     final belowY = bottomBoundary + 40; // Отступ в 40 пикселей под препятствиями
     
-    belowPath.lineTo(midX, start.dy);  // Горизонтальный отрезок к середине
-    belowPath.lineTo(midX, belowY);    // Вертикаль вниз
-    belowPath.lineTo(midX, end.dy);    // Вертикаль вверх до уровня конца
-    belowPath.lineTo(end.dx, end.dy);  // Горизонтальный отрезок к концу
+    belowPath.lineTo(perpStart.dx, belowY);  // Вертикаль вниз от перпендикуляра начала
+    belowPath.lineTo(perpEnd.dx, belowY);    // Горизонталь к перпендикуляру конца
+    belowPath.lineTo(perpEnd.dx, perpEnd.dy);  // Вертикаль к перпендикуляру конца
+    belowPath.lineTo(end.dx, end.dy);  // Завершение
     
     bypassPaths.add(belowPath);
     
     // Вариант 5: отклонение слева от препятствий
     Path leftPath = Path();
     leftPath.moveTo(start.dx, start.dy);
+    leftPath.lineTo(perpStart.dx, perpStart.dy);
     
     // Выберем X координату левее всех препятствий
     final leftX = leftBoundary - 40; // Отступ в 40 пикселей слева от препятствий
     
-    leftPath.lineTo(start.dx, midY);  // Вертикальный отрезок к середине
-    leftPath.lineTo(leftX, midY);     // Горизонталь влево
-    leftPath.lineTo(end.dx, midY);    // Горизонталь вправо до уровня конца
-    leftPath.lineTo(end.dx, end.dy);  // Вертикальный отрезок к концу
+    leftPath.lineTo(leftX, perpStart.dy);  // Горизонталь влево от перпендикуляра начала
+    leftPath.lineTo(leftX, perpEnd.dy);    // Горизонталь к перпендикуляру конца
+    leftPath.lineTo(perpEnd.dx, perpEnd.dy);  // Вертикаль к перпендикуляру конца
+    leftPath.lineTo(end.dx, end.dy);  // Завершение
     
     bypassPaths.add(leftPath);
     
     // Вариант 6: отклонение справа от препятствий
     Path rightPath = Path();
     rightPath.moveTo(start.dx, start.dy);
+    rightPath.lineTo(perpStart.dx, perpStart.dy);
     
     // Выберем X координату правее всех препятствий
     final rightX = rightBoundary + 40; // Отступ в 40 пикселей справа от препятствий
     
-    rightPath.lineTo(start.dx, midY);  // Вертикальный отрезок к середине
-    rightPath.lineTo(rightX, midY);    // Горизонталь вправо
-    rightPath.lineTo(end.dx, midY);    // Горизонталь влево до уровня конца
-    rightPath.lineTo(end.dx, end.dy);  // Вертикальный отрезок к концу
+    rightPath.lineTo(rightX, perpStart.dy);  // Горизонталь вправо от перпендикуляра начала
+    rightPath.lineTo(rightX, perpEnd.dy);    // Горизонталь к перпендикуляру конца
+    rightPath.lineTo(perpEnd.dx, perpEnd.dy);  // Вертикаль к перпендикуляру конца
+    rightPath.lineTo(end.dx, end.dy);  // Завершение
     
     bypassPaths.add(rightPath);
     
@@ -492,6 +560,97 @@ class ArrowPainter {
     return intersectingNodes;
   }
 
+  /// Создание ортогонального пути с перпендикулярными отводами от узлов
+  Path _createOrthogonalPathWithPerpendiculars(Offset start, Offset end, Rect sourceRect, Rect targetRect) {
+    final path = Path();
+    path.moveTo(start.dx, start.dy);
+
+    // Определяем направление выхода из начальной точки (от стороны узла)
+    // Это зависит от того, с какой стороны выходит соединение
+    Offset directionVector = _getExitDirection(start, sourceRect);
+    
+    // Создаем первый перпендикулярный отрезок длиной 20 от начальной точки
+    final perpStart = Offset(
+      start.dx + directionVector.dx * 20,
+      start.dy + directionVector.dy * 20
+    );
+    
+    // Определяем направление входа в конечную точку (к стороне узла)
+    Offset targetDirectionVector = _getEntryDirection(end, targetRect);
+    
+    // Создаем последний перпендикулярный отрезок длиной 20 до конечной точки
+    final perpEnd = Offset(
+      end.dx - targetDirectionVector.dx * 20,
+      end.dy - targetDirectionVector.dy * 20
+    );
+    
+    // Рисуем путь: старт -> перпендиклярный отрезок -> основная часть -> перпендикуляр к цели -> конец
+    path.lineTo(perpStart.dx, perpStart.dy);
+    
+    // Соединяем перпендикулярные точки с учетом ортогональности
+    if (perpStart.dx == perpEnd.dx || perpStart.dy == perpEnd.dy) {
+      // Если перпендикулярные точки уже на одной линии, соединяем напрямую
+      path.lineTo(perpEnd.dx, perpEnd.dy);
+    } else {
+      // Иначе создаем L-образный путь между ними
+      // Выбираем направление для минимизации пересечений
+      final midX = perpStart.dx + (perpEnd.dx - perpStart.dx) / 2;
+      final midY = perpStart.dy + (perpEnd.dy - perpStart.dy) / 2;
+      
+      // Определяем, какое соединение использовать: сначала по X, потом по Y или наоборот
+      if ((perpStart.dx - perpEnd.dx).abs() > (perpStart.dy - perpEnd.dy).abs()) {
+        // Сначала горизонтальный отрезок, затем вертикальный
+        path.lineTo(midX, perpStart.dy);
+        path.lineTo(midX, perpEnd.dy);
+      } else {
+        // Сначала вертикальный отрезок, затем горизонтальный
+        path.lineTo(perpStart.dx, midY);
+        path.lineTo(perpEnd.dx, midY);
+      }
+    }
+    
+    // Завершаем путь до конечной точки
+    path.lineTo(end.dx, end.dy);
+
+    return path;
+  }
+  
+  /// Определяет направление выхода из стороны узла
+  Offset _getExitDirection(Offset point, Rect rect) {
+    // Определяем, с какой стороны узла находится точка
+    if ((point.dx - rect.left).abs() < 1) {
+      // Левая сторона - выход влево
+      return const Offset(-1, 0);
+    } else if ((point.dx - rect.right).abs() < 1) {
+      // Правая сторона - выход вправо
+      return const Offset(1, 0);
+    } else if ((point.dy - rect.top).abs() < 1) {
+      // Верхняя сторона - выход вверх
+      return const Offset(0, -1);
+    } else {
+      // Нижняя сторона - выход вниз
+      return const Offset(0, 1);
+    }
+  }
+  
+  /// Определяет направление входа в сторону узла
+  Offset _getEntryDirection(Offset point, Rect rect) {
+    // Определяем, с какой стороны узла находится точка
+    if ((point.dx - rect.left).abs() < 1) {
+      // Левая сторона - вход слева
+      return const Offset(-1, 0);
+    } else if ((point.dx - rect.right).abs() < 1) {
+      // Правая сторона - вход справа
+      return const Offset(1, 0);
+    } else if ((point.dy - rect.top).abs() < 1) {
+      // Верхняя сторона - вход сверху
+      return const Offset(0, -1);
+    } else {
+      // Нижняя сторона - вход снизу
+      return const Offset(0, 1);
+    }
+  }
+  
   /// Создание ортогонального пути (только горизонтальные/вертикальные линии)
   Path _createOrthogonalPath(Offset start, Offset end) {
     final path = Path();
