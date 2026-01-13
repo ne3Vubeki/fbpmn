@@ -249,60 +249,52 @@ class ArrowPainter {
 
   /// Извлекает сегменты из пути
   List<Map<String, Offset?>> _getPathSegments(Path path) {
-    final iterator = path.computeMetrics().iterator;
     final segments = <Map<String, Offset?>>[];
+    var prevX = 0.0;
+    var prevY = 0.0;
+    var startX = 0.0;
+    var startY = 0.0;
+    var firstMove = true;
     
-    if (iterator.moveNext()) {
-      final metric = iterator.current;
-      var prevX = 0.0;
-      var prevY = 0.0;
-      var startX = 0.0;
-      var startY = 0.0;
-      var firstMove = true;
+    // Для получения точек из Path мы будем использовать вычисление пути с высокой точностью
+    // и анализировать изменения в координатах
+    final pathMetrics = path.computeMetrics();
+    
+    for (final metric in pathMetrics) {
+      final pathPoints = _getPathPoints(metric);
       
-      final pathIterator = metric.iterate();
-      while (!pathIterator.done()) {
-        final verb = pathIterator.next();
-        switch (verb) {
-          case PathVerb.moveTo:
-            pathIterator.extractIf(verb, (float64List) {
-              startX = float64List[0];
-              startY = float64List[1];
-              prevX = startX;
-              prevY = startY;
-            });
-            break;
-          case PathVerb.lineTo:
-            pathIterator.extractIf(verb, (float64List) {
-              final x = float64List[0];
-              final y = float64List[1];
-              
-              segments.add({
-                'start': Offset(prevX, prevY),
-                'end': Offset(x, y),
-              });
-              
-              prevX = x;
-              prevY = y;
-            });
-            break;
-          case PathVerb.close:
-            // Замыкаем путь, если он замкнут
-            if (prevX != startX || prevY != startY) {
-              segments.add({
-                'start': Offset(prevX, prevY),
-                'end': Offset(startX, startY),
-              });
-            }
-            break;
-          default:
-            // Игнорируем другие типы команд
-            break;
-        }
+      for (int i = 0; i < pathPoints.length - 1; i++) {
+        final start = pathPoints[i];
+        final end = pathPoints[i + 1];
+        
+        segments.add({
+          'start': start,
+          'end': end,
+        });
       }
     }
     
     return segments;
+  }
+  
+  /// Вспомогательный метод для получения точек из PathMetric
+  List<Offset> _getPathPoints(PathMetric metric) {
+    final points = <Offset>[];
+    final length = metric.length;
+    const step = 10.0; // Шаг между точками
+    
+    for (double distance = 0; distance <= length; distance += step) {
+      try {
+        final position = metric.getTangentForOffset(distance)?.position;
+        if (position != null) {
+          points.add(position);
+        }
+      } catch (e) {
+        // Пропускаем ошибки при получении точки
+      }
+    }
+    
+    return points;
   }
 
   /// Проверяет, пересекает ли сегмент другие узлы
