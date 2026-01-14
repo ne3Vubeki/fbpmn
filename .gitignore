@@ -1,45 +1,26 @@
-```dart
-# Dart/Flutter build outputs
-.dart_tool/
+```
+# Dependencies
+.pub/
+.packages
 .build/
-coverage/
-
-# Generated code
-lib/src/generated/
+.dart_tool/
 
 # Logs
 *.log
-**/logs
 
-# Environment variables
+# Environment
 .env
-.env.*
-!.env.example
+.env.local
+*.env.*
 
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# IDE specific
+# IDE
 .idea/
 .vscode/
-*.swp
-*.swo
+*.iml
+*.ipr
+*.iws
 
-# Temporary files
-*.tmp
-*.temp
-**/tmp/
-**/temp/
-
-# Compressed files
-*.zip
-*.tar.gz
-*.tar
-*.gz
-*.rar
-*.7z
-*.bz2
-*.xz
-*.zst
+# OS
+.DS_Store
+Thumbs.db
 ```

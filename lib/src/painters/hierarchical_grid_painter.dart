@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../editor_state.dart';
 import '../models/table.node.dart';
@@ -295,6 +296,8 @@ class HierarchicalGridPainter extends CustomPainter {
         oldDelegate.canvasSize != canvasSize ||
         oldDelegate.delta != delta ||
         oldDelegate.state.imageTiles.length != state.imageTiles.length ||
-        oldDelegate.arrows.length != arrows.length;
+        oldDelegate.arrows.length != arrows.length ||
+        // Check if arrows list is different (in case of element changes without length change)
+        !listEquals(oldDelegate.arrows.map((a) => a.id).toList(), arrows.map((a) => a.id).toList());
   }
 }

@@ -18,7 +18,29 @@ class ArrowPainter {
     required this.arrow,
     required this.nodes,
     required this.nodeBoundsCache,
-  }) : _nodeMap = {for (var node in nodes) node.id: node};
+  }) : _nodeMap = _buildNodeMap(nodes);
+
+  /// Build a map of all nodes including nested ones
+  static Map<String, TableNode> _buildNodeMap(List<TableNode> nodes) {
+    Map<String, TableNode> nodeMap = {};
+    
+    void addNodeRecursively(TableNode node) {
+      nodeMap[node.id] = node;
+      
+      // Add all children recursively
+      if (node.children != null) {
+        for (final child in node.children!) {
+          addNodeRecursively(child);
+        }
+      }
+    }
+    
+    for (final node in nodes) {
+      addNodeRecursively(node);
+    }
+    
+    return nodeMap;
+  }
 
   /// Отрисовка стрелки с учетом базового отступа
   void paintWithOffset({
@@ -521,19 +543,31 @@ class ArrowPainter {
   /// Проверяет, пересекает ли сегмент другие узлы
   bool _segmentIntersectsOtherNodes(Offset start, Offset end, List<String> excludeIds) {
     // Простая проверка: проверяем пересечение с границами других узлов
-    for (final node in nodes) {
-      if (excludeIds.contains(node.id)) continue; // Пропускаем исключенные узлы
-      
-      // Получаем границы узла
-      final nodeRect = nodeBoundsCache[node] ?? 
-          Rect.fromLTWH(node.position.dx, node.position.dy, node.size.width, node.size.height);
-          
-      // Проверяем пересечение сегмента от start до end с прямоугольником узла
-      if (_lineIntersectsRect(start, end, nodeRect)) {
-        return true;
+    
+    bool checkIntersections(List<TableNode> nodeList) {
+      for (final node in nodeList) {
+        if (excludeIds.contains(node.id)) continue; // Пропускаем исключенные узлы
+
+        // Получаем границы узла
+        final nodeRect = nodeBoundsCache[node] ??
+            Rect.fromLTWH(node.position.dx, node.position.dy, node.size.width, node.size.height);
+
+        // Проверяем пересечение сегмента от start до end с прямоугольником узла
+        if (_lineIntersectsRect(start, end, nodeRect)) {
+          return true;
+        }
+
+        // Проверяем пересечения с детьми узла
+        if (node.children != null) {
+          if (checkIntersections(node.children!)) {
+            return true;
+          }
+        }
       }
+      return false;
     }
-    return false;
+
+    return checkIntersections(nodes);
   }
 
   /// Создание обходного пути при наличии пересечений
@@ -696,20 +730,29 @@ class ArrowPainter {
   /// Находит узлы, которые пересекаются с прямым путем между двумя точками
   List<TableNode> _findIntersectingNodes(Offset start, Offset end, List<String> excludeIds) {
     final intersectingNodes = <TableNode>[];
-    
-    for (final node in nodes) {
-      if (excludeIds.contains(node.id)) continue; // Пропускаем исключенные узлы
-      
-      // Получаем границы узла
-      final nodeRect = nodeBoundsCache[node] ?? 
-          Rect.fromLTWH(node.position.dx, node.position.dy, node.size.width, node.size.height);
-          
-      // Проверяем пересечение прямой линии от start до end с прямоугольником узла
-      if (_lineIntersectsRect(start, end, nodeRect)) {
-        intersectingNodes.add(node);
+
+    void checkNodeIntersections(List<TableNode> nodeList) {
+      for (final node in nodeList) {
+        if (excludeIds.contains(node.id)) continue; // Пропускаем исключенные узлы
+
+        // Получаем границы узла
+        final nodeRect = nodeBoundsCache[node] ??
+            Rect.fromLTWH(node.position.dx, node.position.dy, node.size.width, node.size.height);
+
+        // Проверяем пересечение прямой линии от start до end с прямоугольником узла
+        if (_lineIntersectsRect(start, end, nodeRect)) {
+          intersectingNodes.add(node);
+        }
+
+        // Проверяем пересечения с детьми узла
+        if (node.children != null) {
+          checkNodeIntersections(node.children!);
+        }
       }
     }
-    
+
+    checkNodeIntersections(nodes);
+
     return intersectingNodes;
   }
 

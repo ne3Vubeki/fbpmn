@@ -114,9 +114,26 @@ class ArrowManager {
     }
   }
 
-  /// Найти узел по ID
+  /// Найти узел по ID, включая вложенные узлы
   TableNode? _findNodeById(String id) {
-    return nodes.firstWhereOrNull((node) => node.id == id);
+    return _findNodeByIdRecursive(nodes, id);
+  }
+
+  /// Рекурсивный поиск узла по ID
+  TableNode? _findNodeByIdRecursive(List<TableNode> nodeList, String id) {
+    for (final node in nodeList) {
+      if (node.id == id) {
+        return node;
+      }
+      
+      if (node.children != null) {
+        final foundChild = _findNodeByIdRecursive(node.children!, id);
+        if (foundChild != null) {
+          return foundChild;
+        }
+      }
+    }
+    return null;
   }
 
   /// Вычислить точки соединения между двумя узлами
