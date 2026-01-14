@@ -13,12 +13,13 @@ class ArrowPainter {
   final Arrow arrow;
   final List<TableNode> nodes;
   final Map<TableNode, Rect> nodeBoundsCache;
+  final Map<String, TableNode> _nodeMap;
 
   ArrowPainter({
     required this.arrow,
     required this.nodes,
     required this.nodeBoundsCache,
-  });
+  }) : _nodeMap = {for (var node in nodes) node.id: node};
 
   /// Отрисовка стрелки с учетом базового отступа
   void paintWithOffset({
@@ -29,11 +30,16 @@ class ArrowPainter {
     bool forTile = false,
   }) {
     // Находим узлы-источник и цель
-    final sourceNode = _findNodeById(arrow.source);
-    final targetNode = _findNodeById(arrow.target);
+    final sourceNode = _nodeMap[arrow.source];
+    final targetNode = _nodeMap[arrow.target];
 
     if (sourceNode == null || targetNode == null) {
       return; // Не можем нарисовать стрелку без обоих узлов
+    }
+
+    // Проверяем, не являются ли узлы скрытыми из-за свернутого родителя
+    if (_isNodeHiddenByCollapsedParent(sourceNode) || _isNodeHiddenByCollapsedParent(targetNode)) {
+      return; // Не рисуем стрелку, если один из узлов скрыт из-за свернутого родителя
     }
 
     // Получаем абсолютные позиции узлов
@@ -84,9 +90,21 @@ class ArrowPainter {
     );
   }
 
-  /// Поиск узла по ID
-  TableNode? _findNodeById(String id) {
-    return nodes.firstWhereOrNull((node) => node.id == id);
+  /// Проверяет, является ли узел скрытым из-за свернутого родителя
+  bool _isNodeHiddenByCollapsedParent(TableNode node) {
+    String? currentParentId = node.parent;
+    
+    // Проверяем всю цепочку родителей
+    while (currentParentId != null) {
+      TableNode? parentNode = _nodeMap[currentParentId];
+      if (parentNode != null && parentNode.isCollapsed == true) {
+        return true;
+      }
+      // Переходим к следующему родителю
+      currentParentId = parentNode?.parent;
+    }
+    
+    return false;
   }
 
   /// Рисование стрелки
