@@ -188,7 +188,7 @@ class TileManager {
     final targetAbsolutePos = targetNode!.aPosition ?? (state.delta + targetNode!.position);
     
     // Создаем Rect для узлов
-    final sourceRect = _boundsCalculator.calculateNodeRect(
+    final Rect sourceRect = _boundsCalculator.calculateNodeRect(
       node: sourceNode!,
       position: sourceAbsolutePos,
     );
@@ -198,7 +198,7 @@ class TileManager {
     );
     
     // Определяем приблизительную область стрелки (между узлами)
-    return sourceRect.union(targetRect).inflate(20); // Добавляем небольшой отступ
+    return sourceRect.expandToInclude(targetRect).inflate(20); // Добавляем небольшой отступ
   }
 
   // Генерация ID тайла на основе мировых координат

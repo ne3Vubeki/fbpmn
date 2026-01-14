@@ -33,7 +33,7 @@ class ArrowTilePainter {
         canvas: canvas,
         baseOffset: baseOffset,
         visibleBounds: tileBounds,
-        allArrows: allArrows,
+        allArrows: arrows,
         forTile: true,
       );
     }
@@ -118,7 +118,7 @@ class ArrowTilePainter {
         );
     
     // Определяем приблизительную область стрелки (между узлами)
-    final arrowBounds = sourceRect.union(targetRect).inflate(20); // Добавляем небольшой отступ
+    final arrowBounds = sourceRect.expandToInclude(targetRect).inflate(20); // Добавляем небольшой отступ
     
     // Проверяем пересечение с тайлом
     return arrowBounds.overlaps(tileBounds);
