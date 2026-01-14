@@ -185,115 +185,75 @@ class ArrowPainter {
     final dx = targetCenter.dx - sourceCenter.dx;
     final dy = targetCenter.dy - sourceCenter.dy;
 
-    // Проверяем взаимное расположение узлов и определяем стороны подключения
-    
-    // Случай 1: центр первого узла находится выше/ниже второго узла (вне верхней/нижней границ ±40)
-    if (sourceCenter.dy < targetTop - 40 || sourceCenter.dy > targetBottom + 40) {
-      // Центр первого узла вне вертикальных границ второго узла (с отступом 40)
-      // Тогда связь идет от вертикальной стороны первого узла к горизонтальной стороне второго узла
-      
-      // Определяем, с какой стороны первого узла выходит связь
-      if (targetCenter.dx < sourceLeft) {
-        // Цель левее первого узла
-        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);  // Левая сторона первого узла
-      } else if (targetCenter.dx > sourceRight) {
-        // Цель правее первого узла
-        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy); // Правая сторона первого узла
+    // Определяем исходную сторону (откуда выходит связь)
+    if (sourceCenter.dy < targetTop - 20) {
+      // середина высоты узла источника находится слева и выше
+      if (sourceRight < targetCenter.dx - 20) {
+        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
+      } else 
+      // середина высоты узла источника находится справа и выше
+      if (sourceLeft > targetCenter.dx + 20) {
+        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
       } else {
-        // Центр цели внутри ширины первого узла - используем вертикальную сторону
-        if (sourceCenter.dy < targetCenter.dy) {
-          // Первый узел выше цели
-          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6); // Нижняя сторона первого узла
-        } else {
-          // Первый узел ниже цели
-          startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);    // Верхняя сторона первого узла
-        }
+        startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
+        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
       }
-      
-      // Определяем, с какой стороны второго узла принимается связь
-      if (sourceCenter.dx < targetLeft) {
-        // Источник левее второго узла
-        endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);       // Левая сторона второго узла
-      } else if (sourceCenter.dx > targetRight) {
-        // Источник правее второго узла
-        endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);      // Правая сторона второго узла
+    } else 
+    if (sourceCenter.dy > targetTop - 20 && sourceCenter.dy < targetBottom + 20) {
+      // середина высоты узла источника находится слева (расстояние между узлами более 40 по x) и внутри отступов 20 от верха и низа
+      if (sourceRight < targetLeft - 40) {
+        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
+      } else
+      // середина высоты узла источника находится справа (расстояние между узлами более 40 по x) и внутри отступов 20 от верха и низа
+      if (sourceLeft > targetRight + 40) {
+        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);
       } else {
-        // Центр источника внутри ширины второго узла - используем горизонтальную сторону
-        if (sourceCenter.dy < targetCenter.dy) {
-          // Источник выше цели
-          endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Верхняя сторона второго узла
-        } else {
-          // Источник ниже цели
-          endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Нижняя сторона второго узла
-        }
+        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
+        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
       }
-    }
-    // Случай 2: центр первого узла находится левее/правее второго узла (вне левой/правой границ ±40)
-    else if (sourceCenter.dx < targetLeft - 40 || sourceCenter.dx > targetRight + 40) {
-      // Центр первого узла вне горизонтальных границ второго узла (с отступом 40)
-      // Тогда связь идет от горизонтальной стороны первого узла к вертикальной стороне второго узла
-      
-      // Определяем, с какой стороны первого узла выходит связь
-      if (targetCenter.dy < sourceTop) {
-        // Цель выше первого узла
-        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);      // Верхняя сторона первого узла
-      } else if (targetCenter.dy > sourceBottom) {
-        // Цель ниже первого узла
-        startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);   // Нижняя сторона первого узла
+    } else 
+    if (sourceCenter.dy > targetBottom + 20) {
+      // середина высоты узла источника находится слева и ниже
+      if (sourceRight < targetCenter.dx - 20) {
+        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6); 
+      } else
+      // середина высоты узла источника находится справа и ниже
+      if (sourceLeft > targetCenter.dx + 20) {
+        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
       } else {
-        // Центр цели внутри высоты первого узла - используем горизонтальную сторону
-        if (sourceCenter.dx < targetCenter.dx) {
-          // Первый узел левее цели
-          startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Правая сторона первого узла
-        } else {
-          // Первый узел правее цели
-          startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);   // Левая сторона первого узла
-        }
+        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
+        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
       }
-      
-      // Определяем, с какой стороны второго узла принимается связь
-      if (sourceCenter.dy < targetTop) {
-        // Источник выше второго узла
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);        // Верхняя сторона второго узла
-      } else if (sourceCenter.dy > targetBottom) {
-        // Источник ниже второго узла
-        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);     // Нижняя сторона второго узла
-      } else {
-        // Центр источника внутри высоты второго узла - используем вертикальную сторону
-        if (sourceCenter.dx < targetCenter.dx) {
-          // Источник левее цели
-          endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);    // Правая сторона второго узла
-        } else {
-          // Источник правее цели
-          endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Левая сторона второго узла
-        }
-      }
-    }
-    // Случай 3: узлы перекрываются или находятся близко друг к другу
-    else {
+    } else {
       // Для других случаев используем алгоритм по аналогии
       // Определяем основное направление связи
       if (dx.abs() >= dy.abs()) {
         // Горизонтальное направление преобладает
         if (dx > 0) {
           // Справа
-          startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
-          endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
+          startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
+          endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
         } else {
           // Слева
-          startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);   // Изменено: -6 для отступа наружу
-          endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);    // Изменено: +6 для отступа наружу
+          startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
+          endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);  
         }
       } else {
         // Вертикальное направление преобладает
         if (dy > 0) {
           // Вниз
-          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6); // Изменено: +6 для отступа наружу
-          endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
+          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
+          endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
         } else {
           // Вверх
-          startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);    // Изменено: -6 для отступа наружу
-          endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
+          startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
+          endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6); 
         }
       }
     }
