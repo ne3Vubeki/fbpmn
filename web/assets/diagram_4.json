@@ -1,0 +1,529 @@
+{
+  "metadata": {
+    "qAdmin": "1",
+    "dx": 876,
+    "dy": 1050,
+    "pageWidth": 800,
+    "pageHeight": 1200,
+    "objects": 4,
+    "arrows": 3,
+    "time_convert": 286.107
+  },
+  "objects": [
+    {
+      "label": "Группа задания",
+      "id": "1768315072471",
+      "style": "shape=table;html=1;whiteSpace=wrap;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fontStyle=1;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;align=center;=undefined;fillColor=#7AC5B4;rounded=1;opacity=50;textOpacity=50;",
+      "parent": "1",
+      "tags": "pbc tab1 q q_pbc layer data object",
+      "originalId": "125789113484096",
+      "qCompStatus": "6",
+      "qSunsetDate": "22.12.2025",
+      "qType": "bo",
+      "attributes": [
+        {
+          "id": "1768315072471_description",
+          "label": "Описание",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;opacity=50;textOpacity=50;",
+          "qType": "attribute",
+          "qAttributeType": "1",
+          "qCompStatus": "6",
+          "qSunsetDate": "22.12.2025",
+          "originalId": "125789115638592",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072471_attributeStereotype_0",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072471_status",
+          "label": "Статус (KV)",
+          "boAttributeTypeId": "5",
+          "params": {
+            "param_link_bo_name": "Статус",
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;opacity=50;textOpacity=50;",
+          "qType": "attribute",
+          "qAttributeType": "9",
+          "qCompStatus": "6",
+          "qSunsetDate": "22.12.2025",
+          "originalId": "125789115990848",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072471_attributeStereotype_1",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072471_startDate",
+          "label": "Дата с",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;opacity=50;textOpacity=50;",
+          "qType": "attribute",
+          "qAttributeType": "11",
+          "qCompStatus": "6",
+          "qSunsetDate": "22.12.2025",
+          "originalId": "125789114020672",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072471_attributeStereotype_2",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072471_endDate",
+          "label": "Дата по",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;opacity=50;textOpacity=50;",
+          "qType": "attribute",
+          "qAttributeType": "11",
+          "qCompStatus": "6",
+          "qSunsetDate": "22.12.2025",
+          "originalId": "125789114270528",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072471_attributeStereotype_3",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072471_localName",
+          "label": "Наименование",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;opacity=50;textOpacity=50;",
+          "qType": "attribute",
+          "qAttributeType": "1",
+          "qCompStatus": "6",
+          "qSunsetDate": "22.12.2025",
+          "originalId": "125789115364160",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072471_attributeStereotype_4",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        }
+      ],
+      "geometry": {
+        "x": 854.0,
+        "y": 217.0,
+        "width": 120.0,
+        "height": 130.0
+      }
+    },
+    {
+      "label": "Расписание задания",
+      "id": "1768315072472",
+      "style": "shape=table;html=1;whiteSpace=wrap;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fontStyle=1;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;align=center;=undefined;fillColor=#FF9999;rounded=1",
+      "parent": "1",
+      "tags": "pbc tab1 q q_pbc layer data object",
+      "originalId": "125780984136512",
+      "qCompStatus": "4",
+      "qType": "bo",
+      "attributes": [
+        {
+          "id": "1768315072472_crond",
+          "label": "Расписание запуска",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "1",
+          "qCompStatus": "4",
+          "originalId": "125781238833984",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072472_attributeStereotype_0",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 210.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072472_name",
+          "label": "Наименование",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "1",
+          "qCompStatus": "4",
+          "originalId": "125781302006592",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072472_attributeStereotype_1",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 210.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072472_status",
+          "label": "Статус (KV)",
+          "boAttributeTypeId": "5",
+          "params": {
+            "param_link_bo_name": "Статус",
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "9",
+          "qCompStatus": "4",
+          "originalId": "125781444768576",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072472_attributeStereotype_2",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 210.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072472_dateFrom",
+          "label": "Дата с",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "11",
+          "qCompStatus": "4",
+          "originalId": "125781540676416",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072472_attributeStereotype_3",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 210.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072472_dateTo",
+          "label": "Дата по",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "11",
+          "qCompStatus": "4",
+          "originalId": "125781592314688",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072472_attributeStereotype_4",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 210.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072472_isArchive",
+          "label": "Архивный",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;opacity=50;textOpacity=50;",
+          "qType": "attribute",
+          "qAttributeType": "4",
+          "qCompStatus": "6",
+          "qSunsetDate": "22.12.2025",
+          "originalId": "125828932973376",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072472_attributeStereotype_5",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 210.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072472_taskOrder",
+          "label": "Порядок",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;opacity=50;textOpacity=50;",
+          "qType": "attribute",
+          "qAttributeType": "2",
+          "qCompStatus": "6",
+          "qSunsetDate": "23.12.2025",
+          "originalId": "125936961065792",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072472_attributeStereotype_6",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 210.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        }
+      ],
+      "geometry": {
+        "x": 580.0,
+        "y": 638.0,
+        "width": 250.0,
+        "height": 170.0
+      }
+    },
+    {
+      "label": "Атрибуты расписания задания",
+      "id": "1768315072473",
+      "style": "shape=table;html=1;whiteSpace=wrap;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fontStyle=1;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;align=center;=undefined;fillColor=#7AC5B4;rounded=1",
+      "parent": "1",
+      "tags": "pbc tab1 q q_pbc layer data object",
+      "originalId": "125781082862400",
+      "qCompStatus": "4",
+      "qType": "bo",
+      "attributes": [
+        {
+          "id": "1768315072473_taskId",
+          "label": "Расписание задания (FK)",
+          "boAttributeTypeId": "5",
+          "params": {
+            "param_link_bo_name": "",
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "9",
+          "qCompStatus": "4",
+          "originalId": "125781889139520",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072473_attributeStereotype_0",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 190.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315072473_nextStartDate",
+          "label": "Дата следующего запуска",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "11",
+          "qCompStatus": "4",
+          "originalId": "125782319833920",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315072473_attributeStereotype_1",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 190.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        }
+      ],
+      "geometry": {
+        "x": 250.0,
+        "y": 668.0,
+        "width": 230.0,
+        "height": 70.0
+      }
+    },
+    {
+      "label": "Статус",
+      "id": "1768315072474",
+      "style": "shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fontStyle=1;align=center;pointerEvents=1;rounded=0;shadow=0;glass=0;labelBackgroundColor=none;comic=0;sketch=0;fontColor=default;strokeWidth=1;gradientColor=none;html=1;rowLines=0;resizeLastRow=1;resizeLast=1;whiteSpace=wrap;fontFamily=Open Sans;fillColor=#FFFF99;",
+      "parent": "1",
+      "qCompStatus": "4",
+      "qType": "enum",
+      "tags": "pbc tab1 q q_pbc layer data object",
+      "originalId": "125781443904320",
+      "attributes": [
+        {
+          "id": "1768315072474_1_Действует",
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;top=0;left=0;bottom=0;right=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;",
+          "qCompStatus": "4",
+          "qType": "enumRow",
+          "originalId": "125788619432768",
+          "position": "1",
+          "label": "Действует",
+          "geometry": {
+            "x": 0.0,
+            "y": 30.0,
+            "width": 120.0,
+            "height": 20.0
+          }
+        },
+        {
+          "id": "1768315072474_2_Не действует",
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;top=0;left=0;bottom=0;right=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;",
+          "qCompStatus": "4",
+          "qType": "enumRow",
+          "originalId": "125788619490112",
+          "position": "2",
+          "label": "Не действует",
+          "geometry": {
+            "x": 0.0,
+            "y": 50.0,
+            "width": 120.0,
+            "height": 20.0
+          }
+        }
+      ],
+      "geometry": {
+        "x": 930.0,
+        "y": 638.0,
+        "width": 120.0,
+        "height": 70.0
+      }
+    }
+  ],
+  "arrows": [
+    {
+      "qType": "arrowObject",
+      "qCompStatus": "0",
+      "id": "1768315072479",
+      "style": "endArrow=none;html=1;endSize=12;startArrow=diamondThin;startSize=14;startFill=1;edgeStyle=orthogonalEdgeStyle;movable=0;",
+      "source": "1768315072472",
+      "target": "1768315072473",
+      "powers": [
+        {
+          "id": "1768315072480",
+          "value": "1",
+          "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
+          "qType": "arrowPower",
+          "qCompStatus": "0",
+          "connectable": "0"
+        },
+        {
+          "id": "1768315072481",
+          "value": "1",
+          "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
+          "qType": "arrowPower",
+          "qCompStatus": "0",
+          "connectable": "0"
+        }
+      ]
+    },
+    {
+      "id": "1768315072475",
+      "qType": "qRelationship",
+      "style": "endArrow=block;html=1;endFill=0;edgeStyle=orthogonalEdgeStyle;elbow=vertical;",
+      "source": "1768315072474",
+      "target": "1768315072472",
+      "points": [
+        {
+          "x": 950.0,
+          "y": 638.0,
+          "type": "sourcePoint"
+        },
+        {
+          "x": 930.0,
+          "y": 638.0,
+          "type": "targetPoint"
+        }
+      ]
+    },
+    {
+      "id": "1768315072477",
+      "qType": "qRelationship",
+      "style": "endArrow=block;html=1;endFill=0;edgeStyle=orthogonalEdgeStyle;elbow=vertical;",
+      "source": "1768315072474",
+      "target": "1768315072471",
+      "points": [
+        {
+          "x": 950.0,
+          "y": 638.0,
+          "type": "sourcePoint"
+        },
+        {
+          "x": 930.0,
+          "y": 638.0,
+          "type": "targetPoint"
+        }
+      ]
+    }
+  ]
+}
