@@ -109,7 +109,7 @@ class ArrowPainter {
     final startPoint = connectionPoints.start!;
     final endPoint = connectionPoints.end!;
 
-    // Создаем путь с отводами от узлов (перпендикулярные отрезки длиной 20)
+    // Создаем путь с отводами от узлов (перпендикулярные отрезки длиной 6)
     Path? path = _createOrthogonalPathWithPerpendiculars(startPoint, endPoint, sourceRect, targetRect);
 
     // Проверяем, не пересекает ли путь другие узлы
@@ -517,8 +517,8 @@ class ArrowPainter {
     Offset startDir = _getExitDirection(start, Rect.fromCenter(center: start, width: 1, height: 1));
     Offset endDir = _getEntryDirection(end, Rect.fromCenter(center: end, width: 1, height: 1));
     
-    final perpStart = Offset(start.dx + startDir.dx * 20, start.dy + startDir.dy * 20);
-    final perpEnd = Offset(end.dx - endDir.dx * 20, end.dy - endDir.dy * 20);
+    final perpStart = Offset(start.dx + startDir.dx * 6, start.dy + startDir.dy * 6);
+    final perpEnd = Offset(end.dx - endDir.dx * 6, end.dy - endDir.dy * 6);
     
     final pathsToTry = <Path>[];
     
@@ -670,7 +670,7 @@ class ArrowPainter {
     return intersectingNodes;
   }
 
-  /// Создание ортогонального пути с перпендикулярными отводами от узлов
+  /// Создание ортогонального пути с перпендикулярными отводами от узлов и максимум одним поворотом
   Path _createOrthogonalPathWithPerpendiculars(Offset start, Offset end, Rect sourceRect, Rect targetRect) {
     final path = Path();
     path.moveTo(start.dx, start.dy);
@@ -679,59 +679,48 @@ class ArrowPainter {
     // Это зависит от того, с какой стороны выходит соединение
     Offset directionVector = _getExitDirection(start, sourceRect);
     
-    // Создаем первый перпендикулярный отрезок длиной 20 от начальной точки
+    // Создаем первый перпендикулярный отрезок длиной 6 от начальной точки (вместо 20)
     final perpStart = Offset(
-      start.dx + directionVector.dx * 20,
-      start.dy + directionVector.dy * 20
+      start.dx + directionVector.dx * 6,
+      start.dy + directionVector.dy * 6
     );
     
     // Определяем направление входа в конечную точку (к стороне узла)
     Offset targetDirectionVector = _getEntryDirection(end, targetRect);
     
-    // Создаем последний перпендикулярный отрезок длиной 20 до конечной точки
+    // Создаем последний перпендикулярный отрезок длиной 6 до конечной точки (вместо 20)
     final perpEnd = Offset(
-      end.dx - targetDirectionVector.dx * 20,
-      end.dy - targetDirectionVector.dy * 20
+      end.dx - targetDirectionVector.dx * 6,
+      end.dy - targetDirectionVector.dy * 6
     );
     
     // Рисуем путь: старт -> перпендиклярный отрезок -> основная часть -> перпендикуляр к цели -> конец
     path.lineTo(perpStart.dx, perpStart.dy);
     
-    // Рассчитываем повороты пути связи от середины связи к концам
-    // Находим середину между perpStart и perpEnd
-    final center = Offset(
-      (perpStart.dx + perpEnd.dx) / 2,
-      (perpStart.dy + perpEnd.dy) / 2
-    );
+    // Создаем ортогональный путь с максимум одним поворотом
+    // Выбираем направление поворота так, чтобы минимизировать количество изгибов
     
-    // Определяем направление поворота
+    // Если точки уже на одной линии (по X или Y), соединяем напрямую
     if (perpStart.dx == perpEnd.dx || perpStart.dy == perpEnd.dy) {
       // Если перпендикулярные точки уже на одной линии, соединяем напрямую
       path.lineTo(perpEnd.dx, perpEnd.dy);
     } else {
-      // Создаем ортогональный путь с поворотами, рассчитанными от середины
-      // Сначала от перпендиколяра начала к центру, затем от центра к перпендикуляру конца
+      // Для минимизации изгибов, создаем только один поворот
+      // Определяем, сначала двигаться по горизонтали или по вертикали
       
-      // Поворот от perpStart к центру
-      if ((center.dx - perpStart.dx).abs() > (center.dy - perpStart.dy).abs()) {
-        // Сначала горизонтальный отрезок к центру
-        path.lineTo(center.dx, perpStart.dy);
-        path.lineTo(center.dx, center.dy);
-      } else {
-        // Сначала вертикальный отрезок к центру
-        path.lineTo(perpStart.dx, center.dy);
-        path.lineTo(center.dx, center.dy);
-      }
+      // Вычисляем разницу между координатами
+      double deltaX = perpEnd.dx - perpStart.dx;
+      double deltaY = perpEnd.dy - perpStart.dy;
       
-      // Поворот от центра к perpEnd
-      if ((perpEnd.dx - center.dx).abs() > (perpEnd.dy - center.dy).abs()) {
-        // Сначала горизонтальный отрезок к perpEnd
-        path.lineTo(perpEnd.dx, center.dy);
-        path.lineTo(perpEnd.dx, perpEnd.dy);
+      // Выбираем направление, где расстояние больше, для первого отрезка
+      if (deltaX.abs() > deltaY.abs()) {
+        // Сначала движемся по горизонтали (по оси X), потом по вертикали
+        path.lineTo(perpEnd.dx, perpStart.dy); // Горизонтальный отрезок
+        path.lineTo(perpEnd.dx, perpEnd.dy);   // Вертикальный отрезок
       } else {
-        // Сначала вертикальный отрезок к perpEnd
-        path.lineTo(center.dx, perpEnd.dy);
-        path.lineTo(perpEnd.dx, perpEnd.dy);
+        // Сначала движемся по вертикали (по оси Y), потом по горизонтали
+        path.lineTo(perpStart.dx, perpEnd.dy); // Вертикальный отрезок
+        path.lineTo(perpEnd.dx, perpEnd.dy);   // Горизонтальный отрезок
       }
     }
     

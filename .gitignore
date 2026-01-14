@@ -4,26 +4,62 @@
 __pycache__/
 *.o
 *.obj
+*.class
+*.exe
+*.dll
+*.so
+*.a
+*.out
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+.env
+.env.local
+.env.*
+
+# Build directories
 dist/
 build/
 target/
+.gradle/
 
-# Dependencies
-.venv/
-venv/
-node_modules/
-.julia/
-.zig-cache/
+# Python specific
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+
+# Dart/Flutter specific
+.dart_tool/
+.packages
+*.g.dart
+*.freezed.dart
+*.config.dart
 
 # Logs and temp files
 *.log
 *.tmp
 *.swp
+*.swo
 
-# Environment
-.env
-.env.local
-*.env.*
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+.directory
+.Trashes
 
 # Editors
 .vscode/
@@ -31,21 +67,27 @@ node_modules/
 *.swp
 *.swo
 
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Python specific
-.mypy_cache/
-.pytest_cache/
-
-# Java/Gradle
-.gradle/
-
-# macOS
-.DS_Store
-
-# Windows
-Thumbs.db
+# Archives
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```
