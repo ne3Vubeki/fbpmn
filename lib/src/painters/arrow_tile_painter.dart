@@ -33,7 +33,7 @@ class ArrowTilePainter {
         canvas: canvas,
         baseOffset: baseOffset,
         visibleBounds: tileBounds,
-        allArrows: arrows,
+        allArrows: allArrows,
         forTile: true,
       );
     }
