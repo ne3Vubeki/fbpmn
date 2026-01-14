@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../models/image_tile.dart';
 import '../models/table.node.dart';
+import '../models/arrow.dart';
 import '../editor_state.dart';
 import '../utils/bounds_calculator.dart';
 import '../utils/node_renderer.dart';
 import '../utils/editor_config.dart';
+import '../painters/arrow_tile_painter.dart';
 
 class TileManager {
   final EditorState state;
@@ -35,8 +37,8 @@ class TileManager {
         return;
       }
 
-      // Создаем тайлы только там где есть узлы
-      final tiles = await _createTilesForNodes(nodes);
+      // Создаем тайлы только там где есть узлы или стрелки
+      final tiles = await _createTilesForContent(nodes, state.arrows);
 
       state.imageTiles = tiles;
 
@@ -50,15 +52,15 @@ class TileManager {
   // Создание начальных тайлов
   Future<void> _createInitialTiles() async {
     // Создаем 4 тайла для начальной видимой области
-    final tiles = await _createTilesInGrid(0, 0, 2, 2, []);
+    final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
     state.imageTiles = tiles;
     state.isLoading = false;
     onStateUpdate();
   }
 
-  // Создание тайлов для узлов
-  Future<List<ImageTile>> _createTilesForNodes(List<TableNode> allNodes) async {
+  // Создание тайлов для узлов и стрелок
+  Future<List<ImageTile>> _createTilesForContent(List<TableNode> allNodes, List<Arrow> allArrows) async {
     final List<ImageTile> tiles = [];
     final Set<String> createdTileIds = {}; // Для отслеживания созданных тайлов
 
@@ -110,7 +112,7 @@ class TileManager {
 
           if (!createdTileIds.contains(tileId)) {
             // Создаем тайл в этой позиции
-            final tile = await _createTileAtPosition(left, top, allNodes);
+            final tile = await _createTileAtPosition(left, top, allNodes, allArrows);
             if (tile != null) {
               tiles.add(tile);
               createdTileIds.add(tileId);
@@ -120,7 +122,93 @@ class TileManager {
       }
     }
 
+    // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
+    for (final arrow in allArrows) {
+      final arrowIntersectsTile = ArrowTilePainter._arrowIntersectsTile(
+        arrow: arrow,
+        tileBounds: Rect.fromLTRB(0, 0, 0, 0), // We'll calculate this properly below
+        allNodes: allNodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+
+      // Actually check which tiles the arrow intersects
+      final arrowTileBounds = _getArrowBounds(arrow, allNodes);
+      if (arrowTileBounds != null) {
+        final tileWorldSize = EditorConfig.tileSize.toDouble();
+        final gridXStart = (arrowTileBounds.left / tileWorldSize).floor();
+        final gridYStart = (arrowTileBounds.top / tileWorldSize).floor();
+        final gridXEnd = (arrowTileBounds.right / tileWorldSize).ceil();
+        final gridYEnd = (arrowTileBounds.bottom / tileWorldSize).ceil();
+
+        // Создаем тайлы для всех grid позиций, которые пересекает стрелка
+        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            final tileId = _generateTileId(left, top);
+
+            if (!createdTileIds.contains(tileId)) {
+              // Создаем тайл в этой позиции
+              final tile = await _createTileAtPosition(left, top, allNodes, allArrows);
+              if (tile != null) {
+                tiles.add(tile);
+                createdTileIds.add(tileId);
+              }
+            }
+          }
+        }
+      }
+    }
+
     return tiles;
+  }
+
+  // Получить границы стрелки
+  Rect? _getArrowBounds(Arrow arrow, List<TableNode> allNodes) {
+    // Находим узлы-источник и цель
+    TableNode? sourceNode;
+    TableNode? targetNode;
+    
+    void findNodes(List<TableNode> nodes) {
+      for (final node in nodes) {
+        if (node.id == arrow.source) {
+          sourceNode = node;
+        } else if (node.id == arrow.target) {
+          targetNode = node;
+        }
+        
+        if (sourceNode != null && targetNode != null) {
+          break;
+        }
+        
+        if (node.children != null) {
+          findNodes(node.children!);
+        }
+      }
+    }
+    
+    findNodes(allNodes);
+    
+    if (sourceNode == null || targetNode == null) {
+      return null; // Не можем определить границы стрелки без обоих узлов
+    }
+    
+    // Получаем абсолютные позиции узлов
+    final sourceAbsolutePos = sourceNode!.aPosition ?? (state.delta + sourceNode!.position);
+    final targetAbsolutePos = targetNode!.aPosition ?? (state.delta + targetNode!.position);
+    
+    // Создаем Rect для узлов
+    final sourceRect = _boundsCalculator.calculateNodeRect(
+      node: sourceNode!,
+      position: sourceAbsolutePos,
+    );
+    final targetRect = _boundsCalculator.calculateNodeRect(
+      node: targetNode!,
+      position: targetAbsolutePos,
+    );
+    
+    // Определяем приблизительную область стрелки (между узлами)
+    return sourceRect.union(targetRect).inflate(20); // Добавляем небольшой отступ
   }
 
   // Генерация ID тайла на основе мировых координат
@@ -133,6 +221,7 @@ class TileManager {
     double left,
     double top,
     List<TableNode> allNodes,
+    List<Arrow> allArrows,
   ) async {
     try {
       final tileWorldSize = EditorConfig.tileSize.toDouble();
@@ -150,6 +239,14 @@ class TileManager {
 
       // Получаем узлы для этого тайла (исключая выделенные)
       final nodesInTile = _getNodesForTile(tileBounds, allNodes);
+      
+      // Получаем стрелки для этого тайла
+      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+        tileBounds: tileBounds,
+        allArrows: allArrows,
+        allNodes: allNodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
 
       // Фиксированный размер изображения
       final int tileImageSize = EditorConfig.tileSize;
@@ -182,13 +279,28 @@ class TileManager {
           cache: state.nodeBoundsCache,
         );
       }
+      
+      // Рисуем стрелки, если они есть
+      if (arrowsInTile.isNotEmpty) {
+        final arrowTilePainter = ArrowTilePainter(
+          arrows: arrowsInTile,
+          nodes: allNodes,
+          nodeBoundsCache: state.nodeBoundsCache,
+        );
+        arrowTilePainter.drawArrowsInTile(
+          canvas: canvas,
+          tileBounds: tileBounds,
+          baseOffset: state.delta,
+        );
+      }
 
       final picture = recorder.endRecording();
       final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
 
-      // Создаем карту узлов для этого тайла
+      // Создаем карту узлов и стрелок для этого тайла
       _updateNodeTileMappings(tileId, nodesInTile);
+      _updateArrowTileMappings(tileId, arrowsInTile);
 
       return ImageTile(
         image: image,
@@ -275,6 +387,7 @@ class TileManager {
     int width,
     int height,
     List<TableNode> allNodes,
+    List<Arrow> allArrows,
   ) async {
     final List<ImageTile> tiles = [];
     final tileWorldSize = EditorConfig.tileSize.toDouble();
@@ -283,7 +396,7 @@ class TileManager {
       for (int x = startX; x < startX + width; x++) {
         final left = x * tileWorldSize;
         final top = y * tileWorldSize;
-        final tile = await _createTileAtPosition(left, top, allNodes);
+        final tile = await _createTileAtPosition(left, top, allNodes, allArrows);
         if (tile != null) {
           tiles.add(tile);
         }
@@ -308,6 +421,24 @@ class TileManager {
         state.nodeToTiles[node] = {};
       }
       state.nodeToTiles[node]!.add(tileIndex);
+    }
+  }
+
+  // Обновляем метод для работы с Arrow и String id
+  void _updateArrowTileMappings(String tileId, List<Arrow> arrowsInTile) {
+    // Ищем индекс тайла по id
+    final tileIndex = _findTileIndexById(tileId);
+    if (tileIndex == null) {
+      return;
+    }
+
+    state.tileToArrows[tileIndex] = arrowsInTile;
+
+    for (final arrow in arrowsInTile) {
+      if (!state.arrowToTiles.containsKey(arrow)) {
+        state.arrowToTiles[arrow] = {};
+      }
+      state.arrowToTiles[arrow]!.add(tileIndex);
     }
   }
 
@@ -587,6 +718,78 @@ class TileManager {
     }
   }
 
+  /// Удаление стрелок, связанных с выделенным узлом из тайлов
+  Future<void> removeArrowsForSelectedNode(TableNode node) async {
+    final Set<int> tilesToUpdate = {};
+
+    // Находим все стрелки, связанные с этим узлом (как источник или цель)
+    final arrowsConnectedToNode = state.arrows.where((arrow) =>
+        arrow.source == node.id || arrow.target == node.id).toList();
+
+    // Для каждой связанной стрелки находим тайлы, в которых она содержится
+    for (final arrow in arrowsConnectedToNode) {
+      final tileIndices = state.arrowToTiles[arrow] ?? <int>{};
+      for (final tileIndex in tileIndices) {
+        if (tileIndex < state.imageTiles.length) {
+          tilesToUpdate.add(tileIndex);
+        }
+      }
+    }
+
+    // Обновляем все затронутые тайлы
+    for (final tileIndex in tilesToUpdate) {
+      await _updateTileWithAllContent(tileIndex);
+    }
+  }
+
+  /// Добавление стрелок, связанных с узлом обратно в тайлы (после сохранения)
+  Future<void> addArrowsForNode(TableNode node, Offset nodePosition) async {
+    final Set<int> tilesToUpdate = {};
+
+    // Находим все стрелки, связанные с этим узлом (как источник или цель)
+    final arrowsConnectedToNode = state.arrows.where((arrow) =>
+        arrow.source == node.id || arrow.target == node.id).toList();
+
+    // Для каждой связанной стрелки находим области, которые она покрывает
+    for (final arrow in arrowsConnectedToNode) {
+      final arrowBounds = _getArrowBounds(arrow, state.nodes);
+      if (arrowBounds != null) {
+        final tileWorldSize = EditorConfig.tileSize.toDouble();
+        final gridXStart = (arrowBounds.left / tileWorldSize).floor();
+        final gridYStart = (arrowBounds.top / tileWorldSize).floor();
+        final gridXEnd = (arrowBounds.right / tileWorldSize).ceil();
+        final gridYEnd = (arrowBounds.bottom / tileWorldSize).ceil();
+
+        // Обрабатываем все grid позиции, которые покрывает стрелка
+        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            final tileId = _generateTileId(left, top);
+
+            // Ищем существующий тайл в этой позиции
+            int? existingTileIndex = _findTileIndexById(tileId);
+
+            if (existingTileIndex == null) {
+              // Создаем новый тайл в этой позиции
+              await _createNewTileAtPosition(left, top, node, []);
+            } else {
+              // Добавляем тайл в список для обновления
+              tilesToUpdate.add(existingTileIndex);
+            }
+          }
+        }
+      }
+    }
+
+    // Обновляем все тайлы, в которые добавили стрелки
+    for (final tileIndex in tilesToUpdate) {
+      await _updateTileWithAllContent(tileIndex);
+    }
+
+    onStateUpdate();
+  }
+
   // Добавление узла в тайлы (после перемещения)
   Future<void> addNodeToTiles(TableNode node, Offset nodePosition) async {
     final Set<int> tilesToUpdate = {};
@@ -645,10 +848,139 @@ class TileManager {
   /// Добавление детей swimlane в тайлы
   Future<void> _addSwimlaneChildrenToTiles(
     TableNode swimlaneNode,
+  // Обновление тайла со ВСЕМИ узлами и стрелками
+  Future<void> _updateTileWithAllContent(int tileIndex) async {
+    if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
+      return;
+    }
+
+    try {
+      final oldTile = state.imageTiles[tileIndex];
+      final tileId = oldTile.id;
+      final bounds = oldTile.bounds;
+
+      // Получаем ВСЕ узлы и стрелки для этого тайла из state.nodes и state.arrows
+      final nodesInTile = _getNodesForTile(bounds, state.nodes);
+      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+        tileBounds: bounds,
+        allArrows: state.arrows,
+        allNodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+
+      // Очищаем старый кэш для этого тайла
+      state.tileToNodes.remove(tileIndex);
+      state.tileToArrows.remove(tileIndex);
+
+      // Если в тайле есть узлы или стрелки, обновляем кэш
+      if (nodesInTile.isNotEmpty) {
+        state.tileToNodes[tileIndex] = nodesInTile;
+
+        // Обновляем кэш nodeToTiles для всех узлов в тайле
+        for (final node in nodesInTile) {
+          if (!state.nodeToTiles.containsKey(node)) {
+            state.nodeToTiles[node] = {};
+          }
+          state.nodeToTiles[node]!.add(tileIndex);
+        }
+      }
+      
+      if (arrowsInTile.isNotEmpty) {
+        state.tileToArrows[tileIndex] = arrowsInTile;
+
+        // Обновляем кэш arrowToTiles для всех стрелок в тайле
+        for (final arrow in arrowsInTile) {
+          if (!state.arrowToTiles.containsKey(arrow)) {
+            state.arrowToTiles[arrow] = {};
+          }
+          state.arrowToTiles[arrow]!.add(tileIndex);
+        }
+      }
+
+      oldTile.image.dispose();
+
+      // Перерисовываем тайл со ВСЕМИ узлами и стрелками
+      final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
+      if (newTile != null) {
+        state.imageTiles[tileIndex] = newTile;
+      } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
+        // Если тайл пустой, удаляем его
+        await _removeTile(tileId);
+      }
+
+      onStateUpdate();
+    } catch (e) {}
+  }
+
+  // Создание обновленного тайла с узлами и стрелками
+  Future<ImageTile?> _createUpdatedTileWithContent(
+    Rect bounds,
+    String tileId,
+    List<TableNode> nodes,
+    List<Arrow> arrows,
+  ) async {
+    try {
+      final rootNodes = _filterRootNodes(nodes);
+      // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
+      final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
+
+      final int tileImageSize = EditorConfig.tileSize;
+      final double scale = 1.0;
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+
+      canvas.scale(scale, scale);
+      canvas.translate(-bounds.left, -bounds.top);
+
+      canvas.drawRect(
+        bounds,
+        Paint()
+          ..color = Colors.transparent
+          ..blendMode = BlendMode.src,
+      );
+
+      if (sortedNodes.isNotEmpty) {
+        _nodeRenderer.drawRootNodesToTile(
+          canvas: canvas,
+          rootNodes: sortedNodes,
+          tileBounds: bounds,
+          delta: state.delta,
+          cache: state.nodeBoundsCache,
+        );
+      }
+      
+      // Рисуем стрелки, если они есть
+      if (arrows.isNotEmpty) {
+        final arrowTilePainter = ArrowTilePainter(
+          arrows: arrows,
+          nodes: state.nodes,
+          nodeBoundsCache: state.nodeBoundsCache,
+        );
+        arrowTilePainter.drawArrowsInTile(
+          canvas: canvas,
+          tileBounds: bounds,
+          baseOffset: state.delta,
+        );
+      }
+
+      final picture = recorder.endRecording();
+
+      final image = await picture.toImage(tileImageSize, tileImageSize);
+      picture.dispose();
+
+      return ImageTile(image: image, bounds: bounds, scale: scale, id: tileId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Добавление детей swimlane в тайлы
+  Future<void> _addSwimlaneChildrenToTiles(
+    TableNode swimlaneNode,
     Offset parentWorldPosition,
     Set<int> tilesToUpdate,
   ) async {
-    if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
       return;
     }
 
@@ -850,7 +1182,7 @@ class TileManager {
       _disposeTiles();
 
       // Создаем 4 начальных тайла
-      final tiles = await _createTilesInGrid(0, 0, 2, 2, []);
+      final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
       state.imageTiles = tiles;
       state.isLoading = false;
