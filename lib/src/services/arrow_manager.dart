@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 
-/// Service for managing and calculating arrow connections
+/// Сервис для управления и расчета соединений стрелок
 class ArrowManager {
   final List<Arrow> arrows;
   final List<TableNode> nodes;
@@ -17,19 +17,19 @@ class ArrowManager {
     required this.nodeBoundsCache,
   });
 
-  /// Get all arrows connected to a specific node on a specific side
+  /// Получить все стрелки, подключенные к определенному узлу с определенной стороны
   List<Arrow> getArrowsOnSide(String nodeId, String side) {
     final result = <Arrow>[];
     
     for (final arrow in arrows) {
-      // Check if the arrow connects to this node as source or target
+      // Проверяем, подключена ли стрелка к этому узлу как источник или цель
       if (arrow.source == nodeId) {
-        // Check which side is used for the source
+        // Проверяем, какая сторона используется для источника
         if (getSideForConnection(arrow, true) == side) {
           result.add(arrow);
         }
       } else if (arrow.target == nodeId) {
-        // Check which side is used for the target
+        // Проверяем, какая сторона используется для цели
         if (getSideForConnection(arrow, false) == side) {
           result.add(arrow);
         }
@@ -39,26 +39,26 @@ class ArrowManager {
     return result;
   }
 
-  /// Get the index of a specific arrow among all arrows connected to a node side
+  /// Получить индекс конкретной стрелки среди всех стрелок, подключенных к стороне узла
   int getConnectionIndex(Arrow targetArrow, String nodeId, String side) {
     int index = 0;
     
     for (int i = 0; i < arrows.length; i++) {
       final arrow = arrows[i];
       
-      // Skip if this is the target arrow itself
+      // Пропускаем, если это сама целевая стрелка
       if (arrow.id == targetArrow.id) {
         break;
       }
       
-      // Check if this arrow connects to the node as source or target
+      // Проверяем, подключена ли эта стрелка к узлу как источник или цель
       if (arrow.source == nodeId) {
-        // Check which side is used for the source
+        // Проверяем, какая сторона используется для источника
         if (getSideForConnection(arrow, true) == side) {
           index++;
         }
       } else if (arrow.target == nodeId) {
-        // Check which side is used for the target
+        // Проверяем, какая сторона используется для цели
         if (getSideForConnection(arrow, false) == side) {
           index++;
         }
@@ -68,26 +68,26 @@ class ArrowManager {
     return index;
   }
 
-  /// Get the count of arrows connected to a specific node on a specific side
+  /// Получить количество стрелок, подключенных к определенному узлу с определенной стороны
   int getConnectionsCountOnSide(String nodeId, String side) {
     return getArrowsOnSide(nodeId, side).length;
   }
 
-  /// Determine the side where an arrow connects to a node (for source or target)
+  /// Определить сторону, к которой стрелка подключена к узлу (для источника или цели)
   String getSideForConnection(Arrow arrow, bool isSource) {
-    // Find source and target nodes
+    // Находим узлы источника и цели
     final sourceNode = _findNodeById(arrow.source);
     final targetNode = _findNodeById(arrow.target);
     
     if (sourceNode == null || targetNode == null) {
-      return 'top'; // fallback
+      return 'top'; // запасной вариант
     }
     
-    // Get absolute positions of nodes
+    // Получаем абсолютные позиции узлов
     final sourceAbsolutePos = sourceNode.aPosition ?? sourceNode.position;
     final targetAbsolutePos = targetNode.aPosition ?? targetNode.position;
     
-    // Create Rects for nodes
+    // Создаем прямоугольники для узлов
     final sourceRect = Rect.fromPoints(
       sourceAbsolutePos,
       Offset(
@@ -104,7 +104,7 @@ class ArrowManager {
       ),
     );
     
-    // Calculate connection points
+    // Вычисляем точки соединения
     final connectionPoints = _calculateConnectionPoints(sourceRect, targetRect, sourceNode, targetNode);
     
     if (isSource) {
@@ -114,18 +114,20 @@ class ArrowManager {
     }
   }
 
-  /// Find a node by ID
+  /// Найти узел по ID
   TableNode? _findNodeById(String id) {
     return nodes.firstWhereOrNull((node) => node.id == id);
   }
 
-  /// Calculate connection points between two nodes
+  /// Вычислить точки соединения между двумя узлами
+  /// Алгоритм определяет оптимальные точки входа/выхода для стрелок
+  /// с учетом взаимного расположения узлов
   ({Offset? end, Offset? start}) _calculateConnectionPoints(Rect sourceRect, Rect targetRect, TableNode sourceNode, TableNode targetNode) {
-    // Determine center points of nodes
+    // Определяем центральные точки узлов
     final sourceCenter = sourceRect.center;
     final targetCenter = targetRect.center;
 
-    // Determine node sides
+    // Определяем стороны узлов
     final sourceTop = sourceRect.top;
     final sourceBottom = sourceRect.bottom;
     final sourceLeft = sourceRect.left;
@@ -139,57 +141,72 @@ class ArrowManager {
     Offset? startConnectionPoint;
     Offset? endConnectionPoint;
 
-    // Calculate distances between centers
+    // Вычисляем расстояния между центрами
     final dx = targetCenter.dx - sourceCenter.dx;
     final dy = targetCenter.dy - sourceCenter.dy;
 
-    // Determine source side (where connection starts)
+    // Определяем сторону источника (откуда начинается соединение)
+    // Специальные случаи для улучшения визуального представления стрелок
+    
+    // Случай 1: Источник слева и выше цели, с достаточным расстоянием
     if (dx < 0 && dy < 0 && dx.abs() > 20 && sourceCenter.dy < targetTop - 20) {
-      // Center of source node is to the left and above the top of the target node by >20
+      // Центр узла источника находится слева и выше верха узла цели на >20
       startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
       endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
-    } else if (dx < 0 && dy > 0 && dx.abs() > 40 && sourceCenter.dy > targetTop + 20) {
-      // Center of source node is to the left (>40 distance) and below top+20 of target node
+    } 
+    // Случай 2: Источник слева и ниже цели, с большим горизонтальным расстоянием
+    else if (dx < 0 && dy > 0 && dx.abs() > 40 && sourceCenter.dy > targetTop + 20) {
+      // Центр узла источника находится слева (>40 расстояния) и ниже верха+20 узла цели
       startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
       endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
-    } else if (dx < 0 && dy > 0 && dx.abs() <= 40 && sourceCenter.dy > targetTop + 20) {
-      // Center of source node is to the left (<=40 distance) and below top+20 of target node
+    } 
+    // Случай 3: Источник слева и ниже цели, с небольшим горизонтальным расстоянием
+    else if (dx < 0 && dy > 0 && dx.abs() <= 40 && sourceCenter.dy > targetTop + 20) {
+      // Центр узла источника находится слева (<=40 расстояния) и ниже верха+20 узла цели
       startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);    // Изменено: -6 для отступа наружу
       endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
-    } else if (dx < 0 && dy > 0 && sourceCenter.dy > targetBottom + 20) {
-      // Center of source node is to the left and below the bottom of target node by >20
+    } 
+    // Случай 4: Источник слева и значительно ниже цели
+    else if (dx < 0 && dy > 0 && sourceCenter.dy > targetBottom + 20) {
+      // Центр узла источника находится слева и ниже низа узла цели на >20
       startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
       endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
-    } else if (dx < 0 && dy > 0 && dx.abs() > 40 && sourceCenter.dy > targetBottom - 20) {
-      // Center of source node is to the left (>40 distance) and below <20 of bottom of target node
+    } 
+    // Случай 5: Источник слева и чуть ниже цели, с большим горизонтальным расстоянием
+    else if (dx < 0 && dy > 0 && dx.abs() > 40 && sourceCenter.dy > targetBottom - 20) {
+      // Центр узла источника находится слева (>40 расстояния) и ниже <20 от низа узла цели
       startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
       endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
-    } else if (dx < 0 && dy > 0 && dx.abs() <= 40 && sourceCenter.dy > targetBottom - 20) {
-      // Center of source node is to the left (<=40 distance) and below <20 of bottom of target node
+    } 
+    // Случай 6: Источник слева и чуть ниже цели, с небольшим горизонтальным расстоянием
+    else if (dx < 0 && dy > 0 && dx.abs() <= 40 && sourceCenter.dy > targetBottom - 20) {
+      // Центр узла источника находится слева (<=40 расстояния) и ниже <20 от низа узла цели
       startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6); // Изменено: +6 для отступа наружу
       endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
-    } else {
-      // For other cases, use algorithm similar to the original
-      // Determine main direction of connection
+    } 
+    // Стандартные случаи
+    else {
+      // Для остальных случаев используем алгоритм, подобный оригинальному
+      // Определяем основное направление соединения
       if (dx.abs() >= dy.abs()) {
-        // Horizontal direction prevails
+        // Преобладает горизонтальное направление
         if (dx > 0) {
-          // To the right
+          // Вправо
           startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
           endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
         } else {
-          // To the left
+          // Влево
           startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);   // Изменено: -6 для отступа наружу
           endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);    // Изменено: +6 для отступа наружу
         }
       } else {
-        // Vertical direction prevails
+        // Преобладает вертикальное направление
         if (dy > 0) {
-          // Downward
+          // Вниз
           startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6); // Изменено: +6 для отступа наружу
           endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
         } else {
-          // Upward
+          // Вверх
           startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);    // Изменено: -6 для отступа наружу
           endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
         }
@@ -199,7 +216,7 @@ class ArrowManager {
     return (start: startConnectionPoint, end: endConnectionPoint);
   }
 
-  /// Determine which side of a node a point belongs to
+  /// Определить, к какой стороне узла принадлежит точка
   String _getSideFromPoint(Offset point, Rect rect) {
     // Compare distances to different sides and select the nearest one
     double leftDist = (point.dx - rect.left).abs();
@@ -218,100 +235,102 @@ class ArrowManager {
     return closestSide;
   }
 
-  /// Distribute connection points along a side with step 10
+  /// Распределить точки соединения вдоль стороны с шагом 10
+  /// Этот метод равномерно распределяет несколько соединений на одной стороне узла
+  /// для избежания наложения стрелок
   Offset distributeConnectionPoint(Offset originalPoint, Rect rect, String side, String nodeId, Arrow arrow) {
-    // Count the number of connections attached to this side of the node
+    // Считаем количество соединений, прикрепленных к этой стороне узла
     int connectionsCount = getConnectionsCountOnSide(nodeId, side);
     
-    // If only one connection on this side, use the central point
+    // Если только одно соединение на этой стороне, используем центральную точку
     if (connectionsCount <= 1) {
       return originalPoint;
     }
     
-    // Find the index of the current connection among all connections attached to this side
+    // Находим индекс текущего соединения среди всех соединений, прикрепленных к этой стороне
     int index = getConnectionIndex(arrow, nodeId, side);
     
-    // Calculate offset for even distribution
+    // Вычисляем смещение для равномерного распределения
     double offset = 0.0;
     switch (side) {
       case 'top':
       case 'bottom':
-        // For horizontal sides (top/bottom) offset along X-axis
+        // Для горизонтальных сторон (верх/низ) смещение по оси X
         double sideLength = rect.width;
-        // Center point of the side
+        // Центральная точка стороны
         double centerPoint = rect.center.dx;
         
-        // If odd number of connections, the center stays in the middle, others are distributed on sides
+        // Если нечетное количество соединений, центр остается посередине, остальные распределяются по сторонам
         if (connectionsCount % 2 == 1) {
-          // Odd number of connections
+          // Нечетное количество соединений
           int halfCount = connectionsCount ~/ 2;
           if (index < halfCount) {
-            // Left points
+            // Левые точки
             offset = -(halfCount - index) * 10.0;
           } else if (index == halfCount) {
-            // Central point
+            // Центральная точка
             offset = 0.0;
           } else {
-            // Right points
+            // Правые точки
             offset = (index - halfCount) * 10.0;
           }
         } else {
-          // Even number of connections
+          // Четное количество соединений
           int halfCount = connectionsCount ~/ 2;
           if (index < halfCount) {
-            // Left points
+            // Левые точки
             offset = -(halfCount - index - 0.5) * 10.0;
           } else {
-            // Right points
+            // Правые точки
             offset = (index - halfCount + 0.5) * 10.0;
           }
         }
         
-        // Make sure the point does not go beyond the side limits
+        // Убеждаемся, что точка не выходит за пределы стороны
         double clampedOffset = offset.clamp(
-          -sideLength / 2 + 6, // Minimum offset from edge (considering 6 offset)
-          sideLength / 2 - 6   // Maximum offset from edge (considering 6 offset)
+          -sideLength / 2 + 6, // Минимальное смещение от края (учитывая отступ 6)
+          sideLength / 2 - 6   // Максимальное смещение от края (учитывая отступ 6)
         );
         
         return Offset(centerPoint + clampedOffset, originalPoint.dy);
         
       case 'left':
       case 'right':
-        // For vertical sides (left/right) offset along Y-axis
+        // Для вертикальных сторон (лево/право) смещение по оси Y
         double sideLength = rect.height;
-        // Center point of the side
+        // Центральная точка стороны
         double centerPoint = rect.center.dy;
         
-        // If odd number of connections, the center stays in the middle, others are distributed on sides
+        // Если нечетное количество соединений, центр остается посередине, остальные распределяются по сторонам
         if (connectionsCount % 2 == 1) {
-          // Odd number of connections
+          // Нечетное количество соединений
           int halfCount = connectionsCount ~/ 2;
           if (index < halfCount) {
-            // Top points
+            // Верхние точки
             offset = -(halfCount - index) * 10.0;
           } else if (index == halfCount) {
-            // Central point
+            // Центральная точка
             offset = 0.0;
           } else {
-            // Bottom points
+            // Нижние точки
             offset = (index - halfCount) * 10.0;
           }
         } else {
-          // Even number of connections
+          // Четное количество соединений
           int halfCount = connectionsCount ~/ 2;
           if (index < halfCount) {
-            // Top points
+            // Верхние точки
             offset = -(halfCount - index - 0.5) * 10.0;
           } else {
-            // Bottom points
+            // Нижние точки
             offset = (index - halfCount + 0.5) * 10.0;
           }
         }
         
-        // Make sure the point does not go beyond the side limits
+        // Убеждаемся, что точка не выходит за пределы стороны
         double clampedOffset = offset.clamp(
-          -sideLength / 2 + 6, // Minimum offset from edge (considering 6 offset)
-          sideLength / 2 - 6   // Maximum offset from edge (considering 6 offset)
+          -sideLength / 2 + 6, // Минимальное смещение от края (учитывая отступ 6)
+          sideLength / 2 - 6   // Максимальное смещение от края (учитывая отступ 6)
         );
         
         return Offset(originalPoint.dx, centerPoint + clampedOffset);

@@ -109,7 +109,7 @@ class ArrowPainter {
     final startPoint = connectionPoints.start!;
     final endPoint = connectionPoints.end!;
 
-    // Создаем путь с отводами от узлов (перпендикулярные отрезки длиной 6)
+    // Создаем путь с отводами от узлов (перпендикулярные отрезки длиной 20)
     Path? path = _createOrthogonalPathWithPerpendiculars(startPoint, endPoint, sourceRect, targetRect);
 
     // Проверяем, не пересекает ли путь другие узлы
@@ -523,8 +523,8 @@ class ArrowPainter {
     Offset startDir = _getExitDirection(start, Rect.fromCenter(center: start, width: 1, height: 1));
     Offset endDir = _getEntryDirection(end, Rect.fromCenter(center: end, width: 1, height: 1));
     
-    final perpStart = Offset(start.dx + startDir.dx * 6, start.dy + startDir.dy * 6);
-    final perpEnd = Offset(end.dx - endDir.dx * 6, end.dy - endDir.dy * 6);
+    final perpStart = Offset(start.dx + startDir.dx * 20, start.dy + startDir.dy * 20);
+    final perpEnd = Offset(end.dx - endDir.dx * 20, end.dy - endDir.dy * 20);
     
     final pathsToTry = <Path>[];
     
@@ -685,19 +685,19 @@ class ArrowPainter {
     // Это зависит от того, с какой стороны выходит соединение
     Offset directionVector = _getExitDirection(start, sourceRect);
     
-    // Создаем первый перпендикулярный отрезок длиной 6 от начальной точки (вместо 20)
+    // Создаем первый перпендикулярный отрезок длиной 20 от начальной точки (вместо 20)
     final perpStart = Offset(
-      start.dx + directionVector.dx * 6,
-      start.dy + directionVector.dy * 6
+      start.dx + directionVector.dx * 20,
+      start.dy + directionVector.dy * 20
     );
     
     // Определяем направление входа в конечную точку (к стороне узла)
     Offset targetDirectionVector = _getEntryDirection(end, targetRect);
     
-    // Создаем последний перпендикулярный отрезок длиной 6 до конечной точки (вместо 20)
+    // Создаем последний перпендикулярный отрезок длиной 20 до конечной точки (вместо 20)
     final perpEnd = Offset(
-      end.dx - targetDirectionVector.dx * 6,
-      end.dy - targetDirectionVector.dy * 6
+      end.dx - targetDirectionVector.dx * 20,
+      end.dy - targetDirectionVector.dy * 20
     );
     
     // Рисуем путь: старт -> перпендиклярный отрезок -> основная часть -> перпендикуляр к цели -> конец
