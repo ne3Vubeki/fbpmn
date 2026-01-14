@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:get/get.dart';
+
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 
