@@ -97,6 +97,9 @@ class _StableGridImageState extends State<StableGridImage> {
         _editorState.arrows.add(Arrow.fromJson(arrow));
       }
     }
+    
+    // После загрузки всех данных, обновляем тайлы, чтобы включить стрелки
+    await _tileManager.updateTilesAfterNodeChange();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollHandler.centerCanvas();

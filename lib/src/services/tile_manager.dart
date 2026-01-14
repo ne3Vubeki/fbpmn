@@ -515,6 +515,9 @@ class TileManager {
   Future<void> removeSelectedNodeFromTiles(TableNode node) async {
     final Set<int> tilesToUpdate = {};
 
+    // Сначала удаляем стрелки, связанные с этим узлом
+    await removeArrowsForSelectedNode(node);
+
     // Проверяем, является ли этот узел дочерним для развернутого swimlane
     TableNode? parentSwimlane = _findParentExpandedSwimlane(node);
     if (parentSwimlane != null) {
@@ -543,7 +546,7 @@ class TileManager {
 
     // Обновляем все тайлы, из которых удаляли узлы
     for (final tileIndex in tilesToUpdate) {
-      await _updateTileWithAllNodes(tileIndex);
+      await _updateTileWithAllContent(tileIndex);
     }
   }
 
@@ -829,8 +832,11 @@ class TileManager {
 
     // Обновляем все тайлы, в которые добавили узлы
     for (final tileIndex in tilesToUpdate) {
-      await _updateTileWithAllNodes(tileIndex);
+      await _updateTileWithAllContent(tileIndex);
     }
+
+    // Также добавляем стрелки, связанные с этим узлом
+    await addArrowsForNode(node, nodePosition);
 
     onStateUpdate();
   }
