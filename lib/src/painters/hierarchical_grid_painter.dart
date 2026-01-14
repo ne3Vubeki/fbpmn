@@ -265,6 +265,7 @@ class HierarchicalGridPainter extends CustomPainter {
     for (final arrow in arrows) {
       final arrowPainter = ArrowPainter(
         arrow: arrow,
+        arrows: arrows,
         nodes: nodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );

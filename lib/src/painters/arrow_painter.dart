@@ -122,7 +122,7 @@ class ArrowPainter {
           ..style = PaintingStyle.stroke;
         
         debugPrint('Рисование красной связи через узел ${arrow.id}: начало (${startPoint.dx}, ${startPoint.dy}), конец (${endPoint.dx}, ${endPoint.dy})');
-        canvas.drawPath(finalPath!, paint);
+        canvas.drawPath(finalPath, paint);
         return;
       }
     } else {
@@ -139,7 +139,7 @@ class ArrowPainter {
         ..style = PaintingStyle.stroke;
       
       debugPrint('Рисование красной связи через узел ${arrow.id}: начало (${startPoint.dx}, ${startPoint.dy}), конец (${endPoint.dx}, ${endPoint.dy})');
-      canvas.drawPath(finalPath!, paint);
+      canvas.drawPath(finalPath, paint);
       return;
     }
 
@@ -234,12 +234,12 @@ class ArrowPainter {
     }
 
     // Учитываем количество связей для распределения с шагом 10
-    final startSide = _getSideFromPoint(startConnectionPoint!, sourceRect);
-    final endSide = _getSideFromPoint(endConnectionPoint!, targetRect);
+    final startSide = _getSideFromPoint(startConnectionPoint, sourceRect);
+    final endSide = _getSideFromPoint(endConnectionPoint, targetRect);
 
     // Распределяем точки по стороне с шагом 10
-    startConnectionPoint = _distributeConnectionPoint(startConnectionPoint!, sourceRect, startSide, arrow.source);
-    endConnectionPoint = _distributeConnectionPoint(endConnectionPoint!, targetRect, endSide, arrow.target);
+    startConnectionPoint = _distributeConnectionPoint(startConnectionPoint, sourceRect, startSide, arrow.source);
+    endConnectionPoint = _distributeConnectionPoint(endConnectionPoint, targetRect, endSide, arrow.target);
 
     return (start: startConnectionPoint, end: endConnectionPoint);
   }
@@ -451,46 +451,6 @@ class ArrowPainter {
       return _getSideFromPoint(connectionPoints.end!, targetRect);
     }
   }
-
-  
-
-  /// Находит центр ближайшей стороны одного прямоугольника к другому
-  Offset _getClosestSideCenter(Rect rect, Rect otherRect, {double offset = 0}) {
-    // Определяем расстояния до центра otherRect от каждой из сторон rect
-    final distances = {
-      'top': (Offset(rect.center.dx, rect.top) - otherRect.center).distance,
-      'bottom': (Offset(rect.center.dx, rect.bottom) - otherRect.center).distance,
-      'left': (Offset(rect.left, rect.center.dy) - otherRect.center).distance,
-      'right': (Offset(rect.right, rect.center.dy) - otherRect.center).distance,
-    };
-
-    // Находим сторону с минимальным расстоянием
-    String closestSide = 'top';
-    double minDistance = distances['top']!;
-    
-    for (final entry in distances.entries) {
-      if (entry.value < minDistance) {
-        minDistance = entry.value;
-        closestSide = entry.key;
-      }
-    }
-
-    // Возвращаем точку с учетом отступа
-    switch (closestSide) {
-      case 'top':
-        return Offset(rect.center.dx, rect.top - offset);
-      case 'bottom':
-        return Offset(rect.center.dx, rect.bottom + offset);
-      case 'left':
-        return Offset(rect.left - offset, rect.center.dy);
-      case 'right':
-        return Offset(rect.right + offset, rect.center.dy);
-      default:
-        return Offset(rect.center.dx, rect.top - offset); // fallback to top
-    }
-  }
-
-  
 
   /// Проверяет, пересекает ли линия заданный прямоугольник
   bool _lineIntersectsRect(Offset start, Offset end, Rect rect) {
@@ -900,62 +860,4 @@ class ArrowPainter {
     }
   }
   
-  /// Создание ортогонального пути (только горизонтальные/вертикальные линии)
-  Path _createOrthogonalPath(Offset start, Offset end) {
-    final path = Path();
-    path.moveTo(start.dx, start.dy);
-
-    // Вычисляем промежуточные точки для ортогонального соединения
-    final dx = end.dx - start.dx;
-    final dy = end.dy - start.dy;
-
-    // Определяем направление для начального отрезка
-    if (dx.abs() > 20 && dy.abs() > 20) {
-      // Если оба направления больше 20 пикселей, создаем L-образный путь
-      // Сначала движемся по оси, где расстояние больше, чтобы минимизировать пересечения
-      if (dx.abs() > dy.abs()) {
-        // Сначала горизонтальный отрезок, затем вертикальный
-        final midX = start.dx + dx / 2;
-        path.lineTo(midX, start.dy);  // Горизонтальный отрезок от начала
-        path.lineTo(midX, end.dy);    // Вертикальный отрезок к концу
-        path.lineTo(end.dx, end.dy);  // Горизонтальный отрезок до конечной точки
-      } else {
-        // Сначала вертикальный отрезок, затем горизонтальный
-        final midY = start.dy + dy / 2;
-        path.lineTo(start.dx, midY);  // Вертикальный отрезок от начала
-        path.lineTo(end.dx, midY);    // Горизонтальный отрезок к концу
-        path.lineTo(end.dx, end.dy);  // Вертикальный отрезок до конечной точки
-      }
-    } else if (dx.abs() <= 20 && dy.abs() > 20) {
-      // Горизонтальное расстояние мало, сначала вертикальный отрезок
-      final midY = start.dy + dy / 2;
-      path.lineTo(start.dx, midY);  // Вертикальный отрезок от начала
-      path.lineTo(end.dx, midY);    // Горизонтальный отрезок к концу
-      path.lineTo(end.dx, end.dy);  // Вертикальный отрезок до конечной точки
-    } else if (dx.abs() > 20 && dy.abs() <= 20) {
-      // Вертикальное расстояние мало, сначала горизонтальный отрезок
-      final midX = start.dx + dx / 2;
-      path.lineTo(midX, start.dy);  // Горизонтальный отрезок от начала
-      path.lineTo(midX, end.dy);    // Вертикальный отрезок к концу
-      path.lineTo(end.dx, end.dy);  // Горизонтальный отрезок до конечной точки
-    } else {
-      // Оба расстояния малы, создаем простой путь
-      // Используем среднюю точку для избегания слишком резких поворотов
-      final midX = start.dx + dx / 2;
-      final midY = start.dy + dy / 2;
-      
-      // Определяем, какой отрезок рисовать первым - горизонтальный или вертикальный
-      if (dx.abs() >= dy.abs()) {
-        path.lineTo(midX, start.dy);  // Горизонтальный отрезок от начала
-        path.lineTo(midX, end.dy);    // Вертикальный отрезок к концу
-        path.lineTo(end.dx, end.dy);  // Горизонтальный отрезок до конечной точки
-      } else {
-        path.lineTo(start.dx, midY);  // Вертикальный отрезок от начала
-        path.lineTo(end.dx, midY);    // Горизонтальный отрезок к концу
-        path.lineTo(end.dx, end.dy);  // Вертикальный отрезок до конечной точки
-      }
-    }
-
-    return path;
-  }
 }
