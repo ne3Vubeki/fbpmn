@@ -10,6 +10,7 @@ import '../utils/bounds_calculator.dart';
 import '../utils/node_renderer.dart';
 import '../utils/editor_config.dart';
 import '../painters/arrow_tile_painter.dart';
+import 'arrow_tile_coordinator.dart';
 
 class TileManager {
   final EditorState state;
@@ -57,31 +58,37 @@ class TileManager {
   }
 
   // Создание тайлов для узлов и стрелок
-  Future<List<ImageTile>> _createTilesForContent(List<TableNode> allNodes, List<Arrow> allArrows) async {
+  Future<List<ImageTile>> _createTilesForContent(
+    List<TableNode> allNodes,
+    List<Arrow> allArrows,
+  ) async {
     final List<ImageTile> tiles = [];
     final Set<String> createdTileIds = {}; // Для отслеживания созданных тайлов
 
     // Собираем все узлы (включая вложенные) для определения, где создавать тайлы
     final allNodesIncludingChildren = <TableNode>[];
-    
+
     void collectAllNodes(List<TableNode> nodes) {
       for (final node in nodes) {
         allNodesIncludingChildren.add(node);
-        
+
         // Если это развернутый swimlane, добавляем детей как независимые узлы
-        if (node.qType == 'swimlane' && !(node.isCollapsed ?? false) && 
-            node.children != null && node.children!.isNotEmpty) {
+        if (node.qType == 'swimlane' &&
+            !(node.isCollapsed ?? false) &&
+            node.children != null &&
+            node.children!.isNotEmpty) {
           for (final child in node.children!) {
             allNodesIncludingChildren.add(child);
           }
-        } else if (node.children != null && node.children!.isNotEmpty && 
-                  !(node.qType == 'swimlane' && (node.isCollapsed ?? false))) {
+        } else if (node.children != null &&
+            node.children!.isNotEmpty &&
+            !(node.qType == 'swimlane' && (node.isCollapsed ?? false))) {
           // Для других узлов или свернутых swimlane обрабатываем детей традиционно
           collectAllNodes(node.children!);
         }
       }
     }
-    
+
     collectAllNodes(allNodes);
 
     // Для каждого узла (включая вложенные) создаем тайлы в нужных позициях
@@ -109,7 +116,12 @@ class TileManager {
 
           if (!createdTileIds.contains(tileId)) {
             // Создаем тайл в этой позиции
-            final tile = await _createTileAtPosition(left, top, allNodes, allArrows);
+            final tile = await _createTileAtPosition(
+              left,
+              top,
+              allNodes,
+              allArrows,
+            );
             if (tile != null) {
               tiles.add(tile);
               createdTileIds.add(tileId);
@@ -139,7 +151,12 @@ class TileManager {
 
             if (!createdTileIds.contains(tileId)) {
               // Создаем тайл в этой позиции
-              final tile = await _createTileAtPosition(left, top, allNodes, allArrows);
+              final tile = await _createTileAtPosition(
+                left,
+                top,
+                allNodes,
+                allArrows,
+              );
               if (tile != null) {
                 tiles.add(tile);
                 createdTileIds.add(tileId);
@@ -158,7 +175,7 @@ class TileManager {
     // Находим эффективные узлы-источник и цель (учитываем свернутые swimlane)
     TableNode? sourceNode;
     TableNode? targetNode;
-    
+
     void findNodes(List<TableNode> nodes) {
       for (final node in nodes) {
         if (node.id == arrow.source) {
@@ -166,29 +183,31 @@ class TileManager {
         } else if (node.id == arrow.target) {
           targetNode = _getEffectiveNode(node, allNodes);
         }
-        
+
         if (sourceNode != null && targetNode != null) {
           break;
         }
-        
+
         if (node.children != null) {
           findNodes(node.children!);
         }
       }
     }
-    
+
     findNodes(allNodes);
-    
+
     if (sourceNode == null || targetNode == null) {
       return null; // Не можем определить границы стрелки без обоих узлов
     }
-    
+
     // Получаем абсолютные позиции узлов
-    final sourceAbsolutePos = sourceNode!.aPosition ?? (state.delta + sourceNode!.position);
-    final targetAbsolutePos = targetNode!.aPosition ?? (state.delta + targetNode!.position);
-    
+    final sourceAbsolutePos =
+        sourceNode!.aPosition ?? (state.delta + sourceNode!.position);
+    final targetAbsolutePos =
+        targetNode!.aPosition ?? (state.delta + targetNode!.position);
+
     // Создаем Rect для узлов
-    final Rect sourceRect = _boundsCalculator.calculateNodeRect(
+    final sourceRect = _boundsCalculator.calculateNodeRect(
       node: sourceNode!,
       position: sourceAbsolutePos,
     );
@@ -196,10 +215,38 @@ class TileManager {
       node: targetNode!,
       position: targetAbsolutePos,
     );
-    
-    // Определяем приблизительную область стрелки (между узлами)
-    // Увеличиваем область для учета ортогонального пути стрелки
-    return sourceRect.expandToInclude(targetRect).inflate(EditorConfig.tileSize.toDouble());
+
+    // Создаем ArrowTileCoordinator для получения пути стрелки
+    final coordinator = ArrowTileCoordinator(
+      arrows: [arrow],
+      nodes: allNodes,
+      nodeBoundsCache: state.nodeBoundsCache,
+    );
+
+    // Получаем полный путь стрелки
+    final path = coordinator.getArrowPathForTiles(arrow, state.delta);
+
+    if (path.getBounds().isEmpty) {
+      // Если путь пустой, возвращаем область между узлами
+      return sourceRect
+          .expandToInclude(targetRect)
+          .inflate(EditorConfig.tileSize.toDouble());
+    }
+
+    // Получаем границы пути и увеличиваем для учета тайлов
+    final pathBounds = path.getBounds();
+
+    // Увеличиваем область для учета тайлов по всему пути
+    final expandedBounds = pathBounds.inflate(
+      EditorConfig.tileSize.toDouble() * 1.5,
+    );
+
+    // Также включаем исходные узлы на случай, если путь очень короткий
+    final finalBounds = expandedBounds
+        .expandToInclude(sourceRect)
+        .expandToInclude(targetRect);
+
+    return finalBounds;
   }
 
   // Получить эффективный узел для стрелки, учитывая свернутые swimlane
@@ -212,7 +259,7 @@ class TileManager {
           if (n.id == node.parent) {
             return n;
           }
-          
+
           if (n.children != null) {
             final result = findParent(n.children!);
             if (result != null) {
@@ -222,10 +269,10 @@ class TileManager {
         }
         return null;
       }
-      
+
       final parent = findParent(allNodes);
-      if (parent != null && 
-          parent.qType == 'swimlane' && 
+      if (parent != null &&
+          parent.qType == 'swimlane' &&
           (parent.isCollapsed ?? false)) {
         return parent; // Вернуть свернутый swimlane вместо дочернего узла
       }
@@ -268,7 +315,12 @@ class TileManager {
 
               if (!tileExists) {
                 // Создаем новый тайл в этой позиции
-                final tile = await _createTileAtPosition(left, top, state.nodes, state.arrows);
+                final tile = await _createTileAtPosition(
+                  left,
+                  top,
+                  state.nodes,
+                  state.arrows,
+                );
                 if (tile != null) {
                   newTiles.add(tile);
                   createdTileIds.add(tileId);
@@ -282,9 +334,13 @@ class TileManager {
 
     // Добавляем новые тайлы к существующим
     state.imageTiles.addAll(newTiles);
-    
+
     // Обновляем маппинги для новых тайлов
-    for (int i = state.imageTiles.length - newTiles.length; i < state.imageTiles.length; i++) {
+    for (
+      int i = state.imageTiles.length - newTiles.length;
+      i < state.imageTiles.length;
+      i++
+    ) {
       final tile = state.imageTiles[i];
       final nodesInTile = _getNodesForTile(tile.bounds, state.nodes);
       final arrowsInTile = ArrowTilePainter.getArrowsForTile(
@@ -293,7 +349,7 @@ class TileManager {
         allNodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
-      
+
       if (nodesInTile.isNotEmpty) {
         state.tileToNodes[i] = nodesInTile;
         for (final node in nodesInTile) {
@@ -303,7 +359,7 @@ class TileManager {
           state.nodeToTiles[node]!.add(i);
         }
       }
-      
+
       if (arrowsInTile.isNotEmpty) {
         state.tileToArrows[i] = arrowsInTile;
         for (final arrow in arrowsInTile) {
@@ -346,8 +402,8 @@ class TileManager {
 
       // Получаем узлы для этого тайла (исключая выделенные)
       final nodesInTile = _getNodesForTile(tileBounds, allNodes);
-      
-      // Получаем стрелки для этого тайла
+
+      // Получаем стрелки для этого тайла (используем новый подход)
       final arrowsInTile = ArrowTilePainter.getArrowsForTile(
         tileBounds: tileBounds,
         allArrows: allArrows,
@@ -386,8 +442,8 @@ class TileManager {
           cache: state.nodeBoundsCache,
         );
       }
-      
-      // Рисуем стрелки, если они есть
+
+      // Рисуем стрелки, если они есть (используем новый ArrowTilePainter)
       if (arrowsInTile.isNotEmpty) {
         final arrowTilePainter = ArrowTilePainter(
           arrows: arrowsInTile,
@@ -416,6 +472,7 @@ class TileManager {
         id: tileId,
       );
     } catch (e) {
+      print('Ошибка создания тайла: $e');
       return null;
     }
   }
@@ -424,13 +481,18 @@ class TileManager {
   List<TableNode> _getNodesForTile(Rect bounds, List<TableNode> allNodes) {
     final List<TableNode> nodesInTile = [];
 
-    void checkNode(TableNode node, Offset parentOffset, bool parentCollapsed, {bool isChildOfExpandedSwimlane = false}) {
+    void checkNode(
+      TableNode node,
+      Offset parentOffset,
+      bool parentCollapsed, {
+      bool isChildOfExpandedSwimlane = false,
+    }) {
       // Для детей развернутого swimlane используем абсолютную позицию напрямую
       // Для остальных случаев - стандартную логику
-      final nodePosition = isChildOfExpandedSwimlane 
-          ? (node.aPosition ?? node.position) 
+      final nodePosition = isChildOfExpandedSwimlane
+          ? (node.aPosition ?? node.position)
           : (node.aPosition ?? (node.position + parentOffset));
-      
+
       final nodeRect = _boundsCalculator.calculateNodeRect(
         node: node,
         position: nodePosition,
@@ -446,7 +508,7 @@ class TileManager {
 
       // Проверяем, является ли текущий узел развернутым swimlane
       // Если да, то его дети должны быть обработаны независимо
-      final isCurrentExpandedSwimlane = 
+      final isCurrentExpandedSwimlane =
           node.qType == 'swimlane' && !(node.isCollapsed ?? false);
 
       if (node.children != null && node.children!.isNotEmpty) {
@@ -454,19 +516,22 @@ class TileManager {
           // Для развернутого swimlane обрабатываем детей как независимые узлы
           // Они должны использовать свои абсолютные позиции
           for (final child in node.children!) {
-            // Дети развернутого swimlane обрабатываются независимо, 
+            // Дети развернутого swimlane обрабатываются независимо,
             // используя свои предварительно рассчитанные абсолютные позиции
             checkNode(
               child,
-              Offset.zero, // Используем нулевое смещение, т.к. позиция будет браться напрямую
+              Offset
+                  .zero, // Используем нулевое смещение, т.к. позиция будет браться напрямую
               parentCollapsed, // Дети развернутого swimlane не скрыты из-за родительского состояния
-              isChildOfExpandedSwimlane: true, // Отмечаем, что это дети развернутого swimlane
+              isChildOfExpandedSwimlane:
+                  true, // Отмечаем, что это дети развернутого swimlane
             );
           }
         } else {
           // Для свернутого swimlane или обычных узлов - традиционная логика
-          final isCurrentCollapsed = node.qType == 'swimlane' && (node.isCollapsed ?? false);
-          
+          final isCurrentCollapsed =
+              node.qType == 'swimlane' && (node.isCollapsed ?? false);
+
           if (!isCurrentCollapsed) {
             for (final child in node.children!) {
               checkNode(
@@ -503,7 +568,12 @@ class TileManager {
       for (int x = startX; x < startX + width; x++) {
         final left = x * tileWorldSize;
         final top = y * tileWorldSize;
-        final tile = await _createTileAtPosition(left, top, allNodes, allArrows);
+        final tile = await _createTileAtPosition(
+          left,
+          top,
+          allNodes,
+          allArrows,
+        );
         if (tile != null) {
           tiles.add(tile);
         }
@@ -632,13 +702,41 @@ class TileManager {
   Future<void> removeSelectedNodeFromTiles(TableNode node) async {
     final Set<int> tilesToUpdate = {};
 
-    // Сначала удаляем стрелки, связанные с этим узлом
-    await removeArrowsForSelectedNode(node);
+    // Сначала находим ВСЕ стрелки, связанные с этим узлом
+    final arrowsConnectedToNode = state.arrows
+        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
+        .toList();
+
+    // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
+    for (final arrow in arrowsConnectedToNode) {
+      final arrowBounds = _getArrowBounds(arrow, state.nodes);
+      if (arrowBounds != null) {
+        final tileWorldSize = EditorConfig.tileSize.toDouble();
+        final gridXStart = (arrowBounds.left / tileWorldSize).floor();
+        final gridYStart = (arrowBounds.top / tileWorldSize).floor();
+        final gridXEnd = (arrowBounds.right / tileWorldSize).ceil();
+        final gridYEnd = (arrowBounds.bottom / tileWorldSize).ceil();
+
+        // Находим все тайлы, через которые проходит стрелка
+        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            final tileId = _generateTileId(left, top);
+            final tileIndex = _findTileIndexById(tileId);
+
+            if (tileIndex != null) {
+              tilesToUpdate.add(tileIndex);
+            }
+          }
+        }
+      }
+    }
 
     // Проверяем, является ли этот узел дочерним для развернутого swimlane
     TableNode? parentSwimlane = _findParentExpandedSwimlane(node);
     if (parentSwimlane != null) {
-      // Если узел является дочерним для развернутого swimlane, 
+      // Если узел является дочерним для развернутого swimlane,
       // удаляем его как самостоятельный узел
       final tileIndices = _findTilesContainingNode(node);
       for (final tileIndex in tileIndices) {
@@ -661,9 +759,32 @@ class TileManager {
       }
     }
 
-    // Обновляем все тайлы, из которых удаляли узлы
+    // Обновляем ВСЕ тайлы, из которых удаляли узлы ИЛИ стрелки
     for (final tileIndex in tilesToUpdate) {
       await _updateTileWithAllContent(tileIndex);
+    }
+
+    // Очищаем кэши стрелок
+    _cleanupArrowCachesForNode(node);
+  }
+
+  // Очистка кэшей стрелок для удаленного узла
+  void _cleanupArrowCachesForNode(TableNode node) {
+    // Находим все стрелки, связанные с этим узлом
+    final arrowsToRemove = <Arrow>[];
+    for (final arrow in state.arrowToTiles.keys) {
+      if (arrow.source == node.id || arrow.target == node.id) {
+        arrowsToRemove.add(arrow);
+      }
+    }
+
+    // Удаляем эти стрелки из кэшей
+    for (final arrow in arrowsToRemove) {
+      final tileIndices = state.arrowToTiles[arrow] ?? {};
+      for (final tileIndex in tileIndices) {
+        state.tileToArrows[tileIndex]?.remove(arrow);
+      }
+      state.arrowToTiles.remove(arrow);
     }
   }
 
@@ -695,22 +816,26 @@ class TileManager {
     TableNode? findParentRecursive(List<TableNode> nodes) {
       for (final currentNode in nodes) {
         // Проверяем, является ли текущий узел развернутым swimlane и содержит ли он искомый узел
-        if (currentNode.qType == 'swimlane' && !(currentNode.isCollapsed ?? false)) {
+        if (currentNode.qType == 'swimlane' &&
+            !(currentNode.isCollapsed ?? false)) {
           if (currentNode.children != null) {
             for (final child in currentNode.children!) {
               if (child.id == node.id) {
                 return currentNode; // Нашли родительский развернутый swimlane
               }
-              
+
               // Рекурсивно проверяем вложенные узлы
-              TableNode? nestedParent = _findParentExpandedSwimlaneInNode(child, node);
+              TableNode? nestedParent = _findParentExpandedSwimlaneInNode(
+                child,
+                node,
+              );
               if (nestedParent != null) {
                 return nestedParent;
               }
             }
           }
         }
-        
+
         // Продолжаем рекурсивный поиск в дочерних узлах
         if (currentNode.children != null) {
           TableNode? result = findParentRecursive(currentNode.children!);
@@ -721,12 +846,15 @@ class TileManager {
       }
       return null;
     }
-    
+
     return findParentRecursive(state.nodes);
   }
 
   // Вспомогательный метод для поиска родительского swimlane в иерархии конкретного узла
-  TableNode? _findParentExpandedSwimlaneInNode(TableNode parent, TableNode targetNode) {
+  TableNode? _findParentExpandedSwimlaneInNode(
+    TableNode parent,
+    TableNode targetNode,
+  ) {
     if (parent.children != null) {
       for (final child in parent.children!) {
         if (child.id == targetNode.id) {
@@ -734,9 +862,12 @@ class TileManager {
             return parent; // Нашли родительский развернутый swimlane
           }
         }
-        
+
         // Рекурсивно проверяем вложенные узлы
-        TableNode? result = _findParentExpandedSwimlaneInNode(child, targetNode);
+        TableNode? result = _findParentExpandedSwimlaneInNode(
+          child,
+          targetNode,
+        );
         if (result != null) {
           return result;
         }
@@ -833,8 +964,9 @@ class TileManager {
     final Set<int> tilesToUpdate = {};
 
     // Находим все стрелки, связанные с этим узлом (как источник или цель)
-    final arrowsConnectedToNode = state.arrows.where((arrow) =>
-        arrow.source == node.id || arrow.target == node.id).toList();
+    final arrowsConnectedToNode = state.arrows
+        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
+        .toList();
 
     // Для каждой связанной стрелки находим тайлы, в которых она содержится
     for (final arrow in arrowsConnectedToNode) {
@@ -857,8 +989,9 @@ class TileManager {
     final Set<int> tilesToUpdate = {};
 
     // Находим все стрелки, связанные с этим узлом (как источник или цель)
-    final arrowsConnectedToNode = state.arrows.where((arrow) =>
-        arrow.source == node.id || arrow.target == node.id).toList();
+    final arrowsConnectedToNode = state.arrows
+        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
+        .toList();
 
     // Для каждой связанной стрелки находим области, которые она покрывает
     for (final arrow in arrowsConnectedToNode) {
@@ -952,8 +1085,25 @@ class TileManager {
       await _updateTileWithAllContent(tileIndex);
     }
 
-    // Также добавляем стрелки, связанные с этим узлом
-    await addArrowsForNode(node, nodePosition);
+    // Находим все стрелки, связанные с этим узлом
+    final arrowsConnectedToNode = state.arrows
+        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
+        .toList();
+
+    // Для каждой связанной стрелки обновляем ВСЕ тайлы, через которые она проходит
+    for (final arrow in arrowsConnectedToNode) {
+      final arrowTiles = _findTilesForArrow(arrow);
+      for (final tileIndex in arrowTiles) {
+        if (!tilesToUpdate.contains(tileIndex)) {
+          tilesToUpdate.add(tileIndex);
+        }
+      }
+    }
+
+    // Повторно обновляем все затронутые тайлы
+    for (final tileIndex in tilesToUpdate) {
+      await _updateTileWithAllContent(tileIndex);
+    }
 
     onStateUpdate();
   }
@@ -995,12 +1145,13 @@ class TileManager {
           cache: state.nodeBoundsCache,
         );
       }
-      
-      // Рисуем стрелки, если они есть
+
+      // Рисуем стрелки, если они есть (используем ArrowTilePainter)
       if (arrows.isNotEmpty) {
         final arrowTilePainter = ArrowTilePainter(
           arrows: arrows,
-          nodes: state.nodes,
+          nodes:
+              state.nodes, // Используем ВСЕ узлы для правильного расчета путей
           nodeBoundsCache: state.nodeBoundsCache,
         );
         arrowTilePainter.drawArrowsInTile(
@@ -1017,8 +1168,39 @@ class TileManager {
 
       return ImageTile(image: image, bounds: bounds, scale: scale, id: tileId);
     } catch (e) {
+      print('Ошибка создания обновленного тайла: $e');
       return null;
     }
+  }
+
+  // Найти все тайлы, через которые проходит стрелка
+  Set<int> _findTilesForArrow(Arrow arrow) {
+    final Set<int> tileIndices = {};
+
+    final arrowBounds = _getArrowBounds(arrow, state.nodes);
+    if (arrowBounds == null) return tileIndices;
+
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+    final gridXStart = (arrowBounds.left / tileWorldSize).floor();
+    final gridYStart = (arrowBounds.top / tileWorldSize).floor();
+    final gridXEnd = (arrowBounds.right / tileWorldSize).ceil();
+    final gridYEnd = (arrowBounds.bottom / tileWorldSize).ceil();
+
+    // Находим все тайлы в области стрелки
+    for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+      for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+        final left = gridX * tileWorldSize;
+        final top = gridY * tileWorldSize;
+        final tileId = _generateTileId(left, top);
+        final tileIndex = _findTileIndexById(tileId);
+
+        if (tileIndex != null) {
+          tileIndices.add(tileIndex);
+        }
+      }
+    }
+
+    return tileIndices;
   }
 
   /// Добавление детей swimlane в тайлы
@@ -1028,13 +1210,15 @@ class TileManager {
     Set<int> tilesToUpdate,
   ) async {
     // Определяем, является ли swimlane развернутым
-    final isExpanded = swimlaneNode.qType == 'swimlane' && !(swimlaneNode.isCollapsed ?? false);
+    final isExpanded =
+        swimlaneNode.qType == 'swimlane' &&
+        !(swimlaneNode.isCollapsed ?? false);
 
     // Добавляем всех детей в тайлы
     for (final child in swimlaneNode.children!) {
       // Вычисляем мировые координаты ребенка
       // Для развернутого swimlane используем абсолютную позицию ребенка напрямую
-      final childWorldPosition = isExpanded 
+      final childWorldPosition = isExpanded
           ? (child.aPosition ?? (parentWorldPosition + child.position))
           : (child.aPosition ?? (parentWorldPosition + child.position));
 
@@ -1129,7 +1313,7 @@ class TileManager {
     onStateUpdate();
   }
 
-  // Обновление тайла со ВСЕМИ узлами
+  /// Обновление тайла со ВСЕМИ узлами и стрелками
   Future<void> _updateTileWithAllContent(int tileIndex) async {
     if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
       return;
@@ -1142,8 +1326,9 @@ class TileManager {
 
       // Получаем ВСЕ узлы для этого тайла из state.nodes
       final nodesInTile = _getNodesForTile(bounds, state.nodes);
-      
+
       // Получаем ВСЕ стрелки для этого тайла из state.arrows
+      // Важно: учитываем ВСЕ стрелки, а не только те, что связаны с узлами в этом тайле
       final arrowsInTile = ArrowTilePainter.getArrowsForTile(
         tileBounds: bounds,
         allArrows: state.arrows,
@@ -1167,7 +1352,7 @@ class TileManager {
           state.nodeToTiles[node]!.add(tileIndex);
         }
       }
-      
+
       // Если в тайле есть стрелки, обновляем кэш
       if (arrowsInTile.isNotEmpty) {
         state.tileToArrows[tileIndex] = arrowsInTile;
@@ -1179,12 +1364,20 @@ class TileManager {
           }
           state.arrowToTiles[arrow]!.add(tileIndex);
         }
+      } else {
+        // Если стрелок нет, удаляем их из кэша для этого тайла
+        state.tileToArrows.remove(tileIndex);
       }
 
       oldTile.image.dispose();
 
       // Перерисовываем тайл со ВСЕМИ узлами и стрелками
-      final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
+      final newTile = await _createUpdatedTileWithContent(
+        bounds,
+        tileId,
+        nodesInTile,
+        arrowsInTile,
+      );
       if (newTile != null) {
         state.imageTiles[tileIndex] = newTile;
       } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
@@ -1193,7 +1386,9 @@ class TileManager {
       }
 
       onStateUpdate();
-    } catch (e) {}
+    } catch (e) {
+      print('Ошибка обновления тайла $tileIndex: $e');
+    }
   }
 
   Future<void> createFallbackTiles() async {

@@ -1,7 +1,4 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 import '../models/table.node.dart';
 import '../models/arrow.dart';
@@ -157,7 +154,7 @@ class ArrowPainter {
   }
 
   /// Рисование стрелки
-  void _drawArrow({
+ void _drawArrow({
     required Canvas canvas,
     required Rect sourceRect,
     required Rect targetRect,
@@ -166,68 +163,58 @@ class ArrowPainter {
     required bool forTile,
     required ArrowManager arrowManager,
   }) {
-    // Находим точки соединения стрелки
-    final connectionPoints = _calculateConnectionPoints(sourceRect, targetRect, sourceNode, targetNode, arrowManager);
+    final connectionPoints = _calculateConnectionPoints(
+      sourceRect,
+      targetRect,
+      sourceNode,
+      targetNode,
+      arrowManager,
+    );
     
     if (connectionPoints.start == null || connectionPoints.end == null) {
-      return; // Не удалось найти подходящие точки соединения
+      return;
     }
 
     final startPoint = connectionPoints.start!;
     final endPoint = connectionPoints.end!;
 
-    // Создаем путь с отводами от узлов (перпендикулярные отрезки длиной 20)
-    Path? path = _createOrthogonalPathWithPerpendiculars(startPoint, endPoint, sourceRect, targetRect);
+    // Создаем простой путь без проверок пересечений
+    final path = _createSimplePath(startPoint, endPoint, sourceRect, targetRect);
 
-    // Проверяем, не пересекает ли путь другие узлы
-    bool hasIntersection = _orthogonalPathIntersectsOtherNodes(path, [sourceNode.id, targetNode.id]);
-    
-    Path? finalPath;
-    if (hasIntersection) {
-      // Пытаемся найти обходной путь
-      finalPath = _createBypassPath(startPoint, endPoint, [sourceNode.id, targetNode.id]);
-      
-      // Если обходной путь также пересекает узлы, рисуем красную стрелку через узел
-      if (finalPath != null && _orthogonalPathIntersectsOtherNodes(finalPath, [sourceNode.id, targetNode.id])) {
-        // Рисуем красную стрелку через узел
-        finalPath = _createOrthogonalPathWithPerpendiculars(startPoint, endPoint, sourceRect, targetRect);
-        final paint = Paint()
-          ..color = Colors.red
-          ..strokeWidth = 2.0
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.stroke;
-        
-        canvas.drawPath(finalPath, paint);
-        return;
-      }
-    } else {
-      finalPath = path;
-    }
-
-    // Если обходной путь не удалось найти, рисуем красную стрелку через узел
-    if (finalPath == null) {
-      finalPath = _createOrthogonalPathWithPerpendiculars(startPoint, endPoint, sourceRect, targetRect);
-      final paint = Paint()
-        ..color = Colors.red
-        ..strokeWidth = 2.0
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
-      
-      canvas.drawPath(finalPath, paint);
-      return;
-    }
-
-    // Рисуем обычную линию стрелки
+    // Всегда черный цвет
     final paint = Paint()
       ..color = Colors.black
       ..strokeWidth = 1.0
-      ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-
-    canvas.drawPath(finalPath, paint);
+    canvas.drawPath(path, paint);
   }
 
+  // Упрощенный путь
+  Path _createSimplePath(
+    Offset start,
+    Offset end,
+    Rect sourceRect,
+    Rect targetRect,
+  ) {
+    final path = Path();
+    path.moveTo(start.dx, start.dy);
+
+    final dx = end.dx - start.dx;
+    final dy = end.dy - start.dy;
+
+    // Простой путь с одним поворотом
+    if (dx.abs() > dy.abs()) {
+      path.lineTo(end.dx, start.dy);
+      path.lineTo(end.dx, end.dy);
+    } else {
+      path.lineTo(start.dx, end.dy);
+      path.lineTo(end.dx, end.dy);
+    }
+
+    return path;
+  }
+  
   /// Расчет точек соединения для стрелки
   ({Offset? end, Offset? start}) _calculateConnectionPoints(Rect sourceRect, Rect targetRect, TableNode sourceNode, TableNode targetNode, ArrowManager arrowManager) {
     // Определяем центральные точки узлов
@@ -457,10 +444,6 @@ class ArrowPainter {
         return originalPoint;
     }
   }
-  
-
-  
-
 
   /// Проверяет, пересекает ли линия заданный прямоугольник
   bool _lineIntersectsRect(Offset start, Offset end, Rect rect) {
@@ -505,407 +488,6 @@ class ArrowPainter {
   bool _isPointInRect(Offset point, Rect rect) {
     return point.dx >= rect.left && point.dx <= rect.right &&
            point.dy >= rect.top && point.dy <= rect.bottom;
-  }
-
-  /// Проверяет, пересекает ли ортогональный путь другие узлы
-  bool _orthogonalPathIntersectsOtherNodes(Path path, List<String> excludeIds) {
-    // Преобразуем путь в список сегментов (пар точек)
-    final segments = _getPathSegments(path);
-    
-    // Проверяем каждый сегмент на пересечение с другими узлами
-    for (final segment in segments) {
-      if (_segmentIntersectsOtherNodes(segment['start']!, segment['end']!, excludeIds)) {
-        return true;
-      }
-    }
-    
-    return false;
-  }
-
-  /// Извлекает сегменты из пути
-  List<Map<String, Offset?>> _getPathSegments(Path path) {
-    final segments = <Map<String, Offset?>>[];
-    
-    // Используем более точный способ извлечения точек из Path
-    final pathMetrics = path.computeMetrics();
-    
-    for (final metric in pathMetrics) {
-      // Получаем все точки пути с высокой плотностью для точного определения пересечений
-      final pathPoints = _getPathPoints(metric);
-      
-      // Создаем сегменты из соседних точек
-      for (int i = 0; i < pathPoints.length - 1; i++) {
-        final start = pathPoints[i];
-        final end = pathPoints[i + 1];
-        
-        segments.add({
-          'start': start,
-          'end': end,
-        });
-      }
-    }
-    
-    return segments;
-  }
-  
-  /// Вспомогательный метод для получения точек из PathMetric
-  List<Offset> _getPathPoints(PathMetric metric) {
-    final points = <Offset>[];
-    final length = metric.length;
-    const step = 10.0; // Шаг между точками
-    
-    for (double distance = 0; distance <= length; distance += step) {
-      try {
-        final position = metric.getTangentForOffset(distance)?.position;
-        if (position != null) {
-          points.add(position);
-        }
-      } catch (e) {
-        // Пропускаем ошибки при получении точки
-      }
-    }
-    
-    return points;
-  }
-
-  /// Проверяет, пересекает ли сегмент другие узлы
-  bool _segmentIntersectsOtherNodes(Offset start, Offset end, List<String> excludeIds) {
-    // Простая проверка: проверяем пересечение с границами других узлов
-    
-    bool checkIntersections(List<TableNode> nodeList) {
-      for (final node in nodeList) {
-        if (excludeIds.contains(node.id)) continue; // Пропускаем исключенные узлы
-
-        // Получаем границы узла
-        final nodeRect = nodeBoundsCache[node] ??
-            Rect.fromLTWH(node.position.dx, node.position.dy, node.size.width, node.size.height);
-
-        // Проверяем пересечение сегмента от start до end с прямоугольником узла
-        if (_lineIntersectsRect(start, end, nodeRect)) {
-          return true;
-        }
-
-        // Проверяем пересечения с детьми узла
-        if (node.children != null) {
-          if (checkIntersections(node.children!)) {
-            return true;
-          }
-        }
-      }
-      return false;
-    }
-
-    return checkIntersections(nodes);
-  }
-
-  /// Создание обходного пути при наличии пересечений
-  Path? _createBypassPath(Offset start, Offset end, List<String> excludeIds) {
-    // Ищем возможные обходные пути, обходя узлы по кратчайшему пути
-    // Проверяем обход сверху, снизу, слева и справа от препятствий
-    
-    // Сначала найдем все узлы, которые пересекаются с прямым путем
-    final intersectingNodes = _findIntersectingNodes(start, end, excludeIds);
-    
-    if (intersectingNodes.isEmpty) {
-      // Если нет пересекающихся узлов, используем стандартный путь с перпендикулярами
-      return _createOrthogonalPathWithPerpendiculars(start, end, 
-          Rect.fromCenter(center: start, width: 1, height: 1), 
-          Rect.fromCenter(center: end, width: 1, height: 1));
-    }
-    
-    // Попробуем несколько вариантов обхода:
-    // 1. Обход через среднюю точку с отклонением вверх/вниз
-    // 2. Обход через среднюю точку с отклонением влево/вправо
-    // 3. Обход по внешней стороне препятствия
-    
-    // Путь с перпендикулярами
-    Offset startDir = _getExitDirection(start, Rect.fromCenter(center: start, width: 1, height: 1));
-    Offset endDir = _getEntryDirection(end, Rect.fromCenter(center: end, width: 1, height: 1));
-    
-    final perpStart = Offset(start.dx + startDir.dx * 20, start.dy + startDir.dy * 20);
-    final perpEnd = Offset(end.dx - endDir.dx * 20, end.dy - endDir.dy * 20);
-    
-    final pathsToTry = <Path>[];
-    
-    // Вариант 1: горизонтальный путь с вертикальным отклонением
-    Path horizontalPath = Path();
-    horizontalPath.moveTo(start.dx, start.dy);
-    
-    // Найдем среднюю X координату
-    final midX = (perpStart.dx + perpEnd.dx) / 2;
-    
-    horizontalPath.lineTo(perpStart.dx, perpStart.dy);
-    horizontalPath.lineTo(midX, perpStart.dy);
-    horizontalPath.lineTo(midX, perpEnd.dy);
-    horizontalPath.lineTo(perpEnd.dx, perpEnd.dy);
-    horizontalPath.lineTo(end.dx, end.dy);
-    
-    pathsToTry.add(horizontalPath);
-    
-    // Вариант 2: вертикальный путь с горизонтальным отклонением
-    Path verticalPath = Path();
-    verticalPath.moveTo(start.dx, start.dy);
-    
-    // Найдем среднюю Y координату
-    final midY = (perpStart.dy + perpEnd.dy) / 2;
-    
-    verticalPath.lineTo(perpStart.dx, perpStart.dy);
-    verticalPath.lineTo(perpStart.dx, midY);
-    verticalPath.lineTo(perpEnd.dx, midY);
-    verticalPath.lineTo(perpEnd.dx, perpEnd.dy);
-    verticalPath.lineTo(end.dx, end.dy);
-    
-    pathsToTry.add(verticalPath);
-    
-    // Проверим стандартные пути на наличие пересечений
-    for (final path in pathsToTry) {
-      if (!_orthogonalPathIntersectsOtherNodes(path, excludeIds)) {
-        return path; // Нашли путь без пересечений
-      }
-    }
-    
-    // Если стандартные пути не работают, пробуем пути с отклонениями
-    final bypassPaths = <Path>[];
-    
-    // Найдем границы пересекающихся узлов для определения отклонений
-    double topBoundary = double.infinity;
-    double bottomBoundary = double.negativeInfinity;
-    double leftBoundary = double.infinity;
-    double rightBoundary = double.negativeInfinity;
-    
-    for (final node in intersectingNodes) {
-      final nodeRect = nodeBoundsCache[node] ?? 
-          Rect.fromLTWH(node.position.dx, node.position.dy, node.size.width, node.size.height);
-      
-      topBoundary = math.min(topBoundary, nodeRect.top);
-      bottomBoundary = math.max(bottomBoundary, nodeRect.bottom);
-      leftBoundary = math.min(leftBoundary, nodeRect.left);
-      rightBoundary = math.max(rightBoundary, nodeRect.right);
-    }
-    
-    // Вариант 3: отклонение над препятствиями
-    Path abovePath = Path();
-    abovePath.moveTo(start.dx, start.dy);
-    abovePath.lineTo(perpStart.dx, perpStart.dy);
-    
-    // Выберем Y координату выше всех препятствий
-    final aboveY = topBoundary - 40; // Отступ в 40 пикселей над препятствиями
-    
-    // Путь: начальная точка -> перпендикуляр -> над препятствиями -> перпендикуляр к цели -> конечная точка
-    abovePath.lineTo(perpStart.dx, aboveY);  // Вертикаль вверх от перпендикуляра начала
-    abovePath.lineTo(perpEnd.dx, aboveY);    // Горизонталь к перпендикуляру конца
-    abovePath.lineTo(perpEnd.dx, perpEnd.dy);  // Вертикаль к перпендикуляру конца
-    abovePath.lineTo(end.dx, end.dy);  // Завершение
-    
-    bypassPaths.add(abovePath);
-    
-    // Вариант 4: отклонение под препятствиями
-    Path belowPath = Path();
-    belowPath.moveTo(start.dx, start.dy);
-    belowPath.lineTo(perpStart.dx, perpStart.dy);
-    
-    // Выберем Y координату ниже всех препятствий
-    final belowY = bottomBoundary + 40; // Отступ в 40 пикселей под препятствиями
-    
-    belowPath.lineTo(perpStart.dx, belowY);  // Вертикаль вниз от перпендикуляра начала
-    belowPath.lineTo(perpEnd.dx, belowY);    // Горизонталь к перпендикуляру конца
-    belowPath.lineTo(perpEnd.dx, perpEnd.dy);  // Вертикаль к перпендикуляру конца
-    belowPath.lineTo(end.dx, end.dy);  // Завершение
-    
-    bypassPaths.add(belowPath);
-    
-    // Вариант 5: отклонение слева от препятствий
-    Path leftPath = Path();
-    leftPath.moveTo(start.dx, start.dy);
-    leftPath.lineTo(perpStart.dx, perpStart.dy);
-    
-    // Выберем X координату левее всех препятствий
-    final leftX = leftBoundary - 40; // Отступ в 40 пикселей слева от препятствий
-    
-    leftPath.lineTo(leftX, perpStart.dy);  // Горизонталь влево от перпендикуляра начала
-    leftPath.lineTo(leftX, perpEnd.dy);    // Горизонталь к перпендикуляру конца
-    leftPath.lineTo(perpEnd.dx, perpEnd.dy);  // Вертикаль к перпендикуляру конца
-    leftPath.lineTo(end.dx, end.dy);  // Завершение
-    
-    bypassPaths.add(leftPath);
-    
-    // Вариант 6: отклонение справа от препятствий
-    Path rightPath = Path();
-    rightPath.moveTo(start.dx, start.dy);
-    rightPath.lineTo(perpStart.dx, perpStart.dy);
-    
-    // Выберем X координату правее всех препятствий
-    final rightX = rightBoundary + 40; // Отступ в 40 пикселей справа от препятствий
-    
-    rightPath.lineTo(rightX, perpStart.dy);  // Горизонталь вправо от перпендикуляра начала
-    rightPath.lineTo(rightX, perpEnd.dy);    // Горизонталь к перпендикуляру конца
-    rightPath.lineTo(perpEnd.dx, perpEnd.dy);  // Вертикаль к перпендикуляру конца
-    rightPath.lineTo(end.dx, end.dy);  // Завершение
-    
-    bypassPaths.add(rightPath);
-    
-    // Проверим обходные пути на наличие пересечений
-    for (final path in bypassPaths) {
-      if (!_orthogonalPathIntersectsOtherNodes(path, excludeIds)) {
-        return path; // Нашли обходной путь без пересечений
-      }
-    }
-    
-    // Если ни один из путей не подходит, возвращаем null
-    return null;
-  }
-
-  /// Находит узлы, которые пересекаются с прямым путем между двумя точками
-  List<TableNode> _findIntersectingNodes(Offset start, Offset end, List<String> excludeIds) {
-    final intersectingNodes = <TableNode>[];
-
-    void checkNodeIntersections(List<TableNode> nodeList) {
-      for (final node in nodeList) {
-        if (excludeIds.contains(node.id)) continue; // Пропускаем исключенные узлы
-
-        // Получаем границы узла
-        final nodeRect = nodeBoundsCache[node] ??
-            Rect.fromLTWH(node.position.dx, node.position.dy, node.size.width, node.size.height);
-
-        // Проверяем пересечение прямой линии от start до end с прямоугольником узла
-        if (_lineIntersectsRect(start, end, nodeRect)) {
-          intersectingNodes.add(node);
-        }
-
-        // Проверяем пересечения с детьми узла
-        if (node.children != null) {
-          checkNodeIntersections(node.children!);
-        }
-      }
-    }
-
-    checkNodeIntersections(nodes);
-
-    return intersectingNodes;
-  }
-
-  /// Создание ортогонального пути с перпендикулярными отводами от узлов и максимум одним поворотом
-  Path _createOrthogonalPathWithPerpendiculars(Offset start, Offset end, Rect sourceRect, Rect targetRect) {
-    final path = Path();
-    path.moveTo(start.dx, start.dy);
-
-    // Определяем направление выхода из начальной точки (от стороны узла)
-    // Это зависит от того, с какой стороны выходит соединение
-    Offset directionVector = _getExitDirection(start, sourceRect);
-    
-    // Создаем первый перпендикулярный отрезок длиной 20 от начальной точки (вместо 20)
-    final perpStart = Offset(
-      start.dx + directionVector.dx * 20,
-      start.dy + directionVector.dy * 20
-    );
-    
-    // Определяем направление входа в конечную точку (к стороне узла)
-    Offset targetDirectionVector = _getEntryDirection(end, targetRect);
-    
-    // Создаем последний перпендикулярный отрезок длиной 20 до конечной точки (вместо 20)
-    final perpEnd = Offset(
-      end.dx - targetDirectionVector.dx * 20,
-      end.dy - targetDirectionVector.dy * 20
-    );
-    
-    // Рисуем путь: старт -> перпендиклярный отрезок -> основная часть -> перпендикуляр к цели -> конец
-    path.lineTo(perpStart.dx, perpStart.dy);
-    
-    // Создаем ортогональный путь с максимум одним поворотом
-    // Выбираем направление поворота так, чтобы минимизировать количество изгибов
-    
-    // Если точки уже на одной линии (по X или Y), соединяем напрямую
-    if (perpStart.dx == perpEnd.dx || perpStart.dy == perpEnd.dy) {
-      // Если перпендикулярные точки уже на одной линии, соединяем напрямую
-      path.lineTo(perpEnd.dx, perpEnd.dy);
-    } else {
-      // Для минимизации изгибов, создаем только один поворот
-      // Определяем, сначала двигаться по горизонтали или по вертикали
-      
-      // Вычисляем разницу между координатами
-      double deltaX = perpEnd.dx - perpStart.dx;
-      double deltaY = perpEnd.dy - perpStart.dy;
-      
-      // Выбираем направление, где расстояние больше, для первого отрезка
-      if (deltaX.abs() > deltaY.abs()) {
-        // Сначала движемся по горизонтали (по оси X), потом по вертикали
-        path.lineTo(perpEnd.dx, perpStart.dy); // Горизонтальный отрезок
-        path.lineTo(perpEnd.dx, perpEnd.dy);   // Вертикальный отрезок
-      } else {
-        // Сначала движемся по вертикали (по оси Y), потом по горизонтали
-        path.lineTo(perpStart.dx, perpEnd.dy); // Вертикальный отрезок
-        path.lineTo(perpEnd.dx, perpEnd.dy);   // Горизонтальный отрезок
-      }
-    }
-    
-    // Завершаем путь до конечной точки
-    path.lineTo(end.dx, end.dy);
-
-    return path;
-  }
-  
-  /// Определяет направление выхода из стороны узла
-  Offset _getExitDirection(Offset point, Rect rect) {
-    // Определяем, с какой стороны узла находится точка (с учетом, что точки теперь снаружи)
-    // Сравниваем расстояния до разных сторон и выбираем ближайшую
-    double leftDist = (point.dx - rect.left).abs();
-    double rightDist = (point.dx - rect.right).abs();
-    double topDist = (point.dy - rect.top).abs();
-    double bottomDist = (point.dy - rect.bottom).abs();
-    
-    // Находим минимальное расстояние
-    double minDist = leftDist;
-    String closestSide = 'left';
-    
-    if (rightDist < minDist) { minDist = rightDist; closestSide = 'right'; }
-    if (topDist < minDist) { minDist = topDist; closestSide = 'top'; }
-    if (bottomDist < minDist) { minDist = bottomDist; closestSide = 'bottom'; }
-    
-    // Возвращаем направление, противоположное стороне (т.к. точка снаружи)
-    switch(closestSide) {
-      case 'left':
-        return const Offset(-1, 0); // выход влево от левой стороны
-      case 'right':
-        return const Offset(1, 0);  // выход вправо от правой стороны
-      case 'top':
-        return const Offset(0, -1); // выход вверх от верхней стороны
-      case 'bottom':
-        return const Offset(0, 1);  // выход вниз от нижней стороны
-      default:
-        return const Offset(1, 0);  // fallback
-    }
-  }
-  
-  /// Определяет направление входа в сторону узла
-  Offset _getEntryDirection(Offset point, Rect rect) {
-    // Определяем, с какой стороны узла находится точка (с учетом, что точки теперь снаружи)
-    // Сравниваем расстояния до разных сторон и выбираем ближайшую
-    double leftDist = (point.dx - rect.left).abs();
-    double rightDist = (point.dx - rect.right).abs();
-    double topDist = (point.dy - rect.top).abs();
-    double bottomDist = (point.dy - rect.bottom).abs();
-    
-    // Находим минимальное расстояние
-    double minDist = leftDist;
-    String closestSide = 'left';
-    
-    if (rightDist < minDist) { minDist = rightDist; closestSide = 'right'; }
-    if (topDist < minDist) { minDist = topDist; closestSide = 'top'; }
-    if (bottomDist < minDist) { minDist = bottomDist; closestSide = 'bottom'; }
-    
-    // Возвращаем направление, которое указывает на узел (т.к. точка снаружи, а стрелка идет внутрь)
-    switch(closestSide) {
-      case 'left':
-        return const Offset(1, 0);  // вход справа на левую сторону
-      case 'right':
-        return const Offset(-1, 0); // вход слева на правую сторону
-      case 'top':
-        return const Offset(0, 1);  // вход снизу на верхнюю сторону
-      case 'bottom':
-        return const Offset(0, -1); // вход сверху на нижнюю сторону
-      default:
-        return const Offset(-1, 0); // fallback
-    }
   }
   
 }
