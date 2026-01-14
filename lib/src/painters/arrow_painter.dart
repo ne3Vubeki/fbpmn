@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'dart:math' as math;
 
 import '../models/table.node.dart';
@@ -317,7 +316,7 @@ class ArrowPainter {
     }
     
     // Находим индекс текущей связи среди всех связей, подключенных к этой стороне
-    int index = arrowManager.getConnectionIndex(this.arrow, nodeId, side);
+    int index = arrowManager.getConnectionIndex(arrow, nodeId, side);
     
     // Рассчитываем смещение для равномерного распределения
     double offset = 0.0;
