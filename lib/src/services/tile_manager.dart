@@ -772,7 +772,7 @@ class TileManager {
 
             if (existingTileIndex == null) {
               // Создаем новый тайл в этой позиции
-              await _createNewTileAtPosition(left, top, node, []);
+              await _createNewTileAtPosition(left, top, node);
             } else {
               // Добавляем тайл в список для обновления
               tilesToUpdate.add(existingTileIndex);
@@ -845,73 +845,6 @@ class TileManager {
     onStateUpdate();
   }
 
-  /// Добавление детей swimlane в тайлы
-  Future<void> _addSwimlaneChildrenToTiles(
-    TableNode swimlaneNode,
-  // Обновление тайла со ВСЕМИ узлами и стрелками
-  Future<void> _updateTileWithAllContent(int tileIndex) async {
-    if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
-      return;
-    }
-
-    try {
-      final oldTile = state.imageTiles[tileIndex];
-      final tileId = oldTile.id;
-      final bounds = oldTile.bounds;
-
-      // Получаем ВСЕ узлы и стрелки для этого тайла из state.nodes и state.arrows
-      final nodesInTile = _getNodesForTile(bounds, state.nodes);
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: bounds,
-        allArrows: state.arrows,
-        allNodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
-
-      // Очищаем старый кэш для этого тайла
-      state.tileToNodes.remove(tileIndex);
-      state.tileToArrows.remove(tileIndex);
-
-      // Если в тайле есть узлы или стрелки, обновляем кэш
-      if (nodesInTile.isNotEmpty) {
-        state.tileToNodes[tileIndex] = nodesInTile;
-
-        // Обновляем кэш nodeToTiles для всех узлов в тайле
-        for (final node in nodesInTile) {
-          if (!state.nodeToTiles.containsKey(node)) {
-            state.nodeToTiles[node] = {};
-          }
-          state.nodeToTiles[node]!.add(tileIndex);
-        }
-      }
-      
-      if (arrowsInTile.isNotEmpty) {
-        state.tileToArrows[tileIndex] = arrowsInTile;
-
-        // Обновляем кэш arrowToTiles для всех стрелок в тайле
-        for (final arrow in arrowsInTile) {
-          if (!state.arrowToTiles.containsKey(arrow)) {
-            state.arrowToTiles[arrow] = {};
-          }
-          state.arrowToTiles[arrow]!.add(tileIndex);
-        }
-      }
-
-      oldTile.image.dispose();
-
-      // Перерисовываем тайл со ВСЕМИ узлами и стрелками
-      final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
-      if (newTile != null) {
-        state.imageTiles[tileIndex] = newTile;
-      } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
-        // Если тайл пустой, удаляем его
-        await _removeTile(tileId);
-      }
-
-      onStateUpdate();
-    } catch (e) {}
-  }
-
   // Создание обновленного тайла с узлами и стрелками
   Future<ImageTile?> _createUpdatedTileWithContent(
     Rect bounds,
@@ -981,9 +914,6 @@ class TileManager {
     Offset parentWorldPosition,
     Set<int> tilesToUpdate,
   ) async {
-      return;
-    }
-
     // Определяем, является ли swimlane развернутым
     final isExpanded = swimlaneNode.qType == 'swimlane' && !(swimlaneNode.isCollapsed ?? false);
 
@@ -1045,7 +975,7 @@ class TileManager {
 
       // Создаем новый тайл со ВСЕМИ узлами в этой области
       // Используем state.nodes (все узлы, включая только что добавленный)
-      final tile = await _createTileAtPosition(left, top, state.nodes);
+      final tile = await _createTileAtPosition(left, top, state.nodes, []);
 
       if (tile != null) {
         state.imageTiles.add(tile);

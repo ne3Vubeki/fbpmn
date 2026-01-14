@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
-import 'arrow_painter.dart';
 
 class HierarchicalGridPainter extends CustomPainter {
   final double scale;
@@ -60,15 +59,6 @@ class HierarchicalGridPainter extends CustomPainter {
 
     // 5. Рисуем видимые тайлы
     _drawVisibleTiles(
-      canvas,
-      visibleLeft,
-      visibleTop,
-      visibleRight,
-      visibleBottom,
-    );
-
-    // 6. Рисуем стрелки
-    _drawArrows(
       canvas,
       visibleLeft,
       visibleTop,
@@ -244,39 +234,6 @@ class HierarchicalGridPainter extends CustomPainter {
 
     for (double y = startY; y <= endY; y += cellSize) {
       canvas.drawLine(Offset(left, y), Offset(right, y), paint);
-    }
-  }
-
-  // Рисуем стрелки
-  void _drawArrows(
-    Canvas canvas,
-    double visibleLeft,
-    double visibleTop,
-    double visibleRight,
-    double visibleBottom,
-  ) {
-    final visibleRect = Rect.fromLTRB(
-      visibleLeft,
-      visibleTop,
-      visibleRight,
-      visibleBottom,
-    );
-
-    // Рисуем все стрелки
-    for (final arrow in arrows) {
-      final arrowPainter = ArrowPainter(
-        arrow: arrow,
-        nodes: nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
-      
-      arrowPainter.paintWithOffset(
-        canvas: canvas,
-        baseOffset: state.delta,
-        visibleBounds: visibleRect,
-        allArrows: arrows,
-        forTile: false,
-      );
     }
   }
 
