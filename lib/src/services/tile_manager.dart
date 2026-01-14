@@ -155,16 +155,16 @@ class TileManager {
 
   // Получить границы стрелки
   Rect? _getArrowBounds(Arrow arrow, List<TableNode> allNodes) {
-    // Находим узлы-источник и цель
+    // Находим эффективные узлы-источник и цель (учитываем свернутые swimlane)
     TableNode? sourceNode;
     TableNode? targetNode;
     
     void findNodes(List<TableNode> nodes) {
       for (final node in nodes) {
         if (node.id == arrow.source) {
-          sourceNode = node;
+          sourceNode = _getEffectiveNode(node, allNodes);
         } else if (node.id == arrow.target) {
-          targetNode = node;
+          targetNode = _getEffectiveNode(node, allNodes);
         }
         
         if (sourceNode != null && targetNode != null) {
@@ -199,6 +199,122 @@ class TileManager {
     
     // Определяем приблизительную область стрелки (между узлами)
     return sourceRect.expandToInclude(targetRect).inflate(20); // Добавляем небольшой отступ
+  }
+
+  // Получить эффективный узел для стрелки, учитывая свернутые swimlane
+  TableNode? _getEffectiveNode(TableNode node, List<TableNode> allNodes) {
+    // Если узел является дочерним для свернутого swimlane, вернуть родительский swimlane
+    if (node.parent != null) {
+      // Найти родителя узла
+      TableNode? findParent(List<TableNode> nodes) {
+        for (final n in nodes) {
+          if (n.id == node.parent) {
+            return n;
+          }
+          
+          if (n.children != null) {
+            final result = findParent(n.children!);
+            if (result != null) {
+              return result;
+            }
+          }
+        }
+        return null;
+      }
+      
+      final parent = findParent(allNodes);
+      if (parent != null && 
+          parent.qType == 'swimlane' && 
+          (parent.isCollapsed ?? false)) {
+        return parent; // Вернуть свернутый swimlane вместо дочернего узла
+      }
+    }
+
+    return node;
+  }
+
+  // Создание тайлов для областей без тайлов между узлами
+  Future<void> createMissingTilesForArrows() async {
+    final List<ImageTile> newTiles = [];
+    final Set<String> createdTileIds = {};
+
+    // Для каждой стрелки проверяем, есть ли тайлы между узлами
+    for (final arrow in state.arrows) {
+      final arrowBounds = _getArrowBounds(arrow, state.nodes);
+      if (arrowBounds != null) {
+        final tileWorldSize = EditorConfig.tileSize.toDouble();
+        final gridXStart = (arrowBounds.left / tileWorldSize).floor();
+        final gridYStart = (arrowBounds.top / tileWorldSize).floor();
+        final gridXEnd = (arrowBounds.right / tileWorldSize).ceil();
+        final gridYEnd = (arrowBounds.bottom / tileWorldSize).ceil();
+
+        // Создаем тайлы для всех grid позиций, которые пересекает стрелка
+        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            final tileId = _generateTileId(left, top);
+
+            if (!createdTileIds.contains(tileId)) {
+              // Проверяем, существует ли уже тайл с такими координатами
+              bool tileExists = false;
+              for (final existingTile in state.imageTiles) {
+                if (existingTile.id == tileId) {
+                  tileExists = true;
+                  break;
+                }
+              }
+
+              if (!tileExists) {
+                // Создаем новый тайл в этой позиции
+                final tile = await _createTileAtPosition(left, top, state.nodes, state.arrows);
+                if (tile != null) {
+                  newTiles.add(tile);
+                  createdTileIds.add(tileId);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Добавляем новые тайлы к существующим
+    state.imageTiles.addAll(newTiles);
+    
+    // Обновляем маппинги для новых тайлов
+    for (int i = state.imageTiles.length - newTiles.length; i < state.imageTiles.length; i++) {
+      final tile = state.imageTiles[i];
+      final nodesInTile = _getNodesForTile(tile.bounds, state.nodes);
+      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+        tileBounds: tile.bounds,
+        allArrows: state.arrows,
+        allNodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      if (nodesInTile.isNotEmpty) {
+        state.tileToNodes[i] = nodesInTile;
+        for (final node in nodesInTile) {
+          if (!state.nodeToTiles.containsKey(node)) {
+            state.nodeToTiles[node] = <int>{};
+          }
+          state.nodeToTiles[node]!.add(i);
+        }
+      }
+      
+      if (arrowsInTile.isNotEmpty) {
+        state.tileToArrows[i] = arrowsInTile;
+        for (final arrow in arrowsInTile) {
+          if (!state.arrowToTiles.containsKey(arrow)) {
+            state.arrowToTiles[arrow] = <int>{};
+          }
+          state.arrowToTiles[arrow]!.add(i);
+        }
+      }
+    }
+
+    onStateUpdate();
   }
 
   // Генерация ID тайла на основе мировых координат
@@ -1004,6 +1120,9 @@ class TileManager {
   Future<void> updateTilesAfterNodeChange() async {
     // Пересоздаем тайлы с текущими узлами
     await createTiledImage(state.nodes);
+
+    // Создаем недостающие тайлы для стрелок, если есть области без тайлов
+    await createMissingTilesForArrows();
 
     // Уведомляем об изменении
     onStateUpdate();

@@ -73,37 +73,37 @@ class ArrowManager {
 
   /// Определить сторону, к которой стрелка подключена к узлу (для источника или цели)
   String getSideForConnection(Arrow arrow, bool isSource) {
-    // Находим узлы источника и цели
-    final sourceNode = _findNodeById(arrow.source);
-    final targetNode = _findNodeById(arrow.target);
+    // Находим эффективные узлы источника и цели (учитываем свернутые swimlane)
+    final effectiveSourceNode = _findEffectiveNodeById(arrow.source);
+    final effectiveTargetNode = _findEffectiveNodeById(arrow.target);
     
-    if (sourceNode == null || targetNode == null) {
+    if (effectiveSourceNode == null || effectiveTargetNode == null) {
       return 'top'; // запасной вариант
     }
     
     // Получаем абсолютные позиции узлов
-    final sourceAbsolutePos = sourceNode.aPosition ?? sourceNode.position;
-    final targetAbsolutePos = targetNode.aPosition ?? targetNode.position;
+    final sourceAbsolutePos = effectiveSourceNode.aPosition ?? effectiveSourceNode.position;
+    final targetAbsolutePos = effectiveTargetNode.aPosition ?? effectiveTargetNode.position;
     
     // Создаем прямоугольники для узлов
     final sourceRect = Rect.fromPoints(
       sourceAbsolutePos,
       Offset(
-        sourceAbsolutePos.dx + sourceNode.size.width,
-        sourceAbsolutePos.dy + sourceNode.size.height,
+        sourceAbsolutePos.dx + effectiveSourceNode.size.width,
+        sourceAbsolutePos.dy + effectiveSourceNode.size.height,
       ),
     );
     
     final targetRect = Rect.fromPoints(
       targetAbsolutePos,
       Offset(
-        targetAbsolutePos.dx + targetNode.size.width,
-        targetAbsolutePos.dy + targetNode.size.height,
+        targetAbsolutePos.dx + effectiveTargetNode.size.width,
+        targetAbsolutePos.dy + effectiveTargetNode.size.height,
       ),
     );
     
     // Вычисляем точки соединения
-    final connectionPoints = _calculateConnectionPoints(sourceRect, targetRect, sourceNode, targetNode);
+    final connectionPoints = _calculateConnectionPoints(sourceRect, targetRect, effectiveSourceNode, effectiveTargetNode);
     
     if (isSource) {
       return _getSideFromPoint(connectionPoints.start!, sourceRect);
@@ -115,6 +115,24 @@ class ArrowManager {
   /// Найти узел по ID, включая вложенные узлы
   TableNode? _findNodeById(String id) {
     return _findNodeByIdRecursive(nodes, id);
+  }
+
+  /// Найти эффективный узел по ID, учитывая свернутые swimlane
+  TableNode? _findEffectiveNodeById(String id) {
+    final node = _findNodeById(id);
+    if (node == null) return null;
+
+    // Если узел является дочерним для свернутого swimlane, вернуть родительский swimlane
+    if (node.parent != null) {
+      final parent = _findNodeById(node.parent!);
+      if (parent != null && 
+          parent.qType == 'swimlane' && 
+          (parent.isCollapsed ?? false)) {
+        return parent; // Вернуть свернутый swimlane вместо дочернего узла
+      }
+    }
+
+    return node;
   }
 
   /// Рекурсивный поиск узла по ID
