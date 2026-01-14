@@ -188,28 +188,28 @@ class ArrowPainter {
     // Определяем исходную сторону (откуда выходит связь)
     if (dx < 0 && dy < 0 && dx.abs() > 20 && sourceCenter.dy < targetTop - 20) {
       // середина высоты узла источника находится слева и выше на >20 верха узла цели
-      startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-      endConnectionPoint = Offset(targetCenter.dx, targetTop + 6);
+      startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
     } else if (dx < 0 && dy > 0 && dx.abs() > 40 && sourceCenter.dy > targetTop + 20) {
       // середина высоты узла источника находится слева (расстояние между узлами более 40 по x) и ниже верха+20 узла цели
-      startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-      endConnectionPoint = Offset(targetLeft + 6, targetCenter.dy);
+      startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
     } else if (dx < 0 && dy > 0 && dx.abs() <= 40 && sourceCenter.dy > targetTop + 20) {
       // середина высоты узла источника находится слева (расстояние между узлами менее 40 по x) и ниже верха+20 узла цели
-      startConnectionPoint = Offset(sourceCenter.dx, sourceTop + 6);
-      endConnectionPoint = Offset(targetCenter.dx, targetTop + 6);
+      startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);    // Изменено: -6 для отступа наружу
+      endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
     } else if (dx < 0 && dy > 0 && sourceCenter.dy > targetBottom + 20) {
       // середина высоты узла источника находится слева и ниже >20 низа узла цели
-      startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-      endConnectionPoint = Offset(targetCenter.dx, targetBottom - 6);
+      startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
     } else if (dx < 0 && dy > 0 && dx.abs() > 40 && sourceCenter.dy > targetBottom - 20) {
       // середина высоты узла источника находится слева (расстояние между узлами более 40 по x) и ниже <20 низа узла цели
-      startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-      endConnectionPoint = Offset(targetLeft + 6, targetCenter.dy);
+      startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
     } else if (dx < 0 && dy > 0 && dx.abs() <= 40 && sourceCenter.dy > targetBottom - 20) {
       // середина высоты узла источника находится слева (расстояние между узлами менее 40 по x) и ниже <20 низа узла цели
-      startConnectionPoint = Offset(sourceCenter.dx, sourceBottom - 6);
-      endConnectionPoint = Offset(targetCenter.dx, targetBottom - 6);
+      startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6); // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
     } else {
       // Для других случаев используем алгоритм по аналогии
       // Определяем основное направление связи
@@ -217,23 +217,23 @@ class ArrowPainter {
         // Горизонтальное направление преобладает
         if (dx > 0) {
           // Справа
-          startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-          endConnectionPoint = Offset(targetLeft + 6, targetCenter.dy);
+          startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+          endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
         } else {
           // Слева
-          startConnectionPoint = Offset(sourceLeft + 6, sourceCenter.dy);
-          endConnectionPoint = Offset(targetRight - 6, targetCenter.dy);
+          startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);   // Изменено: -6 для отступа наружу
+          endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);    // Изменено: +6 для отступа наружу
         }
       } else {
         // Вертикальное направление преобладает
         if (dy > 0) {
           // Вниз
-          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom - 6);
-          endConnectionPoint = Offset(targetCenter.dx, targetTop + 6);
+          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6); // Изменено: +6 для отступа наружу
+          endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
         } else {
           // Вверх
-          startConnectionPoint = Offset(sourceCenter.dx, sourceTop + 6);
-          endConnectionPoint = Offset(targetCenter.dx, targetBottom - 6);
+          startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);    // Изменено: -6 для отступа наружу
+          endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
         }
       }
     }
@@ -251,15 +251,21 @@ class ArrowPainter {
 
   /// Определяет сторону узла, к которой принадлежит точка
   String _getSideFromPoint(Offset point, Rect rect) {
-    if ((point.dx - rect.left).abs() < 1) {
-      return 'left';
-    } else if ((point.dx - rect.right).abs() < 1) {
-      return 'right';
-    } else if ((point.dy - rect.top).abs() < 1) {
-      return 'top';
-    } else {
-      return 'bottom';
-    }
+    // Сравниваем расстояния до разных сторон и выбираем ближайшую
+    double leftDist = (point.dx - rect.left).abs();
+    double rightDist = (point.dx - rect.right).abs();
+    double topDist = (point.dy - rect.top).abs();
+    double bottomDist = (point.dy - rect.bottom).abs();
+    
+    // Находим минимальное расстояние
+    double minDist = leftDist;
+    String closestSide = 'left';
+    
+    if (rightDist < minDist) { minDist = rightDist; closestSide = 'right'; }
+    if (topDist < minDist) { minDist = topDist; closestSide = 'top'; }
+    if (bottomDist < minDist) { minDist = bottomDist; closestSide = 'bottom'; }
+    
+    return closestSide;
   }
 
   /// Распределяет точки соединения по стороне с шагом 10
@@ -732,37 +738,65 @@ class ArrowPainter {
   
   /// Определяет направление выхода из стороны узла
   Offset _getExitDirection(Offset point, Rect rect) {
-    // Определяем, с какой стороны узла находится точка
-    if ((point.dx - rect.left).abs() < 1) {
-      // Левая сторона - выход влево
-      return const Offset(-1, 0);
-    } else if ((point.dx - rect.right).abs() < 1) {
-      // Правая сторона - выход вправо
-      return const Offset(1, 0);
-    } else if ((point.dy - rect.top).abs() < 1) {
-      // Верхняя сторона - выход вверх
-      return const Offset(0, -1);
-    } else {
-      // Нижняя сторона - выход вниз
-      return const Offset(0, 1);
+    // Определяем, с какой стороны узла находится точка (с учетом, что точки теперь снаружи)
+    // Сравниваем расстояния до разных сторон и выбираем ближайшую
+    double leftDist = (point.dx - rect.left).abs();
+    double rightDist = (point.dx - rect.right).abs();
+    double topDist = (point.dy - rect.top).abs();
+    double bottomDist = (point.dy - rect.bottom).abs();
+    
+    // Находим минимальное расстояние
+    double minDist = leftDist;
+    String closestSide = 'left';
+    
+    if (rightDist < minDist) { minDist = rightDist; closestSide = 'right'; }
+    if (topDist < minDist) { minDist = topDist; closestSide = 'top'; }
+    if (bottomDist < minDist) { minDist = bottomDist; closestSide = 'bottom'; }
+    
+    // Возвращаем направление, противоположное стороне (т.к. точка снаружи)
+    switch(closestSide) {
+      case 'left':
+        return const Offset(-1, 0); // выход влево от левой стороны
+      case 'right':
+        return const Offset(1, 0);  // выход вправо от правой стороны
+      case 'top':
+        return const Offset(0, -1); // выход вверх от верхней стороны
+      case 'bottom':
+        return const Offset(0, 1);  // выход вниз от нижней стороны
+      default:
+        return const Offset(1, 0);  // fallback
     }
   }
   
   /// Определяет направление входа в сторону узла
   Offset _getEntryDirection(Offset point, Rect rect) {
-    // Определяем, с какой стороны узла находится точка
-    if ((point.dx - rect.left).abs() < 1) {
-      // Левая сторона - вход слева
-      return const Offset(-1, 0);
-    } else if ((point.dx - rect.right).abs() < 1) {
-      // Правая сторона - вход справа
-      return const Offset(1, 0);
-    } else if ((point.dy - rect.top).abs() < 1) {
-      // Верхняя сторона - вход сверху
-      return const Offset(0, -1);
-    } else {
-      // Нижняя сторона - вход снизу
-      return const Offset(0, 1);
+    // Определяем, с какой стороны узла находится точка (с учетом, что точки теперь снаружи)
+    // Сравниваем расстояния до разных сторон и выбираем ближайшую
+    double leftDist = (point.dx - rect.left).abs();
+    double rightDist = (point.dx - rect.right).abs();
+    double topDist = (point.dy - rect.top).abs();
+    double bottomDist = (point.dy - rect.bottom).abs();
+    
+    // Находим минимальное расстояние
+    double minDist = leftDist;
+    String closestSide = 'left';
+    
+    if (rightDist < minDist) { minDist = rightDist; closestSide = 'right'; }
+    if (topDist < minDist) { minDist = topDist; closestSide = 'top'; }
+    if (bottomDist < minDist) { minDist = bottomDist; closestSide = 'bottom'; }
+    
+    // Возвращаем направление, которое указывает на узел (т.к. точка снаружи, а стрелка идет внутрь)
+    switch(closestSide) {
+      case 'left':
+        return const Offset(1, 0);  // вход справа на левую сторону
+      case 'right':
+        return const Offset(-1, 0); // вход слева на правую сторону
+      case 'top':
+        return const Offset(0, 1);  // вход снизу на верхнюю сторону
+      case 'bottom':
+        return const Offset(0, -1); // вход сверху на нижнюю сторону
+      default:
+        return const Offset(-1, 0); // fallback
     }
   }
   
