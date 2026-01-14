@@ -46,4 +46,6 @@ class EditorState {
   final Map<TableNode, Rect> nodeBoundsCache = {};
   final Map<int, List<TableNode>> tileToNodes = {};
   final Map<TableNode, Set<int>> nodeToTiles = {};
+  final Map<int, List<Arrow>> tileToArrows = {};
+  final Map<Arrow, Set<int>> arrowToTiles = {};
 }
