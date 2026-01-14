@@ -146,28 +146,28 @@ class ArrowManager {
     // Determine source side (where connection starts)
     if (dx < 0 && dy < 0 && dx.abs() > 20 && sourceCenter.dy < targetTop - 20) {
       // Center of source node is to the left and above the top of the target node by >20
-      startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-      endConnectionPoint = Offset(targetCenter.dx, targetTop + 6);
+      startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
     } else if (dx < 0 && dy > 0 && dx.abs() > 40 && sourceCenter.dy > targetTop + 20) {
       // Center of source node is to the left (>40 distance) and below top+20 of target node
-      startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-      endConnectionPoint = Offset(targetLeft + 6, targetCenter.dy);
+      startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
     } else if (dx < 0 && dy > 0 && dx.abs() <= 40 && sourceCenter.dy > targetTop + 20) {
       // Center of source node is to the left (<=40 distance) and below top+20 of target node
-      startConnectionPoint = Offset(sourceCenter.dx, sourceTop + 6);
-      endConnectionPoint = Offset(targetCenter.dx, targetTop + 6);
+      startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);    // Изменено: -6 для отступа наружу
+      endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
     } else if (dx < 0 && dy > 0 && sourceCenter.dy > targetBottom + 20) {
       // Center of source node is to the left and below the bottom of target node by >20
-      startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-      endConnectionPoint = Offset(targetCenter.dx, targetBottom - 6);
+      startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
     } else if (dx < 0 && dy > 0 && dx.abs() > 40 && sourceCenter.dy > targetBottom - 20) {
       // Center of source node is to the left (>40 distance) and below <20 of bottom of target node
-      startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-      endConnectionPoint = Offset(targetLeft + 6, targetCenter.dy);
+      startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
     } else if (dx < 0 && dy > 0 && dx.abs() <= 40 && sourceCenter.dy > targetBottom - 20) {
       // Center of source node is to the left (<=40 distance) and below <20 of bottom of target node
-      startConnectionPoint = Offset(sourceCenter.dx, sourceBottom - 6);
-      endConnectionPoint = Offset(targetCenter.dx, targetBottom - 6);
+      startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6); // Изменено: +6 для отступа наружу
+      endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
     } else {
       // For other cases, use algorithm similar to the original
       // Determine main direction of connection
@@ -175,23 +175,23 @@ class ArrowManager {
         // Horizontal direction prevails
         if (dx > 0) {
           // To the right
-          startConnectionPoint = Offset(sourceRight - 6, sourceCenter.dy);
-          endConnectionPoint = Offset(targetLeft + 6, targetCenter.dy);
+          startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);  // Изменено: +6 для отступа наружу
+          endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);     // Изменено: -6 для отступа наружу
         } else {
           // To the left
-          startConnectionPoint = Offset(sourceLeft + 6, sourceCenter.dy);
-          endConnectionPoint = Offset(targetRight - 6, targetCenter.dy);
+          startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);   // Изменено: -6 для отступа наружу
+          endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);    // Изменено: +6 для отступа наружу
         }
       } else {
         // Vertical direction prevails
         if (dy > 0) {
           // Downward
-          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom - 6);
-          endConnectionPoint = Offset(targetCenter.dx, targetTop + 6);
+          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6); // Изменено: +6 для отступа наружу
+          endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);      // Изменено: -6 для отступа наружу
         } else {
           // Upward
-          startConnectionPoint = Offset(sourceCenter.dx, sourceTop + 6);
-          endConnectionPoint = Offset(targetCenter.dx, targetBottom - 6);
+          startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);    // Изменено: -6 для отступа наружу
+          endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);   // Изменено: +6 для отступа наружу
         }
       }
     }
@@ -201,15 +201,21 @@ class ArrowManager {
 
   /// Determine which side of a node a point belongs to
   String _getSideFromPoint(Offset point, Rect rect) {
-    if ((point.dx - rect.left).abs() < 1) {
-      return 'left';
-    } else if ((point.dx - rect.right).abs() < 1) {
-      return 'right';
-    } else if ((point.dy - rect.top).abs() < 1) {
-      return 'top';
-    } else {
-      return 'bottom';
-    }
+    // Compare distances to different sides and select the nearest one
+    double leftDist = (point.dx - rect.left).abs();
+    double rightDist = (point.dx - rect.right).abs();
+    double topDist = (point.dy - rect.top).abs();
+    double bottomDist = (point.dy - rect.bottom).abs();
+    
+    // Find minimum distance
+    double minDist = leftDist;
+    String closestSide = 'left';
+    
+    if (rightDist < minDist) { minDist = rightDist; closestSide = 'right'; }
+    if (topDist < minDist) { minDist = topDist; closestSide = 'top'; }
+    if (bottomDist < minDist) { minDist = bottomDist; closestSide = 'bottom'; }
+    
+    return closestSide;
   }
 
   /// Distribute connection points along a side with step 10
