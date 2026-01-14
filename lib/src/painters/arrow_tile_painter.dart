@@ -51,6 +51,7 @@ class ArrowTilePainter {
     required List<Arrow> allArrows,
     required List<TableNode> allNodes,
     required Map<TableNode, Rect> nodeBoundsCache,
+    Offset baseOffset = Offset.zero,
   }) {
     final arrowsInTile = <Arrow>[];
     final coordinator = ArrowTileCoordinator(
@@ -61,7 +62,7 @@ class ArrowTilePainter {
 
     for (final arrow in allArrows) {
       // Используем координатор для проверки пересечения
-      if (coordinator.doesArrowIntersectTile(arrow, tileBounds, Offset.zero)) {
+      if (coordinator.doesArrowIntersectTile(arrow, tileBounds, baseOffset)) {
         arrowsInTile.add(arrow);
       }
     }

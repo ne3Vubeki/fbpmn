@@ -348,6 +348,7 @@ class TileManager {
         allArrows: state.arrows,
         allNodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
       );
 
       if (nodesInTile.isNotEmpty) {
@@ -409,6 +410,7 @@ class TileManager {
         allArrows: allArrows,
         allNodes: allNodes,
         nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
       );
 
       // Фиксированный размер изображения
@@ -1147,26 +1149,19 @@ class TileManager {
   Set<int> _findTilesForArrow(Arrow arrow) {
     final Set<int> tileIndices = {};
 
-    final arrowBounds = _getArrowBounds(arrow, state.nodes);
-    if (arrowBounds == null) return tileIndices;
-
-    final tileWorldSize = EditorConfig.tileSize.toDouble();
-    final gridXStart = (arrowBounds.left / tileWorldSize).floor();
-    final gridYStart = (arrowBounds.top / tileWorldSize).floor();
-    final gridXEnd = (arrowBounds.right / tileWorldSize).ceil();
-    final gridYEnd = (arrowBounds.bottom / tileWorldSize).ceil();
-
-    // Находим все тайлы в области стрелки
-    for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-      for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-        final left = gridX * tileWorldSize;
-        final top = gridY * tileWorldSize;
-        final tileId = _generateTileId(left, top);
-        final tileIndex = _findTileIndexById(tileId);
-
-        if (tileIndex != null) {
-          tileIndices.add(tileIndex);
-        }
+    // Используем ArrowTilePainter для точного определения тайлов, содержащих стрелку
+    for (int i = 0; i < state.imageTiles.length; i++) {
+      final tile = state.imageTiles[i];
+      
+      // Проверяем, пересекает ли стрелка этот тайл
+      final coordinator = ArrowTileCoordinator(
+        arrows: [arrow],
+        nodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      if (coordinator.doesArrowIntersectTile(arrow, tile.bounds, state.delta)) {
+        tileIndices.add(i);
       }
     }
 
@@ -1304,6 +1299,7 @@ class TileManager {
         allArrows: state.arrows,
         allNodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
       );
 
       // Очищаем старый кэш для этого тайла
