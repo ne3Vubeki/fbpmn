@@ -18,9 +18,6 @@ class TileManager {
   final BoundsCalculator _boundsCalculator = BoundsCalculator();
   final NodeRenderer _nodeRenderer = NodeRenderer();
 
-  // Временное хранилище для узлов, которые перемещаются
-  final Map<TableNode, Set<String>> _movedNodesSourceTiles = {};
-
   TileManager({required this.state, required this.onStateUpdate});
 
   Future<void> createTiledImage(List<TableNode> nodes) async {
@@ -124,14 +121,7 @@ class TileManager {
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
     for (final arrow in allArrows) {
-      final arrowIntersectsTile = ArrowTilePainter._arrowIntersectsTile(
-        arrow: arrow,
-        tileBounds: Rect.fromLTRB(0, 0, 0, 0), // We'll calculate this properly below
-        allNodes: allNodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
-
-      // Actually check which tiles the arrow intersects
+      // Check which tiles the arrow intersects
       final arrowTileBounds = _getArrowBounds(arrow, allNodes);
       if (arrowTileBounds != null) {
         final tileWorldSize = EditorConfig.tileSize.toDouble();
@@ -1014,6 +1004,72 @@ class TileManager {
   }
 
   // Обновление тайла со ВСЕМИ узлами
+  Future<void> _updateTileWithAllContent(int tileIndex) async {
+    if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
+      return;
+    }
+
+    try {
+      final oldTile = state.imageTiles[tileIndex];
+      final tileId = oldTile.id;
+      final bounds = oldTile.bounds;
+
+      // Получаем ВСЕ узлы для этого тайла из state.nodes
+      final nodesInTile = _getNodesForTile(bounds, state.nodes);
+      
+      // Получаем ВСЕ стрелки для этого тайла из state.arrows
+      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+        tileBounds: bounds,
+        allArrows: state.arrows,
+        allNodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+
+      // Очищаем старый кэш для этого тайла
+      state.tileToNodes.remove(tileIndex);
+      state.tileToArrows.remove(tileIndex);
+
+      // Если в тайле есть узлы, обновляем кэш
+      if (nodesInTile.isNotEmpty) {
+        state.tileToNodes[tileIndex] = nodesInTile;
+
+        // Обновляем кэш nodeToTiles для всех узлов в тайле
+        for (final node in nodesInTile) {
+          if (!state.nodeToTiles.containsKey(node)) {
+            state.nodeToTiles[node] = {};
+          }
+          state.nodeToTiles[node]!.add(tileIndex);
+        }
+      }
+      
+      // Если в тайле есть стрелки, обновляем кэш
+      if (arrowsInTile.isNotEmpty) {
+        state.tileToArrows[tileIndex] = arrowsInTile;
+
+        // Обновляем кэш arrowToTiles для всех стрелок в тайле
+        for (final arrow in arrowsInTile) {
+          if (!state.arrowToTiles.containsKey(arrow)) {
+            state.arrowToTiles[arrow] = {};
+          }
+          state.arrowToTiles[arrow]!.add(tileIndex);
+        }
+      }
+
+      oldTile.image.dispose();
+
+      // Перерисовываем тайл со ВСЕМИ узлами и стрелками
+      final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
+      if (newTile != null) {
+        state.imageTiles[tileIndex] = newTile;
+      } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
+        // Если тайл пустой, удаляем его
+        await _removeTile(tileId);
+      }
+
+      onStateUpdate();
+    } catch (e) {}
+  }
+  
   Future<void> _updateTileWithAllNodes(int tileIndex) async {
     if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
       return;
@@ -1058,7 +1114,6 @@ class TileManager {
     } catch (e) {}
   }
 
-  // Создание обновленного тайла
   // Создание обновленного тайла
   Future<ImageTile?> _createUpdatedTile(
     Rect bounds,
@@ -1131,7 +1186,6 @@ class TileManager {
     state.nodeBoundsCache.clear();
     state.tileToNodes.clear();
     state.nodeToTiles.clear();
-    _movedNodesSourceTiles.clear();
   }
 
   void dispose() {
