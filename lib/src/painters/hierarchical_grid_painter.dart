@@ -274,6 +274,7 @@ class HierarchicalGridPainter extends CustomPainter {
         canvas: canvas,
         baseOffset: state.delta,
         visibleBounds: visibleRect,
+        allArrows: arrows,
         forTile: false,
       );
     }

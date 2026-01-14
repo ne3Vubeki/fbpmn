@@ -6,17 +6,16 @@ import 'dart:math' as math;
 
 import '../models/table.node.dart';
 import '../models/arrow.dart';
+import '../services/arrow_manager.dart';
 
 /// Универсальный класс для отрисовки Arrow
 class ArrowPainter {
   final Arrow arrow;
-  final List<Arrow> arrows; // Все стрелки для подсчета количества связей на сторонах
   final List<TableNode> nodes;
   final Map<TableNode, Rect> nodeBoundsCache;
 
   ArrowPainter({
     required this.arrow,
-    required this.arrows,
     required this.nodes,
     required this.nodeBoundsCache,
   });
@@ -26,6 +25,7 @@ class ArrowPainter {
     required Canvas canvas,
     required Offset baseOffset,
     required Rect visibleBounds,
+    required List<Arrow> allArrows,
     bool forTile = false,
   }) {
     // Находим узлы-источник и цель
@@ -65,6 +65,13 @@ class ArrowPainter {
       return; // Ни один из узлов не видим, не рисуем стрелку
     }
 
+    // Создаем ArrowManager для расчетов
+    final arrowManager = ArrowManager(
+      arrows: allArrows,
+      nodes: nodes,
+      nodeBoundsCache: nodeBoundsCache,
+    );
+
     // Рисуем стрелку
     _drawArrow(
       canvas: canvas,
@@ -73,6 +80,7 @@ class ArrowPainter {
       sourceNode: sourceNode,
       targetNode: targetNode,
       forTile: forTile,
+      arrowManager: arrowManager,
     );
   }
 
@@ -89,9 +97,10 @@ class ArrowPainter {
     required TableNode sourceNode,
     required TableNode targetNode,
     required bool forTile,
+    required ArrowManager arrowManager,
   }) {
     // Находим точки соединения стрелки
-    final connectionPoints = _calculateConnectionPoints(sourceRect, targetRect, sourceNode, targetNode);
+    final connectionPoints = _calculateConnectionPoints(sourceRect, targetRect, sourceNode, targetNode, arrowManager);
     
     if (connectionPoints.start == null || connectionPoints.end == null) {
       return; // Не удалось найти подходящие точки соединения
@@ -157,7 +166,7 @@ class ArrowPainter {
   }
 
   /// Расчет точек соединения для стрелки
-  ({Offset? end, Offset? start}) _calculateConnectionPoints(Rect sourceRect, Rect targetRect, TableNode sourceNode, TableNode targetNode) {
+  ({Offset? end, Offset? start}) _calculateConnectionPoints(Rect sourceRect, Rect targetRect, TableNode sourceNode, TableNode targetNode, ArrowManager arrowManager) {
     // Определяем центральные точки узлов
     final sourceCenter = sourceRect.center;
     final targetCenter = targetRect.center;
@@ -238,8 +247,8 @@ class ArrowPainter {
     final endSide = _getSideFromPoint(endConnectionPoint, targetRect);
 
     // Распределяем точки по стороне с шагом 10
-    startConnectionPoint = _distributeConnectionPoint(startConnectionPoint, sourceRect, startSide, arrow.source);
-    endConnectionPoint = _distributeConnectionPoint(endConnectionPoint, targetRect, endSide, arrow.target);
+    startConnectionPoint = _distributeConnectionPoint(startConnectionPoint, sourceRect, startSide, arrow.source, arrowManager);
+    endConnectionPoint = _distributeConnectionPoint(endConnectionPoint, targetRect, endSide, arrow.target, arrowManager);
 
     return (start: startConnectionPoint, end: endConnectionPoint);
   }
@@ -258,9 +267,9 @@ class ArrowPainter {
   }
 
   /// Распределяет точки соединения по стороне с шагом 10
-  Offset _distributeConnectionPoint(Offset originalPoint, Rect rect, String side, String nodeId) {
+  Offset _distributeConnectionPoint(Offset originalPoint, Rect rect, String side, String nodeId, ArrowManager arrowManager) {
     // Подсчитываем количество связей, подключенных к данной стороне узла
-    int connectionsCount = _getConnectionsCountOnSide(nodeId, side);
+    int connectionsCount = arrowManager.getConnectionsCountOnSide(nodeId, side);
     
     // Если только одна связь на этой стороне, используем центральную точку
     if (connectionsCount <= 1) {
@@ -268,7 +277,7 @@ class ArrowPainter {
     }
     
     // Находим индекс текущей связи среди всех связей, подключенных к этой стороне
-    int index = _getCurrentConnectionIndex(nodeId, side);
+    int index = arrowManager.getConnectionIndex(this.arrow, nodeId, side);
     
     // Рассчитываем смещение для равномерного распределения
     double offset = 0.0;
@@ -360,97 +369,9 @@ class ArrowPainter {
     }
   }
   
-  /// Подсчитывает количество связей, подключенных к указанной стороне узла
-  int _getConnectionsCountOnSide(String nodeId, String side) {
-    int count = 0;
-    
-    for (final arrow in arrows) {
-      // Проверяем, подключена ли связь к этому узлу как источник или цель
-      if (arrow.source == nodeId) {
-        // Проверяем, какая сторона используется для источника
-        if (_getSideForConnection(arrow, true) == side) {
-          count++;
-        }
-      } else if (arrow.target == nodeId) {
-        // Проверяем, какая сторона используется для цели
-        if (_getSideForConnection(arrow, false) == side) {
-          count++;
-        }
-      }
-    }
-    
-    return count;
-  }
+
   
-  /// Находит индекс текущей связи среди всех связей, подключенных к указанной стороне узла
-  int _getCurrentConnectionIndex(String nodeId, String side) {
-    int index = 0;
-    
-    for (int i = 0; i < arrows.length; i++) {
-      final arrow = arrows[i];
-      
-      // Проверяем, является ли это текущая стрелка
-      if (arrow.id == this.arrow.id) {
-        break; // Нашли текущую стрелку
-      }
-      
-      // Проверяем, подключена ли связь к этому узлу как источник или цель
-      if (arrow.source == nodeId) {
-        // Проверяем, какая сторона используется для источника
-        if (_getSideForConnection(arrow, true) == side) {
-          index++;
-        }
-      } else if (arrow.target == nodeId) {
-        // Проверяем, какая сторона используется для цели
-        if (_getSideForConnection(arrow, false) == side) {
-          index++;
-        }
-      }
-    }
-    
-    return index;
-  }
-  
-  /// Определяет сторону, к которой подключена стрелка (для источника или цели)
-  String _getSideForConnection(Arrow arrow, bool isSource) {
-    // Находим узлы-источник и цель
-    final sourceNode = _findNodeById(arrow.source);
-    final targetNode = _findNodeById(arrow.target);
-    
-    if (sourceNode == null || targetNode == null) {
-      return 'top'; // fallback
-    }
-    
-    // Получаем абсолютные позиции узлов
-    final sourceAbsolutePos = sourceNode.aPosition ?? sourceNode.position;
-    final targetAbsolutePos = targetNode.aPosition ?? targetNode.position;
-    
-    // Создаем Rect для узлов
-    final sourceRect = Rect.fromPoints(
-      sourceAbsolutePos,
-      Offset(
-        sourceAbsolutePos.dx + sourceNode.size.width,
-        sourceAbsolutePos.dy + sourceNode.size.height,
-      ),
-    );
-    
-    final targetRect = Rect.fromPoints(
-      targetAbsolutePos,
-      Offset(
-        targetAbsolutePos.dx + targetNode.size.width,
-        targetAbsolutePos.dy + targetNode.size.height,
-      ),
-    );
-    
-    // Находим точки соединения
-    final connectionPoints = _calculateConnectionPoints(sourceRect, targetRect, sourceNode, targetNode);
-    
-    if (isSource) {
-      return _getSideFromPoint(connectionPoints.start!, sourceRect);
-    } else {
-      return _getSideFromPoint(connectionPoints.end!, targetRect);
-    }
-  }
+
 
   /// Проверяет, пересекает ли линия заданный прямоугольник
   bool _lineIntersectsRect(Offset start, Offset end, Rect rect) {
