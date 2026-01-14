@@ -709,28 +709,17 @@ class TileManager {
 
     // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
-      final arrowBounds = _getArrowBounds(arrow, state.nodes);
-      if (arrowBounds != null) {
-        final tileWorldSize = EditorConfig.tileSize.toDouble();
-        final gridXStart = (arrowBounds.left / tileWorldSize).floor();
-        final gridYStart = (arrowBounds.top / tileWorldSize).floor();
-        final gridXEnd = (arrowBounds.right / tileWorldSize).ceil();
-        final gridYEnd = (arrowBounds.bottom / tileWorldSize).ceil();
-
-        // Находим все тайлы, через которые проходит стрелка
-        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-            final left = gridX * tileWorldSize;
-            final top = gridY * tileWorldSize;
-            final tileId = _generateTileId(left, top);
-            final tileIndex = _findTileIndexById(tileId);
-
-            if (tileIndex != null) {
-              tilesToUpdate.add(tileIndex);
-            }
-          }
-        }
+      final arrowTiles = _findTilesForArrow(arrow);
+      for (final tileIndex in arrowTiles) {
+        tilesToUpdate.add(tileIndex);
       }
+      
+      // Также очищаем кэши стрелок для конкретной стрелки
+      final tileIndices = state.arrowToTiles[arrow] ?? {};
+      for (final tileIndex in tileIndices) {
+        state.tileToArrows[tileIndex]?.remove(arrow);
+      }
+      state.arrowToTiles.remove(arrow);
     }
 
     // Проверяем, является ли этот узел дочерним для развернутого swimlane
@@ -772,7 +761,7 @@ class TileManager {
   void _cleanupArrowCachesForNode(TableNode node) {
     // Находим все стрелки, связанные с этим узлом
     final arrowsToRemove = <Arrow>[];
-    for (final arrow in state.arrowToTiles.keys) {
+    for (final arrow in state.arrows) {
       if (arrow.source == node.id || arrow.target == node.id) {
         arrowsToRemove.add(arrow);
       }
@@ -968,14 +957,19 @@ class TileManager {
         .where((arrow) => arrow.source == node.id || arrow.target == node.id)
         .toList();
 
-    // Для каждой связанной стрелки находим тайлы, в которых она содержится
+    // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
-      final tileIndices = state.arrowToTiles[arrow] ?? <int>{};
-      for (final tileIndex in tileIndices) {
-        if (tileIndex < state.imageTiles.length) {
-          tilesToUpdate.add(tileIndex);
-        }
+      final arrowTiles = _findTilesForArrow(arrow);
+      for (final tileIndex in arrowTiles) {
+        tilesToUpdate.add(tileIndex);
       }
+      
+      // Также очищаем кэши стрелок для конкретной стрелки
+      final tileIndices = state.arrowToTiles[arrow] ?? {};
+      for (final tileIndex in tileIndices) {
+        state.tileToArrows[tileIndex]?.remove(arrow);
+      }
+      state.arrowToTiles.remove(arrow);
     }
 
     // Обновляем все затронутые тайлы
@@ -993,35 +987,11 @@ class TileManager {
         .where((arrow) => arrow.source == node.id || arrow.target == node.id)
         .toList();
 
-    // Для каждой связанной стрелки находим области, которые она покрывает
+    // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
-      final arrowBounds = _getArrowBounds(arrow, state.nodes);
-      if (arrowBounds != null) {
-        final tileWorldSize = EditorConfig.tileSize.toDouble();
-        final gridXStart = (arrowBounds.left / tileWorldSize).floor();
-        final gridYStart = (arrowBounds.top / tileWorldSize).floor();
-        final gridXEnd = (arrowBounds.right / tileWorldSize).ceil();
-        final gridYEnd = (arrowBounds.bottom / tileWorldSize).ceil();
-
-        // Обрабатываем все grid позиции, которые покрывает стрелка
-        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-            final left = gridX * tileWorldSize;
-            final top = gridY * tileWorldSize;
-            final tileId = _generateTileId(left, top);
-
-            // Ищем существующий тайл в этой позиции
-            int? existingTileIndex = _findTileIndexById(tileId);
-
-            if (existingTileIndex == null) {
-              // Создаем новый тайл в этой позиции
-              await _createNewTileAtPosition(left, top, node);
-            } else {
-              // Добавляем тайл в список для обновления
-              tilesToUpdate.add(existingTileIndex);
-            }
-          }
-        }
+      final arrowTiles = _findTilesForArrow(arrow);
+      for (final tileIndex in arrowTiles) {
+        tilesToUpdate.add(tileIndex);
       }
     }
 
