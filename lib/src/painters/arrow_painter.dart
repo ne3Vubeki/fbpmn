@@ -130,7 +130,6 @@ class ArrowPainter {
           ..strokeCap = StrokeCap.round
           ..style = PaintingStyle.stroke;
         
-        debugPrint('Рисование красной связи через узел ${arrow.id}: начало (${startPoint.dx}, ${startPoint.dy}), конец (${endPoint.dx}, ${endPoint.dy})');
         canvas.drawPath(finalPath, paint);
         return;
       }
@@ -147,7 +146,6 @@ class ArrowPainter {
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
       
-      debugPrint('Рисование красной связи через узел ${arrow.id}: начало (${startPoint.dx}, ${startPoint.dy}), конец (${endPoint.dx}, ${endPoint.dy})');
       canvas.drawPath(finalPath, paint);
       return;
     }
@@ -159,8 +157,6 @@ class ArrowPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    // Добавляем логирование
-    debugPrint('Рисование связи ${arrow.id}: начало (${startPoint.dx}, ${startPoint.dy}), конец (${endPoint.dx}, ${endPoint.dy})');
 
     canvas.drawPath(finalPath, paint);
   }
