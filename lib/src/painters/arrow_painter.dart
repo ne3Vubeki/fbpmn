@@ -107,7 +107,17 @@ class ArrowPainter {
     final isTargetVisible = targetRect.overlaps(visibleBounds.inflate(100.0));
 
     if (!isSourceVisible && !isTargetVisible) {
-      return; // Ни один из узлов не видим, не рисуем стрелку
+      // Для тайлового рендеринга дополнительно проверяем, пересекает ли путь стрелки тайл
+      if (forTile) {
+        // Проверяем, пересекает ли путь между узлами тайл
+        final sourceCenter = sourceRect.center;
+        final targetCenter = targetRect.center;
+        if (!_lineIntersectsRect(sourceCenter, targetCenter, visibleBounds)) {
+          return; // Ни один из узлов не видим и путь не пересекает тайл
+        }
+      } else {
+        return; // Ни один из узлов не видим, не рисуем стрелку
+      }
     }
 
     // Создаем ArrowManager для расчетов
