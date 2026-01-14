@@ -76,9 +76,9 @@ class ArrowTilePainter {
     void findNodes(List<TableNode> nodes) {
       for (final node in nodes) {
         if (node.id == arrow.source) {
-          sourceNode = node;
+          sourceNode = _getEffectiveNode(node, nodes);
         } else if (node.id == arrow.target) {
-          targetNode = node;
+          targetNode = _getEffectiveNode(node, nodes);
         }
         
         if (sourceNode != null && targetNode != null) {
@@ -122,5 +122,37 @@ class ArrowTilePainter {
     
     // Проверяем пересечение с тайлом
     return arrowBounds.overlaps(tileBounds);
+  }
+
+  // Получить эффективный узел для стрелки, учитывая свернутые swimlane
+  static TableNode? _getEffectiveNode(TableNode node, List<TableNode> allNodes) {
+    // Если узел является дочерним для свернутого swimlane, вернуть родительский swimlane
+    if (node.parent != null) {
+      // Найти родителя узла
+      TableNode? findParent(List<TableNode> nodes) {
+        for (final n in nodes) {
+          if (n.id == node.parent) {
+            return n;
+          }
+          
+          if (n.children != null) {
+            final result = findParent(n.children!);
+            if (result != null) {
+              return result;
+            }
+          }
+        }
+        return null;
+      }
+      
+      final parent = findParent(allNodes);
+      if (parent != null && 
+          parent.qType == 'swimlane' && 
+          (parent.isCollapsed ?? false)) {
+        return parent; // Вернуть свернутый swimlane вместо дочернего узла
+      }
+    }
+
+    return node;
   }
 }

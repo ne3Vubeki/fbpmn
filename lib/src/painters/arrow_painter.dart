@@ -42,6 +42,24 @@ class ArrowPainter {
     return nodeMap;
   }
 
+  /// Get the effective node for arrow drawing considering swimlane collapsed state
+  TableNode? _getEffectiveNode(String nodeId) {
+    final node = _nodeMap[nodeId];
+    if (node == null) return null;
+
+    // If the node is a child of a collapsed swimlane, return the parent swimlane instead
+    if (node.parent != null) {
+      final parent = _nodeMap[node.parent!];
+      if (parent != null && 
+          parent.qType == 'swimlane' && 
+          (parent.isCollapsed ?? false)) {
+        return parent; // Return the collapsed swimlane instead of the child
+      }
+    }
+
+    return node;
+  }
+
   /// Отрисовка стрелки с учетом базового отступа
   void paintWithOffset({
     required Canvas canvas,
@@ -50,37 +68,37 @@ class ArrowPainter {
     required List<Arrow> allArrows,
     bool forTile = false,
   }) {
-    // Находим узлы-источник и цель
-    final sourceNode = _nodeMap[arrow.source];
-    final targetNode = _nodeMap[arrow.target];
+    // Находим эффективные узлы-источник и цель (учитываем свернутые swimlane)
+    final effectiveSourceNode = _getEffectiveNode(arrow.source);
+    final effectiveTargetNode = _getEffectiveNode(arrow.target);
 
-    if (sourceNode == null || targetNode == null) {
+    if (effectiveSourceNode == null || effectiveTargetNode == null) {
       return; // Не можем нарисовать стрелку без обоих узлов
     }
 
     // Проверяем, не являются ли узлы скрытыми из-за свернутого родителя
-    if (_isNodeHiddenByCollapsedParent(sourceNode) || _isNodeHiddenByCollapsedParent(targetNode)) {
+    if (_isNodeHiddenByCollapsedParent(effectiveSourceNode) || _isNodeHiddenByCollapsedParent(effectiveTargetNode)) {
       return; // Не рисуем стрелку, если один из узлов скрыт из-за свернутого родителя
     }
 
     // Получаем абсолютные позиции узлов
-    final sourceAbsolutePos = sourceNode.aPosition ?? (sourceNode.position + baseOffset);
-    final targetAbsolutePos = targetNode.aPosition ?? (targetNode.position + baseOffset);
+    final sourceAbsolutePos = effectiveSourceNode.aPosition ?? (effectiveSourceNode.position + baseOffset);
+    final targetAbsolutePos = effectiveTargetNode.aPosition ?? (effectiveTargetNode.position + baseOffset);
 
     // Создаем Rect для узлов в мировых координатах
     final sourceRect = Rect.fromPoints(
       sourceAbsolutePos,
       Offset(
-        sourceAbsolutePos.dx + sourceNode.size.width,
-        sourceAbsolutePos.dy + sourceNode.size.height,
+        sourceAbsolutePos.dx + effectiveSourceNode.size.width,
+        sourceAbsolutePos.dy + effectiveSourceNode.size.height,
       ),
     );
 
     final targetRect = Rect.fromPoints(
       targetAbsolutePos,
       Offset(
-        targetAbsolutePos.dx + targetNode.size.width,
-        targetAbsolutePos.dy + targetNode.size.height,
+        targetAbsolutePos.dx + effectiveTargetNode.size.width,
+        targetAbsolutePos.dy + effectiveTargetNode.size.height,
       ),
     );
 
@@ -104,8 +122,8 @@ class ArrowPainter {
       canvas: canvas,
       sourceRect: sourceRect,
       targetRect: targetRect,
-      sourceNode: sourceNode,
-      targetNode: targetNode,
+      sourceNode: effectiveSourceNode,
+      targetNode: effectiveTargetNode,
       forTile: forTile,
       arrowManager: arrowManager,
     );
