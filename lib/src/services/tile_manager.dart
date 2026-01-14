@@ -198,7 +198,8 @@ class TileManager {
     );
     
     // Определяем приблизительную область стрелки (между узлами)
-    return sourceRect.expandToInclude(targetRect).inflate(20); // Добавляем небольшой отступ
+    // Увеличиваем область для учета ортогонального пути стрелки
+    return sourceRect.expandToInclude(targetRect).inflate(EditorConfig.tileSize.toDouble());
   }
 
   // Получить эффективный узел для стрелки, учитывая свернутые swimlane
