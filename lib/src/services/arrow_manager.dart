@@ -224,9 +224,8 @@ class ArrowManager {
     return null;
   }
 
-  /// Расчет точек соединения для определения стороны (без вызова методов подсчета)
-  ({Offset? end, Offset? start, String? sides})
-  calculateConnectionPointsForSideCalculation(
+  /// Расчет точек соединения для определения стороны
+  ({Offset? end, Offset? start, String? sides}) calculateConnectionPointsForSideCalculation(
     Rect sourceRect,
     Rect targetRect,
     TableNode sourceNode,
