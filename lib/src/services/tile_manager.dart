@@ -826,6 +826,46 @@ class TileManager {
     }
   }
 
+  /// Удаление детей group из тайлов
+  Future<void> removeGroupChildrenFromTiles(
+    TableNode groupNode,
+    Set<int> tilesToUpdate,
+  ) async {
+    if (groupNode.children == null || groupNode.children!.isEmpty) {
+      return;
+    }
+
+    // Удаляем всех детей из тайлов
+    for (final child in groupNode.children!) {
+      final childTileIndices = _findTilesContainingNode(child);
+      for (final tileIndex in childTileIndices) {
+        if (tileIndex < state.imageTiles.length) {
+          tilesToUpdate.add(tileIndex);
+        }
+      }
+      
+      // Также находим стрелки, связанные с дочерним узлом
+      final arrowsConnectedToChild = state.arrows
+          .where((arrow) => arrow.source == child.id || arrow.target == child.id)
+          .toList();
+          
+      // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
+      for (final arrow in arrowsConnectedToChild) {
+        final arrowTiles = _findTilesForArrow(arrow);
+        for (final tileIndex in arrowTiles) {
+          tilesToUpdate.add(tileIndex);
+        }
+        
+        // Также очищаем кэши стрелок для конкретной стрелки
+        final tileIndices = state.arrowToTiles[arrow] ?? {};
+        for (final tileIndex in tileIndices) {
+          state.tileToArrows[tileIndex]?.remove(arrow);
+        }
+        state.arrowToTiles.remove(arrow);
+      }
+    }
+  }
+
   // Удаление выделенного узла из тайлов
   Future<void> removeSelectedNodeFromTiles(TableNode node) async {
     final Set<int> tilesToUpdate = {};
@@ -835,8 +875,8 @@ class TileManager {
         .where((arrow) => arrow.source == node.id || arrow.target == node.id)
         .toList();
 
-    // Если это закрытый swimlane, добавляем также стрелки, связанные с дочерними узлами
-    if (node.qType == 'swimlane' && (node.isCollapsed ?? false) && node.children != null) {
+    // Если это закрытый swimlane или группа, добавляем также стрелки, связанные с дочерними узлами
+    if ((node.qType == 'swimlane' || node.qType == 'group') && (node.isCollapsed ?? false) && node.children != null) {
       for (final child in node.children!) {
         arrowsConnectedToNode.addAll(
           state.arrows.where((arrow) => arrow.source == child.id || arrow.target == child.id)
@@ -876,9 +916,13 @@ class TileManager {
       if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
         await removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       }
-      // Для закрытого swimlane также обрабатываем дочерние узлы, чтобы удалить стрелки
-      else if (node.qType == 'swimlane' && (node.isCollapsed ?? false)) {
-        await removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+      // Для группы в развернутом состоянии удаляем всех детей
+      else if (node.qType == 'group' && !(node.isCollapsed ?? false)) {
+        await removeGroupChildrenFromTiles(node, tilesToUpdate);
+      }
+      // Для закрытого swimlane или группы также обрабатываем дочерние узлы, чтобы удалить стрелки
+      else if ((node.qType == 'swimlane' || node.qType == 'group') && (node.isCollapsed ?? false)) {
+        await removeSwimlaneChildrenFromTiles(node, tilesToUpdate); // используем тот же метод, так как логика одинакова
       }
 
       // Ищем тайлы, содержащие этот узел
@@ -909,8 +953,8 @@ class TileManager {
       }
     }
 
-    // Если это закрытый swimlane, добавляем также стрелки, связанные с дочерними узлами
-    if (node.qType == 'swimlane' && (node.isCollapsed ?? false) && node.children != null) {
+    // Если это закрытый swimlane или группа, добавляем также стрелки, связанные с дочерними узлами
+    if ((node.qType == 'swimlane' || node.qType == 'group') && (node.isCollapsed ?? false) && node.children != null) {
       for (final child in node.children!) {
         for (final arrow in state.arrows) {
           if (arrow.source == child.id || arrow.target == child.id) {
@@ -1136,6 +1180,11 @@ class TileManager {
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
       await _addSwimlaneChildrenToTiles(node, nodePosition, tilesToUpdate);
     }
+    
+    // Для group в развернутом состоянии добавляем всех детей
+    else if (node.qType == 'group' && !(node.isCollapsed ?? false)) {
+      await _addGroupChildrenToTiles(node, nodePosition, tilesToUpdate);
+    }
 
     // Для group обновляем позиции всех детей
     if (node.qType == 'group' && node.children != null) {
@@ -1302,6 +1351,64 @@ class TileManager {
       
       // Вычисляем мировые координаты ребенка
       // Для развернутого swimlane используем абсолютную позицию ребенка напрямую
+      final childWorldPosition = isExpanded
+          ? (child.aPosition ?? (parentWorldPosition + child.position))
+          : (child.aPosition ?? (parentWorldPosition + child.position));
+
+      final childRect = _boundsCalculator.calculateNodeRect(
+        node: child,
+        position: childWorldPosition,
+      );
+
+      // Рассчитываем grid позиции для ребенка
+      final tileWorldSize = EditorConfig.tileSize.toDouble();
+      final gridXStart = (childRect.left / tileWorldSize).floor();
+      final gridYStart = (childRect.top / tileWorldSize).floor();
+      final gridXEnd = (childRect.right / tileWorldSize).ceil();
+      final gridYEnd = (childRect.bottom / tileWorldSize).ceil();
+
+      // Обрабатываем все grid позиции ребенка
+      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+          final left = gridX * tileWorldSize;
+          final top = gridY * tileWorldSize;
+          final tileId = _generateTileId(left, top);
+
+          // Ищем существующий тайл в этой позиции
+          int? existingTileIndex = _findTileIndexById(tileId);
+
+          if (existingTileIndex == null) {
+            // СОЗДАЕМ НОВЫЙ ТАЙЛ в этой позиции
+            await _createNewTileAtPosition(left, top, child);
+          } else {
+            // Добавляем тайл в список для обновления
+            tilesToUpdate.add(existingTileIndex);
+          }
+        }
+      }
+    }
+  }
+
+  /// Добавление детей group в тайлы
+  Future<void> _addGroupChildrenToTiles(
+    TableNode groupNode,
+    Offset parentWorldPosition,
+    Set<int> tilesToUpdate,
+  ) async {
+    // Определяем, является ли group развернутым
+    final isExpanded =
+        groupNode.qType == 'group' &&
+        !(groupNode.isCollapsed ?? false);
+
+    // Добавляем всех детей в тайлы
+    for (final child in groupNode.children!) {
+      // Пропускаем детей, которые находятся внутри скрытых swimlane
+      if (_isNodeHiddenInCollapsedSwimlane(child, state.nodes)) {
+        continue;
+      }
+
+      // Вычисляем мировые координаты ребенка
+      // Для развернутой группы используем абсолютную позицию ребенка напрямую
       final childWorldPosition = isExpanded
           ? (child.aPosition ?? (parentWorldPosition + child.position))
           : (child.aPosition ?? (parentWorldPosition + child.position));

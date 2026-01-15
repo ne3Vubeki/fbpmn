@@ -344,8 +344,12 @@ class NodeManager {
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
       await _addSwimlaneChildrenToTiles(node, node.aPosition!);
     }
-    // Для закрытого swimlane также обрабатываем дочерние узлы, чтобы они были учтены в системе
-    else if (node.qType == 'swimlane' && (node.isCollapsed ?? false)) {
+    // Для группы в развернутом состоянии добавляем детей в тайлы
+    else if (node.qType == 'group' && !(node.isCollapsed ?? false)) {
+      await _addSwimlaneChildrenToTiles(node, node.aPosition!); // используем тот же метод, так как логика одинакова
+    }
+    // Для закрытого swimlane или группы также обрабатываем дочерние узлы, чтобы они были учтены в системе
+    else if ((node.qType == 'swimlane' || node.qType == 'group') && (node.isCollapsed ?? false)) {
       await _addSwimlaneChildrenToTiles(node, node.aPosition!);
     }
 
