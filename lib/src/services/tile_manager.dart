@@ -714,6 +714,26 @@ class TileManager {
           tilesToUpdate.add(tileIndex);
         }
       }
+      
+      // Также находим стрелки, связанные с дочерним узлом
+      final arrowsConnectedToChild = state.arrows
+          .where((arrow) => arrow.source == child.id || arrow.target == child.id)
+          .toList();
+          
+      // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
+      for (final arrow in arrowsConnectedToChild) {
+        final arrowTiles = _findTilesForArrow(arrow);
+        for (final tileIndex in arrowTiles) {
+          tilesToUpdate.add(tileIndex);
+        }
+        
+        // Также очищаем кэши стрелок для конкретной стрелки
+        final tileIndices = state.arrowToTiles[arrow] ?? {};
+        for (final tileIndex in tileIndices) {
+          state.tileToArrows[tileIndex]?.remove(arrow);
+        }
+        state.arrowToTiles.remove(arrow);
+      }
     }
   }
 
@@ -725,6 +745,15 @@ class TileManager {
     final arrowsConnectedToNode = state.arrows
         .where((arrow) => arrow.source == node.id || arrow.target == node.id)
         .toList();
+
+    // Если это закрытый swimlane, добавляем также стрелки, связанные с дочерними узлами
+    if (node.qType == 'swimlane' && (node.isCollapsed ?? false) && node.children != null) {
+      for (final child in node.children!) {
+        arrowsConnectedToNode.addAll(
+          state.arrows.where((arrow) => arrow.source == child.id || arrow.target == child.id)
+        );
+      }
+    }
 
     // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
@@ -758,6 +787,10 @@ class TileManager {
       if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
         await _removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       }
+      // Для закрытого swimlane также обрабатываем дочерние узлы, чтобы удалить стрелки
+      else if (node.qType == 'swimlane' && (node.isCollapsed ?? false)) {
+        await _removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+      }
 
       // Ищем тайлы, содержащие этот узел
       final tileIndices = _findTilesContainingNode(node);
@@ -784,6 +817,19 @@ class TileManager {
     for (final arrow in state.arrows) {
       if (arrow.source == node.id || arrow.target == node.id) {
         arrowsToRemove.add(arrow);
+      }
+    }
+
+    // Если это закрытый swimlane, добавляем также стрелки, связанные с дочерними узлами
+    if (node.qType == 'swimlane' && (node.isCollapsed ?? false) && node.children != null) {
+      for (final child in node.children!) {
+        for (final arrow in state.arrows) {
+          if (arrow.source == child.id || arrow.target == child.id) {
+            if (!arrowsToRemove.contains(arrow)) {
+              arrowsToRemove.add(arrow);
+            }
+          }
+        }
       }
     }
 
