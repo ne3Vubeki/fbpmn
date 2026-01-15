@@ -189,7 +189,7 @@ class ArrowPainter {
     canvas.drawPath(path, paint);
   }
 
-  // Упрощенный путь
+  // Создание пути связи по новым правилам
   Path _createSimplePath(
     Offset start,
     Offset end,
@@ -199,19 +199,124 @@ class ArrowPainter {
     final path = Path();
     path.moveTo(start.dx, start.dy);
 
-    final dx = end.dx - start.dx;
-    final dy = end.dy - start.dy;
+    // Определяем стороны, к которым принадлежат точки начала и конца
+    String startSide = _getSideFromPoint(start, sourceRect);
+    String endSide = _getSideFromPoint(end, targetRect);
 
-    // Простой путь с одним поворотом
-    if (dx.abs() > dy.abs()) {
-      path.lineTo(end.dx, start.dy);
-      path.lineTo(end.dx, end.dy);
+    // Определяем тип соединения в зависимости от сторон
+    bool isParallelSides = _areParallelSides(startSide, endSide);
+    
+    if (isParallelSides) {
+      // Параллельные стороны (правая-левая или левая-правая): может быть 0 или 2 изгиба
+      if (_shouldDrawDirectLine(start, end, startSide, endSide)) {
+        // Прямая линия
+        path.lineTo(end.dx, end.dy);
+      } else {
+        // Два изгиба
+        _addTwoBendPath(path, start, end, startSide, endSide);
+      }
     } else {
-      path.lineTo(start.dx, end.dy);
-      path.lineTo(end.dx, end.dy);
+      // Перпендикулярные стороны: только один изгиб
+      _addOneBendPath(path, start, end, startSide, endSide);
     }
 
     return path;
+  }
+
+  // Определение стороны, к которой принадлежит точка
+  String _getSideFromPoint(Offset point, Rect rect) {
+    // Сравниваем расстояния до разных сторон и выбираем ближайшую
+    double leftDist = (point.dx - rect.left).abs();
+    double rightDist = (point.dx - rect.right).abs();
+    double topDist = (point.dy - rect.top).abs();
+    double bottomDist = (point.dy - rect.bottom).abs();
+    
+    // Находим минимальное расстояние
+    double minDist = leftDist;
+    String closestSide = 'left';
+    
+    if (rightDist < minDist) { minDist = rightDist; closestSide = 'right'; }
+    if (topDist < minDist) { minDist = topDist; closestSide = 'top'; }
+    if (bottomDist < minDist) { minDist = bottomDist; closestSide = 'bottom'; }
+    
+    return closestSide;
+  }
+
+  // Проверка, являются ли стороны параллельными (правая-левая или левая-правая, верхняя-нижняя или нижняя-верхняя)
+  bool _areParallelSides(String side1, String side2) {
+    return (side1 == 'left' && side2 == 'right') ||
+           (side1 == 'right' && side2 == 'left') ||
+           (side1 == 'top' && side2 == 'bottom') ||
+           (side1 == 'bottom' && side2 == 'top');
+  }
+
+  // Проверка необходимости прямой линии
+  bool _shouldDrawDirectLine(Offset start, Offset end, String startSide, String endSide) {
+    // Рисуем прямую линию, если стороны противоположные и точки находятся примерно на одной оси
+    if ((startSide == 'left' && endSide == 'right') || (startSide == 'right' && endSide == 'left')) {
+      return (start.dy - end.dy).abs() < 5; // Маленькая разница по Y
+    } else if ((startSide == 'top' && endSide == 'bottom') || (startSide == 'bottom' && endSide == 'top')) {
+      return (start.dx - end.dx).abs() < 5; // Маленькая разница по X
+    }
+    return false;
+  }
+
+  // Добавление пути с двумя изгибами
+  void _addTwoBendPath(Path path, Offset start, Offset end, String startSide, String endSide) {
+    // Для параллельных сторон с двумя изгибами первый и третий отрезки должны быть одинаковой длины
+    
+    // Определяем среднюю точку между началом и концом
+    double midX = (start.dx + end.dx) / 2;
+    double midY = (start.dy + end.dy) / 2;
+
+    Offset middlePoint1, middlePoint2;
+
+    if ((startSide == 'left' || startSide == 'right') && (endSide == 'left' || endSide == 'right')) {
+      // Горизонтальное соединение (левая-левая, левая-правая, правая-левая, правая-правая)
+      // Используем среднюю Y координату
+      middlePoint1 = Offset(start.dx, midY);
+      middlePoint2 = Offset(end.dx, midY);
+    } else {
+      // Вертикальное соединение (остальные случаи параллельных сторон)
+      // Используем среднюю X координату
+      middlePoint1 = Offset(midX, start.dy);
+      middlePoint2 = Offset(midX, end.dy);
+    }
+
+    // Добавляем точки пути
+    path.lineTo(middlePoint1.dx, middlePoint1.dy);
+    path.lineTo(middlePoint2.dx, middlePoint2.dy);
+    path.lineTo(end.dx, end.dy);
+  }
+
+  // Добавление пути с одним изгибом
+  void _addOneBendPath(Path path, Offset start, Offset end, String startSide, String endSide) {
+    Offset bendPoint;
+
+    // При соединении между перпендикулярными сторонами делаем один изгиб
+    // Определяем, какая координата должна совпадать у начальной точки и точки изгиба,
+    // а какая - у конечной точки и точки изгиба
+    if ((startSide == 'top' || startSide == 'bottom') && (endSide == 'left' || endSide == 'right')) {
+      // Вертикальная сторона к горизонтальной: изгиб по X координате конца
+      bendPoint = Offset(end.dx, start.dy);
+    } else if ((startSide == 'left' || startSide == 'right') && (endSide == 'top' || endSide == 'bottom')) {
+      // Горизонтальная сторона к вертикальной: изгиб по Y координате конца
+      bendPoint = Offset(start.dx, end.dy);
+    } else {
+      // По умолчанию используем координаты центра
+      double midX = (start.dx + end.dx) / 2;
+      double midY = (start.dy + end.dy) / 2;
+      
+      // Выбираем, какая ось будет изгибаться
+      if ((startSide == 'top' || startSide == 'bottom')) {
+        bendPoint = Offset(midX, start.dy);
+      } else {
+        bendPoint = Offset(start.dx, midY);
+      }
+    }
+
+    path.lineTo(bendPoint.dx, bendPoint.dy);
+    path.lineTo(end.dx, end.dy);
   }
   
   /// Проверяет, пересекает ли линия заданный прямоугольник
