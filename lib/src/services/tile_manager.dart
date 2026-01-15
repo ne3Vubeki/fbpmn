@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../models/image_tile.dart';
-import '../models/node.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import '../editor_state.dart';
@@ -698,7 +697,7 @@ class TileManager {
   }
 
   /// Удаление детей swimlane из тайлов
-  Future<void> _removeSwimlaneChildrenFromTiles(
+  Future<void> removeSwimlaneChildrenFromTiles(
     TableNode swimlaneNode,
     Set<int> tilesToUpdate,
   ) async {
@@ -785,11 +784,11 @@ class TileManager {
     } else {
       // Для swimlane в развернутом состоянии удаляем всех детей
       if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-        await _removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+        await removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       }
       // Для закрытого swimlane также обрабатываем дочерние узлы, чтобы удалить стрелки
       else if (node.qType == 'swimlane' && (node.isCollapsed ?? false)) {
-        await _removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+        await removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       }
 
       // Ищем тайлы, содержащие этот узел
@@ -803,7 +802,7 @@ class TileManager {
 
     // Обновляем ВСЕ тайлы, из которых удаляли узлы ИЛИ стрелки
     for (final tileIndex in tilesToUpdate) {
-      await _updateTileWithAllContent(tileIndex);
+      await updateTileWithAllContent(tileIndex);
     }
 
     // Очищаем кэши стрелок
@@ -1033,7 +1032,7 @@ class TileManager {
 
     // Обновляем все тайлы, в которые добавили стрелки
     for (final tileIndex in tilesToUpdate) {
-      await _updateTileWithAllContent(tileIndex);
+      await updateTileWithAllContent(tileIndex);
     }
 
     onStateUpdate();
@@ -1088,7 +1087,7 @@ class TileManager {
 
     // Обновляем все тайлы, в которые добавили узлы
     for (final tileIndex in tilesToUpdate) {
-      await _updateTileWithAllContent(tileIndex);
+      await updateTileWithAllContent(tileIndex);
     }
 
     // Находим все стрелки, связанные с этим узлом
@@ -1108,7 +1107,7 @@ class TileManager {
 
     // Повторно обновляем все затронутые тайлы
     for (final tileIndex in tilesToUpdate) {
-      await _updateTileWithAllContent(tileIndex);
+      await updateTileWithAllContent(tileIndex);
     }
 
     onStateUpdate();
@@ -1306,7 +1305,7 @@ class TileManager {
   }
 
   /// Обновление тайла со ВСЕМИ узлами и стрелками
-  Future<void> _updateTileWithAllContent(int tileIndex) async {
+  Future<void> updateTileWithAllContent(int tileIndex) async {
     if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
       return;
     }

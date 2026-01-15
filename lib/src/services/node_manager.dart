@@ -205,10 +205,10 @@ class NodeManager {
         }
       }
       final tilesToUpdate = <int>{};
-      await tileManager._removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+      await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       // Обновляем все затронутые тайлы
       for (final tileIndex in tilesToUpdate) {
-        await tileManager._updateTileWithAllContent(tileIndex);
+        await tileManager.updateTileWithAllContent(tileIndex);
       }
     }
 
@@ -252,10 +252,10 @@ class NodeManager {
         }
       }
       final tilesToUpdate = <int>{};
-      await tileManager._removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+      await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       // Обновляем все затронутые тайлы
       for (final tileIndex in tilesToUpdate) {
-        await tileManager._updateTileWithAllContent(tileIndex);
+        await tileManager.updateTileWithAllContent(tileIndex);
       }
     }
 
@@ -534,10 +534,10 @@ class NodeManager {
     if (toggledNode.isCollapsed ?? false) {
       // Удаляем детей из тайлов
       final tilesToUpdate = <int>{};
-      await tileManager._removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
+      await tileManager.removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
       // Обновляем все затронутые тайлы
       for (final tileIndex in tilesToUpdate) {
-        await tileManager._updateTileWithAllContent(tileIndex);
+        await tileManager.updateTileWithAllContent(tileIndex);
       }
     } else {
       // При раскрытии swimlane, когда у детей есть абсолютные позиции,
