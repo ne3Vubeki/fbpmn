@@ -77,6 +77,11 @@ class TileManager {
 
     void collectAllNodes(List<TableNode> nodes) {
       for (final node in nodes) {
+        // Пропускаем узлы, которые находятся внутри скрытых swimlane
+        if (node.parent != null && _isNodeHiddenInCollapsedSwimlane(node, allNodes)) {
+          continue;
+        }
+        
         allNodesIncludingChildren.add(node);
 
         // Если это развернутый swimlane, добавляем детей как независимые узлы
@@ -85,7 +90,10 @@ class TileManager {
             node.children != null &&
             node.children!.isNotEmpty) {
           for (final child in node.children!) {
-            allNodesIncludingChildren.add(child);
+            // Пропускаем детей, если они находятся внутри скрытых swimlane
+            if (!_isNodeHiddenInCollapsedSwimlane(child, allNodes)) {
+              allNodesIncludingChildren.add(child);
+            }
           }
         } else if (node.children != null &&
             node.children!.isNotEmpty &&
@@ -100,6 +108,12 @@ class TileManager {
 
     // Для каждого узла (включая вложенные) создаем тайлы в нужных позициях
     for (final node in allNodesIncludingChildren) {
+      // Пропускаем узлы, которые не должны отображаться на тайлах
+      // Это включает детей свернутых swimlane, которые не видны
+      if (_isNodeHiddenInCollapsedSwimlane(node, allNodes)) {
+        continue;
+      }
+
       // Получаем абсолютную позицию узла
       final nodePosition = node.aPosition ?? (state.delta + node.position);
       final nodeRect = _boundsCalculator.calculateNodeRect(
@@ -143,6 +157,16 @@ class TileManager {
       // Check which tiles the arrow intersects
       final arrowTileBounds = _getArrowBounds(arrow, allNodes);
       if (arrowTileBounds != null) {
+        // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
+        final effectiveSourceNode = _getEffectiveNodeById(arrow.source, allNodes);
+        final effectiveTargetNode = _getEffectiveNodeById(arrow.target, allNodes);
+        
+        // Пропускаем стрелки, связанные с узлами в скрытых swimlane
+        if ((effectiveSourceNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, allNodes)) ||
+            (effectiveTargetNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, allNodes))) {
+          continue;
+        }
+        
         final tileWorldSize = EditorConfig.tileSize.toDouble();
         final gridXStart = (arrowTileBounds.left / tileWorldSize).floor();
         final gridYStart = (arrowTileBounds.top / tileWorldSize).floor();
@@ -295,6 +319,16 @@ class TileManager {
 
     // Для каждой стрелки проверяем, есть ли тайлы между узлами
     for (final arrow in state.arrows) {
+      // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
+      final effectiveSourceNode = _getEffectiveNodeById(arrow.source, state.nodes);
+      final effectiveTargetNode = _getEffectiveNodeById(arrow.target, state.nodes);
+      
+      // Пропускаем стрелки, связанные с узлами в скрытых swimlane
+      if ((effectiveSourceNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, state.nodes)) ||
+          (effectiveTargetNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, state.nodes))) {
+        continue;
+      }
+      
       final arrowBounds = _getArrowBounds(arrow, state.nodes);
       if (arrowBounds != null) {
         final tileWorldSize = EditorConfig.tileSize.toDouble();
@@ -420,6 +454,11 @@ class TileManager {
         baseOffset: state.delta,
       );
 
+      // Если в тайле нет ни узлов, ни стрелок, не создаем его
+      if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
+        return null;
+      }
+
       // Фиксированный размер изображения
       final int tileImageSize = EditorConfig.tileSize;
       final double scale = 1.0; // Масштаб 1:1
@@ -481,6 +520,57 @@ class TileManager {
       print('Ошибка создания тайла: $e');
       return null;
     }
+  }
+
+  // Проверка, является ли узел скрытым внутри свернутого swimlane
+  bool _isNodeHiddenInCollapsedSwimlane(TableNode node, List<TableNode> allNodes) {
+    if (node.parent == null) {
+      return false; // У корневого узла нет родителя
+    }
+
+    // Найти родительский узел
+    TableNode? findParent(List<TableNode> nodes) {
+      for (final n in nodes) {
+        if (n.id == node.parent) {
+          return n;
+        }
+
+        if (n.children != null) {
+          final result = findParent(n.children!);
+          if (result != null) {
+            return result;
+          }
+        }
+      }
+      return null;
+    }
+
+    final parent = findParent(allNodes);
+    if (parent != null && 
+        parent.qType == 'swimlane' && 
+        (parent.isCollapsed ?? false)) {
+      return true; // Узел находится внутри свернутого swimlane
+    }
+
+    return false;
+  }
+
+  // Получить узел по ID
+  TableNode? _getEffectiveNodeById(String nodeId, List<TableNode> allNodes) {
+    TableNode? findNodeRecursive(List<TableNode> nodeList) {
+      for (final node in nodeList) {
+        if (node.id == nodeId) {
+          return node;
+        }
+        if (node.children != null) {
+          final found = findNodeRecursive(node.children!);
+          if (found != null) return found;
+        }
+      }
+      return null;
+    }
+
+    return findNodeRecursive(allNodes);
   }
 
   // Получение узлов для тайла (исключая выделенные)
@@ -1205,6 +1295,11 @@ class TileManager {
 
     // Добавляем всех детей в тайлы
     for (final child in swimlaneNode.children!) {
+      // Пропускаем детей, которые находятся внутри скрытых swimlane
+      if (_isNodeHiddenInCollapsedSwimlane(child, state.nodes)) {
+        continue;
+      }
+      
       // Вычисляем мировые координаты ребенка
       // Для развернутого swimlane используем абсолютную позицию ребенка напрямую
       final childWorldPosition = isExpanded
