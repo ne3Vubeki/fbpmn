@@ -78,10 +78,11 @@ class TileManager {
     void collectAllNodes(List<TableNode> nodes) {
       for (final node in nodes) {
         // Пропускаем узлы, которые находятся внутри скрытых swimlane
-        if (node.parent != null && _isNodeHiddenInCollapsedSwimlane(node, allNodes)) {
+        if (node.parent != null &&
+            _isNodeHiddenInCollapsedSwimlane(node, allNodes)) {
           continue;
         }
-        
+
         allNodesIncludingChildren.add(node);
 
         // Если это развернутый swimlane, добавляем детей как независимые узлы
@@ -158,15 +159,29 @@ class TileManager {
       final arrowTileBounds = _getArrowBounds(arrow, allNodes);
       if (arrowTileBounds != null) {
         // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
-        final effectiveSourceNode = _getEffectiveNodeById(arrow.source, allNodes);
-        final effectiveTargetNode = _getEffectiveNodeById(arrow.target, allNodes);
-        
+        final effectiveSourceNode = _getEffectiveNodeById(
+          arrow.source,
+          allNodes,
+        );
+        final effectiveTargetNode = _getEffectiveNodeById(
+          arrow.target,
+          allNodes,
+        );
+
         // Пропускаем стрелки, связанные с узлами в скрытых swimlane
-        if ((effectiveSourceNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, allNodes)) ||
-            (effectiveTargetNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, allNodes))) {
+        if ((effectiveSourceNode != null &&
+                _isNodeHiddenInCollapsedSwimlane(
+                  effectiveSourceNode,
+                  allNodes,
+                )) ||
+            (effectiveTargetNode != null &&
+                _isNodeHiddenInCollapsedSwimlane(
+                  effectiveTargetNode,
+                  allNodes,
+                ))) {
           continue;
         }
-        
+
         final tileWorldSize = EditorConfig.tileSize.toDouble();
         final gridXStart = (arrowTileBounds.left / tileWorldSize).floor();
         final gridYStart = (arrowTileBounds.top / tileWorldSize).floor();
@@ -265,7 +280,7 @@ class TileManager {
         nodes: allNodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
-      
+
       // Проверяем, действительно ли стрелка пересекает какие-либо тайлы
       final testPath = coordinator.getArrowPathForTiles(arrow, state.delta);
       if (testPath.getBounds().isEmpty) {
@@ -274,12 +289,14 @@ class TileManager {
           sourceRect.center.dx - targetRect.center.dx,
           sourceRect.center.dy - targetRect.center.dy,
         ).distance;
-        
+
         // Если узлы близко друг к другу, создаем минимальную область
         if (distance < EditorConfig.tileSize.toDouble() * 2) {
           return sourceRect
               .expandToInclude(targetRect)
-              .inflate(EditorConfig.tileSize.toDouble() / 4); // Меньше расширение
+              .inflate(
+                EditorConfig.tileSize.toDouble() / 4,
+              ); // Меньше расширение
         } else {
           // Не создаем тайлы для стрелок без реального пути
           return null;
@@ -350,15 +367,29 @@ class TileManager {
     // Для каждой стрелки проверяем, есть ли тайлы между узлами
     for (final arrow in state.arrows) {
       // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
-      final effectiveSourceNode = _getEffectiveNodeById(arrow.source, state.nodes);
-      final effectiveTargetNode = _getEffectiveNodeById(arrow.target, state.nodes);
-      
+      final effectiveSourceNode = _getEffectiveNodeById(
+        arrow.source,
+        state.nodes,
+      );
+      final effectiveTargetNode = _getEffectiveNodeById(
+        arrow.target,
+        state.nodes,
+      );
+
       // Пропускаем стрелки, связанные с узлами в скрытых swimlane
-      if ((effectiveSourceNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, state.nodes)) ||
-          (effectiveTargetNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, state.nodes))) {
+      if ((effectiveSourceNode != null &&
+              _isNodeHiddenInCollapsedSwimlane(
+                effectiveSourceNode,
+                state.nodes,
+              )) ||
+          (effectiveTargetNode != null &&
+              _isNodeHiddenInCollapsedSwimlane(
+                effectiveTargetNode,
+                state.nodes,
+              ))) {
         continue;
       }
-      
+
       final arrowBounds = _getArrowBounds(arrow, state.nodes);
       if (arrowBounds != null) {
         final tileWorldSize = EditorConfig.tileSize.toDouble();
@@ -553,7 +584,10 @@ class TileManager {
   }
 
   // Проверка, является ли узел скрытым внутри свернутого swimlane
-  bool _isNodeHiddenInCollapsedSwimlane(TableNode node, List<TableNode> allNodes) {
+  bool _isNodeHiddenInCollapsedSwimlane(
+    TableNode node,
+    List<TableNode> allNodes,
+  ) {
     if (node.parent == null) {
       return false; // У корневого узла нет родителя
     }
@@ -576,8 +610,8 @@ class TileManager {
     }
 
     final parent = findParent(allNodes);
-    if (parent != null && 
-        parent.qType == 'swimlane' && 
+    if (parent != null &&
+        parent.qType == 'swimlane' &&
         (parent.isCollapsed ?? false)) {
       return true; // Узел находится внутри свернутого swimlane
     }
@@ -709,8 +743,6 @@ class TileManager {
     return tiles;
   }
 
-  
-
   // Поиск индекса тайла по id
   int? _findTileIndexById(String tileId) {
     for (int i = 0; i < state.imageTiles.length; i++) {
@@ -723,8 +755,8 @@ class TileManager {
 
   // Обновление всех маппингов для всех тайлов
   void _updateAllTileMappings(
-    List<ImageTile> tiles, 
-    List<TableNode> allNodes, 
+    List<ImageTile> tiles,
+    List<TableNode> allNodes,
     List<Arrow> allArrows,
   ) {
     // Очищаем старые маппинги
@@ -833,19 +865,21 @@ class TileManager {
           tilesToUpdate.add(tileIndex);
         }
       }
-      
+
       // Также находим стрелки, связанные с дочерним узлом
       final arrowsConnectedToChild = state.arrows
-          .where((arrow) => arrow.source == child.id || arrow.target == child.id)
+          .where(
+            (arrow) => arrow.source == child.id || arrow.target == child.id,
+          )
           .toList();
-          
+
       // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
       for (final arrow in arrowsConnectedToChild) {
         final arrowTiles = _findTilesForArrow(arrow);
         for (final tileIndex in arrowTiles) {
           tilesToUpdate.add(tileIndex);
         }
-        
+
         // Также очищаем кэши стрелок для конкретной стрелки
         final tileIndices = state.arrowToTiles[arrow] ?? {};
         for (final tileIndex in tileIndices) {
@@ -873,19 +907,21 @@ class TileManager {
           tilesToUpdate.add(tileIndex);
         }
       }
-      
+
       // Также находим стрелки, связанные с дочерним узлом
       final arrowsConnectedToChild = state.arrows
-          .where((arrow) => arrow.source == child.id || arrow.target == child.id)
+          .where(
+            (arrow) => arrow.source == child.id || arrow.target == child.id,
+          )
           .toList();
-          
+
       // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
       for (final arrow in arrowsConnectedToChild) {
         final arrowTiles = _findTilesForArrow(arrow);
         for (final tileIndex in arrowTiles) {
           tilesToUpdate.add(tileIndex);
         }
-        
+
         // Также очищаем кэши стрелок для конкретной стрелки
         final tileIndices = state.arrowToTiles[arrow] ?? {};
         for (final tileIndex in tileIndices) {
@@ -906,10 +942,14 @@ class TileManager {
         .toList();
 
     // Если это закрытый swimlane или группа, добавляем также стрелки, связанные с дочерними узлами
-    if ((node.qType == 'swimlane' || node.qType == 'group') && (node.isCollapsed ?? false) && node.children != null) {
+    if ((node.qType == 'swimlane' || node.qType == 'group') &&
+        (node.isCollapsed ?? false) &&
+        node.children != null) {
       for (final child in node.children!) {
         arrowsConnectedToNode.addAll(
-          state.arrows.where((arrow) => arrow.source == child.id || arrow.target == child.id)
+          state.arrows.where(
+            (arrow) => arrow.source == child.id || arrow.target == child.id,
+          ),
         );
       }
     }
@@ -921,7 +961,7 @@ class TileManager {
       for (final tileIndex in arrowTiles) {
         tilesToUpdate.add(tileIndex);
       }
-      
+
       // Также очищаем кэши стрелок для конкретной стрелки
       final tileIndices = state.arrowToTiles[arrow] ?? {};
       for (final tileIndex in tileIndices) {
@@ -951,8 +991,12 @@ class TileManager {
         await removeGroupChildrenFromTiles(node, tilesToUpdate);
       }
       // Для закрытого swimlane или группы также обрабатываем дочерние узлы, чтобы удалить стрелки
-      else if ((node.qType == 'swimlane' || node.qType == 'group') && (node.isCollapsed ?? false)) {
-        await removeSwimlaneChildrenFromTiles(node, tilesToUpdate); // используем тот же метод, так как логика одинакова
+      else if ((node.qType == 'swimlane' || node.qType == 'group') &&
+          (node.isCollapsed ?? false)) {
+        await removeSwimlaneChildrenFromTiles(
+          node,
+          tilesToUpdate,
+        ); // используем тот же метод, так как логика одинакова
       }
 
       // Ищем тайлы, содержащие этот узел
@@ -965,6 +1009,7 @@ class TileManager {
     }
 
     // Обновляем ВСЕ тайлы, из которых удаляли узлы ИЛИ стрелки
+    print('Тайлы для обновления: $tilesToUpdate');
     for (final tileIndex in tilesToUpdate) {
       await updateTileWithAllContent(tileIndex);
     }
@@ -984,7 +1029,9 @@ class TileManager {
     }
 
     // Если это закрытый swimlane или группа, добавляем также стрелки, связанные с дочерними узлами
-    if ((node.qType == 'swimlane' || node.qType == 'group') && (node.isCollapsed ?? false) && node.children != null) {
+    if ((node.qType == 'swimlane' || node.qType == 'group') &&
+        (node.isCollapsed ?? false) &&
+        node.children != null) {
       for (final child in node.children!) {
         for (final arrow in state.arrows) {
           if (arrow.source == child.id || arrow.target == child.id) {
@@ -1210,7 +1257,6 @@ class TileManager {
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
       await _addSwimlaneChildrenToTiles(node, nodePosition, tilesToUpdate);
     }
-    
     // Для group в развернутом состоянии добавляем всех детей
     else if (node.qType == 'group' && !(node.isCollapsed ?? false)) {
       await _addGroupChildrenToTiles(node, nodePosition, tilesToUpdate);
@@ -1362,7 +1408,7 @@ class TileManager {
     // Проверяем каждый тайл на наличие стрелки
     for (int i = 0; i < state.imageTiles.length; i++) {
       final tile = state.imageTiles[i];
-      
+
       if (ArrowTilePainter.getArrowsForTile(
         tileBounds: tile.bounds,
         allArrows: [arrow],
@@ -1394,7 +1440,7 @@ class TileManager {
       if (_isNodeHiddenInCollapsedSwimlane(child, state.nodes)) {
         continue;
       }
-      
+
       // Вычисляем мировые координаты ребенка
       // Для развернутого swimlane используем абсолютную позицию ребенка напрямую
       final childWorldPosition = isExpanded
@@ -1443,8 +1489,7 @@ class TileManager {
   ) async {
     // Определяем, является ли group развернутым
     final isExpanded =
-        groupNode.qType == 'group' &&
-        !(groupNode.isCollapsed ?? false);
+        groupNode.qType == 'group' && !(groupNode.isCollapsed ?? false);
 
     // Добавляем всех детей в тайлы
     for (final child in groupNode.children!) {
@@ -1509,7 +1554,12 @@ class TileManager {
 
       // Создаем новый тайл со ВСЕМИ узлами и стрелками в этой области
       // Используем state.nodes и state.arrows (все узлы и стрелки)
-      final tile = await _createTileAtPosition(left, top, state.nodes, state.arrows);
+      final tile = await _createTileAtPosition(
+        left,
+        top,
+        state.nodes,
+        state.arrows,
+      );
 
       if (tile != null) {
         state.imageTiles.add(tile);

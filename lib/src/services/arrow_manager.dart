@@ -339,9 +339,8 @@ class ArrowManager {
         }
       }
     }
+    print(sides);
 
-    // ВАЖНО: Этот метод не вызывает распределение точек, чтобы избежать рекурсии
-    // Он возвращает базовые точки соединения без вызова методов подсчета
     return (start: startConnectionPoint, end: endConnectionPoint, sides: sides);
   }
 

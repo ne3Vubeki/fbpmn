@@ -87,17 +87,18 @@ class _StableGridImageState extends State<StableGridImage> {
 
       await _tileManager.createTiledImage(_editorState.nodes);
     } else {
-      
       await _tileManager.createFallbackTiles();
     }
 
     // Загружаем стрелки/связи
     if (arrows != null && arrows.isNotEmpty) {
       for (final arrow in arrows) {
-        _editorState.arrows.add(Arrow.fromJson(arrow));
+        if (arrow['source'] != null && arrow['target'] != null) {
+          _editorState.arrows.add(Arrow.fromJson(arrow));
+        }
       }
     }
-    
+
     // После загрузки всех данных, обновляем тайлы, чтобы включить стрелки
     await _tileManager.updateTilesAfterNodeChange();
 
@@ -145,7 +146,9 @@ class _StableGridImageState extends State<StableGridImage> {
                 onToggleTileBorders: () => _inputHandler.toggleTileBorders(),
                 onThumbnailClick: (Offset newOffset) {
                   // Обновляем offset в состоянии
-                  _editorState.offset = _inputHandler.constrainOffset(newOffset);
+                  _editorState.offset = _inputHandler.constrainOffset(
+                    newOffset,
+                  );
 
                   // Обновляем скроллбары
                   _scrollHandler.updateScrollControllers();
