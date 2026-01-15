@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../models/image_tile.dart';
+import '../models/node.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import '../editor_state.dart';
@@ -712,6 +713,7 @@ class TileManager {
     // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
       final arrowTiles = _findTilesForArrow(arrow);
+      print('Для связи ${arrow.id}: $arrowTiles');
       for (final tileIndex in arrowTiles) {
         tilesToUpdate.add(tileIndex);
       }
@@ -950,36 +952,6 @@ class TileManager {
     }
   }
 
-  /// Удаление стрелок, связанных с выделенным узлом из тайлов
-  Future<void> removeArrowsForSelectedNode(TableNode node) async {
-    final Set<int> tilesToUpdate = {};
-
-    // Находим все стрелки, связанные с этим узлом (как источник или цель)
-    final arrowsConnectedToNode = state.arrows
-        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
-        .toList();
-
-    // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
-    for (final arrow in arrowsConnectedToNode) {
-      final arrowTiles = _findTilesForArrow(arrow);
-      for (final tileIndex in arrowTiles) {
-        tilesToUpdate.add(tileIndex);
-      }
-      
-      // Также очищаем кэши стрелок для конкретной стрелки
-      final tileIndices = state.arrowToTiles[arrow] ?? {};
-      for (final tileIndex in tileIndices) {
-        state.tileToArrows[tileIndex]?.remove(arrow);
-      }
-      state.arrowToTiles.remove(arrow);
-    }
-
-    // Обновляем все затронутые тайлы
-    for (final tileIndex in tilesToUpdate) {
-      await _updateTileWithAllContent(tileIndex);
-    }
-  }
-
   /// Добавление стрелок, связанных с узлом обратно в тайлы (после сохранения)
   Future<void> addArrowsForNode(TableNode node, Offset nodePosition) async {
     final Set<int> tilesToUpdate = {};
@@ -1148,6 +1120,8 @@ class TileManager {
   // Найти все тайлы, через которые проходит стрелка
   Set<int> _findTilesForArrow(Arrow arrow) {
     final Set<int> tileIndices = {};
+    
+    print(state.tileToArrows);
 
     // Ищем тайлы по стрелке в state.tileToArrows
     state.tileToArrows.forEach((tileIndex, arrows) {

@@ -33,9 +33,6 @@ class InputHandler {
 
     if (event is KeyDownEvent) {
       switch (event.logicalKey) {
-        case LogicalKeyboardKey.delete:
-          nodeManager.deleteSelectedNode();
-          break;
         case LogicalKeyboardKey.keyB:
           toggleTileBorders();
           break;

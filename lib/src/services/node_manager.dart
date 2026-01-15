@@ -622,33 +622,6 @@ class NodeManager {
     return iconRect.contains(screenClickPosition);
   }
 
-  Future<void> deleteSelectedNode() async {
-    if (state.selectedNode != null) {
-      if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-        await _saveNodeToTiles();
-      }
-      
-      // Remove arrows connected to the node from all tiles BEFORE removing the node
-      if (state.selectedNode != null) {
-        await tileManager.removeArrowsForSelectedNode(state.selectedNode!);
-      }
-      
-      // Remove the node from the main list
-      state.nodes.removeWhere((node) => node.id == state.selectedNode!.id);
-      state.selectedNode = null;
-
-      // Пересчитываем абсолютные позиции для всех оставшихся узлов
-      for (final node in state.nodes) {
-        node.initializeAbsolutePositions(state.delta);
-      }
-
-      // Recreate tiles with updated content
-      await tileManager.createTiledImage(state.nodes);
-
-      onStateUpdate();
-    }
-  }
-
   void startNodeDrag(Offset screenPosition) {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
       _nodeDragStart = screenPosition;
