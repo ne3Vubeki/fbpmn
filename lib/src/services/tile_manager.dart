@@ -154,19 +154,19 @@ class TileManager {
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
     for (final arrow in allArrows) {
+      // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
+      final effectiveSourceNode = _getEffectiveNodeById(arrow.source, allNodes);
+      final effectiveTargetNode = _getEffectiveNodeById(arrow.target, allNodes);
+      
+      // Пропускаем стрелки, связанные с узлами в скрытых swimlane
+      if ((effectiveSourceNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, allNodes)) ||
+          (effectiveTargetNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, allNodes))) {
+        continue;
+      }
+      
       // Check which tiles the arrow intersects
       final arrowTileBounds = _getArrowBounds(arrow, allNodes);
       if (arrowTileBounds != null) {
-        // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
-        final effectiveSourceNode = _getEffectiveNodeById(arrow.source, allNodes);
-        final effectiveTargetNode = _getEffectiveNodeById(arrow.target, allNodes);
-        
-        // Пропускаем стрелки, связанные с узлами в скрытых swimlane
-        if ((effectiveSourceNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, allNodes)) ||
-            (effectiveTargetNode != null && _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, allNodes))) {
-          continue;
-        }
-        
         final tileWorldSize = EditorConfig.tileSize.toDouble();
         final gridXStart = (arrowTileBounds.left / tileWorldSize).floor();
         final gridYStart = (arrowTileBounds.top / tileWorldSize).floor();
@@ -229,6 +229,12 @@ class TileManager {
 
     if (sourceNode == null || targetNode == null) {
       return null; // Не можем определить границы стрелки без обоих узлов
+    }
+
+    // Проверяем, являются ли узлы скрытыми в свернутых swimlane
+    if (_isNodeHiddenInCollapsedSwimlane(sourceNode!, allNodes) ||
+        _isNodeHiddenInCollapsedSwimlane(targetNode!, allNodes)) {
+      return null; // Не создаем границы для стрелки между скрытыми узлами
     }
 
     // Получаем абсолютные позиции узлов
