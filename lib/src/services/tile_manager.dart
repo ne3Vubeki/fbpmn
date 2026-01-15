@@ -1149,21 +1149,12 @@ class TileManager {
   Set<int> _findTilesForArrow(Arrow arrow) {
     final Set<int> tileIndices = {};
 
-    // Используем ArrowTilePainter для точного определения тайлов, содержащих стрелку
-    for (int i = 0; i < state.imageTiles.length; i++) {
-      final tile = state.imageTiles[i];
-      
-      // Проверяем, пересекает ли стрелка этот тайл
-      final coordinator = ArrowTileCoordinator(
-        arrows: [arrow],
-        nodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
-      
-      if (coordinator.doesArrowIntersectTile(arrow, tile.bounds, state.delta)) {
-        tileIndices.add(i);
+    // Ищем тайлы по стрелке в state.tileToArrows
+    state.tileToArrows.forEach((tileIndex, arrows) {
+      if (arrows.contains(arrow)) {
+        tileIndices.add(tileIndex);
       }
-    }
+    });
 
     return tileIndices;
   }
