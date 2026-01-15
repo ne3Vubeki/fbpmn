@@ -141,6 +141,27 @@ class ArrowTileCoordinator {
     final path = getArrowPathForTiles(arrow, baseOffset);
     if (path.getBounds().isEmpty) return false;
 
+    // Более точная проверка пересечения с использованием PathMetrics
+    // для лучшего определения пересечений с тайлами
+    final pathMetrics = path.computeMetrics();
+    
+    for (final metric in pathMetrics) {
+      final pathLength = metric.length;
+      // Проверяем несколько точек вдоль пути
+      for (double t = 0; t <= pathLength; t += pathLength / 10) {
+        try {
+          final point = metric.getTangentForOffset(t)?.position;
+          if (point != null && tileBounds.contains(point)) {
+            return true;
+          }
+        } catch (e) {
+          // Если не удалось получить точку, продолжаем
+          continue;
+        }
+      }
+    }
+
+    // Резервная проверка через bounds
     return path.getBounds().overlaps(tileBounds);
   }
 }
