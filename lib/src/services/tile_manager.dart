@@ -1362,13 +1362,8 @@ class TileManager {
     // Проверяем каждый тайл на наличие стрелки
     for (int i = 0; i < state.imageTiles.length; i++) {
       final tile = state.imageTiles[i];
-      final arrowTilePainter = ArrowTilePainter(
-        arrows: [arrow],
-        nodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
       
-      if (arrowTilePainter.getArrowsForTile(
+      if (ArrowTilePainter.getArrowsForTile(
         tileBounds: tile.bounds,
         allArrows: [arrow],
         allNodes: state.nodes,
