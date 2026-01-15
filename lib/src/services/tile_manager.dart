@@ -1181,8 +1181,6 @@ class TileManager {
   // Найти все тайлы, через которые проходит стрелка
   Set<int> _findTilesForArrow(Arrow arrow) {
     final Set<int> tileIndices = {};
-    
-    print(state.tileToArrows);
 
     // Ищем тайлы по стрелке в state.tileToArrows
     state.tileToArrows.forEach((tileIndex, arrows) {
