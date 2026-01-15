@@ -41,6 +41,9 @@ class TileManager {
 
       state.imageTiles = tiles;
 
+      // Обновляем маппинги после того, как тайлы добавлены в состояние
+      _updateAllTileMappings(tiles, nodes, state.arrows);
+
       state.isLoading = false;
       onStateUpdate();
     } catch (e) {
@@ -54,6 +57,10 @@ class TileManager {
     final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
     state.imageTiles = tiles;
+
+    // Обновляем маппинги после того, как тайлы добавлены в состояние
+    _updateAllTileMappings(tiles, [], []);
+
     state.isLoading = false;
     onStateUpdate();
   }
@@ -464,10 +471,7 @@ class TileManager {
       final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
 
-      // Создаем карту узлов и стрелок для этого тайла
-      _updateNodeTileMappings(tileId, nodesInTile);
-      _updateArrowTileMappings(tileId, arrowsInTile);
-
+      // Возвращаем тайл вместе с данными для последующего обновления маппингов
       return ImageTile(
         image: image,
         bounds: tileBounds,
@@ -586,41 +590,7 @@ class TileManager {
     return tiles;
   }
 
-  // Обновляем метод для работы с String id
-  void _updateNodeTileMappings(String tileId, List<TableNode> nodesInTile) {
-    // Ищем индекс тайла по id
-    final tileIndex = _findTileIndexById(tileId);
-    if (tileIndex == null) {
-      return;
-    }
-
-    state.tileToNodes[tileIndex] = nodesInTile;
-
-    for (final node in nodesInTile) {
-      if (!state.nodeToTiles.containsKey(node)) {
-        state.nodeToTiles[node] = {};
-      }
-      state.nodeToTiles[node]!.add(tileIndex);
-    }
-  }
-
-  // Обновляем метод для работы с Arrow и String id
-  void _updateArrowTileMappings(String tileId, List<Arrow> arrowsInTile) {
-    // Ищем индекс тайла по id
-    final tileIndex = _findTileIndexById(tileId);
-    if (tileIndex == null) {
-      return;
-    }
-
-    state.tileToArrows[tileIndex] = arrowsInTile;
-
-    for (final arrow in arrowsInTile) {
-      if (!state.arrowToTiles.containsKey(arrow)) {
-        state.arrowToTiles[arrow] = {};
-      }
-      state.arrowToTiles[arrow]!.add(tileIndex);
-    }
-  }
+  
 
   // Поиск индекса тайла по id
   int? _findTileIndexById(String tileId) {
@@ -630,6 +600,52 @@ class TileManager {
       }
     }
     return null;
+  }
+
+  // Обновление всех маппингов для всех тайлов
+  void _updateAllTileMappings(
+    List<ImageTile> tiles, 
+    List<TableNode> allNodes, 
+    List<Arrow> allArrows,
+  ) {
+    // Очищаем старые маппинги
+    state.tileToNodes.clear();
+    state.tileToArrows.clear();
+    state.nodeToTiles.clear();
+    state.arrowToTiles.clear();
+
+    // Обновляем маппинги для всех тайлов
+    for (int i = 0; i < tiles.length; i++) {
+      final tile = tiles[i];
+      final nodesInTile = _getNodesForTile(tile.bounds, allNodes);
+      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+        tileBounds: tile.bounds,
+        allArrows: allArrows,
+        allNodes: allNodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
+      );
+
+      if (nodesInTile.isNotEmpty) {
+        state.tileToNodes[i] = nodesInTile;
+        for (final node in nodesInTile) {
+          if (!state.nodeToTiles.containsKey(node)) {
+            state.nodeToTiles[node] = <int>{};
+          }
+          state.nodeToTiles[node]!.add(i);
+        }
+      }
+
+      if (arrowsInTile.isNotEmpty) {
+        state.tileToArrows[i] = arrowsInTile;
+        for (final arrow in arrowsInTile) {
+          if (!state.arrowToTiles.containsKey(arrow)) {
+            state.arrowToTiles[arrow] = <int>{};
+          }
+          state.arrowToTiles[arrow]!.add(i);
+        }
+      }
+    }
   }
 
   // Фильтрация корневых узлов
@@ -1330,6 +1346,10 @@ class TileManager {
       final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
       state.imageTiles = tiles;
+
+      // Обновляем маппинги после того, как тайлы добавлены в состояние
+      _updateAllTileMappings(tiles, [], []);
+
       state.isLoading = false;
       onStateUpdate();
     } catch (e) {
