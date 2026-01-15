@@ -204,7 +204,12 @@ class NodeManager {
           child.aPosition ??= state.delta + node.position + child.position;
         }
       }
-      await _removeSwimlaneChildrenFromTiles(node);
+      final tilesToUpdate = <int>{};
+      await tileManager._removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+      // Обновляем все затронутые тайлы
+      for (final tileIndex in tilesToUpdate) {
+        await tileManager._updateTileWithAllContent(tileIndex);
+      }
     }
 
     // Затем удаляем узел из тайлов и ЖДЕМ завершения
@@ -246,24 +251,19 @@ class NodeManager {
           child.aPosition ??= state.delta + node.position + child.position;
         }
       }
-      await _removeSwimlaneChildrenFromTiles(node);
+      final tilesToUpdate = <int>{};
+      await tileManager._removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+      // Обновляем все затронутые тайлы
+      for (final tileIndex in tilesToUpdate) {
+        await tileManager._updateTileWithAllContent(tileIndex);
+      }
     }
 
     // Удаляем узел из тайлов
     await tileManager.removeSelectedNodeFromTiles(node);
   }
 
-  // Добавляем метод для удаления детей swimlane из тайлов
-  Future<void> _removeSwimlaneChildrenFromTiles(TableNode swimlaneNode) async {
-    if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
-      return;
-    }
 
-    // Удаляем всех детей из тайлов
-    for (final child in swimlaneNode.children!) {
-      await tileManager.removeSelectedNodeFromTiles(child);
-    }
-  }
 
   // Новый метод: удаление узла из основного списка узлов
   void _removeNodeFromNodesList(TableNode node) {
@@ -342,6 +342,10 @@ class NodeManager {
 
     // Для swimlane в развернутом состоянии добавляем детей в тайлы
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+      await _addSwimlaneChildrenToTiles(node, node.aPosition!);
+    }
+    // Для закрытого swimlane также обрабатываем дочерние узлы, чтобы они были учтены в системе
+    else if (node.qType == 'swimlane' && (node.isCollapsed ?? false)) {
       await _addSwimlaneChildrenToTiles(node, node.aPosition!);
     }
 
@@ -529,7 +533,12 @@ class NodeManager {
     // В зависимости от состояния обновляем тайлы
     if (toggledNode.isCollapsed ?? false) {
       // Удаляем детей из тайлов
-      await _removeSwimlaneChildrenFromTiles(swimlaneNode);
+      final tilesToUpdate = <int>{};
+      await tileManager._removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
+      // Обновляем все затронутые тайлы
+      for (final tileIndex in tilesToUpdate) {
+        await tileManager._updateTileWithAllContent(tileIndex);
+      }
     } else {
       // При раскрытии swimlane, когда у детей есть абсолютные позиции,
       // нужно правильно рассчитать их относительные позиции
@@ -590,6 +599,11 @@ class NodeManager {
       final childWorldPosition =
           child.aPosition ?? (parentWorldPosition + child.position);
       await tileManager.addNodeToTiles(child, childWorldPosition);
+    }
+    
+    // Для закрытого swimlane также обновляем тайлы, чтобы учесть стрелки, связанные с детьми
+    if (swimlaneNode.qType == 'swimlane' && (swimlaneNode.isCollapsed ?? false)) {
+      await tileManager.updateTilesAfterNodeChange();
     }
   }
 
