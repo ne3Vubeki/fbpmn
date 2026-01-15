@@ -622,31 +622,28 @@ class NodeManager {
     return iconRect.contains(screenClickPosition);
   }
 
-  void deleteSelectedNode() {
+  Future<void> deleteSelectedNode() async {
     if (state.selectedNode != null) {
       if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-        _saveNodeToTiles().then((_) {
-          state.nodes.removeWhere((node) => node.id == state.selectedNode!.id);
-          state.selectedNode = null;
-
-          // Пересчитываем абсолютные позиции для всех оставшихся узлов
-          for (final node in state.nodes) {
-            node.initializeAbsolutePositions(state.delta);
-          }
-
-          tileManager.createTiledImage(state.nodes);
-        });
-      } else {
-        state.nodes.removeWhere((node) => node.id == state.selectedNode!.id);
-        state.selectedNode = null;
-
-        // Пересчитываем абсолютные позиции для всех оставшихся узлов
-        for (final node in state.nodes) {
-          node.initializeAbsolutePositions(state.delta);
-        }
-
-        tileManager.createTiledImage(state.nodes);
+        await _saveNodeToTiles();
       }
+      
+      // Remove arrows connected to the node from all tiles BEFORE removing the node
+      if (state.selectedNode != null) {
+        await tileManager.removeArrowsForSelectedNode(state.selectedNode!);
+      }
+      
+      // Remove the node from the main list
+      state.nodes.removeWhere((node) => node.id == state.selectedNode!.id);
+      state.selectedNode = null;
+
+      // Пересчитываем абсолютные позиции для всех оставшихся узлов
+      for (final node in state.nodes) {
+        node.initializeAbsolutePositions(state.delta);
+      }
+
+      // Recreate tiles with updated content
+      await tileManager.createTiledImage(state.nodes);
 
       onStateUpdate();
     }
