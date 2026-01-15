@@ -1561,18 +1561,14 @@ class TileManager {
       final tileId = oldTile.id;
       final bounds = oldTile.bounds;
 
+      print('Update tile: $tileId');
+
       // Получаем ВСЕ узлы для этого тайла из state.nodes
       final nodesInTile = _getNodesForTile(bounds, state.nodes);
 
       // Получаем ВСЕ стрелки для этого тайла из state.arrows
       // Важно: учитываем ВСЕ стрелки, а не только те, что связаны с узлами в этом тайле
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: bounds,
-        allArrows: state.arrows,
-        allNodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
-      );
+      final arrowsInTile = state.tileToArrows[tileIndex] ?? [];
 
       // Очищаем старый кэш для этого тайла
       state.tileToNodes.remove(tileIndex);

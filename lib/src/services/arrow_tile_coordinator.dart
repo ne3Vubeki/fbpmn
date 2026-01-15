@@ -57,13 +57,14 @@ class ArrowTileCoordinator {
       ),
     );
 
-    // Вычисляем точки соединения (упрощенная версия без распределения)
-    final connectionPoints = arrowManager.calculateConnectionPointsForSideCalculation(
-      sourceRect,
-      targetRect,
-      effectiveSourceNode,
-      effectiveTargetNode,
-    );
+    // Вычисляем точки соединения
+    final connectionPoints = arrowManager
+        .calculateConnectionPointsForSideCalculation(
+          sourceRect,
+          targetRect,
+          effectiveSourceNode,
+          effectiveTargetNode,
+        );
 
     if (connectionPoints.start == null || connectionPoints.end == null) {
       return Path();
@@ -75,6 +76,7 @@ class ArrowTileCoordinator {
       connectionPoints.end!,
       sourceRect,
       targetRect,
+      connectionPoints.sides!,
     );
   }
 
@@ -84,22 +86,51 @@ class ArrowTileCoordinator {
     Offset end,
     Rect sourceRect,
     Rect targetRect,
+    String sides,
   ) {
     final path = Path();
     path.moveTo(start.dx, start.dy);
 
     final dx = end.dx - start.dx;
     final dy = end.dy - start.dy;
+    final dx2 = dx.abs() / 2;
+    final dy2 = dy.abs() / 2;
 
-    // Простой путь с одним поворотом
-    if (dx.abs() > dy.abs()) {
-      // Сначала по горизонтали, потом по вертикали
-      path.lineTo(end.dx, start.dy);
-      path.lineTo(end.dx, end.dy);
-    } else {
-      // Сначала по вертикали, потом по горизонтали
-      path.lineTo(start.dx, end.dy);
-      path.lineTo(end.dx, end.dy);
+    switch (sides) {
+      case 'left:right':
+        path.lineTo(start.dx - dx2, start.dy);
+        path.lineTo(start.dx - dx2, end.dy);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'right:left':
+        path.lineTo(start.dx + dx2, start.dy);
+        path.lineTo(start.dx + dx2, end.dy);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'top:bottom':
+        path.lineTo(start.dx, start.dy - dy2);
+        path.lineTo(end.dx, start.dy - dy2);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'bottom:top':
+        path.lineTo(start.dx, start.dy + dy2);
+        path.lineTo(end.dx, start.dy + dy2);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'left:top':
+      case 'right:top':
+      case 'left:bottom':
+      case 'right:bottom':
+        path.lineTo(end.dx, start.dy);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'top:left':
+      case 'top:right':
+      case 'bottom:left':
+      case 'bottom:right':
+        path.lineTo(start.dx, end.dy);
+        path.lineTo(end.dx, end.dy);
+        break;
     }
 
     return path;
@@ -144,7 +175,7 @@ class ArrowTileCoordinator {
     // Более точная проверка пересечения с использованием PathMetrics
     // для лучшего определения пересечений с тайлами
     final pathMetrics = path.computeMetrics();
-    
+
     for (final metric in pathMetrics) {
       final pathLength = metric.length;
       // Проверяем несколько точек вдоль пути
