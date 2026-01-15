@@ -163,12 +163,8 @@ class ArrowPainter {
     required bool forTile,
     required ArrowManager arrowManager,
   }) {
-    final connectionPoints = arrowManager.calculateConnectionPointsForSideCalculation(
-      sourceRect,
-      targetRect,
-      sourceNode,
-      targetNode,
-    );
+    // Используем метод с распределением точек подключения для текущей стрелки
+    final connectionPoints = arrowManager.calculateConnectionPointsWithDistribution(arrow);
     
     if (connectionPoints.start == null || connectionPoints.end == null) {
       return;
@@ -177,7 +173,7 @@ class ArrowPainter {
     final startPoint = connectionPoints.start!;
     final endPoint = connectionPoints.end!;
 
-    // Создаем простой путь без проверок пересечений
+    // Создаем путь с учетом требований
     final path = _createSimplePath(startPoint, endPoint, sourceRect, targetRect);
 
     // Всегда черный цвет

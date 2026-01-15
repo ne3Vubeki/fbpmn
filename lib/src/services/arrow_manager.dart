@@ -119,13 +119,11 @@ class ArrowManager {
       ),
     );
     
-    // Вычисляем точки соединения
-    final connectionPoints = calculateConnectionPointsForSideCalculation(sourceRect, targetRect, effectiveSourceNode, effectiveTargetNode);
-    
+    // Определяем сторону
     if (isSource) {
-      return _getSideFromPoint(connectionPoints.start!, sourceRect);
+      return _determineOptimalSide(sourceRect, targetRect, true);
     } else {
-      return _getSideFromPoint(connectionPoints.end!, targetRect);
+      return _determineOptimalSide(sourceRect, targetRect, false);
     }
   }
 
@@ -160,13 +158,11 @@ class ArrowManager {
       ),
     );
     
-    // Вычисляем точки соединения, но без вызова методов подсчета
-    final connectionPoints = calculateConnectionPointsForSideCalculation(sourceRect, targetRect, effectiveSourceNode, effectiveTargetNode);
-    
+    // Определяем сторону без вызова методов подсчета
     if (isSource) {
-      return _getSideFromPoint(connectionPoints.start!, sourceRect);
+      return _determineOptimalSide(sourceRect, targetRect, true);
     } else {
-      return _getSideFromPoint(connectionPoints.end!, targetRect);
+      return _determineOptimalSide(sourceRect, targetRect, false);
     }
   }
 
@@ -210,106 +206,220 @@ class ArrowManager {
     return null;
   }
 
+  /// Расчет точек соединения с учетом распределения для текущей стрелки
+  ({Offset? end, Offset? start}) calculateConnectionPointsWithDistribution(Arrow arrow) {
+    // Находим эффективные узлы источника и цели (учитываем свернутые swimlane)
+    final effectiveSourceNode = _findEffectiveNodeById(arrow.source);
+    final effectiveTargetNode = _findEffectiveNodeById(arrow.target);
+    
+    if (effectiveSourceNode == null || effectiveTargetNode == null) {
+      return (start: null, end: null);
+    }
+    
+    // Получаем абсолютные позиции узлов
+    final sourceAbsolutePos = effectiveSourceNode.aPosition ?? effectiveSourceNode.position;
+    final targetAbsolutePos = effectiveTargetNode.aPosition ?? effectiveTargetNode.position;
+    
+    // Создаем прямоугольники для узлов
+    final sourceRect = Rect.fromPoints(
+      sourceAbsolutePos,
+      Offset(
+        sourceAbsolutePos.dx + effectiveSourceNode.size.width,
+        sourceAbsolutePos.dy + effectiveSourceNode.size.height,
+      ),
+    );
+    
+    final targetRect = Rect.fromPoints(
+      targetAbsolutePos,
+      Offset(
+        targetAbsolutePos.dx + effectiveTargetNode.size.width,
+        targetAbsolutePos.dy + effectiveTargetNode.size.height,
+      ),
+    );
+    
+    // Определяем стороны для подключения
+    final sourceSide = _determineOptimalSide(sourceRect, targetRect, true);
+    final targetSide = _determineOptimalSide(sourceRect, targetRect, false);
+    
+    // Получаем количество стрелок, уже подключенных к этим сторонам
+    final sourceSideConnectionCount = getConnectionsCountOnSide(arrow.source, sourceSide);
+    final targetSideConnectionCount = getConnectionsCountOnSide(arrow.target, targetSide);
+    
+    // Получаем индекс текущей стрелки среди всех стрелок, подключенных к стороне источника
+    final sourceConnectionIndex = getConnectionIndex(arrow, arrow.source, sourceSide);
+    final targetConnectionIndex = getConnectionIndex(arrow, arrow.target, targetSide);
+    
+    // Рассчитываем точки подключения с учетом распределения
+    final startConnectionPoint = _calculateDistributedPoint(
+      sourceRect, 
+      sourceSide, 
+      sourceConnectionIndex, 
+      sourceSideConnectionCount
+    );
+    
+    final endConnectionPoint = _calculateDistributedPoint(
+      targetRect, 
+      targetSide, 
+      targetConnectionIndex, 
+      targetSideConnectionCount
+    );
+
+    return (start: startConnectionPoint, end: endConnectionPoint);
+  }
+  
   /// Расчет точек соединения для определения стороны (без вызова методов подсчета)
   ({Offset? end, Offset? start}) calculateConnectionPointsForSideCalculation(Rect sourceRect, Rect targetRect, TableNode sourceNode, TableNode targetNode) {
-    // Определяем центральные точки узлов
+    // Используем тот же алгоритм определения стороны, что и в основном методе
+    final sourceSide = _determineOptimalSide(sourceRect, targetRect, true);
+    final targetSide = _determineOptimalSide(sourceRect, targetRect, false);
+    
+    // Для определения стороны используем центральную точку
     final sourceCenter = sourceRect.center;
     final targetCenter = targetRect.center;
-
-    // Определяем стороны узлов
-    final sourceTop = sourceRect.top;
-    final sourceBottom = sourceRect.bottom;
-    final sourceLeft = sourceRect.left;
-    final sourceRight = sourceRect.right;
     
-    final targetTop = targetRect.top;
-    final targetBottom = targetRect.bottom;
-    final targetLeft = targetRect.left;
-    final targetRight = targetRect.right;
-
     Offset? startConnectionPoint;
     Offset? endConnectionPoint;
 
-    // Вычисляем расстояния между центрами узлов
-    final dx = targetCenter.dx - sourceCenter.dx;
-    final dy = targetCenter.dy - sourceCenter.dy;
+    switch (sourceSide) {
+      case 'left':
+        startConnectionPoint = Offset(sourceRect.left, sourceCenter.dy);
+        break;
+      case 'right':
+        startConnectionPoint = Offset(sourceRect.right, sourceCenter.dy);
+        break;
+      case 'top':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceRect.top);
+        break;
+      case 'bottom':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceRect.bottom);
+        break;
+      default:
+        startConnectionPoint = sourceCenter;
+    }
 
-    // Определяем исходную сторону (откуда выходит связь)
-    if (sourceCenter.dy < targetTop - 20) {
-      // середина высоты узла источника находится слева и выше
-      if (sourceRight < targetCenter.dx - 20) {
-        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-      } else 
-      // середина высоты узла источника находится справа и выше
-      if (sourceLeft > targetCenter.dx + 20) {
-        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-      } else {
-        startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-      }
-    } else 
-    if (sourceCenter.dy > targetTop - 20 && sourceCenter.dy < targetBottom + 20) {
-      // середина высоты узла источника находится слева (расстояние между узлами более 40 по x) и внутри отступов 20 от верха и низа
-      if (sourceRight < targetLeft - 40) {
-        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
-      } else
-      // середина высоты узла источника находится справа (расстояние между узлами более 40 по x) и внутри отступов 20 от верха и низа
-      if (sourceLeft > targetRight + 40) {
-        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);
-      } else {
-        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-      }
-    } else 
-    if (sourceCenter.dy > targetBottom + 20) {
-      // середина высоты узла источника находится слева и ниже
-      if (sourceRight < targetCenter.dx - 20) {
-        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6); 
-      } else
-      // середина высоты узла источника находится справа и ниже
-      if (sourceLeft > targetCenter.dx + 20) {
-        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
-      } else {
-        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
-        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
-      }
-    } else {
-      // Для других случаев используем алгоритм по аналогии
-      // Определяем основное направление связи
-      if (dx.abs() >= dy.abs()) {
-        // Горизонтальное направление преобладает
-        if (dx > 0) {
-          // Справа
-          startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
-          endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
-        } else {
-          // Слева
-          startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
-          endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);  
-        }
-      } else {
-        // Вертикальное направление преобладает
-        if (dy > 0) {
-          // Вниз
-          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
-          endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-        } else {
-          // Вверх
-          startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
-          endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6); 
-        }
-      }
+    switch (targetSide) {
+      case 'left':
+        endConnectionPoint = Offset(targetRect.left, targetCenter.dy);
+        break;
+      case 'right':
+        endConnectionPoint = Offset(targetRect.right, targetCenter.dy);
+        break;
+      case 'top':
+        endConnectionPoint = Offset(targetCenter.dx, targetRect.top);
+        break;
+      case 'bottom':
+        endConnectionPoint = Offset(targetCenter.dx, targetRect.bottom);
+        break;
+      default:
+        endConnectionPoint = targetCenter;
     }
 
     // ВАЖНО: Этот метод не вызывает распределение точек, чтобы избежать рекурсии
     // Он возвращает базовые точки соединения без вызова методов подсчета
     return (start: startConnectionPoint, end: endConnectionPoint);
+  }
+  
+  /// Определяет оптимальную сторону для подключения стрелки
+  String _determineOptimalSide(Rect sourceRect, Rect targetRect, bool isSource) {
+    final sourceCenter = sourceRect.center;
+    final targetCenter = targetRect.center;
+
+    // Вычисляем расстояния между центрами узлов
+    final dx = targetCenter.dx - sourceCenter.dx;
+    final dy = targetCenter.dy - sourceCenter.dy;
+
+    // Определяем, какую сторону использовать
+    if (isSource) {
+      // Для источника определяем сторону в зависимости от положения цели
+      if (dx.abs() >= dy.abs()) {
+        // Горизонтальное направление преобладает
+        if (dx > 0) {
+          return 'right';  // Цель справа от источника
+        } else {
+          return 'left';   // Цель слева от источника
+        }
+      } else {
+        // Вертикальное направление преобладает
+        if (dy > 0) {
+          return 'bottom'; // Цель снизу от источника
+        } else {
+          return 'top';    // Цель сверху от источника
+        }
+      }
+    } else {
+      // Для цели определяем сторону в зависимости от положения источника
+      if (dx.abs() >= dy.abs()) {
+        // Горизонтальное направление преобладает
+        if (dx > 0) {
+          return 'left';   // Источник слева от цели
+        } else {
+          return 'right';  // Источник справа от цели
+        }
+      } else {
+        // Вертикальное направление преобладает
+        if (dy > 0) {
+          return 'top';    // Источник сверху от цели
+        } else {
+          return 'bottom'; // Источник снизу от цели
+        }
+      }
+    }
+  }
+  
+  /// Рассчитывает точку подключения с учетом распределения нескольких стрелок на одной стороне
+  Offset? _calculateDistributedPoint(Rect rect, String side, int connectionIndex, int totalConnections) {
+    // Вычисляем центральные координаты
+    final center = rect.center;
+    
+    if (totalConnections <= 1) {
+      // Если только одна стрелка, используем центр стороны
+      switch (side) {
+        case 'left':
+          return Offset(rect.left, center.dy);
+        case 'right':
+          return Offset(rect.right, center.dy);
+        case 'top':
+          return Offset(center.dx, rect.top);
+        case 'bottom':
+          return Offset(center.dx, rect.bottom);
+        default:
+          return center;
+      }
+    }
+    
+    // Если несколько стрелок, распределяем их равномерно по стороне
+    const spacingPadding = 8.0; // Отступ от краев, чтобы стрелки не выходили за границы
+    double position = 0.5; // По умолчанию в центре
+    
+    if (totalConnections > 1) {
+      // Распределяем стрелки равномерно по стороне
+      position = (connectionIndex + 1) / (totalConnections + 1);
+    }
+    
+    switch (side) {
+      case 'left':
+      case 'right':
+        // Для вертикальных сторон (левая, правая) изменяем Y координату
+        final availableLength = rect.height - 2 * spacingPadding;
+        final offset = (position * availableLength) + spacingPadding;
+        return Offset(
+          side == 'left' ? rect.left : rect.right,
+          rect.top + offset,
+        );
+        
+      case 'top':
+      case 'bottom':
+        // Для горизонтальных сторон (верх, низ) изменяем X координату
+        final availableLength = rect.width - 2 * spacingPadding;
+        final offset = (position * availableLength) + spacingPadding;
+        return Offset(
+          rect.left + offset,
+          side == 'top' ? rect.top : rect.bottom,
+        );
+        
+      default:
+        return center;
+    }
   }
 
   /// Определяет сторону узла, к которой принадлежит точка

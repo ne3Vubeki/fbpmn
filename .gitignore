@@ -1,4 +1,3 @@
-```
 # Compiled and build artifacts
 *.pyc
 __pycache__/
@@ -10,6 +9,9 @@ __pycache__/
 *.so
 *.a
 *.out
+*.log
+*.tmp
+*.swp
 
 # Dependencies
 node_modules/
@@ -19,30 +21,20 @@ venv/
 .env.local
 .env.*
 
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-*.swo
-
 # Editors
 .vscode/
 .idea/
 
-# Build directories
+# Build outputs
 dist/
 build/
 target/
 .gradle/
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Python specific
 .mypy_cache/
 .pytest_cache/
+coverage/
+htmlcov/
+.thumbs
 
 # System files
 .DS_Store
@@ -71,4 +63,20 @@ Thumbs.db
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-```
+
+# Dart/Flutter specific
+.dart_tool/
+.packages
+.pub/
+build/
+*.g.dart
+*.freezed.dart
+
+# Coverage
+.coverage
+
+# Temp files
+*.tmp
+*~
+.bak
+*.bak
