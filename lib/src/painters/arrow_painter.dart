@@ -163,12 +163,11 @@ class ArrowPainter {
     required bool forTile,
     required ArrowManager arrowManager,
   }) {
-    final connectionPoints = arrowManager.calculateConnectionPoints(
+    final connectionPoints = arrowManager.calculateConnectionPointsForSideCalculation(
       sourceRect,
       targetRect,
       sourceNode,
       targetNode,
-      arrow,
     );
     
     if (connectionPoints.start == null || connectionPoints.end == null) {

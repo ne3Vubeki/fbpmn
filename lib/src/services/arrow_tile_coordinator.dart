@@ -58,12 +58,11 @@ class ArrowTileCoordinator {
     );
 
     // Вычисляем точки соединения (упрощенная версия без распределения)
-    final connectionPoints = arrowManager.calculateConnectionPoints(
+    final connectionPoints = arrowManager.calculateConnectionPointsForSideCalculation(
       sourceRect,
       targetRect,
       effectiveSourceNode,
       effectiveTargetNode,
-      arrow,
     );
 
     if (connectionPoints.start == null || connectionPoints.end == null) {
