@@ -258,10 +258,40 @@ class TileManager {
     final path = coordinator.getArrowPathForTiles(arrow, state.delta);
 
     if (path.getBounds().isEmpty) {
-      // Если путь пустой, возвращаем область между узлами
-      return sourceRect
-          .expandToInclude(targetRect)
-          .inflate(EditorConfig.tileSize.toDouble());
+      // Если путь пустой, проверяем, пересекаются ли узлы с тайлами
+      // Если нет стрелок между узлами, не создаем тайлы
+      final coordinator = ArrowTileCoordinator(
+        arrows: [arrow],
+        nodes: allNodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      // Проверяем, действительно ли стрелка пересекает какие-либо тайлы
+      final testPath = coordinator.getArrowPathForTiles(arrow, state.delta);
+      if (testPath.getBounds().isEmpty) {
+        // Проверяем, соединены ли узлы (если они близко друг к другу)
+        final distance = Offset(
+          sourceRect.center.dx - targetRect.center.dx,
+          sourceRect.center.dy - targetRect.center.dy,
+        ).distance;
+        
+        // Если узлы близко друг к другу, создаем минимальную область
+        if (distance < EditorConfig.tileSize.toDouble() * 2) {
+          return sourceRect
+              .expandToInclude(targetRect)
+              .inflate(EditorConfig.tileSize.toDouble() / 4); // Меньше расширение
+        } else {
+          // Не создаем тайлы для стрелок без реального пути
+          return null;
+        }
+      } else {
+        // Используем путь стрелки для определения границ
+        final pathBounds = testPath.getBounds();
+        return pathBounds
+            .expandToInclude(sourceRect)
+            .expandToInclude(targetRect)
+            .inflate(EditorConfig.tileSize.toDouble() / 2);
+      }
     }
 
     // Получаем границы пути и увеличиваем для учета тайлов
@@ -1328,6 +1358,27 @@ class TileManager {
       }
     });
 
+    // Также ищем тайлы, в которых может быть стрелка, но кэш еще не обновлен
+    // Проверяем каждый тайл на наличие стрелки
+    for (int i = 0; i < state.imageTiles.length; i++) {
+      final tile = state.imageTiles[i];
+      final arrowTilePainter = ArrowTilePainter(
+        arrows: [arrow],
+        nodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      if (arrowTilePainter.getArrowsForTile(
+        tileBounds: tile.bounds,
+        allArrows: [arrow],
+        allNodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
+      ).isNotEmpty) {
+        tileIndices.add(i);
+      }
+    }
+
     return tileIndices;
   }
 
@@ -1461,9 +1512,9 @@ class TileManager {
         return;
       }
 
-      // Создаем новый тайл со ВСЕМИ узлами в этой области
-      // Используем state.nodes (все узлы, включая только что добавленный)
-      final tile = await _createTileAtPosition(left, top, state.nodes, []);
+      // Создаем новый тайл со ВСЕМИ узлами и стрелками в этой области
+      // Используем state.nodes и state.arrows (все узлы и стрелки)
+      final tile = await _createTileAtPosition(left, top, state.nodes, state.arrows);
 
       if (tile != null) {
         state.imageTiles.add(tile);
