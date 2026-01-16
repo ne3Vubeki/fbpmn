@@ -455,67 +455,30 @@ class TileManager {
       // Получаем узлы для этого тайла (исключая выделенные)
       final nodesInTile = _getNodesForTile(tileBounds, allNodes);
 
-      // Получаем стрелки для этого тайла (используем новый подход)
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: tileBounds,
-        allArrows: allArrows,
-        allNodes: allNodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
-      );
-
-      // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
-      final filteredArrowsInTile = <Arrow>[];
+      // Получаем стрелки для этого тайла с использованием точных алгоритмов из ArrowManager
       final arrowManager = ArrowManager(
         arrows: allArrows,
         nodes: allNodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
 
-      for (final arrow in arrowsInTile) {
-        if (arrowManager.doesArrowPathIntersectTile(arrow, tileBounds, state.delta)) {
-          filteredArrowsInTile.add(arrow);
-        }
-      }
-
-      // Дополнительная проверка: исключаем стрелки, если ни один из узлов стрелки не находится в тайле
-      // и путь стрелки не пересекает тайл
       final finalFilteredArrowsInTile = <Arrow>[];
-      for (final arrow in filteredArrowsInTile) {
-        // Находим узлы, связанные со стрелкой
-        final sourceNode = _getEffectiveNodeById(arrow.source, allNodes);
-        final targetNode = _getEffectiveNodeById(arrow.target, allNodes);
-        
-        bool shouldInclude = false;
-        
-        if (sourceNode != null) {
-          final sourceAbsolutePos = sourceNode.aPosition ?? (state.delta + sourceNode.position);
-          final sourceRect = _boundsCalculator.calculateNodeRect(
-            node: sourceNode,
-            position: sourceAbsolutePos,
-          );
-          if (sourceRect.overlaps(tileBounds)) {
-            shouldInclude = true;
-          }
+      for (final arrow in allArrows) {
+        // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
+        final effectiveSourceNode = _getEffectiveNodeById(arrow.source, allNodes);
+        final effectiveTargetNode = _getEffectiveNodeById(arrow.target, allNodes);
+
+        // Пропускаем стрелки, связанные с узлами в скрытых swimlane
+        if ((effectiveSourceNode != null && 
+                _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, allNodes)) ||
+            (effectiveTargetNode != null && 
+                _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, allNodes))) {
+          continue;
         }
-        
-        if (!shouldInclude && targetNode != null) {
-          final targetAbsolutePos = targetNode.aPosition ?? (state.delta + targetNode.position);
-          final targetRect = _boundsCalculator.calculateNodeRect(
-            node: targetNode,
-            position: targetAbsolutePos,
-          );
-          if (targetRect.overlaps(tileBounds)) {
-            shouldInclude = true;
-          }
-        }
-        
-        // Если ни один из узлов не пересекает тайл, проверяем, пересекает ли путь стрелки тайл
-        if (!shouldInclude) {
-          shouldInclude = arrowManager.doesArrowPathIntersectTile(arrow, tileBounds, state.delta);
-        }
-        
-        if (shouldInclude) {
+
+        // Используем точный метод из ArrowManager, который использует 
+        // _createSimpleOrthogonalPath и calculateConnectionPointsForSideCalculation
+        if (arrowManager.doesArrowPathIntersectTile(arrow, tileBounds, state.delta)) {
           finalFilteredArrowsInTile.add(arrow);
         }
       }
@@ -1200,66 +1163,30 @@ class TileManager {
       final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
 
       // Фильтруем стрелки, чтобы включить только те, которые действительно пересекают тайл
-      final rawArrows = ArrowTilePainter.getArrowsForTile(
-        tileBounds: bounds,
-        allArrows: state.arrows,
-        allNodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
-      );
-
-      // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
-      final filteredArrows = <Arrow>[];
+      // с использованием точных алгоритмов из ArrowManager
       final arrowManager = ArrowManager(
         arrows: state.arrows,
         nodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
 
-      for (final arrow in rawArrows) {
-        if (arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta)) {
-          filteredArrows.add(arrow);
-        }
-      }
-
-      // Дополнительная проверка: исключаем стрелки, если ни один из узлов стрелки не находится в тайле
-      // и путь стрелки не пересекает тайл
       final finalFilteredArrows = <Arrow>[];
-      for (final arrow in filteredArrows) {
-        // Находим узлы, связанные со стрелкой
-        final sourceNode = _getEffectiveNodeById(arrow.source, state.nodes);
-        final targetNode = _getEffectiveNodeById(arrow.target, state.nodes);
-        
-        bool shouldInclude = false;
-        
-        if (sourceNode != null) {
-          final sourceAbsolutePos = sourceNode.aPosition ?? (state.delta + sourceNode.position);
-          final sourceRect = _boundsCalculator.calculateNodeRect(
-            node: sourceNode,
-            position: sourceAbsolutePos,
-          );
-          if (sourceRect.overlaps(bounds)) {
-            shouldInclude = true;
-          }
+      for (final arrow in state.arrows) {
+        // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
+        final effectiveSourceNode = _getEffectiveNodeById(arrow.source, state.nodes);
+        final effectiveTargetNode = _getEffectiveNodeById(arrow.target, state.nodes);
+
+        // Пропускаем стрелки, связанные с узлами в скрытых swimlane
+        if ((effectiveSourceNode != null && 
+                _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, state.nodes)) ||
+            (effectiveTargetNode != null && 
+                _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, state.nodes))) {
+          continue;
         }
-        
-        if (!shouldInclude && targetNode != null) {
-          final targetAbsolutePos = targetNode.aPosition ?? (state.delta + targetNode.position);
-          final targetRect = _boundsCalculator.calculateNodeRect(
-            node: targetNode,
-            position: targetAbsolutePos,
-          );
-          if (targetRect.overlaps(bounds)) {
-            shouldInclude = true;
-          }
-        }
-        
-        // Если ни один из узлов не пересекает тайл, проверяем, пересекает ли путь стрелки тайл
-        if (!shouldInclude) {
-          shouldInclude = arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta);
-        }
-        
-        if (shouldInclude) {
+
+        // Используем точный метод из ArrowManager, который использует 
+        // _createSimpleOrthogonalPath и calculateConnectionPointsForSideCalculation
+        if (arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta)) {
           finalFilteredArrows.add(arrow);
         }
       }
@@ -1499,67 +1426,30 @@ class TileManager {
       final nodesInTile = state.getNodesByIds(oldTile.nodes);
       
       // Пересчитываем стрелки, которые действительно проходят через этот тайл
-      // (а не просто те, которые были в старом тайле)
-      final rawArrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: bounds,
-        allArrows: state.arrows,
-        allNodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
-      );
-
-      // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
-      final filteredArrowsInTile = <Arrow>[];
+      // с использованием точных алгоритмов из ArrowManager
       final arrowManager = ArrowManager(
         arrows: state.arrows,
         nodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
 
-      for (final arrow in rawArrowsInTile) {
-        if (arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta)) {
-          filteredArrowsInTile.add(arrow);
-        }
-      }
-
-      // Дополнительная проверка: исключаем стрелки, если ни один из узлов стрелки не находится в тайле
-      // и путь стрелки не пересекает тайл
       final finalFilteredArrowsInTile = <Arrow>[];
-      for (final arrow in filteredArrowsInTile) {
-        // Находим узлы, связанные со стрелкой
-        final sourceNode = _getEffectiveNodeById(arrow.source, state.nodes);
-        final targetNode = _getEffectiveNodeById(arrow.target, state.nodes);
-        
-        bool shouldInclude = false;
-        
-        if (sourceNode != null) {
-          final sourceAbsolutePos = sourceNode.aPosition ?? (state.delta + sourceNode.position);
-          final sourceRect = _boundsCalculator.calculateNodeRect(
-            node: sourceNode,
-            position: sourceAbsolutePos,
-          );
-          if (sourceRect.overlaps(bounds)) {
-            shouldInclude = true;
-          }
+      for (final arrow in state.arrows) {
+        // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
+        final effectiveSourceNode = _getEffectiveNodeById(arrow.source, state.nodes);
+        final effectiveTargetNode = _getEffectiveNodeById(arrow.target, state.nodes);
+
+        // Пропускаем стрелки, связанные с узлами в скрытых swimlane
+        if ((effectiveSourceNode != null && 
+                _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode, state.nodes)) ||
+            (effectiveTargetNode != null && 
+                _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode, state.nodes))) {
+          continue;
         }
-        
-        if (!shouldInclude && targetNode != null) {
-          final targetAbsolutePos = targetNode.aPosition ?? (state.delta + targetNode.position);
-          final targetRect = _boundsCalculator.calculateNodeRect(
-            node: targetNode,
-            position: targetAbsolutePos,
-          );
-          if (targetRect.overlaps(bounds)) {
-            shouldInclude = true;
-          }
-        }
-        
-        // Если ни один из узлов не пересекает тайл, проверяем, пересекает ли путь стрелки тайл
-        if (!shouldInclude) {
-          shouldInclude = arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta);
-        }
-        
-        if (shouldInclude) {
+
+        // Используем точный метод из ArrowManager, который использует 
+        // _createSimpleOrthogonalPath и calculateConnectionPointsForSideCalculation
+        if (arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta)) {
           finalFilteredArrowsInTile.add(arrow);
         }
       }
