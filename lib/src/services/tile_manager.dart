@@ -122,35 +122,8 @@ class TileManager {
         position: nodePosition,
       );
 
-      // Рассчитываем grid позиции, которые покрывает узел
-      final tileWorldSize = EditorConfig.tileSize.toDouble();
-      final gridXStart = (nodeRect.left / tileWorldSize).floor();
-      final gridYStart = (nodeRect.top / tileWorldSize).floor();
-      final gridXEnd = (nodeRect.right / tileWorldSize).ceil();
-      final gridYEnd = (nodeRect.bottom / tileWorldSize).ceil();
-
-      // Создаем тайлы для всех grid позиций
-      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-          final left = gridX * tileWorldSize;
-          final top = gridY * tileWorldSize;
-          final tileId = _generateTileId(left, top);
-
-          if (!createdTileIds.contains(tileId)) {
-            // Создаем тайл в этой позиции
-            final tile = await _createTileAtPosition(
-              left,
-              top,
-              allNodes,
-              allArrows,
-            );
-            if (tile != null) {
-              tiles.add(tile);
-              createdTileIds.add(tileId);
-            }
-          }
-        }
-      }
+      // Создаем тайлы для всех grid позиций, занимаемых узлом
+      await _createTilesForRect(nodeRect, allNodes, allArrows, tiles, createdTileIds);
     }
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
@@ -192,24 +165,90 @@ class TileManager {
 
       // Определяем границы пути для определения диапазона тайлов
       final pathBounds = path.getBounds();
-      final tileWorldSize = EditorConfig.tileSize.toDouble();
-      final gridXStart = (pathBounds.left / tileWorldSize).floor();
-      final gridYStart = (pathBounds.top / tileWorldSize).floor();
-      final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
-      final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
 
       // Проверяем пересечение пути стрелки с каждым потенциальным тайлом
-      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-          final left = gridX * tileWorldSize;
-          final top = gridY * tileWorldSize;
-          final tileBounds = Rect.fromLTWH(left, top, tileWorldSize, tileWorldSize);
-          final tileId = _generateTileId(left, top);
+      await _createTilesForArrowPath(pathBounds, arrow, coordinator, allNodes, allArrows, tiles, createdTileIds);
+    }
 
-          // Проверяем, пересекает ли путь стрелки этот тайл
-          if (coordinator.doesArrowIntersectTile(arrow, tileBounds, state.delta)) {
-            if (!createdTileIds.contains(tileId)) {
-              // Создаем тайл в этой позиции
+    return tiles;
+  }
+
+  // Создание тайлов для прямоугольника
+  Future<void> _createTilesForRect(
+    Rect rect,
+    List<TableNode> allNodes,
+    List<Arrow> allArrows,
+    List<ImageTile> tiles,
+    Set<String> createdTileIds,
+  ) async {
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+    final gridXStart = (rect.left / tileWorldSize).floor();
+    final gridYStart = (rect.top / tileWorldSize).floor();
+    final gridXEnd = (rect.right / tileWorldSize).ceil();
+    final gridYEnd = (rect.bottom / tileWorldSize).ceil();
+
+    // Создаем тайлы для всех grid позиций
+    for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+      for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+        final left = gridX * tileWorldSize;
+        final top = gridY * tileWorldSize;
+        final tileId = _generateTileId(left, top);
+
+        if (!createdTileIds.contains(tileId)) {
+          // Создаем тайл в этой позиции
+          final tile = await _createTileAtPosition(
+            left,
+            top,
+            allNodes,
+            allArrows,
+          );
+          if (tile != null) {
+            tiles.add(tile);
+            createdTileIds.add(tileId);
+          }
+        }
+      }
+    }
+  }
+
+  // Создание тайлов для пути стрелки с проверкой существования тайла
+  Future<void> _createTilesForArrowPathWithCheck(
+    Rect pathBounds,
+    Arrow arrow,
+    ArrowTileCoordinator coordinator,
+    List<TableNode> allNodes,
+    List<Arrow> allArrows,
+    List<ImageTile> newTiles,
+    Set<String> createdTileIds,
+  ) async {
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+    final gridXStart = (pathBounds.left / tileWorldSize).floor();
+    final gridYStart = (pathBounds.top / tileWorldSize).floor();
+    final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
+    final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
+
+    // Проверяем пересечение пути стрелки с каждым потенциальным тайлом
+    for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+      for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+        final left = gridX * tileWorldSize;
+        final top = gridY * tileWorldSize;
+        final tileBounds = Rect.fromLTWH(left, top, tileWorldSize, tileWorldSize);
+        final tileId = _generateTileId(left, top);
+
+        // Проверяем, пересекает ли путь стрелки этот тайл
+        if (coordinator.doesArrowIntersectTile(arrow, tileBounds, state.delta)) {
+          if (!createdTileIds.contains(tileId)) {
+            // Проверяем, существует ли уже тайл с такими координатами
+            bool tileExists = false;
+            for (final existingTile in state.imageTiles) {
+              if (existingTile.id == tileId) {
+                tileExists = true;
+                break;
+              }
+            }
+
+            if (!tileExists) {
+              // Создаем новый тайл в этой позиции
               final tile = await _createTileAtPosition(
                 left,
                 top,
@@ -217,7 +256,7 @@ class TileManager {
                 allArrows,
               );
               if (tile != null) {
-                tiles.add(tile);
+                newTiles.add(tile);
                 createdTileIds.add(tileId);
               }
             }
@@ -225,8 +264,50 @@ class TileManager {
         }
       }
     }
+  }
 
-    return tiles;
+  // Создание тайлов для пути стрелки
+  Future<void> _createTilesForArrowPath(
+    Rect pathBounds,
+    Arrow arrow,
+    ArrowTileCoordinator coordinator,
+    List<TableNode> allNodes,
+    List<Arrow> allArrows,
+    List<ImageTile> tiles,
+    Set<String> createdTileIds,
+  ) async {
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+    final gridXStart = (pathBounds.left / tileWorldSize).floor();
+    final gridYStart = (pathBounds.top / tileWorldSize).floor();
+    final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
+    final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
+
+    // Проверяем пересечение пути стрелки с каждым потенциальным тайлом
+    for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+      for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+        final left = gridX * tileWorldSize;
+        final top = gridY * tileWorldSize;
+        final tileBounds = Rect.fromLTWH(left, top, tileWorldSize, tileWorldSize);
+        final tileId = _generateTileId(left, top);
+
+        // Проверяем, пересекает ли путь стрелки этот тайл
+        if (coordinator.doesArrowIntersectTile(arrow, tileBounds, state.delta)) {
+          if (!createdTileIds.contains(tileId)) {
+            // Создаем тайл в этой позиции
+            final tile = await _createTileAtPosition(
+              left,
+              top,
+              allNodes,
+              allArrows,
+            );
+            if (tile != null) {
+              tiles.add(tile);
+              createdTileIds.add(tileId);
+            }
+          }
+        }
+      }
+    }
   }
 
   // Создание тайлов для областей без тайлов между узлами
@@ -273,49 +354,17 @@ class TileManager {
 
       // Определяем границы пути для определения диапазона тайлов
       final pathBounds = path.getBounds();
-      final tileWorldSize = EditorConfig.tileSize.toDouble();
-      final gridXStart = (pathBounds.left / tileWorldSize).floor();
-      final gridYStart = (pathBounds.top / tileWorldSize).floor();
-      final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
-      final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
 
       // Проверяем пересечение пути стрелки с каждым потенциальным тайлом
-      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-          final left = gridX * tileWorldSize;
-          final top = gridY * tileWorldSize;
-          final tileBounds = Rect.fromLTWH(left, top, tileWorldSize, tileWorldSize);
-          final tileId = _generateTileId(left, top);
-
-          // Проверяем, пересекает ли путь стрелки этот тайл
-          if (coordinator.doesArrowIntersectTile(arrow, tileBounds, state.delta)) {
-            if (!createdTileIds.contains(tileId)) {
-              // Проверяем, существует ли уже тайл с такими координатами
-              bool tileExists = false;
-              for (final existingTile in state.imageTiles) {
-                if (existingTile.id == tileId) {
-                  tileExists = true;
-                  break;
-                }
-              }
-
-              if (!tileExists) {
-                // Создаем новый тайл в этой позиции
-                final tile = await _createTileAtPosition(
-                  left,
-                  top,
-                  state.nodes,
-                  state.arrows,
-                );
-                if (tile != null) {
-                  newTiles.add(tile);
-                  createdTileIds.add(tileId);
-                }
-              }
-            }
-          }
-        }
-      }
+      await _createTilesForArrowPathWithCheck(
+        pathBounds,
+        arrow,
+        coordinator,
+        state.nodes,
+        state.arrows,
+        newTiles,
+        createdTileIds,
+      );
     }
 
     // Добавляем новые тайлы к существующим
@@ -652,13 +701,10 @@ class TileManager {
     // Обновляем маппинги для всех тайлов
     for (int i = 0; i < tiles.length; i++) {
       final tile = tiles[i];
-      final nodesInTile = _getNodesForTile(tile.bounds, allNodes);
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: tile.bounds,
-        allArrows: allArrows,
-        allNodes: allNodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
+      final (nodesInTile, arrowsInTile) = _getContentForTile(
+        tile.bounds,
+        allNodes,
+        allArrows,
       );
 
       if (nodesInTile.isNotEmpty) {
@@ -681,6 +727,23 @@ class TileManager {
         }
       }
     }
+  }
+
+  // Получение узлов и стрелок для тайла
+  (List<TableNode>, List<Arrow>) _getContentForTile(
+    Rect tileBounds,
+    List<TableNode> allNodes,
+    List<Arrow> allArrows,
+  ) {
+    final nodesInTile = _getNodesForTile(tileBounds, allNodes);
+    final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+      tileBounds: tileBounds,
+      allArrows: allArrows,
+      allNodes: allNodes,
+      nodeBoundsCache: state.nodeBoundsCache,
+      baseOffset: state.delta,
+    );
+    return (nodesInTile, arrowsInTile);
   }
 
   // Фильтрация корневых узлов
@@ -950,13 +1013,10 @@ class TileManager {
       final tile = state.imageTiles[i];
       
       // Получаем узлы и стрелки в тайле
-      final nodesInTile = _getNodesForTile(tile.bounds, state.nodes);
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: tile.bounds,
-        allArrows: state.arrows,
-        allNodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
+      final (nodesInTile, arrowsInTile) = _getContentForTile(
+        tile.bounds,
+        state.nodes,
+        state.arrows,
       );
       
       // Если в тайле нет ни узлов, ни стрелок, добавляем его в список на удаление
@@ -1620,17 +1680,11 @@ class TileManager {
 
       print('Update tile: $tileId');
 
-      // Получаем ВСЕ узлы для этого тайла из state.nodes
-      final nodesInTile = _getNodesForTile(bounds, state.nodes);
-
-      // Получаем ВСЕ стрелки для этого тайла из state.arrows
-      // Важно: учитываем ВСЕ стрелки, а не только те, что связаны с узлами в этом тайле
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: bounds,
-        allArrows: state.arrows,
-        allNodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
+      // Получаем ВСЕ узлы и стрелки для этого тайла
+      final (nodesInTile, arrowsInTile) = _getContentForTile(
+        bounds,
+        state.nodes,
+        state.arrows,
       );
 
       // Очищаем старый кэш для этого тайла
