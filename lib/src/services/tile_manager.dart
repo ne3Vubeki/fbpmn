@@ -1507,16 +1507,19 @@ class TileManager {
         nodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
-      
-      // Очищаем кэш стрелок перед обновлением
-      coordinator.clearCache();
 
       // Получаем ВСЕ узлы для этого тайла из state.nodes
       final nodesInTile = _getNodesForTile(bounds, state.nodes);
 
       // Получаем ВСЕ стрелки для этого тайла из state.arrows
       // Важно: учитываем ВСЕ стрелки, а не только те, что связаны с узлами в этом тайле
-      final arrowsInTile = state.tileToArrows[tileIndex] ?? [];
+      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+        tileBounds: bounds,
+        allArrows: state.arrows,
+        allNodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
+      );
 
       // Очищаем старый кэш для этого тайла
       state.tileToNodes.remove(tileIndex);
