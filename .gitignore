@@ -1,3 +1,4 @@
+```
 # Compiled and build artifacts
 *.pyc
 __pycache__/
@@ -18,25 +19,74 @@ venv/
 .env.local
 .env.*
 
-# Build directories
+# Build outputs
 dist/
 build/
 target/
+*.jar
+*.war
+*.zip
+*.tar.gz
+
+# Logs and temporary files
 *.log
 *.tmp
 *.swp
+*.swo
+*.bak
+*.~*
 
-# Editors
+# OS generated files
+.DS_Store
+Thumbs.db
+.DS_Store?
+ehthumbs.db
+Icon?
+Network Trash Folder
+Temporary Items
+.Trashes
+*.nib
+.vagrant
+.vagrant/
+
+# IDE specific
 .vscode/
 .idea/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+nbproject/
 
-# Coverage
+# Coverage reports
 coverage/
 htmlcov/
 .coverage
+*.coverage
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.jscsrc
+.jshintignore
+.nyc_output/
+
+# Distribution / packaging
+.Python
+*.egg-info/
+MANIFEST
+
+# Dart/Flutter specific
+.dart_tool/
+.packages
+.pub-cache/
+pubspec.lock
+*.g.dart
+*.freezed.dart
 
 # Compressed files
-*.zip
 *.gz
 *.tar
 *.tgz
@@ -44,26 +94,6 @@ htmlcov/
 *.xz
 *.7z
 *.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
 *.Z
 *.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-
-# Gradle
-.gradle/
-
-# MyPy
-.mypy_cache/
-
-# PyTest
-.pytest_cache/
+```

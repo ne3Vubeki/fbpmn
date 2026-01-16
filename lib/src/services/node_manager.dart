@@ -283,7 +283,27 @@ class NodeManager {
     await tileManager.removeSelectedNodeFromTiles(node);
   }
 
+  // Метод для перемещения узла из основного списка в выделенные
+  void _moveNodeToSelected(TableNode node) {
+    // Удаляем узел из основного списка
+    _removeNodeFromNodesList(node);
+    
+    // Добавляем в выделенные
+    if (!state.nodesSelected.contains(node)) {
+      state.nodesSelected.add(node);
+    }
+  }
 
+  // Метод для перемещения стрелки из основного списка в выделенные
+  void _moveArrowToSelected(Arrow arrow) {
+    // Удаляем стрелку из основного списка
+    state.arrows.removeWhere((a) => a.id == arrow.id);
+    
+    // Добавляем в выделенные
+    if (!state.arrowsSelected.contains(arrow)) {
+      state.arrowsSelected.add(arrow);
+    }
+  }
 
   // Новый метод: удаление узла из основного списка узлов
   void _removeNodeFromNodesList(TableNode node) {
