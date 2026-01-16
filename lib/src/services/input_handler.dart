@@ -94,7 +94,7 @@ class InputHandler {
           
           // Получаем смещение узла - используем position из самого узла
           final nodeOffset = node.aPosition ?? (state.delta + node.position);
-          final screenOffset = state.toScreenCoordinates(nodeOffset);
+          final screenOffset = state.worldToScreen(nodeOffset);
 
           // Для раскрытого swimlane используем фактические границы рамки выделения,
           // которые включают в себя детей

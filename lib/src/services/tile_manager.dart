@@ -10,6 +10,7 @@ import '../utils/bounds_calculator.dart';
 import '../utils/node_renderer.dart';
 import '../utils/editor_config.dart';
 import '../painters/arrow_tile_painter.dart';
+import 'arrow_manager.dart';
 
 class TileManager {
   final EditorState state;
@@ -262,15 +263,14 @@ class TileManager {
     );
 
     // Используем ArrowManager для получения пути стрелки
-    final arrowManager = ArrowManager();
-    final path = arrowManager.getArrowPathForTiles(arrow, allNodes, state.delta, state.nodeBoundsCache);
+    final arrowManager = ArrowManager(arrows: state.arrows, nodes: state.nodes, nodeBoundsCache: state.nodeBoundsCache);
+    final path = arrowManager.getArrowPathForTiles(arrow, state.delta);
 
     if (path.getBounds().isEmpty) {
       // Если путь пустой, проверяем, пересекаются ли узлы с тайлами
       // Если нет стрелок между узлами, не создаем тайлы
       // Проверяем, действительно ли стрелка пересекает какие-либо тайлы
-      final arrowManager = ArrowManager();
-      final testPath = arrowManager.getArrowPathForTiles(arrow, allNodes, state.delta, state.nodeBoundsCache);
+      final testPath = arrowManager.getArrowPathForTiles(arrow, state.delta);
       if (testPath.getBounds().isEmpty) {
         // Проверяем, соединены ли узлы (если они близко друг к другу)
         final distance = Offset(
@@ -424,27 +424,6 @@ class TileManager {
 
     // Добавляем новые тайлы к существующим
     state.imageTiles.addAll(newTiles);
-
-    // Обновляем маппинги для новых тайлов
-    for (
-      int i = state.imageTiles.length - newTiles.length;
-      i < state.imageTiles.length;
-      i++
-    ) {
-      final tile = state.imageTiles[i];
-      final nodesInTile = _getNodesForTile(tile.bounds, state.nodes);
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: tile.bounds,
-        allArrows: state.arrows,
-        allNodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
-      );
-
-      // Новый подход: каждый тайл теперь содержит свои собственные списки id узлов и стрелок
-      // Эти данные автоматически становятся частью объекта ImageTile при его создании
-      // и не требуют дополнительного хранения в state
-    }
 
     onStateUpdate();
   }
@@ -808,20 +787,6 @@ class TileManager {
         }
       }
 
-      // Также находим стрелки, связанные с дочерним узлом
-      final arrowsConnectedToChild = state.arrows
-          .where(
-            (arrow) => arrow.source == child.id || arrow.target == child.id,
-          )
-          .toList();
-
-      // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
-      for (final arrow in arrowsConnectedToChild) {
-        final arrowTiles = _findTilesForArrow(arrow);
-        for (final tileIndex in arrowTiles) {
-          tilesToUpdate.add(tileIndex);
-        }
-      }
     }
   }
 
@@ -843,20 +808,6 @@ class TileManager {
         }
       }
 
-      // Также находим стрелки, связанные с дочерним узлом
-      final arrowsConnectedToChild = state.arrows
-          .where(
-            (arrow) => arrow.source == child.id || arrow.target == child.id,
-          )
-          .toList();
-
-      // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
-      for (final arrow in arrowsConnectedToChild) {
-        final arrowTiles = _findTilesForArrow(arrow);
-        for (final tileIndex in arrowTiles) {
-          tilesToUpdate.add(tileIndex);
-        }
-      }
     }
   }
 
@@ -879,15 +830,6 @@ class TileManager {
             (arrow) => arrow.source == child.id || arrow.target == child.id,
           ),
         );
-      }
-    }
-
-    // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
-    for (final arrow in arrowsConnectedToNode) {
-      final arrowTiles = _findTilesForArrow(arrow);
-      print('Для связи ${arrow.id}: $arrowTiles');
-      for (final tileIndex in arrowTiles) {
-        tilesToUpdate.add(tileIndex);
       }
     }
 
@@ -964,14 +906,6 @@ class TileManager {
       }
     }
 
-    // Удаляем эти стрелки из кэшей
-    for (final arrow in arrowsToRemove) {
-      final tileIndices = state.arrowToTiles[arrow] ?? {};
-      for (final tileIndex in tileIndices) {
-        state.tileToArrows[tileIndex]?.remove(arrow);
-      }
-      state.arrowToTiles.remove(arrow);
-    }
   }
 
   // Поиск тайлов, содержащих указанный узел
@@ -1107,9 +1041,6 @@ class TileManager {
       // Удаляем тайл из списка
       state.imageTiles.removeAt(tileIndex);
 
-      // Удаляем связанные данные
-      state.tileToNodes.remove(tileIndex);
-
       // Обновляем маппинги индексов для остальных тайлов
       _reindexTileMappings(tileIndex);
 
@@ -1119,48 +1050,12 @@ class TileManager {
 
   // Переиндексация маппингов после удаления тайла
   void _reindexTileMappings(int removedIndex) {
-    // Обновляем tileToNodes
-    final newTileToNodes = <int, List<TableNode>>{};
-    for (final entry in state.tileToNodes.entries) {
-      if (entry.key > removedIndex) {
-        newTileToNodes[entry.key - 1] = entry.value;
-      } else if (entry.key < removedIndex) {
-        newTileToNodes[entry.key] = entry.value;
-      }
-    }
-    state.tileToNodes.clear();
-    state.tileToNodes.addAll(newTileToNodes);
-
-    // Обновляем nodeToTiles
-    for (final entry in state.nodeToTiles.entries) {
-      final newIndices = <int>{};
-      for (final index in entry.value) {
-        if (index > removedIndex) {
-          newIndices.add(index - 1);
-        } else if (index < removedIndex) {
-          newIndices.add(index);
-        }
-      }
-      state.nodeToTiles[entry.key] = newIndices;
-    }
   }
 
   /// Добавление стрелок, связанных с узлом обратно в тайлы (после сохранения)
   Future<void> addArrowsForNode(TableNode node, Offset nodePosition) async {
     final Set<int> tilesToUpdate = {};
 
-    // Находим все стрелки, связанные с этим узлом (как источник или цель)
-    final arrowsConnectedToNode = state.arrows
-        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
-        .toList();
-
-    // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
-    for (final arrow in arrowsConnectedToNode) {
-      final arrowTiles = _findTilesForArrow(arrow);
-      for (final tileIndex in arrowTiles) {
-        tilesToUpdate.add(tileIndex);
-      }
-    }
 
     // Обновляем все тайлы, в которые добавили стрелки
     for (final tileIndex in tilesToUpdate) {
@@ -1224,21 +1119,6 @@ class TileManager {
     // Обновляем все тайлы, в которые добавили узлы
     for (final tileIndex in tilesToUpdate) {
       await updateTileWithAllContent(tileIndex);
-    }
-
-    // Находим все стрелки, связанные с этим узлом
-    final arrowsConnectedToNode = state.arrows
-        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
-        .toList();
-
-    // Для каждой связанной стрелки обновляем ВСЕ тайлы, через которые она проходит
-    for (final arrow in arrowsConnectedToNode) {
-      final arrowTiles = _findTilesForArrow(arrow);
-      for (final tileIndex in arrowTiles) {
-        if (!tilesToUpdate.contains(tileIndex)) {
-          tilesToUpdate.add(tileIndex);
-        }
-      }
     }
 
     // Повторно обновляем все затронутые тайлы
@@ -1323,36 +1203,6 @@ class TileManager {
       print('Ошибка создания обновленного тайла: $e');
       return null;
     }
-  }
-
-  // Найти все тайлы, через которые проходит стрелка
-  Set<int> _findTilesForArrow(Arrow arrow) {
-    final Set<int> tileIndices = {};
-
-    // Ищем тайлы по стрелке в state.tileToArrows
-    state.tileToArrows.forEach((tileIndex, arrows) {
-      if (arrows.contains(arrow)) {
-        tileIndices.add(tileIndex);
-      }
-    });
-
-    // Также ищем тайлы, в которых может быть стрелка, но кэш еще не обновлен
-    // Проверяем каждый тайл на наличие стрелки
-    for (int i = 0; i < state.imageTiles.length; i++) {
-      final tile = state.imageTiles[i];
-
-      if (ArrowTilePainter.getArrowsForTile(
-        tileBounds: tile.bounds,
-        allArrows: [arrow],
-        allNodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
-      ).isNotEmpty) {
-        tileIndices.add(i);
-      }
-    }
-
-    return tileIndices;
   }
 
   /// Добавление детей swimlane в тайлы
@@ -1495,28 +1345,6 @@ class TileManager {
 
       if (tile != null) {
         state.imageTiles.add(tile);
-
-        // Обновляем маппинги
-        final tileIndex = state.imageTiles.length - 1;
-
-        // Получаем актуальный список узлов для этого тайла
-        final nodesInTile = _getNodesForTile(tile.bounds, state.nodes);
-
-        if (nodesInTile.isNotEmpty) {
-          state.tileToNodes[tileIndex] = nodesInTile;
-
-          // Обновляем кэш для всех узлов в тайле
-          for (final node in nodesInTile) {
-            if (!state.nodeToTiles.containsKey(node)) {
-              state.nodeToTiles[node] = {};
-            }
-            state.nodeToTiles[node]!.add(tileIndex);
-          }
-        } else {
-          // Если тайл пустой, удаляем его
-          tile.image.dispose();
-          state.imageTiles.removeLast();
-        }
       }
     } catch (e) {}
   }
@@ -1546,10 +1374,10 @@ class TileManager {
       print('Update tile: $tileId');
 
       // Получаем узлы, которые находятся в этом тайле (из всех узлов)
-      final nodesInTile = _getNodesForTile(bounds, [...state.nodes, ...state.nodesSelected]);
+      final nodesInTile = state.getNodesByIds(oldTile.nodes);
       
       // Получаем стрелки, которые проходят через этот тайл (из всех стрелок)
-      final arrowsInTile = _getArrowsForTile(bounds, [...state.arrows, ...state.arrowsSelected]);
+      final arrowsInTile = state.getArrowsByIds(oldTile.arrows);
 
       // Обновляем содержимое тайла
       oldTile.image.dispose();
@@ -1592,17 +1420,6 @@ class TileManager {
       state.isLoading = false;
       onStateUpdate();
     }
-  }
-
-  // Метод для получения стрелок для тайла (по аналогии с _getNodesForTile)
-  List<Arrow> _getArrowsForTile(Rect bounds, List<Arrow> allArrows) {
-    return ArrowTilePainter.getArrowsForTile(
-      tileBounds: bounds,
-      allArrows: allArrows,
-      allNodes: state.nodes,
-      nodeBoundsCache: state.nodeBoundsCache,
-      baseOffset: state.delta,
-    );
   }
 
   void _disposeTiles() {

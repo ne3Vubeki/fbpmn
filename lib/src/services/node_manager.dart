@@ -32,16 +32,6 @@ class NodeManager {
     required this.onStateUpdate,
   });
 
-  // Метод для получения экранных координат из мировых
-  Offset _worldToScreen(Offset worldPosition) {
-    return worldPosition * state.scale + state.offset;
-  }
-
-  // Метод для получения мировых координат из экранных
-  Offset _screenToWorld(Offset screenPosition) {
-    return (screenPosition - state.offset) / state.scale;
-  }
-
   // Корректировка позиции при изменении масштаба
   void onScaleChanged() {
     if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
@@ -72,7 +62,7 @@ class NodeManager {
 
     // Для обычных узлов и свернутых swimlane
     final worldNodePosition = state.originalNodePosition;
-    final screenNodePosition = _worldToScreen(worldNodePosition);
+    final screenNodePosition = state.worldToScreen(worldNodePosition);
 
     state.selectedNodeOffset = Offset(
       screenNodePosition.dx - frameTotalOffset,
@@ -91,7 +81,7 @@ class NodeManager {
 
       // Вычисляем новую позицию рамки
       final newFrameScreenPos =
-          _worldToScreen(_initialSwimlaneBounds!.topLeft) +
+          state.worldToScreen(_initialSwimlaneBounds!.topLeft) +
           Offset(
             positionDelta.dx * state.scale,
             positionDelta.dy * state.scale,
@@ -125,8 +115,8 @@ class NodeManager {
       maxX = math.max(maxX, parentRect.right);
       maxY = math.max(maxY, parentRect.bottom);
 
-      final screenLeftTop = _worldToScreen(Offset(minX, minY));
-      final screenRightBottom = _worldToScreen(Offset(maxX, maxY));
+      final screenLeftTop = state.worldToScreen(Offset(minX, minY));
+      final screenRightBottom = state.worldToScreen(Offset(maxX, maxY));
 
       // Добавляем детей
       if (swimlaneNode.children != null) {
@@ -149,8 +139,8 @@ class NodeManager {
       }
 
       // Экранные координаты
-      final screenMin = _worldToScreen(Offset(minX, minY));
-      final screenMax = _worldToScreen(Offset(maxX, maxY));
+      final screenMin = state.worldToScreen(Offset(minX, minY));
+      final screenMax = state.worldToScreen(Offset(maxX, maxY));
 
       // Позиция рамки с отступом
       state.selectedNodeOffset = Offset(
@@ -459,7 +449,7 @@ class NodeManager {
     Offset screenPosition, {
     bool immediateDrag = false,
   }) async {
-    final worldPos = _screenToWorld(screenPosition);
+    final worldPos = state.screenToWorld(screenPosition);
 
     TableNode? foundNode;
     Offset? foundNodeWorldPosition;
@@ -683,10 +673,10 @@ class NodeManager {
     final iconMargin = 8.0 * state.scale;
 
     // Преобразуем мировые координаты узла в экранные
-    final screenNodePosition = _worldToScreen(nodeWorldPosition);
+    final screenNodePosition = state.worldToScreen(nodeWorldPosition);
 
     // Преобразуем мировые координаты клика в экранные
-    final screenClickPosition = _worldToScreen(worldPosition);
+    final screenClickPosition = state.worldToScreen(worldPosition);
 
     // Рассчитываем область иконки в экранных координатах
     // Иконка всегда имеет фиксированный размер в пикселях экрана

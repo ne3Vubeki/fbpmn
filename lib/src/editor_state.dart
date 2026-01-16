@@ -45,4 +45,24 @@ class EditorState {
 
   // Кэши
   final Map<TableNode, Rect> nodeBoundsCache = {};
+
+  // Метод для получения экранных координат из мировых
+  Offset worldToScreen(Offset worldPosition) {
+    return worldPosition * scale + offset;
+  }
+
+  // Метод для получения мировых координат из экранных
+  Offset screenToWorld(Offset screenPosition) {
+    return (screenPosition - offset) / scale;
+  }
+
+  // Метод для получения списка узлов по списку id узлов
+  List<TableNode> getNodesByIds(List<String> idNodes) {
+    return nodes.where((node) => idNodes.contains(node.id)).toList();
+  }
+
+  // Метод для получения списка узлов по списку id узлов
+  List<Arrow> getArrowsByIds(List<String> idArrows) {
+    return arrows.where((arrow) => idArrows.contains(arrow.id)).toList();
+  }
 }
