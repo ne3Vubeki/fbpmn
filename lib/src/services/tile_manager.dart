@@ -900,6 +900,9 @@ class TileManager {
 
     // Очищаем кэши стрелок
     _cleanupArrowCachesForNode(node);
+    
+    // После обновления тайлов, проверяем, не появились ли новые пустые тайлы, которые нужно удалить
+    await _cleanupEmptyTiles();
   }
 
   // Очистка кэшей стрелок для удаленного узла
@@ -935,6 +938,38 @@ class TileManager {
       }
       state.arrowToTiles.remove(arrow);
     }
+  }
+  
+  // Метод для очистки пустых тайлов
+  Future<void> _cleanupEmptyTiles() async {
+    // Создаем список пустых тайлов для удаления
+    final tilesToRemove = <String>[];
+    
+    for (int i = 0; i < state.imageTiles.length; i++) {
+      final tile = state.imageTiles[i];
+      
+      // Получаем узлы и стрелки в тайле
+      final nodesInTile = _getNodesForTile(tile.bounds, state.nodes);
+      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+        tileBounds: tile.bounds,
+        allArrows: state.arrows,
+        allNodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
+      );
+      
+      // Если в тайле нет ни узлов, ни стрелок, добавляем его в список на удаление
+      if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
+        tilesToRemove.add(tile.id);
+      }
+    }
+    
+    // Удаляем пустые тайлы
+    for (final tileId in tilesToRemove) {
+      await _removeTile(tileId);
+    }
+    
+    onStateUpdate();
   }
 
   // Поиск тайлов, содержащих указанный узел
@@ -1130,6 +1165,9 @@ class TileManager {
       await updateTileWithAllContent(tileIndex);
     }
 
+    // После обновления тайлов, проверяем, не появились ли новые пустые тайлы, которые нужно удалить
+    await _cleanupEmptyTiles();
+
     onStateUpdate();
   }
 
@@ -1203,6 +1241,9 @@ class TileManager {
     for (final tileIndex in tilesToUpdate) {
       await updateTileWithAllContent(tileIndex);
     }
+
+    // После обновления тайлов, проверяем, не появились ли новые пустые тайлы, которые нужно удалить
+    await _cleanupEmptyTiles();
 
     onStateUpdate();
   }
