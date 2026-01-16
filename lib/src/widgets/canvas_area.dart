@@ -9,6 +9,7 @@ import '../services/scroll_handler.dart';
 import '../painters/tile_border_painter.dart';
 import '../painters/node_custom_painter.dart';
 import '../painters/hierarchical_grid_painter.dart';
+import '../painters/arrow_painter.dart';
 
 class CanvasArea extends StatefulWidget {
   final EditorState state;
@@ -266,6 +267,23 @@ class _CanvasAreaState extends State<CanvasArea> {
       node.size.height * widget.state.scale,
     );
 
+    // Рассчитываем смещение для отрисовки стрелок
+    final nodeWorldPosition = widget.state.originalNodePosition;
+    
+    // Определяем видимую область для отрисовки стрелок
+    final visibleBounds = Rect.fromLTWH(
+      -widget.state.offset.dx / widget.state.scale,
+      -widget.state.offset.dy / widget.state.scale,
+      widget.state.viewportSize.width / widget.state.scale,
+      widget.state.viewportSize.height / widget.state.scale,
+    );
+
+    // Получаем текущие узлы (включая выделенные) для отрисовки стрелок
+    final allNodes = List<TableNode>.from(widget.state.nodes);
+    if (widget.state.selectedNodeOnTopLayer != null) {
+      allNodes.add(widget.state.selectedNodeOnTopLayer!);
+    }
+
     return Positioned(
       left: widget.state.selectedNodeOffset.dx,
       top: widget.state.selectedNodeOffset.dy,
@@ -277,15 +295,84 @@ class _CanvasAreaState extends State<CanvasArea> {
               ? BorderRadius.zero
               : BorderRadius.circular(12),
         ),
-        child: CustomPaint(
-          size: nodeSize,
-          painter: NodeCustomPainter(
-            node: node,
-            isSelected: true,
-            targetSize: nodeSize,
-          ),
+        child: Stack(
+          children: [
+            CustomPaint(
+              size: nodeSize,
+              painter: NodeCustomPainter(
+                node: node,
+                isSelected: true,
+                targetSize: nodeSize,
+              ),
+            ),
+            // Отрисовка связанных стрелок поверх узла
+            if (widget.state.arrowsSelected.isNotEmpty)
+              CustomPaint(
+                size: nodeSize,
+                painter: _SelectedArrowsPainter(
+                  node: node,
+                  arrows: widget.state.arrowsSelected,
+                  nodes: allNodes,
+                  nodeBoundsCache: widget.state.nodeBoundsCache,
+                  scale: widget.state.scale,
+                  offset: widget.state.originalNodePosition - widget.state.delta,
+                ),
+              ),
+          ],
         ),
       ),
     );
+  }
+}
+
+// Внутренний painter для отрисовки стрелок, связанных с выделенным узлом
+class _SelectedArrowsPainter extends CustomPainter {
+  final TableNode node;
+  final List<Arrow> arrows;
+  final List<TableNode> nodes;
+  final Map<TableNode, Rect> nodeBoundsCache;
+  final double scale;
+  final Offset offset;
+
+  _SelectedArrowsPainter({
+    required this.node,
+    required this.arrows,
+    required this.nodes,
+    required this.nodeBoundsCache,
+    required this.scale,
+    required this.offset,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final visibleBounds = Rect.fromLTWH(-offset.dx, -offset.dy, size.width / scale, size.height / scale);
+
+    // Отрисовываем только стрелки, связанные с текущим выделенным узлом
+    for (final arrow in arrows) {
+      if (arrow.source == node.id || arrow.target == node.id) {
+        final arrowPainter = ArrowPainter(
+          arrow: arrow,
+          nodes: nodes,
+          nodeBoundsCache: nodeBoundsCache,
+          selectedArrows: [arrow], // Только текущая стрелка будет выделена
+        );
+
+        arrowPainter.paintWithOffset(
+          canvas: canvas,
+          baseOffset: offset,
+          visibleBounds: visibleBounds,
+          allArrows: arrows,
+          forTile: false,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SelectedArrowsPainter oldDelegate) {
+    return oldDelegate.node != node ||
+        oldDelegate.arrows != arrows ||
+        oldDelegate.scale != scale ||
+        oldDelegate.offset != offset;
   }
 }
