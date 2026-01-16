@@ -902,7 +902,7 @@ class TileManager {
     _cleanupArrowCachesForNode(node);
     
     // После обновления тайлов, проверяем, не появились ли новые пустые тайлы, которые нужно удалить
-    await _cleanupEmptyTiles();
+    _cleanupEmptyTiles();
   }
 
   // Очистка кэшей стрелок для удаленного узла
@@ -1165,9 +1165,6 @@ class TileManager {
       await updateTileWithAllContent(tileIndex);
     }
 
-    // После обновления тайлов, проверяем, не появились ли новые пустые тайлы, которые нужно удалить
-    await _cleanupEmptyTiles();
-
     onStateUpdate();
   }
 
@@ -1241,9 +1238,6 @@ class TileManager {
     for (final tileIndex in tilesToUpdate) {
       await updateTileWithAllContent(tileIndex);
     }
-
-    // После обновления тайлов, проверяем, не появились ли новые пустые тайлы, которые нужно удалить
-    await _cleanupEmptyTiles();
 
     onStateUpdate();
   }
@@ -1541,13 +1535,6 @@ class TileManager {
       final bounds = oldTile.bounds;
 
       print('Update tile: $tileId');
-
-      // Создаем временный ArrowTileCoordinator для обновления кэша
-      final coordinator = ArrowTileCoordinator(
-        arrows: state.arrows,
-        nodes: state.nodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
 
       // Получаем ВСЕ узлы для этого тайла из state.nodes
       final nodesInTile = _getNodesForTile(bounds, state.nodes);
