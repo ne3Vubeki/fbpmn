@@ -841,7 +841,6 @@ class TileManager {
     // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
       final arrowTiles = _findTilesForArrow(arrow);
-      print('Для связи ${arrow.id}: $arrowTiles');
       for (final tileIndex in arrowTiles) {
         tilesToUpdate.add(tileIndex);
       }
@@ -893,10 +892,12 @@ class TileManager {
     }
 
     // Обновляем ВСЕ тайлы, из которых удаляли узлы ИЛИ стрелки
-    print('Тайлы для обновления: $tilesToUpdate');
+    // Для улучшения производительности обновляем тайлы асинхронно
+    final futures = <Future<void>>[];
     for (final tileIndex in tilesToUpdate) {
-      await updateTileWithAllContent(tileIndex);
+      futures.add(updateTileWithAllContent(tileIndex));
     }
+    await Future.wait(futures);
 
     // Очищаем кэши стрелок
     _cleanupArrowCachesForNode(node);
@@ -1154,16 +1155,59 @@ class TileManager {
 
     // Для каждой связанной стрелки находим ВСЕ тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
-      final arrowTiles = _findTilesForArrow(arrow);
-      for (final tileIndex in arrowTiles) {
-        tilesToUpdate.add(tileIndex);
+      // Создаем координатор для проверки пересечения стрелки с тайлами
+      final coordinator = ArrowTileCoordinator(
+        arrows: [arrow],
+        nodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+
+      // Получаем путь стрелки
+      final path = coordinator.getArrowPathForTiles(arrow, state.delta);
+      if (!path.getBounds().isEmpty) {
+        final tileWorldSize = EditorConfig.tileSize.toDouble();
+        final pathBounds = path.getBounds();
+        final gridXStart = (pathBounds.left / tileWorldSize).floor();
+        final gridYStart = (pathBounds.top / tileWorldSize).floor();
+        final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
+        final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
+
+        // Проверяем пересечение пути стрелки с каждым потенциальным тайлом
+        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            final tileBounds = Rect.fromLTWH(left, top, tileWorldSize, tileWorldSize);
+            final tileId = _generateTileId(left, top);
+
+            // Проверяем, пересекает ли путь стрелки этот тайл
+            if (coordinator.doesArrowIntersectTile(arrow, tileBounds, state.delta)) {
+              int? existingTileIndex = _findTileIndexById(tileId);
+
+              if (existingTileIndex == null) {
+                // СОЗДАЕМ НОВЫЙ ТАЙЛ в этой позиции для стрелки
+                await _createNewTileAtPosition(left, top, node);
+              } else {
+                // Добавляем тайл в список для обновления
+                if (!tilesToUpdate.contains(existingTileIndex)) {
+                  tilesToUpdate.add(existingTileIndex);
+                }
+              }
+            }
+          }
+        }
       }
     }
 
     // Обновляем все тайлы, в которые добавили стрелки
+    final futures = <Future<void>>[];
     for (final tileIndex in tilesToUpdate) {
-      await updateTileWithAllContent(tileIndex);
+      futures.add(updateTileWithAllContent(tileIndex));
     }
+    await Future.wait(futures);
+
+    // После обновления тайлов, проверяем, не появились ли новые пустые тайлы, которые нужно удалить
+    _cleanupEmptyTiles();
 
     onStateUpdate();
   }
@@ -1226,18 +1270,58 @@ class TileManager {
 
     // Для каждой связанной стрелки находим тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
-      final arrowTiles = _findTilesForArrow(arrow);
-      for (final tileIndex in arrowTiles) {
-        if (!tilesToUpdate.contains(tileIndex)) {
-          tilesToUpdate.add(tileIndex);
+      // Создаем координатор для проверки пересечения стрелки с тайлами
+      final coordinator = ArrowTileCoordinator(
+        arrows: [arrow],
+        nodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+
+      // Получаем путь стрелки
+      final path = coordinator.getArrowPathForTiles(arrow, state.delta);
+      if (!path.getBounds().isEmpty) {
+        final pathBounds = path.getBounds();
+        final gridXStart = (pathBounds.left / tileWorldSize).floor();
+        final gridYStart = (pathBounds.top / tileWorldSize).floor();
+        final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
+        final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
+
+        // Проверяем пересечение пути стрелки с каждым потенциальным тайлом
+        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            final tileBounds = Rect.fromLTWH(left, top, tileWorldSize, tileWorldSize);
+            final tileId = _generateTileId(left, top);
+
+            // Проверяем, пересекает ли путь стрелки этот тайл
+            if (coordinator.doesArrowIntersectTile(arrow, tileBounds, state.delta)) {
+              int? existingTileIndex = _findTileIndexById(tileId);
+
+              if (existingTileIndex == null) {
+                // СОЗДАЕМ НОВЫЙ ТАЙЛ в этой позиции для стрелки
+                await _createNewTileAtPosition(left, top, node);
+              } else {
+                // Добавляем тайл в список для обновления
+                if (!tilesToUpdate.contains(existingTileIndex)) {
+                  tilesToUpdate.add(existingTileIndex);
+                }
+              }
+            }
+          }
         }
       }
     }
 
     // Обновляем все затронутые тайлы только один раз
+    final futures = <Future<void>>[];
     for (final tileIndex in tilesToUpdate) {
-      await updateTileWithAllContent(tileIndex);
+      futures.add(updateTileWithAllContent(tileIndex));
     }
+    await Future.wait(futures);
+
+    // После обновления тайлов, проверяем, не появились ли новые пустые тайлы, которые нужно удалить
+    _cleanupEmptyTiles();
 
     onStateUpdate();
   }

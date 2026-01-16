@@ -207,9 +207,11 @@ class NodeManager {
       final tilesToUpdate = <int>{};
       await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       // Обновляем все затронутые тайлы
+      final futures = <Future<void>>[];
       for (final tileIndex in tilesToUpdate) {
-        await tileManager.updateTileWithAllContent(tileIndex);
+        futures.add(tileManager.updateTileWithAllContent(tileIndex));
       }
+      await Future.wait(futures);
     }
 
     // Затем удаляем узел из тайлов и ЖДЕМ завершения
@@ -254,9 +256,11 @@ class NodeManager {
       final tilesToUpdate = <int>{};
       await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       // Обновляем все затронутые тайлы
+      final futures = <Future<void>>[];
       for (final tileIndex in tilesToUpdate) {
-        await tileManager.updateTileWithAllContent(tileIndex);
+        futures.add(tileManager.updateTileWithAllContent(tileIndex));
       }
+      await Future.wait(futures);
     }
 
     // Удаляем узел из тайлов
