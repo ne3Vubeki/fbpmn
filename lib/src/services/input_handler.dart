@@ -86,35 +86,47 @@ class InputHandler {
     } else {
       bool clickedOnSelectedNode = false;
       
-      if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-        final node = state.selectedNodeOnTopLayer!;
-        final scaledWidth = node.size.width * state.scale;
-        final scaledHeight = node.size.height * state.scale;
+      if (state.nodesSelected.isNotEmpty) {
+        // Проверяем клик по любому из выделенных узлов
+        for (final node in state.nodesSelected) {
+          final scaledWidth = node.size.width * state.scale;
+          final scaledHeight = node.size.height * state.scale;
+          
+          // Получаем смещение узла - используем offset из самого узла
+          final nodeOffset = node.offset;
+          final screenOffset = state.toScreenCoordinates(nodeOffset);
 
-        // Для раскрытого swimlane используем фактические границы рамки выделения,
-        // которые включают в себя детей
-        if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-          // Используем текущие границы рамки выделения
-          final nodeScreenRect = Rect.fromLTWH(
-            state.selectedNodeOffset.dx,
-            state.selectedNodeOffset.dy,
-            scaledWidth + state.framePadding.left + state.framePadding.right,
-            scaledHeight + state.framePadding.top + state.framePadding.bottom
-          );
+          // Для раскрытого swimlane используем фактические границы рамки выделения,
+          // которые включают в себя детей
+          if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+            // Используем текущие границы рамки выделения
+            final nodeScreenRect = Rect.fromLTWH(
+              screenOffset.dx - state.framePadding.left,
+              screenOffset.dy - state.framePadding.top,
+              scaledWidth + state.framePadding.left + state.framePadding.right,
+              scaledHeight + state.framePadding.top + state.framePadding.bottom
+            );
 
-          clickedOnSelectedNode = nodeScreenRect.contains(position);
-        } else {
-          // Для обычных узлов и свернутых swimlane используем стандартную логику
-          // Рамка окружает узел с фиксированным отступом
-          final double frameOffset = NodeManager.frameTotalOffset;
-          final nodeScreenRect = Rect.fromLTWH(
-            state.selectedNodeOffset.dx,
-            state.selectedNodeOffset.dy,
-            scaledWidth + frameOffset * 2,
-            scaledHeight + frameOffset * 2,
-          );
+            if (nodeScreenRect.contains(position)) {
+              clickedOnSelectedNode = true;
+              break;
+            }
+          } else {
+            // Для обычных узлов и свернутых swimlane используем стандартную логику
+            // Рамка окружает узел с фиксированным отступом
+            final double frameOffset = NodeManager.frameTotalOffset;
+            final nodeScreenRect = Rect.fromLTWH(
+              screenOffset.dx - frameOffset,
+              screenOffset.dy - frameOffset,
+              scaledWidth + frameOffset * 2,
+              scaledHeight + frameOffset * 2,
+            );
 
-          clickedOnSelectedNode = nodeScreenRect.contains(position);
+            if (nodeScreenRect.contains(position)) {
+              clickedOnSelectedNode = true;
+              break;
+            }
+          }
         }
       }
 
@@ -140,7 +152,7 @@ class InputHandler {
       state.offset = constrainOffset(newOffset);
 
       // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при панорамировании
-      if (state.isNodeOnTopLayer) {
+      if (state.nodesSelected.isNotEmpty) {
         nodeManager.onOffsetChanged();
       }
 
