@@ -92,8 +92,8 @@ class InputHandler {
           final scaledWidth = node.size.width * state.scale;
           final scaledHeight = node.size.height * state.scale;
           
-          // Получаем смещение узла - используем offset из самого узла
-          final nodeOffset = node.offset;
+          // Получаем смещение узла - используем position из самого узла
+          final nodeOffset = node.aPosition ?? (state.delta + node.position);
           final screenOffset = state.toScreenCoordinates(nodeOffset);
 
           // Для раскрытого swimlane используем фактические границы рамки выделения,
