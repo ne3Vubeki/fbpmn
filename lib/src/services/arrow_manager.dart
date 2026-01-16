@@ -622,8 +622,8 @@ class ArrowManager {
 
     for (final metric in pathMetrics) {
       final pathLength = metric.length;
-      // Проверяем несколько точек вдоль пути
-      for (double t = 0; t <= pathLength; t += pathLength / 10) {
+      // Проверяем большее количество точек вдоль пути для более точной проверки
+      for (double t = 0; t <= pathLength; t += pathLength / 20) {
         try {
           final point = metric.getTangentForOffset(t)?.position;
           if (point != null && tileBounds.contains(point)) {
@@ -633,6 +633,38 @@ class ArrowManager {
           // Если не удалось получить точку, продолжаем
           continue;
         }
+      }
+    }
+
+    // Дополнительная проверка: проверяем, пересекаются ли bounding box узлов с тайлом
+    final effectiveSourceNode = _getEffectiveNode(arrow.source, nodes);
+    final effectiveTargetNode = _getEffectiveNode(arrow.target, nodes);
+
+    if (effectiveSourceNode != null && effectiveTargetNode != null) {
+      final sourceAbsolutePos =
+          effectiveSourceNode.aPosition ?? (effectiveSourceNode.position + baseOffset);
+      final targetAbsolutePos =
+          effectiveTargetNode.aPosition ?? (effectiveTargetNode.position + baseOffset);
+
+      final sourceRect = Rect.fromPoints(
+        sourceAbsolutePos,
+        Offset(
+          sourceAbsolutePos.dx + effectiveSourceNode.size.width,
+          sourceAbsolutePos.dy + effectiveSourceNode.size.height,
+        ),
+      );
+
+      final targetRect = Rect.fromPoints(
+        targetAbsolutePos,
+        Offset(
+          targetAbsolutePos.dx + effectiveTargetNode.size.width,
+          targetAbsolutePos.dy + effectiveTargetNode.size.height,
+        ),
+      );
+
+      // Если хотя бы один из узлов пересекается с тайлом, то стрелка может быть в тайле
+      if (sourceRect.overlaps(tileBounds) || targetRect.overlaps(tileBounds)) {
+        return true;
       }
     }
 
