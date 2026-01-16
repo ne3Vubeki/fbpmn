@@ -6,41 +6,41 @@ class TileBorderPainter extends CustomPainter {
   final double scale;
   final Offset offset;
   final EditorState state;
-  
+
   TileBorderPainter({
     required this.scale,
     required this.offset,
     required this.state,
   });
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(scale, scale);
     canvas.translate(offset.dx / scale, offset.dy / scale);
-    
+
     final double visibleLeft = -offset.dx / scale;
     final double visibleTop = -offset.dy / scale;
     final double visibleRight = (size.width - offset.dx) / scale;
     final double visibleBottom = (size.height - offset.dy) / scale;
-    
+
     final visibleRect = Rect.fromLTRB(
       visibleLeft,
       visibleTop,
       visibleRight,
       visibleBottom,
     );
-    
+
     final tileBorderPaint = Paint()
       ..color = Colors.red.withOpacity(0.7)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0 / scale
       ..isAntiAlias = true;
-    
+
     for (final tile in state.imageTiles) {
       if (tile.bounds.overlaps(visibleRect)) {
         canvas.drawRect(tile.bounds, tileBorderPaint);
-        
+
         // Отображаем id тайла
         final idTextPainter = TextPainter(
           text: TextSpan(
@@ -53,19 +53,17 @@ class TileBorderPainter extends CustomPainter {
           ),
           textDirection: TextDirection.ltr,
         )..layout();
-        
+
         idTextPainter.paint(
           canvas,
-          Offset(
-            tile.bounds.left + 2 / scale,
-            tile.bounds.top + 2 / scale,
-          ),
+          Offset(tile.bounds.left + 2 / scale, tile.bounds.top + 2 / scale),
         );
-        
-        // Отображаем количество узлов в тайле
+
+        // Отображаем количество узлов и связей в тайле
         final nodesCount = tile.nodes.length;
-        final countText = 'узлов: $nodesCount';
-        
+        final arrowsCount = tile.arrows.length;
+        final countText = 'узлов: $nodesCount, связей: $arrowsCount';
+
         final countTextPainter = TextPainter(
           text: TextSpan(
             text: countText,
@@ -76,7 +74,7 @@ class TileBorderPainter extends CustomPainter {
           ),
           textDirection: TextDirection.ltr,
         )..layout();
-        
+
         countTextPainter.paint(
           canvas,
           Offset(
@@ -86,10 +84,10 @@ class TileBorderPainter extends CustomPainter {
         );
       }
     }
-    
+
     canvas.restore();
   }
-  
+
   @override
   bool shouldRepaint(covariant TileBorderPainter oldDelegate) {
     return oldDelegate.scale != scale ||

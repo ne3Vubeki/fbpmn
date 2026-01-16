@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import 'models/image_tile.dart';
 import 'models/table.node.dart';
@@ -64,5 +65,10 @@ class EditorState {
   // Метод для получения списка узлов по списку id узлов
   List<Arrow> getArrowsByIds(List<String> idArrows) {
     return arrows.where((arrow) => idArrows.contains(arrow.id)).toList();
+  }
+
+  // Метод для получения тайла по id
+  ImageTile? getImageTileById(String id) {
+    return imageTiles.firstWhereOrNull((tile) => tile.id == id);
   }
 }
