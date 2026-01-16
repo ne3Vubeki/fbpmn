@@ -5,8 +5,8 @@ import '../models/arrow.dart';
 
 /// Сервис для управления и расчета соединений стрелок
 class ArrowManager {
-  final List<Arrow> arrows;
-  final List<TableNode> nodes;
+  List<Arrow> arrows;
+  List<TableNode> nodes;
   final Map<TableNode, Rect> nodeBoundsCache;
 
   ArrowManager({
@@ -369,5 +369,141 @@ class ArrowManager {
     }
 
     return closestSide;
+  }
+
+  /// Получить стрелки, связанные с конкретным узлом
+  List<Arrow> getArrowsForNode(String nodeId) {
+    return arrows.where((arrow) => 
+      arrow.source == nodeId || arrow.target == nodeId
+    ).toList();
+  }
+
+  /// Получить все стрелки, которые проходят через определенный тайл
+  List<Arrow> getArrowsInTile(Rect tileBounds, Offset baseOffset) {
+    final arrowsInTile = <Arrow>[];
+    
+    for (final arrow in arrows) {
+      if (_doesArrowIntersectTile(arrow, tileBounds, baseOffset)) {
+        arrowsInTile.add(arrow);
+      }
+    }
+    
+    return arrowsInTile;
+  }
+
+  /// Проверяет, пересекает ли стрелка определенный тайл
+  bool _doesArrowIntersectTile(Arrow arrow, Rect tileBounds, Offset baseOffset) {
+    // Находим эффективные узлы
+    final effectiveSourceNode = _findEffectiveNodeById(arrow.source);
+    final effectiveTargetNode = _findEffectiveNodeById(arrow.target);
+
+    if (effectiveSourceNode == null || effectiveTargetNode == null) {
+      return false;
+    }
+
+    // Получаем абсолютные позиции
+    final sourceAbsolutePos =
+        effectiveSourceNode.aPosition ??
+        (effectiveSourceNode.position + baseOffset);
+    final targetAbsolutePos =
+        effectiveTargetNode.aPosition ??
+        (effectiveTargetNode.position + baseOffset);
+
+    // Создаем Rect для узлов
+    final sourceRect = Rect.fromPoints(
+      sourceAbsolutePos,
+      Offset(
+        sourceAbsolutePos.dx + effectiveSourceNode.size.width,
+        sourceAbsolutePos.dy + effectiveSourceNode.size.height,
+      ),
+    );
+
+    final targetRect = Rect.fromPoints(
+      targetAbsolutePos,
+      Offset(
+        targetAbsolutePos.dx + effectiveTargetNode.size.width,
+        targetAbsolutePos.dy + effectiveTargetNode.size.height,
+      ),
+    );
+
+    // Вычисляем точки соединения
+    final connectionPoints = calculateConnectionPointsForSideCalculation(
+      sourceRect,
+      targetRect,
+      effectiveSourceNode,
+      effectiveTargetNode,
+    );
+    
+    if (connectionPoints.start == null || connectionPoints.end == null) {
+      return false;
+    }
+
+    // Создаем простой ортогональный путь
+    final path = _createSimpleOrthogonalPath(
+      connectionPoints.start!,
+      connectionPoints.end!,
+      sourceRect,
+      targetRect,
+      connectionPoints.sides!,
+    );
+    
+    // Проверяем пересечение с тайлом
+    return path.getBounds().overlaps(tileBounds);
+  }
+
+  /// Создание простого ортогонального пути
+  Path _createSimpleOrthogonalPath(
+    Offset start,
+    Offset end,
+    Rect sourceRect,
+    Rect targetRect,
+    String sides,
+  ) {
+    final path = Path();
+    path.moveTo(start.dx, start.dy);
+
+    final dx = end.dx - start.dx;
+    final dy = end.dy - start.dy;
+    final dx2 = dx.abs() / 2;
+    final dy2 = dy.abs() / 2;
+
+    switch (sides) {
+      case 'left:right':
+        path.lineTo(start.dx - dx2, start.dy);
+        path.lineTo(start.dx - dx2, end.dy);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'right:left':
+        path.lineTo(start.dx + dx2, start.dy);
+        path.lineTo(start.dx + dx2, end.dy);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'top:bottom':
+        path.lineTo(start.dx, start.dy - dy2);
+        path.lineTo(end.dx, start.dy - dy2);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'bottom:top':
+        path.lineTo(start.dx, start.dy + dy2);
+        path.lineTo(end.dx, start.dy + dy2);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'left:top':
+      case 'right:top':
+      case 'left:bottom':
+      case 'right:bottom':
+        path.lineTo(end.dx, start.dy);
+        path.lineTo(end.dx, end.dy);
+        break;
+      case 'top:left':
+      case 'top:right':
+      case 'bottom:left':
+      case 'bottom:right':
+        path.lineTo(start.dx, end.dy);
+        path.lineTo(end.dx, end.dy);
+        break;
+    }
+
+    return path;
   }
 }

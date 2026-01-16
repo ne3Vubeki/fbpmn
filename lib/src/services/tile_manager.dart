@@ -1600,7 +1600,7 @@ class TileManager {
     onStateUpdate();
   }
 
-  /// Обновление тайла со ВСЕМИ узлами и стрелками
+  // Метод для обновления тайла со ВСЕМИ узлами и стрелками
   Future<void> updateTileWithAllContent(int tileIndex) async {
     if (tileIndex < 0 || tileIndex >= state.imageTiles.length) {
       return;
@@ -1613,49 +1613,16 @@ class TileManager {
 
       print('Update tile: $tileId');
 
-      // Получаем ВСЕ узлы для этого тайла из state.nodes
-      final nodesInTile = _getNodesForTile(bounds, state.nodes);
+      // Получаем узлы, которые находятся в этом тайле (из всех узлов)
+      final nodesInTile = _getNodesForTile(bounds, [...state.nodes, ...state.nodesSelected]);
+      
+      // Получаем стрелки, которые проходят через этот тайл (из всех стрелок)
+      final arrowsInTile = _getArrowsForTile(bounds, [...state.arrows, ...state.arrowsSelected]);
 
-      // Получаем ВСЕ стрелки для этого тайла из state.arrows
-      // Важно: учитываем ВСЕ стрелки, а не только те, что связаны с узлами в этом тайле
-      final arrowsInTile = state.tileToArrows[tileIndex] ?? [];
-
-      // Очищаем старый кэш для этого тайла
-      state.tileToNodes.remove(tileIndex);
-      state.tileToArrows.remove(tileIndex);
-
-      // Если в тайле есть узлы, обновляем кэш
-      if (nodesInTile.isNotEmpty) {
-        state.tileToNodes[tileIndex] = nodesInTile;
-
-        // Обновляем кэш nodeToTiles для всех узлов в тайле
-        for (final node in nodesInTile) {
-          if (!state.nodeToTiles.containsKey(node)) {
-            state.nodeToTiles[node] = {};
-          }
-          state.nodeToTiles[node]!.add(tileIndex);
-        }
-      }
-
-      // Если в тайле есть стрелки, обновляем кэш
-      if (arrowsInTile.isNotEmpty) {
-        state.tileToArrows[tileIndex] = arrowsInTile;
-
-        // Обновляем кэш arrowToTiles для всех стрелок в тайле
-        for (final arrow in arrowsInTile) {
-          if (!state.arrowToTiles.containsKey(arrow)) {
-            state.arrowToTiles[arrow] = {};
-          }
-          state.arrowToTiles[arrow]!.add(tileIndex);
-        }
-      } else {
-        // Если стрелок нет, удаляем их из кэша для этого тайла
-        state.tileToArrows.remove(tileIndex);
-      }
-
+      // Обновляем содержимое тайла
       oldTile.image.dispose();
 
-      // Перерисовываем тайл со ВСЕМИ узлами и стрелками
+      // Перерисовываем тайл с узлами и стрелками
       final newTile = await _createUpdatedTileWithContent(
         bounds,
         tileId,

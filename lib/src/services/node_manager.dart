@@ -194,7 +194,17 @@ class NodeManager {
     _updateFramePosition();
 
     // ВАЖНО: Сначала удаляем узел из state.nodes
-    _removeNodeFromNodesList(node);
+    _moveNodeToSelected(node);
+
+    // Находим все стрелки, связанные с этим узлом
+    final arrowsConnectedToNode = state.arrows
+        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
+        .toList();
+
+    // Перемещаем связанные стрелки в выделенные
+    for (final arrow in arrowsConnectedToNode) {
+      _moveArrowToSelected(arrow);
+    }
 
     // Для swimlane в развернутом состоянии удаляем узел и детей из тайлов
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
@@ -240,8 +250,18 @@ class NodeManager {
 
   /// Подготовка узла для перемещения на верхний слой
   Future<void> _prepareNodeForTopLayer(TableNode node) async {
-    // Удаляем узел из state.nodes
-    _removeNodeFromNodesList(node);
+    // Находим все стрелки, связанные с этим узлом
+    final arrowsConnectedToNode = state.arrows
+        .where((arrow) => arrow.source == node.id || arrow.target == node.id)
+        .toList();
+
+    // Перемещаем узел из основного списка в выделенные
+    _moveNodeToSelected(node);
+
+    // Перемещаем связанные стрелки в выделенные
+    for (final arrow in arrowsConnectedToNode) {
+      _moveArrowToSelected(arrow);
+    }
 
     // Для swimlane в развернутом состоянии удаляем всех детей из тайлов
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
