@@ -9,21 +9,23 @@ class EditorState {
   double scale = 1.0;
   Offset offset = Offset.zero;
   Offset delta = Offset.zero;
-  
+
   // Состояние ввода
   bool isShiftPressed = false;
   bool isPanning = false;
   Offset mousePosition = Offset.zero;
-  
+
   // Размеры
   Size viewportSize = Size.zero;
   bool isInitialized = false;
-  
+
   // Узлы
   final List<TableNode> nodes = [];
   final List<TableNode> nodesSelected = [];
   Offset originalNodePosition = Offset.zero;
   bool isNodeDragging = false;
+  bool isNodeOnTopLayer = false;
+  TableNode? selectedNodeOnTopLayer;
 
   // Позиция, Размер и Отступы в рамке выделенного узла (для правильной отрисовки рамки)
   Offset selectedNodeOffset = Offset.zero;
@@ -32,16 +34,15 @@ class EditorState {
   // Связи/стрелки
   final List<Arrow> arrows = [];
   final List<Arrow> arrowsSelected = [];
-  
+
   // Тайлы
   List<ImageTile> imageTiles = [];
   List<String> imageTilesChanged = [];
   bool showTileBorders = true;
-  
 
   // Загрузка
   bool isLoading = false;
-  
+
   // Кэши
   final Map<TableNode, Rect> nodeBoundsCache = {};
 }

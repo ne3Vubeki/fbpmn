@@ -517,13 +517,6 @@ class ArrowManager {
     return nodeIds;
   }
 
-  /// Получить стрелки, связанные с конкретным узлом
-  List<Arrow> getArrowsForNode(String nodeId) {
-    return arrows.where((arrow) => 
-      arrow.source == nodeId || arrow.target == nodeId
-    ).toList();
-  }
-
   /// Получить ID стрелок, связанных с конкретным узлом
   List<String> getArrowIdsForNode(String nodeId) {
     return arrows.where((arrow) => 
