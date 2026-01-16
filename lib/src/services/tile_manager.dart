@@ -261,27 +261,16 @@ class TileManager {
       position: targetAbsolutePos,
     );
 
-    // Создаем ArrowTileCoordinator для получения пути стрелки
-    final coordinator = ArrowTileCoordinator(
-      arrows: [arrow],
-      nodes: allNodes,
-      nodeBoundsCache: state.nodeBoundsCache,
-    );
-
-    // Получаем полный путь стрелки
-    final path = coordinator.getArrowPathForTiles(arrow, state.delta);
+    // Используем ArrowManager для получения пути стрелки
+    final arrowManager = ArrowManager();
+    final path = arrowManager.getArrowPathForTiles(arrow, allNodes, state.delta, state.nodeBoundsCache);
 
     if (path.getBounds().isEmpty) {
       // Если путь пустой, проверяем, пересекаются ли узлы с тайлами
       // Если нет стрелок между узлами, не создаем тайлы
-      final coordinator = ArrowTileCoordinator(
-        arrows: [arrow],
-        nodes: allNodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
-
       // Проверяем, действительно ли стрелка пересекает какие-либо тайлы
-      final testPath = coordinator.getArrowPathForTiles(arrow, state.delta);
+      final arrowManager = ArrowManager();
+      final testPath = arrowManager.getArrowPathForTiles(arrow, allNodes, state.delta, state.nodeBoundsCache);
       if (testPath.getBounds().isEmpty) {
         // Проверяем, соединены ли узлы (если они близко друг к другу)
         final distance = Offset(
@@ -452,25 +441,9 @@ class TileManager {
         baseOffset: state.delta,
       );
 
-      if (nodesInTile.isNotEmpty) {
-        state.tileToNodes[i] = nodesInTile;
-        for (final node in nodesInTile) {
-          if (!state.nodeToTiles.containsKey(node)) {
-            state.nodeToTiles[node] = <int>{};
-          }
-          state.nodeToTiles[node]!.add(i);
-        }
-      }
-
-      if (arrowsInTile.isNotEmpty) {
-        state.tileToArrows[i] = arrowsInTile;
-        for (final arrow in arrowsInTile) {
-          if (!state.arrowToTiles.containsKey(arrow)) {
-            state.arrowToTiles[arrow] = <int>{};
-          }
-          state.arrowToTiles[arrow]!.add(i);
-        }
-      }
+      // Новый подход: каждый тайл теперь содержит свои собственные списки id узлов и стрелок
+      // Эти данные автоматически становятся частью объекта ImageTile при его создании
+      // и не требуют дополнительного хранения в state
     }
 
     onStateUpdate();
@@ -848,13 +821,6 @@ class TileManager {
         for (final tileIndex in arrowTiles) {
           tilesToUpdate.add(tileIndex);
         }
-
-        // Также очищаем кэши стрелок для конкретной стрелки
-        final tileIndices = state.arrowToTiles[arrow] ?? {};
-        for (final tileIndex in tileIndices) {
-          state.tileToArrows[tileIndex]?.remove(arrow);
-        }
-        state.arrowToTiles.remove(arrow);
       }
     }
   }
@@ -890,13 +856,6 @@ class TileManager {
         for (final tileIndex in arrowTiles) {
           tilesToUpdate.add(tileIndex);
         }
-
-        // Также очищаем кэши стрелок для конкретной стрелки
-        final tileIndices = state.arrowToTiles[arrow] ?? {};
-        for (final tileIndex in tileIndices) {
-          state.tileToArrows[tileIndex]?.remove(arrow);
-        }
-        state.arrowToTiles.remove(arrow);
       }
     }
   }
@@ -930,13 +889,6 @@ class TileManager {
       for (final tileIndex in arrowTiles) {
         tilesToUpdate.add(tileIndex);
       }
-
-      // Также очищаем кэши стрелок для конкретной стрелки
-      final tileIndices = state.arrowToTiles[arrow] ?? {};
-      for (final tileIndex in tileIndices) {
-        state.tileToArrows[tileIndex]?.remove(arrow);
-      }
-      state.arrowToTiles.remove(arrow);
     }
 
     // Проверяем, является ли этот узел дочерним для развернутого swimlane
