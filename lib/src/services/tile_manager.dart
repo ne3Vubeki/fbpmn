@@ -478,8 +478,50 @@ class TileManager {
         }
       }
 
+      // Дополнительная проверка: исключаем стрелки, если ни один из узлов стрелки не находится в тайле
+      // и путь стрелки не пересекает тайл
+      final finalFilteredArrowsInTile = <Arrow>[];
+      for (final arrow in filteredArrowsInTile) {
+        // Находим узлы, связанные со стрелкой
+        final sourceNode = _getEffectiveNodeById(arrow.source, allNodes);
+        final targetNode = _getEffectiveNodeById(arrow.target, allNodes);
+        
+        bool shouldInclude = false;
+        
+        if (sourceNode != null) {
+          final sourceAbsolutePos = sourceNode.aPosition ?? (state.delta + sourceNode.position);
+          final sourceRect = _boundsCalculator.calculateNodeRect(
+            node: sourceNode,
+            position: sourceAbsolutePos,
+          );
+          if (sourceRect.overlaps(tileBounds)) {
+            shouldInclude = true;
+          }
+        }
+        
+        if (!shouldInclude && targetNode != null) {
+          final targetAbsolutePos = targetNode.aPosition ?? (state.delta + targetNode.position);
+          final targetRect = _boundsCalculator.calculateNodeRect(
+            node: targetNode,
+            position: targetAbsolutePos,
+          );
+          if (targetRect.overlaps(tileBounds)) {
+            shouldInclude = true;
+          }
+        }
+        
+        // Если ни один из узлов не пересекает тайл, проверяем, пересекает ли путь стрелки тайл
+        if (!shouldInclude) {
+          shouldInclude = arrowManager.doesArrowPathIntersectTile(arrow, tileBounds, state.delta);
+        }
+        
+        if (shouldInclude) {
+          finalFilteredArrowsInTile.add(arrow);
+        }
+      }
+
       // Если в тайле нет ни узлов, ни стрелок, не создаем его
-      if (nodesInTile.isEmpty && filteredArrowsInTile.isEmpty) {
+      if (nodesInTile.isEmpty && finalFilteredArrowsInTile.isEmpty) {
         return null;
       }
 
@@ -516,9 +558,9 @@ class TileManager {
       }
 
       // Рисуем стрелки, если они есть (используем новый ArrowTilePainter)
-      if (filteredArrowsInTile.isNotEmpty) {
+      if (finalFilteredArrowsInTile.isNotEmpty) {
         final arrowTilePainter = ArrowTilePainter(
-          arrows: filteredArrowsInTile,
+          arrows: finalFilteredArrowsInTile,
           nodes: allNodes,
           nodeBoundsCache: state.nodeBoundsCache,
         );
@@ -535,7 +577,7 @@ class TileManager {
 
       // Возвращаем тайл с информацией о содержащихся в нем узлах и стрелках
       final nodeIds = nodesInTile.map((node) => node.id).toList();
-      final arrowIds = filteredArrowsInTile.map((arrow) => arrow.id).toList();
+      final arrowIds = finalFilteredArrowsInTile.map((arrow) => arrow.id).toList();
       
       return ImageTile(
         image: image,
@@ -1180,6 +1222,48 @@ class TileManager {
         }
       }
 
+      // Дополнительная проверка: исключаем стрелки, если ни один из узлов стрелки не находится в тайле
+      // и путь стрелки не пересекает тайл
+      final finalFilteredArrows = <Arrow>[];
+      for (final arrow in filteredArrows) {
+        // Находим узлы, связанные со стрелкой
+        final sourceNode = _getEffectiveNodeById(arrow.source, state.nodes);
+        final targetNode = _getEffectiveNodeById(arrow.target, state.nodes);
+        
+        bool shouldInclude = false;
+        
+        if (sourceNode != null) {
+          final sourceAbsolutePos = sourceNode.aPosition ?? (state.delta + sourceNode.position);
+          final sourceRect = _boundsCalculator.calculateNodeRect(
+            node: sourceNode,
+            position: sourceAbsolutePos,
+          );
+          if (sourceRect.overlaps(bounds)) {
+            shouldInclude = true;
+          }
+        }
+        
+        if (!shouldInclude && targetNode != null) {
+          final targetAbsolutePos = targetNode.aPosition ?? (state.delta + targetNode.position);
+          final targetRect = _boundsCalculator.calculateNodeRect(
+            node: targetNode,
+            position: targetAbsolutePos,
+          );
+          if (targetRect.overlaps(bounds)) {
+            shouldInclude = true;
+          }
+        }
+        
+        // Если ни один из узлов не пересекает тайл, проверяем, пересекает ли путь стрелки тайл
+        if (!shouldInclude) {
+          shouldInclude = arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta);
+        }
+        
+        if (shouldInclude) {
+          finalFilteredArrows.add(arrow);
+        }
+      }
+
       final int tileImageSize = EditorConfig.tileSize;
       final double scale = 1.0;
 
@@ -1207,9 +1291,9 @@ class TileManager {
       }
 
       // Рисуем стрелки, если они есть (используем ArrowTilePainter)
-      if (filteredArrows.isNotEmpty) {
+      if (finalFilteredArrows.isNotEmpty) {
         final filteredArrowTilePainter = ArrowTilePainter(
-          arrows: filteredArrows,
+          arrows: finalFilteredArrows,
           nodes: state.nodes, // Используем ВСЕ узлы для правильного расчета путей
           nodeBoundsCache: state.nodeBoundsCache,
         );
@@ -1227,7 +1311,7 @@ class TileManager {
 
       // Возвращаем обновленный тайл с информацией о реально содержащихся в нем узлах и стрелках
       final nodeIds = sortedNodes.map((node) => node.id).toList();
-      final arrowIds = filteredArrows.map((arrow) => arrow.id).toList();
+      final arrowIds = finalFilteredArrows.map((arrow) => arrow.id).toList();
       
       return ImageTile(
         image: image,
@@ -1438,6 +1522,48 @@ class TileManager {
         }
       }
 
+      // Дополнительная проверка: исключаем стрелки, если ни один из узлов стрелки не находится в тайле
+      // и путь стрелки не пересекает тайл
+      final finalFilteredArrowsInTile = <Arrow>[];
+      for (final arrow in filteredArrowsInTile) {
+        // Находим узлы, связанные со стрелкой
+        final sourceNode = _getEffectiveNodeById(arrow.source, state.nodes);
+        final targetNode = _getEffectiveNodeById(arrow.target, state.nodes);
+        
+        bool shouldInclude = false;
+        
+        if (sourceNode != null) {
+          final sourceAbsolutePos = sourceNode.aPosition ?? (state.delta + sourceNode.position);
+          final sourceRect = _boundsCalculator.calculateNodeRect(
+            node: sourceNode,
+            position: sourceAbsolutePos,
+          );
+          if (sourceRect.overlaps(bounds)) {
+            shouldInclude = true;
+          }
+        }
+        
+        if (!shouldInclude && targetNode != null) {
+          final targetAbsolutePos = targetNode.aPosition ?? (state.delta + targetNode.position);
+          final targetRect = _boundsCalculator.calculateNodeRect(
+            node: targetNode,
+            position: targetAbsolutePos,
+          );
+          if (targetRect.overlaps(bounds)) {
+            shouldInclude = true;
+          }
+        }
+        
+        // Если ни один из узлов не пересекает тайл, проверяем, пересекает ли путь стрелки тайл
+        if (!shouldInclude) {
+          shouldInclude = arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta);
+        }
+        
+        if (shouldInclude) {
+          finalFilteredArrowsInTile.add(arrow);
+        }
+      }
+
       // Обновляем содержимое тайла
       oldTile.image.dispose();
 
@@ -1446,11 +1572,11 @@ class TileManager {
         bounds,
         tileId,
         nodesInTile,
-        filteredArrowsInTile,
+        finalFilteredArrowsInTile,
       );
       if (newTile != null) {
         state.imageTiles[tileIndex] = newTile;
-      } else if (nodesInTile.isEmpty && filteredArrowsInTile.isEmpty) {
+      } else if (nodesInTile.isEmpty && finalFilteredArrowsInTile.isEmpty) {
         // Если тайл пустой, удаляем его
         await _removeTile(tileId);
       }
