@@ -1,43 +1,36 @@
-```
-# Dependencies
-.pub/
-.buildlog
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
+```dart
+# Dart/Flutter build outputs
+/build/
+/.dart_tool/
+/pubspec.lock
 
-# Generated plugin code
-lib/src/generated_plugin_registrant.dart
-
-# Build outputs
-build/
-**/build/
-
-# IDE
-.idea/
-.vscode/
+# IDE files
+/.vscode/
+/.idea/
 *.iml
 *.ipr
 *.iws
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
 
 # Temporary files
 *.tmp
 *.temp
+*.log
 
-# Coverage
-coverage/
-*.lcov
+# Environment variables
+.env
+.env.local
+*.env.*
 
-# Dart/Flutter specific
-.dart_tool/
-.fvm/
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+/coverage/
+
+# Packages
+*.tar.gz
+*.zip
+*.tar
+*.gz
 ```
