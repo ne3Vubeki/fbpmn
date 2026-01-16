@@ -112,7 +112,7 @@ class ArrowTilePainter {
     // Найти родительский узел
     TableNode? findParent(List<TableNode> nodes) {
       for (final n in nodes) {
-        if (n.id == node!.parent) {
+        if (n.id == node.parent) {
           return n;
         }
 

@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import 'arrow_manager.dart';
@@ -292,7 +291,7 @@ class ArrowTileCoordinator {
     // Найти родительский узел
     TableNode? findParent(List<TableNode> nodeList) {
       for (final n in nodeList) {
-        if (n.id == node!.parent) {
+        if (n.id == node.parent) {
           return n;
         }
 
