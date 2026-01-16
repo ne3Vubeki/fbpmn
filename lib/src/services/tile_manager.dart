@@ -155,46 +155,59 @@ class TileManager {
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
     for (final arrow in allArrows) {
-      // Check which tiles the arrow intersects
-      final arrowTileBounds = _getArrowBounds(arrow, allNodes);
-      if (arrowTileBounds != null) {
-        // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
-        final effectiveSourceNode = _getEffectiveNodeById(
-          arrow.source,
-          allNodes,
-        );
-        final effectiveTargetNode = _getEffectiveNodeById(
-          arrow.target,
-          allNodes,
-        );
+      // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
+      final effectiveSourceNode = _getEffectiveNodeById(
+        arrow.source,
+        allNodes,
+      );
+      final effectiveTargetNode = _getEffectiveNodeById(
+        arrow.target,
+        allNodes,
+      );
 
-        // Пропускаем стрелки, связанные с узлами в скрытых swimlane
-        if ((effectiveSourceNode != null &&
-                _isNodeHiddenInCollapsedSwimlane(
-                  effectiveSourceNode,
-                  allNodes,
-                )) ||
-            (effectiveTargetNode != null &&
-                _isNodeHiddenInCollapsedSwimlane(
-                  effectiveTargetNode,
-                  allNodes,
-                ))) {
-          continue;
-        }
+      // Пропускаем стрелки, связанные с узлами в скрытых swimlane
+      if ((effectiveSourceNode != null &&
+              _isNodeHiddenInCollapsedSwimlane(
+                effectiveSourceNode,
+                allNodes,
+              )) ||
+          (effectiveTargetNode != null &&
+              _isNodeHiddenInCollapsedSwimlane(
+                effectiveTargetNode,
+                allNodes,
+              ))) {
+        continue;
+      }
 
-        final tileWorldSize = EditorConfig.tileSize.toDouble();
-        final gridXStart = (arrowTileBounds.left / tileWorldSize).floor();
-        final gridYStart = (arrowTileBounds.top / tileWorldSize).floor();
-        final gridXEnd = (arrowTileBounds.right / tileWorldSize).ceil();
-        final gridYEnd = (arrowTileBounds.bottom / tileWorldSize).ceil();
+      // Создаем ArrowTileCoordinator для проверки пересечений
+      final coordinator = ArrowTileCoordinator(
+        arrows: [arrow],
+        nodes: allNodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
 
-        // Создаем тайлы для всех grid позиций, которые пересекает стрелка
-        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-            final left = gridX * tileWorldSize;
-            final top = gridY * tileWorldSize;
-            final tileId = _generateTileId(left, top);
+      // Получаем полный путь стрелки
+      final path = coordinator.getArrowPathForTiles(arrow, state.delta);
+      if (path.getBounds().isEmpty) continue;
 
+      // Определяем границы пути для определения диапазона тайлов
+      final pathBounds = path.getBounds();
+      final tileWorldSize = EditorConfig.tileSize.toDouble();
+      final gridXStart = (pathBounds.left / tileWorldSize).floor();
+      final gridYStart = (pathBounds.top / tileWorldSize).floor();
+      final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
+      final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
+
+      // Проверяем пересечение пути стрелки с каждым потенциальным тайлом
+      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+          final left = gridX * tileWorldSize;
+          final top = gridY * tileWorldSize;
+          final tileBounds = Rect.fromLTWH(left, top, tileWorldSize, tileWorldSize);
+          final tileId = _generateTileId(left, top);
+
+          // Проверяем, пересекает ли путь стрелки этот тайл
+          if (coordinator.doesArrowIntersectTile(arrow, tileBounds, state.delta)) {
             if (!createdTileIds.contains(tileId)) {
               // Создаем тайл в этой позиции
               final tile = await _createTileAtPosition(
@@ -246,6 +259,12 @@ class TileManager {
       return null; // Не можем определить границы стрелки без обоих узлов
     }
 
+    // Проверяем, являются ли узлы скрытыми в свернутых swimlane
+    if (_isNodeHiddenInCollapsedSwimlane(sourceNode!, allNodes) ||
+        _isNodeHiddenInCollapsedSwimlane(targetNode!, allNodes)) {
+      return null; // Не создаем тайлы для стрелок между скрытыми узлами
+    }
+
     // Получаем абсолютные позиции узлов
     final sourceAbsolutePos =
         sourceNode!.aPosition ?? (state.delta + sourceNode!.position);
@@ -273,54 +292,14 @@ class TileManager {
     final path = coordinator.getArrowPathForTiles(arrow, state.delta);
 
     if (path.getBounds().isEmpty) {
-      // Если путь пустой, проверяем, пересекаются ли узлы с тайлами
-      // Если нет стрелок между узлами, не создаем тайлы
-      final coordinator = ArrowTileCoordinator(
-        arrows: [arrow],
-        nodes: allNodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
-
-      // Проверяем, действительно ли стрелка пересекает какие-либо тайлы
-      final testPath = coordinator.getArrowPathForTiles(arrow, state.delta);
-      if (testPath.getBounds().isEmpty) {
-        // Проверяем, соединены ли узлы (если они близко друг к другу)
-        final distance = Offset(
-          sourceRect.center.dx - targetRect.center.dx,
-          sourceRect.center.dy - targetRect.center.dy,
-        ).distance;
-
-        // Если узлы близко друг к другу, создаем минимальную область
-        if (distance < EditorConfig.tileSize.toDouble() * 2) {
-          return sourceRect
-              .expandToInclude(targetRect)
-              .inflate(
-                EditorConfig.tileSize.toDouble() / 4,
-              ); // Меньше расширение
-        } else {
-          // Не создаем тайлы для стрелок без реального пути
-          return null;
-        }
-      } else {
-        // Используем путь стрелки для определения границ
-        final pathBounds = testPath.getBounds();
-        return pathBounds
-            .expandToInclude(sourceRect)
-            .expandToInclude(targetRect)
-            .inflate(EditorConfig.tileSize.toDouble() / 2);
-      }
+      return null; // Не создаем тайлы для стрелок без реального пути
     }
 
-    // Получаем границы пути и увеличиваем для учета тайлов
+    // Получаем границы пути
     final pathBounds = path.getBounds();
 
-    // Увеличиваем область для учета тайлов по всему пути
-    final expandedBounds = pathBounds.inflate(
-      EditorConfig.tileSize.toDouble() * 1.5,
-    );
-
-    // Также включаем исходные узлы на случай, если путь очень короткий
-    final finalBounds = expandedBounds
+    // Возвращаем объединение границ пути и узлов
+    final finalBounds = pathBounds
         .expandToInclude(sourceRect)
         .expandToInclude(targetRect);
 
@@ -390,21 +369,35 @@ class TileManager {
         continue;
       }
 
-      final arrowBounds = _getArrowBounds(arrow, state.nodes);
-      if (arrowBounds != null) {
-        final tileWorldSize = EditorConfig.tileSize.toDouble();
-        final gridXStart = (arrowBounds.left / tileWorldSize).floor();
-        final gridYStart = (arrowBounds.top / tileWorldSize).floor();
-        final gridXEnd = (arrowBounds.right / tileWorldSize).ceil();
-        final gridYEnd = (arrowBounds.bottom / tileWorldSize).ceil();
+      // Создаем ArrowTileCoordinator для проверки пересечений
+      final coordinator = ArrowTileCoordinator(
+        arrows: [arrow],
+        nodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
 
-        // Создаем тайлы для всех grid позиций, которые пересекает стрелка
-        for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-            final left = gridX * tileWorldSize;
-            final top = gridY * tileWorldSize;
-            final tileId = _generateTileId(left, top);
+      // Получаем полный путь стрелки
+      final path = coordinator.getArrowPathForTiles(arrow, state.delta);
+      if (path.getBounds().isEmpty) continue;
 
+      // Определяем границы пути для определения диапазона тайлов
+      final pathBounds = path.getBounds();
+      final tileWorldSize = EditorConfig.tileSize.toDouble();
+      final gridXStart = (pathBounds.left / tileWorldSize).floor();
+      final gridYStart = (pathBounds.top / tileWorldSize).floor();
+      final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
+      final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
+
+      // Проверяем пересечение пути стрелки с каждым потенциальным тайлом
+      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+          final left = gridX * tileWorldSize;
+          final top = gridY * tileWorldSize;
+          final tileBounds = Rect.fromLTWH(left, top, tileWorldSize, tileWorldSize);
+          final tileId = _generateTileId(left, top);
+
+          // Проверяем, пересекает ли путь стрелки этот тайл
+          if (coordinator.doesArrowIntersectTile(arrow, tileBounds, state.delta)) {
             if (!createdTileIds.contains(tileId)) {
               // Проверяем, существует ли уже тайл с такими координатами
               bool tileExists = false;
@@ -1405,17 +1398,18 @@ class TileManager {
     });
 
     // Также ищем тайлы, в которых может быть стрелка, но кэш еще не обновлен
-    // Проверяем каждый тайл на наличие стрелки
+    // Проверяем каждый тайл на наличие стрелки с помощью ArrowTileCoordinator
     for (int i = 0; i < state.imageTiles.length; i++) {
       final tile = state.imageTiles[i];
 
-      if (ArrowTilePainter.getArrowsForTile(
-        tileBounds: tile.bounds,
-        allArrows: [arrow],
-        allNodes: state.nodes,
+      // Создаем координатор для проверки пересечения
+      final coordinator = ArrowTileCoordinator(
+        arrows: [arrow],
+        nodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
-      ).isNotEmpty) {
+      );
+
+      if (coordinator.doesArrowIntersectTile(arrow, tile.bounds, state.delta)) {
         tileIndices.add(i);
       }
     }
