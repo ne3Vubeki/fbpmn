@@ -22,6 +22,7 @@ class EditorState {
   
   // Узлы
   final List<TableNode> nodes = [];
+  final List<TableNode> nodesSelected = [];
   Node? selectedNode;
   TableNode? selectedNodeOnTopLayer;
   bool isNodeOnTopLayer = false;
@@ -34,9 +35,11 @@ class EditorState {
 
   // Связи/стрелки
   final List<Arrow> arrows = [];
+  final List<Arrow> arrowsSelected = [];
   
   // Тайлы
   List<ImageTile> imageTiles = [];
+  List<String> imageTilesChanged = [];
   bool showTileBorders = true;
   
   // Загрузка
