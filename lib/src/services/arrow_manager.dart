@@ -616,27 +616,13 @@ class ArrowManager {
     final path = getArrowPathForTiles(arrow, baseOffset);
     if (path.getBounds().isEmpty) return false;
 
-    // Более точная проверка пересечения с использованием PathMetrics
-    // для лучшего определения пересечений с тайлами
-    final pathMetrics = path.computeMetrics();
-
-    for (final metric in pathMetrics) {
-      final pathLength = metric.length;
-      // Проверяем большее количество точек вдоль пути для более точной проверки
-      for (double t = 0; t <= pathLength; t += pathLength / 20) {
-        try {
-          final point = metric.getTangentForOffset(t)?.position;
-          if (point != null && tileBounds.contains(point)) {
-            return true;
-          }
-        } catch (e) {
-          // Если не удалось получить точку, продолжаем
-          continue;
-        }
-      }
+    // Проверяем, пересекается ли bounding box пути с тайлом
+    final pathBounds = path.getBounds();
+    if (!pathBounds.overlaps(tileBounds)) {
+      return false;
     }
 
-    // Дополнительная проверка: проверяем, пересекаются ли bounding box узлов с тайлом
+    // Проверяем, пересекаются ли bounding box узлов с тайлом
     final effectiveSourceNode = _getEffectiveNode(arrow.source, nodes);
     final effectiveTargetNode = _getEffectiveNode(arrow.target, nodes);
 
@@ -662,13 +648,104 @@ class ArrowManager {
         ),
       );
 
-      // Если хотя бы один из узлов пересекается с тайлом, то стрелка может быть в тайле
+      // Если хотя бы один из узлов пересекается с тайлом, то стрелка должна быть в тайле
       if (sourceRect.overlaps(tileBounds) || targetRect.overlaps(tileBounds)) {
         return true;
       }
     }
 
-    // Резервная проверка через bounds
-    return path.getBounds().overlaps(tileBounds);
+    // Проверяем пересечение пути с тайлом более точно с помощью Path.contains()
+    // Создаем Path для тайла
+    final tilePath = Path()..addRect(tileBounds);
+    
+    // Используем более точный алгоритм проверки пересечения
+    // Разбиваем путь на сегменты и проверяем каждый
+    final pathMetrics = path.computeMetrics();
+    
+    for (final metric in pathMetrics) {
+      // Проверяем несколько точек вдоль пути для надежности
+      final totalLength = metric.length;
+      final stepSize = totalLength > 0 ? totalLength / 50 : 1.0; // 50 точек для проверки
+      
+      for (double distance = 0; distance <= totalLength; distance += stepSize) {
+        try {
+          final tangent = metric.getTangentForOffset(distance);
+          if (tangent != null) {
+            final point = tangent.position;
+            if (tileBounds.contains(point)) {
+              return true;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      // Также проверяем точки между начальной и конечной точками сегмента
+      try {
+        final startTangent = metric.getTangentForOffset(0);
+        final endTangent = metric.getTangentForOffset(metric.length);
+        
+        if (startTangent != null && endTangent != null) {
+          final startPoint = startTangent.position;
+          final endPoint = endTangent.position;
+          
+          // Проверяем, пересекает ли сегмент границу тайла
+          if (_lineIntersectsRect(startPoint, endPoint, tileBounds)) {
+            return true;
+          }
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+
+    // Проверяем пересечение с помощью Path.op() - это самый точный способ
+    try {
+      final intersection = Path.combine(PathOperation.intersect, path, tilePath);
+      return !intersection.getBounds().isEmpty;
+    } catch (e) {
+      // Если Path.op() не работает, используем резервный метод
+      return pathBounds.overlaps(tileBounds);
+    }
+  }
+
+  /// Проверяет, пересекает ли линия между двумя точками прямоугольник
+  bool _lineIntersectsRect(Offset start, Offset end, Rect rect) {
+    // Проверяем, находятся ли обе точки по одну сторону от прямоугольника
+    if ((start.dx < rect.left && end.dx < rect.left) ||
+        (start.dx > rect.right && end.dx > rect.right) ||
+        (start.dy < rect.top && end.dy < rect.top) ||
+        (start.dy > rect.bottom && end.dy > rect.bottom)) {
+      return false;
+    }
+
+    // Если одна из точек внутри прямоугольника
+    if (rect.contains(start) || rect.contains(end)) {
+      return true;
+    }
+
+    // Проверяем пересечение с каждой стороной прямоугольника
+    final leftEdge = _lineSegmentsIntersect(start, end, Offset(rect.left, rect.top), Offset(rect.left, rect.bottom));
+    final rightEdge = _lineSegmentsIntersect(start, end, Offset(rect.right, rect.top), Offset(rect.right, rect.bottom));
+    final topEdge = _lineSegmentsIntersect(start, end, Offset(rect.left, rect.top), Offset(rect.right, rect.top));
+    final bottomEdge = _lineSegmentsIntersect(start, end, Offset(rect.left, rect.bottom), Offset(rect.right, rect.bottom));
+
+    return leftEdge || rightEdge || topEdge || bottomEdge;
+  }
+
+  /// Проверяет пересечение двух отрезков
+  bool _lineSegmentsIntersect(Offset p1, Offset p2, Offset p3, Offset p4) {
+    // Формула для определения пересечения отрезков
+    final denom = (p4.dy - p3.dy) * (p2.dx - p1.dx) - (p4.dx - p3.dx) * (p2.dy - p1.dy);
+    if (denom == 0) {
+      // Линии параллельны
+      return false;
+    }
+
+    final ua = ((p4.dx - p3.dx) * (p1.dy - p3.dy) - (p4.dy - p3.dy) * (p1.dx - p3.dx)) / denom;
+    final ub = ((p2.dx - p1.dx) * (p1.dy - p3.dy) - (p2.dy - p1.dy) * (p1.dx - p3.dx)) / denom;
+
+    return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
   }
 }

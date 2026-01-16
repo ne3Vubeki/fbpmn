@@ -463,9 +463,23 @@ class TileManager {
         nodeBoundsCache: state.nodeBoundsCache,
         baseOffset: state.delta,
       );
+      
+      // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
+      final filteredArrowsInTile = <Arrow>[];
+      final arrowManager = ArrowManager(
+        arrows: allArrows,
+        nodes: allNodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      for (final arrow in arrowsInTile) {
+        if (arrowManager.doesArrowPathIntersectTile(arrow, tileBounds, state.delta)) {
+          filteredArrowsInTile.add(arrow);
+        }
+      }
 
       // Если в тайле нет ни узлов, ни стрелок, не создаем его
-      if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
+      if (nodesInTile.isEmpty && filteredArrowsInTile.isEmpty) {
         return null;
       }
 
@@ -502,9 +516,9 @@ class TileManager {
       }
 
       // Рисуем стрелки, если они есть (используем новый ArrowTilePainter)
-      if (arrowsInTile.isNotEmpty) {
+      if (filteredArrowsInTile.isNotEmpty) {
         final arrowTilePainter = ArrowTilePainter(
-          arrows: arrowsInTile,
+          arrows: filteredArrowsInTile,
           nodes: allNodes,
           nodeBoundsCache: state.nodeBoundsCache,
         );
@@ -521,7 +535,7 @@ class TileManager {
 
       // Возвращаем тайл с информацией о содержащихся в нем узлах и стрелках
       final nodeIds = nodesInTile.map((node) => node.id).toList();
-      final arrowIds = arrowsInTile.map((arrow) => arrow.id).toList();
+      final arrowIds = filteredArrowsInTile.map((arrow) => arrow.id).toList();
       
       return ImageTile(
         image: image,
@@ -1149,13 +1163,27 @@ class TileManager {
         nodes: state.nodes, // Используем все узлы для правильного расчета путей
         nodeBoundsCache: state.nodeBoundsCache,
       );
-      final filteredArrows = arrowTilePainter.getArrowsForTile(
+      final rawArrows = arrowTilePainter.getArrowsForTile(
         tileBounds: bounds,
         allArrows: state.arrows,
         allNodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
         baseOffset: state.delta,
       );
+      
+      // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
+      final filteredArrows = <Arrow>[];
+      final arrowManager = ArrowManager(
+        arrows: state.arrows,
+        nodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      for (final arrow in rawArrows) {
+        if (arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta)) {
+          filteredArrows.add(arrow);
+        }
+      }
 
       final int tileImageSize = EditorConfig.tileSize;
       final double scale = 1.0;
@@ -1393,13 +1421,27 @@ class TileManager {
       
       // Пересчитываем стрелки, которые действительно проходят через этот тайл
       // (а не просто те, которые были в старом тайле)
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+      final rawArrowsInTile = ArrowTilePainter.getArrowsForTile(
         tileBounds: bounds,
         allArrows: state.arrows,
         allNodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
         baseOffset: state.delta,
       );
+      
+      // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
+      final filteredArrowsInTile = <Arrow>[];
+      final arrowManager = ArrowManager(
+        arrows: state.arrows,
+        nodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      for (final arrow in rawArrowsInTile) {
+        if (arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta)) {
+          filteredArrowsInTile.add(arrow);
+        }
+      }
 
       // Обновляем содержимое тайла
       oldTile.image.dispose();
@@ -1409,11 +1451,11 @@ class TileManager {
         bounds,
         tileId,
         nodesInTile,
-        arrowsInTile,
+        filteredArrowsInTile,
       );
       if (newTile != null) {
         state.imageTiles[tileIndex] = newTile;
-      } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
+      } else if (nodesInTile.isEmpty && filteredArrowsInTile.isEmpty) {
         // Если тайл пустой, удаляем его
         await _removeTile(tileId);
       }
