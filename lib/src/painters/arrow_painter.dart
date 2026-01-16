@@ -10,11 +10,13 @@ class ArrowPainter {
   final List<TableNode> nodes;
   final Map<TableNode, Rect> nodeBoundsCache;
   final Map<String, TableNode> _nodeMap;
+  final List<Arrow>? selectedArrows; // Optional list of selected arrows to highlight differently
 
   ArrowPainter({
     required this.arrow,
     required this.nodes,
     required this.nodeBoundsCache,
+    this.selectedArrows,
   }) : _nodeMap = _buildNodeMap(nodes);
 
   /// Build a map of all nodes including nested ones
@@ -180,9 +182,14 @@ class ArrowPainter {
     // Создаем простой путь без проверок пересечений
     final path = _createSimplePath(startPoint, endPoint, sourceRect, targetRect);
 
-    // Всегда черный цвет
+    // Определяем цвет стрелки - для выделенных стрелок используем другой цвет
+    Color arrowColor = Colors.black;
+    if (selectedArrows != null && selectedArrows!.any((selectedArrow) => selectedArrow.id == arrow.id)) {
+      arrowColor = Colors.blue; // Цвет для выделенных стрелок
+    }
+
     final paint = Paint()
-      ..color = Colors.black
+      ..color = arrowColor
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 

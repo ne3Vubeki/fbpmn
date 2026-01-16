@@ -506,4 +506,145 @@ class ArrowManager {
 
     return path;
   }
+
+  /// Получить ID узлов, связанных со стрелками
+  Set<String> getNodeIdsForArrows(List<Arrow> arrowList) {
+    final Set<String> nodeIds = <String>{};
+    for (final arrow in arrowList) {
+      nodeIds.add(arrow.source);
+      nodeIds.add(arrow.target);
+    }
+    return nodeIds;
+  }
+
+  /// Получить стрелки, связанные с конкретным узлом
+  List<Arrow> getArrowsForNode(String nodeId) {
+    return arrows.where((arrow) => 
+      arrow.source == nodeId || arrow.target == nodeId
+    ).toList();
+  }
+
+  /// Получить ID стрелок, связанных с конкретным узлом
+  List<String> getArrowIdsForNode(String nodeId) {
+    return arrows.where((arrow) => 
+      arrow.source == nodeId || arrow.target == nodeId
+    ).map((arrow) => arrow.id).toList();
+  }
+
+  /// Получить полный путь стрелки для отрисовки в тайлах
+  Path getArrowPathForTiles(Arrow arrow, Offset baseOffset) {
+    // Находим эффективные узлы
+    final effectiveSourceNode = _getEffectiveNode(arrow.source, nodes);
+    final effectiveTargetNode = _getEffectiveNode(arrow.target, nodes);
+
+    if (effectiveSourceNode == null || effectiveTargetNode == null) {
+      return Path();
+    }
+
+    // Получаем абсолютные позиции
+    final sourceAbsolutePos =
+        effectiveSourceNode.aPosition ??
+        (effectiveSourceNode.position + baseOffset);
+    final targetAbsolutePos =
+        effectiveTargetNode.aPosition ??
+        (effectiveTargetNode.position + baseOffset);
+
+    // Создаем Rect для узлов
+    final sourceRect = Rect.fromPoints(
+      sourceAbsolutePos,
+      Offset(
+        sourceAbsolutePos.dx + effectiveSourceNode.size.width,
+        sourceAbsolutePos.dy + effectiveSourceNode.size.height,
+      ),
+    );
+
+    final targetRect = Rect.fromPoints(
+      targetAbsolutePos,
+      Offset(
+        targetAbsolutePos.dx + effectiveTargetNode.size.width,
+        targetAbsolutePos.dy + effectiveTargetNode.size.height,
+      ),
+    );
+
+    // Вычисляем точки соединения
+    final connectionPoints = calculateConnectionPointsForSideCalculation(
+      sourceRect,
+      targetRect,
+      effectiveSourceNode,
+      effectiveTargetNode,
+    );
+
+    if (connectionPoints.start == null || connectionPoints.end == null) {
+      return Path();
+    }
+
+    // Создаем простой ортогональный путь без проверок пересечений
+    return _createSimpleOrthogonalPath(
+      connectionPoints.start!,
+      connectionPoints.end!,
+      sourceRect,
+      targetRect,
+      connectionPoints.sides!,
+    );
+  }
+
+  /// Найти эффективный узел
+  TableNode? _getEffectiveNode(String nodeId, List<TableNode> allNodes) {
+    TableNode? findNodeRecursive(List<TableNode> nodeList) {
+      for (final node in nodeList) {
+        if (node.id == nodeId) {
+          return node;
+        }
+        if (node.children != null) {
+          final found = findNodeRecursive(node.children!);
+          if (found != null) return found;
+        }
+      }
+      return null;
+    }
+
+    final node = findNodeRecursive(allNodes);
+    if (node == null) return null;
+
+    // Проверка на свернутые swimlane
+    if (node.parent != null) {
+      final parent = _getEffectiveNode(node.parent!, allNodes);
+      if (parent != null &&
+          parent.qType == 'swimlane' &&
+          (parent.isCollapsed ?? false)) {
+        return parent;
+      }
+    }
+
+    return node;
+  }
+
+  /// Проверяет, пересекает ли путь тайл
+  bool doesArrowPathIntersectTile(Arrow arrow, Rect tileBounds, Offset baseOffset) {
+    final path = getArrowPathForTiles(arrow, baseOffset);
+    if (path.getBounds().isEmpty) return false;
+
+    // Более точная проверка пересечения с использованием PathMetrics
+    // для лучшего определения пересечений с тайлами
+    final pathMetrics = path.computeMetrics();
+
+    for (final metric in pathMetrics) {
+      final pathLength = metric.length;
+      // Проверяем несколько точек вдоль пути
+      for (double t = 0; t <= pathLength; t += pathLength / 10) {
+        try {
+          final point = metric.getTangentForOffset(t)?.position;
+          if (point != null && tileBounds.contains(point)) {
+            return true;
+          }
+        } catch (e) {
+          // Если не удалось получить точку, продолжаем
+          continue;
+        }
+      }
+    }
+
+    // Резервная проверка через bounds
+    return path.getBounds().overlaps(tileBounds);
+  }
 }
