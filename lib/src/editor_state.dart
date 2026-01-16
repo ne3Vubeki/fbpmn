@@ -22,9 +22,6 @@ class EditorState {
   // Узлы
   final List<TableNode> nodes = [];
   final List<TableNode> nodesSelected = [];
-  TableNode? selectedNode;
-  bool isNodeOnTopLayer = false;
-  TableNode? selectedNodeOnTopLayer;
   Offset originalNodePosition = Offset.zero;
   bool isNodeDragging = false;
 
@@ -41,11 +38,7 @@ class EditorState {
   List<String> imageTilesChanged = [];
   bool showTileBorders = true;
   
-  // Маппинги тайлов
-  Map<int, List<TableNode>> tileToNodes = {};
-  Map<TableNode, Set<int>> nodeToTiles = {};
-  Map<int, List<Arrow>> tileToArrows = {};
-  Map<Arrow, Set<int>> arrowToTiles = {};
+
   // Загрузка
   bool isLoading = false;
   

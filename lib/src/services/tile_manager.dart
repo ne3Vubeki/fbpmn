@@ -10,7 +10,6 @@ import '../utils/bounds_calculator.dart';
 import '../utils/node_renderer.dart';
 import '../utils/editor_config.dart';
 import '../painters/arrow_tile_painter.dart';
-import 'arrow_tile_coordinator.dart';
 
 class TileManager {
   final EditorState state;
@@ -570,12 +569,17 @@ class TileManager {
       final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
 
-      // Возвращаем тайл вместе с данными для последующего обновления маппингов
+      // Возвращаем тайл с информацией о содержащихся в нем узлах и стрелках
+      final nodeIds = nodesInTile.map((node) => node.id).toList();
+      final arrowIds = arrowsInTile.map((arrow) => arrow.id).toList();
+      
       return ImageTile(
         image: image,
         bounds: tileBounds,
         scale: scale,
         id: tileId,
+        nodes: nodeIds,
+        arrows: arrowIds,
       );
     } catch (e) {
       print('Ошибка создания тайла: $e');
@@ -759,44 +763,9 @@ class TileManager {
     List<TableNode> allNodes,
     List<Arrow> allArrows,
   ) {
-    // Очищаем старые маппинги
-    state.tileToNodes.clear();
-    state.tileToArrows.clear();
-    state.nodeToTiles.clear();
-    state.arrowToTiles.clear();
-
-    // Обновляем маппинги для всех тайлов
-    for (int i = 0; i < tiles.length; i++) {
-      final tile = tiles[i];
-      final nodesInTile = _getNodesForTile(tile.bounds, allNodes);
-      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
-        tileBounds: tile.bounds,
-        allArrows: allArrows,
-        allNodes: allNodes,
-        nodeBoundsCache: state.nodeBoundsCache,
-        baseOffset: state.delta,
-      );
-
-      if (nodesInTile.isNotEmpty) {
-        state.tileToNodes[i] = nodesInTile;
-        for (final node in nodesInTile) {
-          if (!state.nodeToTiles.containsKey(node)) {
-            state.nodeToTiles[node] = <int>{};
-          }
-          state.nodeToTiles[node]!.add(i);
-        }
-      }
-
-      if (arrowsInTile.isNotEmpty) {
-        state.tileToArrows[i] = arrowsInTile;
-        for (final arrow in arrowsInTile) {
-          if (!state.arrowToTiles.containsKey(arrow)) {
-            state.arrowToTiles[arrow] = <int>{};
-          }
-          state.arrowToTiles[arrow]!.add(i);
-        }
-      }
-    }
+    // Новый подход: каждый тайл теперь содержит свои собственные списки id узлов и стрелок
+    // Мы просто оставляем эту функцию пустой, так как теперь у нас другая структура данных
+    // Тайлы сами содержат id узлов и стрелок
   }
 
   // Фильтрация корневых узлов
@@ -1386,7 +1355,18 @@ class TileManager {
       final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
 
-      return ImageTile(image: image, bounds: bounds, scale: scale, id: tileId);
+      // Возвращаем обновленный тайл с информацией о содержащихся в нем узлах и стрелках
+      final nodeIds = nodes.map((node) => node.id).toList();
+      final arrowIds = arrows.map((arrow) => arrow.id).toList();
+      
+      return ImageTile(
+        image: image,
+        bounds: bounds,
+        scale: scale,
+        id: tileId,
+        nodes: nodeIds,
+        arrows: arrowIds,
+      );
     } catch (e) {
       print('Ошибка создания обновленного тайла: $e');
       return null;
@@ -1679,8 +1659,6 @@ class TileManager {
     }
     state.imageTiles.clear();
     state.nodeBoundsCache.clear();
-    state.tileToNodes.clear();
-    state.nodeToTiles.clear();
   }
 
   void dispose() {
