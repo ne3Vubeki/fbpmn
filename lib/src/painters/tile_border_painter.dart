@@ -63,8 +63,7 @@ class TileBorderPainter extends CustomPainter {
         );
         
         // Отображаем количество узлов в тайле
-        final tileIndex = state.imageTiles.indexOf(tile);
-        final nodesCount = state.tileToNodes[tileIndex]?.length ?? 0;
+        final nodesCount = tile.nodes.length;
         final countText = 'узлов: $nodesCount';
         
         final countTextPainter = TextPainter(

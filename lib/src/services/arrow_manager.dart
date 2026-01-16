@@ -383,7 +383,7 @@ class ArrowManager {
     final arrowsInTile = <Arrow>[];
     
     for (final arrow in arrows) {
-      if (_doesArrowIntersectTile(arrow, tileBounds, baseOffset)) {
+      if (doesArrowIntersectTile(arrow, tileBounds, baseOffset)) {
         arrowsInTile.add(arrow);
       }
     }
@@ -392,7 +392,7 @@ class ArrowManager {
   }
 
   /// Проверяет, пересекает ли стрелка определенный тайл
-  bool _doesArrowIntersectTile(Arrow arrow, Rect tileBounds, Offset baseOffset) {
+  bool doesArrowIntersectTile(Arrow arrow, Rect tileBounds, Offset baseOffset) {
     // Находим эффективные узлы
     final effectiveSourceNode = _findEffectiveNodeById(arrow.source);
     final effectiveTargetNode = _findEffectiveNodeById(arrow.target);

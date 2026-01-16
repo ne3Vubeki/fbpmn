@@ -268,7 +268,7 @@ class ArrowTilePainter {
 
     for (final arrow in allArrows) {
       // Используем менеджер для проверки пересечения
-      if (arrowManager._doesArrowIntersectTile(arrow, tileBounds, baseOffset)) {
+      if (arrowManager.doesArrowIntersectTile(arrow, tileBounds, baseOffset)) {
         arrowsInTile.add(arrow);
       }
     }
