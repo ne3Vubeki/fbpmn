@@ -1662,6 +1662,17 @@ class TileManager {
     }
   }
 
+  // Метод для получения стрелок для тайла (по аналогии с _getNodesForTile)
+  List<Arrow> _getArrowsForTile(Rect bounds, List<Arrow> allArrows) {
+    return ArrowTilePainter.getArrowsForTile(
+      tileBounds: bounds,
+      allArrows: allArrows,
+      allNodes: state.nodes,
+      nodeBoundsCache: state.nodeBoundsCache,
+      baseOffset: state.delta,
+    );
+  }
+
   void _disposeTiles() {
     for (final tile in state.imageTiles) {
       tile.image.dispose();
