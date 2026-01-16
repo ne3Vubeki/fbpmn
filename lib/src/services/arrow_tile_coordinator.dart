@@ -20,6 +20,11 @@ class ArrowTileCoordinator {
       nodeBoundsCache: nodeBoundsCache,
     );
   }
+  
+  /// Очистить кэш стрелок
+  void clearCache() {
+    arrowManager.clearCache();
+  }
 
   /// Получить полный путь стрелки для отрисовки в тайлах
   Path getArrowPathForTiles(Arrow arrow, Offset baseOffset) {

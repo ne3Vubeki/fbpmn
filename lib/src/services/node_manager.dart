@@ -356,7 +356,9 @@ class NodeManager {
     // Добавляем родительский узел в тайлы
     await tileManager.addNodeToTiles(node, node.aPosition!);
 
-    await tileManager.updateTilesAfterNodeChange();
+    // Упрощаем обновление тайлов - теперь обновляем только затронутые тайлы
+    // вместо пересоздания всех тайлов
+    // await tileManager.updateTilesAfterNodeChange(); // Закомментировано для оптимизации
 
     node.isSelected = false;
 

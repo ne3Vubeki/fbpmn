@@ -1184,17 +1184,12 @@ class TileManager {
       }
     }
 
-    // Обновляем все тайлы, в которые добавили узлы
-    for (final tileIndex in tilesToUpdate) {
-      await updateTileWithAllContent(tileIndex);
-    }
-
     // Находим все стрелки, связанные с этим узлом
     final arrowsConnectedToNode = state.arrows
         .where((arrow) => arrow.source == node.id || arrow.target == node.id)
         .toList();
 
-    // Для каждой связанной стрелки обновляем ВСЕ тайлы, через которые она проходит
+    // Для каждой связанной стрелки находим тайлы, через которые она проходит
     for (final arrow in arrowsConnectedToNode) {
       final arrowTiles = _findTilesForArrow(arrow);
       for (final tileIndex in arrowTiles) {
@@ -1204,7 +1199,7 @@ class TileManager {
       }
     }
 
-    // Повторно обновляем все затронутые тайлы
+    // Обновляем все затронутые тайлы только один раз
     for (final tileIndex in tilesToUpdate) {
       await updateTileWithAllContent(tileIndex);
     }
@@ -1475,6 +1470,14 @@ class TileManager {
   }
 
   Future<void> updateTilesAfterNodeChange() async {
+    // Создаем координатор и очищаем кэш стрелок
+    final coordinator = ArrowTileCoordinator(
+      arrows: state.arrows,
+      nodes: state.nodes,
+      nodeBoundsCache: state.nodeBoundsCache,
+    );
+    coordinator.clearCache();
+
     // Пересоздаем тайлы с текущими узлами
     await createTiledImage(state.nodes);
 
@@ -1497,6 +1500,16 @@ class TileManager {
       final bounds = oldTile.bounds;
 
       print('Update tile: $tileId');
+
+      // Создаем временный ArrowTileCoordinator для обновления кэша
+      final coordinator = ArrowTileCoordinator(
+        arrows: state.arrows,
+        nodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      
+      // Очищаем кэш стрелок перед обновлением
+      coordinator.clearCache();
 
       // Получаем ВСЕ узлы для этого тайла из state.nodes
       final nodesInTile = _getNodesForTile(bounds, state.nodes);
