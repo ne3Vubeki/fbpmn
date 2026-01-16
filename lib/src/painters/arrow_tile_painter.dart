@@ -59,6 +59,9 @@ class ArrowTilePainter {
       nodes: allNodes,
       nodeBoundsCache: nodeBoundsCache,
     );
+    
+    // Очищаем кэш перед использованием, чтобы обеспечить актуальность данных
+    coordinator.clearCache();
 
     for (final arrow in allArrows) {
       // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
