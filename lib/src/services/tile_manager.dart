@@ -463,7 +463,7 @@ class TileManager {
         nodeBoundsCache: state.nodeBoundsCache,
         baseOffset: state.delta,
       );
-      
+
       // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
       final filteredArrowsInTile = <Arrow>[];
       final arrowManager = ArrowManager(
@@ -471,7 +471,7 @@ class TileManager {
         nodes: allNodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
-      
+
       for (final arrow in arrowsInTile) {
         if (arrowManager.doesArrowPathIntersectTile(arrow, tileBounds, state.delta)) {
           filteredArrowsInTile.add(arrow);
@@ -1158,19 +1158,14 @@ class TileManager {
       final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
 
       // Фильтруем стрелки, чтобы включить только те, которые действительно пересекают тайл
-      final arrowTilePainter = ArrowTilePainter(
-        arrows: state.arrows, // Используем все стрелки для проверки пересечений
-        nodes: state.nodes, // Используем все узлы для правильного расчета путей
-        nodeBoundsCache: state.nodeBoundsCache,
-      );
-      final rawArrows = arrowTilePainter.getArrowsForTile(
+      final rawArrows = ArrowTilePainter.getArrowsForTile(
         tileBounds: bounds,
         allArrows: state.arrows,
         allNodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
         baseOffset: state.delta,
       );
-      
+
       // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
       final filteredArrows = <Arrow>[];
       final arrowManager = ArrowManager(
@@ -1178,7 +1173,7 @@ class TileManager {
         nodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
-      
+
       for (final arrow in rawArrows) {
         if (arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta)) {
           filteredArrows.add(arrow);
@@ -1428,7 +1423,7 @@ class TileManager {
         nodeBoundsCache: state.nodeBoundsCache,
         baseOffset: state.delta,
       );
-      
+
       // Дополнительно фильтруем стрелки, чтобы убедиться, что они действительно пересекают тайл
       final filteredArrowsInTile = <Arrow>[];
       final arrowManager = ArrowManager(
@@ -1436,7 +1431,7 @@ class TileManager {
         nodes: state.nodes,
         nodeBoundsCache: state.nodeBoundsCache,
       );
-      
+
       for (final arrow in rawArrowsInTile) {
         if (arrowManager.doesArrowPathIntersectTile(arrow, bounds, state.delta)) {
           filteredArrowsInTile.add(arrow);
