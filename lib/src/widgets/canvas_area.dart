@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../editor_state.dart';
+import '../models/arrow.dart';
+import '../models/table.node.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
@@ -265,17 +267,6 @@ class _CanvasAreaState extends State<CanvasArea> {
     final nodeSize = Size(
       node.size.width * widget.state.scale,
       node.size.height * widget.state.scale,
-    );
-
-    // Рассчитываем смещение для отрисовки стрелок
-    final nodeWorldPosition = widget.state.originalNodePosition;
-    
-    // Определяем видимую область для отрисовки стрелок
-    final visibleBounds = Rect.fromLTWH(
-      -widget.state.offset.dx / widget.state.scale,
-      -widget.state.offset.dy / widget.state.scale,
-      widget.state.viewportSize.width / widget.state.scale,
-      widget.state.viewportSize.height / widget.state.scale,
     );
 
     // Получаем текущие узлы (включая выделенные) для отрисовки стрелок

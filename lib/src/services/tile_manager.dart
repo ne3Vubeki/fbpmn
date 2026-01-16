@@ -40,9 +40,6 @@ class TileManager {
 
       state.imageTiles = tiles;
 
-      // Обновляем маппинги после того, как тайлы добавлены в состояние
-      _updateAllTileMappings(tiles, nodes, state.arrows);
-
       state.isLoading = false;
       onStateUpdate();
     } catch (e) {
@@ -56,9 +53,6 @@ class TileManager {
     final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
     state.imageTiles = tiles;
-
-    // Обновляем маппинги после того, как тайлы добавлены в состояние
-    _updateAllTileMappings(tiles, [], []);
 
     state.isLoading = false;
     onStateUpdate();
@@ -212,6 +206,10 @@ class TileManager {
         }
       }
     }
+
+    tiles.forEach((tile) {
+      print('Создан тайл ${tile.id} с узлами: ${tile.nodes} и связями ${tile.arrows}');
+    });
 
     return tiles;
   }
@@ -707,17 +705,6 @@ class TileManager {
       }
     }
     return null;
-  }
-
-  // Обновление всех маппингов для всех тайлов
-  void _updateAllTileMappings(
-    List<ImageTile> tiles,
-    List<TableNode> allNodes,
-    List<Arrow> allArrows,
-  ) {
-    // Новый подход: каждый тайл теперь содержит свои собственные списки id узлов и стрелок
-    // Мы просто оставляем эту функцию пустой, так как теперь у нас другая структура данных
-    // Тайлы сами содержат id узлов и стрелок
   }
 
   // Фильтрация корневых узлов
@@ -1410,9 +1397,6 @@ class TileManager {
       final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
       state.imageTiles = tiles;
-
-      // Обновляем маппинги после того, как тайлы добавлены в состояние
-      _updateAllTileMappings(tiles, [], []);
 
       state.isLoading = false;
       onStateUpdate();

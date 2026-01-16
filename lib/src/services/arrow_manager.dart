@@ -338,7 +338,6 @@ class ArrowManager {
         }
       }
     }
-    print(sides);
 
     return (start: startConnectionPoint, end: endConnectionPoint, sides: sides);
   }
