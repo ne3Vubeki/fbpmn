@@ -1124,9 +1124,38 @@ class TileManager {
     List<Arrow> arrows,
   ) async {
     try {
-      final rootNodes = _filterRootNodes(nodes);
+      // Фильтруем узлы, чтобы включить только те, которые действительно находятся в пределах тайла
+      final filteredNodes = <TableNode>[];
+      for (final node in nodes) {
+        // Используем абсолютную позицию узла, если она установлена, иначе рассчитываем её
+        final nodePosition = node.aPosition ?? node.position;
+        final nodeRect = _boundsCalculator.calculateNodeRect(
+          node: node,
+          position: nodePosition,
+        );
+        
+        if (nodeRect.overlaps(bounds)) {
+          filteredNodes.add(node);
+        }
+      }
+      
+      final rootNodes = _filterRootNodes(filteredNodes);
       // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
       final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
+
+      // Фильтруем стрелки, чтобы включить только те, которые действительно пересекают тайл
+      final arrowTilePainter = ArrowTilePainter(
+        arrows: state.arrows, // Используем все стрелки для проверки пересечений
+        nodes: state.nodes, // Используем все узлы для правильного расчета путей
+        nodeBoundsCache: state.nodeBoundsCache,
+      );
+      final filteredArrows = arrowTilePainter.getArrowsForTile(
+        tileBounds: bounds,
+        allArrows: state.arrows,
+        allNodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
+      );
 
       final int tileImageSize = EditorConfig.tileSize;
       final double scale = 1.0;
@@ -1155,14 +1184,13 @@ class TileManager {
       }
 
       // Рисуем стрелки, если они есть (используем ArrowTilePainter)
-      if (arrows.isNotEmpty) {
-        final arrowTilePainter = ArrowTilePainter(
-          arrows: arrows,
-          nodes:
-              state.nodes, // Используем ВСЕ узлы для правильного расчета путей
+      if (filteredArrows.isNotEmpty) {
+        final filteredArrowTilePainter = ArrowTilePainter(
+          arrows: filteredArrows,
+          nodes: state.nodes, // Используем ВСЕ узлы для правильного расчета путей
           nodeBoundsCache: state.nodeBoundsCache,
         );
-        arrowTilePainter.drawArrowsInTile(
+        filteredArrowTilePainter.drawArrowsInTile(
           canvas: canvas,
           tileBounds: bounds,
           baseOffset: state.delta,
@@ -1174,9 +1202,9 @@ class TileManager {
       final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
 
-      // Возвращаем обновленный тайл с информацией о содержащихся в нем узлах и стрелках
-      final nodeIds = nodes.map((node) => node.id).toList();
-      final arrowIds = arrows.map((arrow) => arrow.id).toList();
+      // Возвращаем обновленный тайл с информацией о реально содержащихся в нем узлах и стрелках
+      final nodeIds = sortedNodes.map((node) => node.id).toList();
+      final arrowIds = filteredArrows.map((arrow) => arrow.id).toList();
       
       return ImageTile(
         image: image,
@@ -1363,8 +1391,15 @@ class TileManager {
       // Получаем узлы, которые находятся в этом тайле (из всех узлов)
       final nodesInTile = state.getNodesByIds(oldTile.nodes);
       
-      // Получаем стрелки, которые проходят через этот тайл (из всех стрелок)
-      final arrowsInTile = state.getArrowsByIds(oldTile.arrows);
+      // Пересчитываем стрелки, которые действительно проходят через этот тайл
+      // (а не просто те, которые были в старом тайле)
+      final arrowsInTile = ArrowTilePainter.getArrowsForTile(
+        tileBounds: bounds,
+        allArrows: state.arrows,
+        allNodes: state.nodes,
+        nodeBoundsCache: state.nodeBoundsCache,
+        baseOffset: state.delta,
+      );
 
       // Обновляем содержимое тайла
       oldTile.image.dispose();
