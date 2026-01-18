@@ -86,32 +86,17 @@ class TileManager {
     // Собираем все узлы (включая вложенные) для определения, где создавать тайлы
     final allNodesIncludingChildren = <TableNode>[];
 
-    void collectAllNodes(List<TableNode> nodes) {
+    void collectAllNodes(List<TableNode> nodes, {TableNode? parent}) {
       for (final node in nodes) {
-        // Пропускаем узлы, которые находятся внутри скрытых swimlane
-        if (node.parent != null &&
-            _isNodeHiddenInCollapsedSwimlane(node, allNodes)) {
-          continue;
-        }
-
-        allNodesIncludingChildren.add(node);
-
-        // Если это развернутый swimlane, добавляем детей как независимые узлы
-        if (node.qType == 'swimlane' &&
-            !(node.isCollapsed ?? false) &&
-            node.children != null &&
-            node.children!.isNotEmpty) {
-          for (final child in node.children!) {
-            // Пропускаем детей, если они находятся внутри скрытых swimlane
-            if (!_isNodeHiddenInCollapsedSwimlane(child, allNodes)) {
-              allNodesIncludingChildren.add(child);
-            }
+        if (parent == null) {
+          allNodesIncludingChildren.add(node);
+          if (node.children != null && node.children!.isNotEmpty) {
+            collectAllNodes(node.children!, parent: node);
           }
-        } else if (node.children != null &&
-            node.children!.isNotEmpty &&
-            !(node.qType == 'swimlane' && (node.isCollapsed ?? false))) {
-          // Для других узлов или свернутых swimlane обрабатываем детей традиционно
-          collectAllNodes(node.children!);
+        } else {
+          if (parent.isCollapsed == null || !parent.isCollapsed!) {
+            allNodesIncludingChildren.add(node);
+          }
         }
       }
     }
@@ -148,12 +133,6 @@ class TileManager {
 
     // Для каждого узла (включая вложенные) создаем тайлы в нужных позициях
     for (final node in allNodesIncludingChildren) {
-      // Пропускаем узлы, которые не должны отображаться на тайлах
-      // Это включает детей свернутых swimlane, которые не видны
-      if (_isNodeHiddenInCollapsedSwimlane(node, allNodes)) {
-        continue;
-      }
-
       // Получаем абсолютную позицию узла
       final nodePosition = node.aPosition ?? (state.delta + node.position);
       final nodeRect = _boundsCalculator.calculateNodeRect(
@@ -178,31 +157,40 @@ class TileManager {
       }
     }
 
-    print(allArrows);
-
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
     for (final arrow in allArrows) {
-      // Проверяем, связаны ли стрелки с узлами в скрытых swimlane
-      final effectiveSourceNode = _getEffectiveNodeById(arrow.source, allNodes);
-      final effectiveTargetNode = _getEffectiveNodeById(arrow.target, allNodes);
+      final Arrow arrowCopy = arrow.copyWith();
 
-      // Пропускаем стрелки, связанные с узлами в скрытых swimlane
-      if ((effectiveSourceNode != null &&
-              _isNodeHiddenInCollapsedSwimlane(
-                effectiveSourceNode,
-                allNodes,
-              )) ||
-          (effectiveTargetNode != null &&
-              _isNodeHiddenInCollapsedSwimlane(
-                effectiveTargetNode,
-                allNodes,
-              ))) {
-        continue;
+      if (arrowCopy.source == '1767019016568' ||
+          arrowCopy.target == '1767019016568') {
+        print('');
+      }
+
+      /// Перенаправляем связи скрытых узлов на узел родителя
+      for (final n in allNodesIncludingChildren) {
+        if (n.isCollapsed == true &&
+            n.children != null &&
+            n.children!.isNotEmpty) {
+          final children = n.children;
+          for (final child in children!) {
+            if (child.id == '1767019016568') {
+              print('');
+            }
+            if (arrowCopy.source == child.id) {
+              arrowCopy.source = n.id;
+              break;
+            }
+            if (arrowCopy.target == child.id) {
+              arrowCopy.target = n.id;
+              break;
+            }
+          }
+        }
       }
 
       // Получаем полный путь стрелки
       final coordinates = coordinator
-          .getArrowPathForTiles(arrow, state.delta)
+          .getArrowPathForTiles(arrowCopy, state.delta)
           .coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
 
@@ -243,6 +231,7 @@ class TileManager {
 
     final List<ImageTile> tiles = [];
 
+    /// Создание тайлов рассчитанным узлам и связям
     for (final tileId in createdTiles) {
       final tilePos = tileId.split(':');
       final left = double.tryParse(tilePos.first);

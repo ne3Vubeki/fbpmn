@@ -2,8 +2,8 @@
 class Arrow {
   final String id;
   final String qType; // arrowObject, qRelationship, qEdgeToJson
-  final String source; // ID источника
-  final String target; // ID цели
+  String source; // ID источника
+  String target; // ID цели
   final String style;
   List<Map<String, dynamic>>? powers; // Опционально
   List<Map<String, dynamic>>? points; // Опционально
