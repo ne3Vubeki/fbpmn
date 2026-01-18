@@ -6,7 +6,7 @@ class NodeRenderer {
   /// Рисует только корневые узлы, их дети рисуются рекурсивно
   void drawRootNodesToTile({
     required Canvas canvas,
-    required List<TableNode> rootNodes, // Только корневые узлы
+    required List<TableNode?> rootNodes, // Только корневые узлы
     required Rect tileBounds,
     required Offset delta,
     required Map<TableNode, Rect> cache,
@@ -19,7 +19,7 @@ class NodeRenderer {
 
     // Разделяем узлы на swimlane и не-swimlane
     for (final node in rootNodes) {
-      if (node.qType == 'swimlane') {
+      if (node!.qType == 'swimlane') {
         swimlaneNodes.add(node);
       } else {
         nonSwimlaneNodes.add(node);

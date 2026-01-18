@@ -22,13 +22,13 @@ class ArrowTileCoordinator {
   }
 
   /// Получить полный путь стрелки для отрисовки в тайлах
-  Path getArrowPathForTiles(Arrow arrow, Offset baseOffset) {
+  ({Path path, List<Offset> coordinates}) getArrowPathForTiles(Arrow arrow, Offset baseOffset) {
     // Находим эффективные узлы
     final effectiveSourceNode = _getEffectiveNode(arrow.source);
     final effectiveTargetNode = _getEffectiveNode(arrow.target);
 
     if (effectiveSourceNode == null || effectiveTargetNode == null) {
-      return Path();
+      return (path: Path(), coordinates: []);
     }
 
     // Получаем абсолютные позиции
@@ -66,7 +66,7 @@ class ArrowTileCoordinator {
         );
 
     if (connectionPoints.start == null || connectionPoints.end == null) {
-      return Path();
+      return (path: Path(), coordinates: []);
     }
 
     // Создаем простой ортогональный путь без проверок пересечений
@@ -80,7 +80,7 @@ class ArrowTileCoordinator {
   }
 
   /// Создание простого ортогонального пути
-  Path _createSimpleOrthogonalPath(
+  ({Path path, List<Offset> coordinates}) _createSimpleOrthogonalPath(
     Offset start,
     Offset end,
     Rect sourceRect,
@@ -88,7 +88,14 @@ class ArrowTileCoordinator {
     String sides,
   ) {
     final path = Path();
+    List<Offset> coordinates = [];
+    void lineToCoordinates(dx, dy) {
+      path.lineTo(dx, dy);
+      coordinates.add(Offset(dx, dy));
+    }
+
     path.moveTo(start.dx, start.dy);
+    coordinates.add(Offset(start.dx, start.dy));
 
     final dx = end.dx - start.dx;
     final dy = end.dy - start.dy;
@@ -97,42 +104,58 @@ class ArrowTileCoordinator {
 
     switch (sides) {
       case 'left:right':
-        path.lineTo(start.dx - dx2, start.dy);
-        path.lineTo(start.dx - dx2, end.dy);
-        path.lineTo(end.dx, end.dy);
+        if (dy2 != 0) {
+          lineToCoordinates(start.dx - dx2, start.dy);
+          lineToCoordinates(start.dx - dx2, end.dy);
+          lineToCoordinates(end.dx, end.dy);
+        } else {
+          lineToCoordinates(end.dx, end.dy);
+        }
         break;
       case 'right:left':
-        path.lineTo(start.dx + dx2, start.dy);
-        path.lineTo(start.dx + dx2, end.dy);
-        path.lineTo(end.dx, end.dy);
+        if (dy2 != 0) {
+          lineToCoordinates(start.dx + dx2, start.dy);
+          lineToCoordinates(start.dx + dx2, end.dy);
+          lineToCoordinates(end.dx, end.dy);
+        } else {
+          lineToCoordinates(end.dx, end.dy);
+        }
         break;
       case 'top:bottom':
-        path.lineTo(start.dx, start.dy - dy2);
-        path.lineTo(end.dx, start.dy - dy2);
-        path.lineTo(end.dx, end.dy);
+        if (dx2 != 0) {
+          lineToCoordinates(start.dx, start.dy - dy2);
+          lineToCoordinates(end.dx, start.dy - dy2);
+          lineToCoordinates(end.dx, end.dy);
+        } else {
+          lineToCoordinates(end.dx, end.dy);
+        }
         break;
       case 'bottom:top':
-        path.lineTo(start.dx, start.dy + dy2);
-        path.lineTo(end.dx, start.dy + dy2);
-        path.lineTo(end.dx, end.dy);
+        if (dx2 != 0) {
+          lineToCoordinates(start.dx, start.dy + dy2);
+          lineToCoordinates(end.dx, start.dy + dy2);
+          lineToCoordinates(end.dx, end.dy);
+        } else {
+          lineToCoordinates(end.dx, end.dy);
+        }
         break;
       case 'left:top':
       case 'right:top':
       case 'left:bottom':
       case 'right:bottom':
-        path.lineTo(end.dx, start.dy);
-        path.lineTo(end.dx, end.dy);
+        lineToCoordinates(end.dx, start.dy);
+        lineToCoordinates(end.dx, end.dy);
         break;
       case 'top:left':
       case 'top:right':
       case 'bottom:left':
       case 'bottom:right':
-        path.lineTo(start.dx, end.dy);
-        path.lineTo(end.dx, end.dy);
+        lineToCoordinates(start.dx, end.dy);
+        lineToCoordinates(end.dx, end.dy);
         break;
     }
 
-    return path;
+    return (path: path, coordinates: coordinates);
   }
 
   /// Найти эффективный узел
@@ -173,14 +196,14 @@ class ArrowTileCoordinator {
     final effectiveTargetNode = _getEffectiveNode(arrow.target);
 
     // Пропускаем стрелки, связанные с узлами в скрытых swimlane
-    if ((effectiveSourceNode != null && 
-        _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode)) ||
-        (effectiveTargetNode != null && 
-        _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode))) {
+    if ((effectiveSourceNode != null &&
+            _isNodeHiddenInCollapsedSwimlane(effectiveSourceNode)) ||
+        (effectiveTargetNode != null &&
+            _isNodeHiddenInCollapsedSwimlane(effectiveTargetNode))) {
       return false;
     }
 
-    final path = getArrowPathForTiles(arrow, baseOffset);
+    final path = getArrowPathForTiles(arrow, baseOffset).path;
     if (path.getBounds().isEmpty) return false;
 
     // Более точная проверка пересечения с использованием PathMetrics
@@ -201,19 +224,22 @@ class ArrowTileCoordinator {
           continue;
         }
       }
-      
+
       // Также проверяем пересечение с помощью более точного метода
       // Разбиваем путь на отрезки и проверяем пересечение каждого отрезка с тайлом
-      for (double t = 0; t < pathLength; t += 10.0) { // шаг 10 пикселей
+      for (double t = 0; t < pathLength; t += 10.0) {
+        // шаг 10 пикселей
         try {
           final tangent1 = metric.getTangentForOffset(t);
-          final tangent2 = metric.getTangentForOffset(t + 10.0 < pathLength ? t + 10.0 : pathLength);
-          
+          final tangent2 = metric.getTangentForOffset(
+            t + 10.0 < pathLength ? t + 10.0 : pathLength,
+          );
+
           if (tangent1 != null && tangent2 != null) {
             final segment = Path()
               ..moveTo(tangent1.position.dx, tangent1.position.dy)
               ..lineTo(tangent2.position.dx, tangent2.position.dy);
-            
+
             // Проверяем пересечение отрезка с границами тайла
             if (_doesSegmentIntersectRect(segment, tileBounds)) {
               return true;
@@ -235,50 +261,90 @@ class ArrowTileCoordinator {
     for (final metric in metrics) {
       final start = metric.getTangentForOffset(0)?.position;
       final end = metric.getTangentForOffset(metric.length)?.position;
-      
+
       if (start != null && end != null) {
         // Проверяем, находится ли хотя бы одна точка внутри прямоугольника
         if (rect.contains(start) || rect.contains(end)) {
           return true;
         }
-        
+
         // Проверяем пересечение отрезка с границами прямоугольника
         // Левая граница
-        if (_doLinesIntersect(start.dx, start.dy, end.dx, end.dy, 
-                              rect.left, rect.top, rect.left, rect.bottom)) {
+        if (_doLinesIntersect(
+          start.dx,
+          start.dy,
+          end.dx,
+          end.dy,
+          rect.left,
+          rect.top,
+          rect.left,
+          rect.bottom,
+        )) {
           return true;
         }
         // Правая граница
-        if (_doLinesIntersect(start.dx, start.dy, end.dx, end.dy, 
-                              rect.right, rect.top, rect.right, rect.bottom)) {
+        if (_doLinesIntersect(
+          start.dx,
+          start.dy,
+          end.dx,
+          end.dy,
+          rect.right,
+          rect.top,
+          rect.right,
+          rect.bottom,
+        )) {
           return true;
         }
         // Верхняя граница
-        if (_doLinesIntersect(start.dx, start.dy, end.dx, end.dy, 
-                              rect.left, rect.top, rect.right, rect.top)) {
+        if (_doLinesIntersect(
+          start.dx,
+          start.dy,
+          end.dx,
+          end.dy,
+          rect.left,
+          rect.top,
+          rect.right,
+          rect.top,
+        )) {
           return true;
         }
         // Нижняя граница
-        if (_doLinesIntersect(start.dx, start.dy, end.dx, end.dy, 
-                              rect.left, rect.bottom, rect.right, rect.bottom)) {
+        if (_doLinesIntersect(
+          start.dx,
+          start.dy,
+          end.dx,
+          end.dy,
+          rect.left,
+          rect.bottom,
+          rect.right,
+          rect.bottom,
+        )) {
           return true;
         }
       }
     }
-    
+
     return false;
   }
 
   /// Проверяет, пересекаются ли два отрезка
-  bool _doLinesIntersect(double x1, double y1, double x2, double y2,
-                         double x3, double y3, double x4, double y4) {
+  bool _doLinesIntersect(
+    double x1,
+    double y1,
+    double x2,
+    double y2,
+    double x3,
+    double y3,
+    double x4,
+    double y4,
+  ) {
     // Формула для проверки пересечения двух отрезков
     double den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
     if (den == 0) return false; // Отрезки параллельны
-    
+
     double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
     double u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / den;
-    
+
     return t >= 0 && t <= 1 && u >= 0 && u <= 1;
   }
 

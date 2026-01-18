@@ -85,22 +85,22 @@ class _StableGridImageState extends State<StableGridImage> {
       // Этот метод сам обновит абсолютные позиции после коррекции delta
       _scrollHandler.calculateCanvasSizeFromNodes(_editorState.nodes);
 
-      await _tileManager.createTiledImage(_editorState.nodes);
+      // Загружаем стрелки/связи
+      if (arrows != null && arrows.isNotEmpty) {
+        for (final arrow in arrows) {
+          if (arrow['source'] != null && arrow['target'] != null) {
+            _editorState.arrows.add(Arrow.fromJson(arrow));
+          }
+        }
+      }
+
+      await _tileManager.createTiledImage(
+        _editorState.nodes,
+        _editorState.arrows,
+      );
     } else {
       await _tileManager.createFallbackTiles();
     }
-
-    // Загружаем стрелки/связи
-    if (arrows != null && arrows.isNotEmpty) {
-      for (final arrow in arrows) {
-        if (arrow['source'] != null && arrow['target'] != null) {
-          _editorState.arrows.add(Arrow.fromJson(arrow));
-        }
-      }
-    }
-
-    // После загрузки всех данных, обновляем тайлы, чтобы включить стрелки
-    await _tileManager.updateTilesAfterNodeChange();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollHandler.centerCanvas();
