@@ -31,6 +31,20 @@ class NodeManager {
     required this.onStateUpdate,
   });
 
+  static List<TableNode?> nodeRecurcive(List<TableNode?> nodes, Function test) {
+        List<TableNode?> testNodes = [];
+    for (final node in nodes) {
+      if (test(node)) {
+        testNodes.add(node);
+      }
+      if(node?.children != null && node!.children!.isNotEmpty) {
+        testNodes.addAll(nodeRecurcive(node.children!, test));
+      }
+    }
+    return testNodes;
+
+  }
+
   // Метод для получения экранных координат из мировых
   Offset _worldToScreen(Offset worldPosition) {
     return worldPosition * state.scale + state.offset;
@@ -338,26 +352,6 @@ class NodeManager {
     // Добавляем узел обратно в основной список узлов
     _addNodeBackToNodesList(node);
 
-    // Для swimlane в развернутом состоянии добавляем детей в тайлы
-    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-      await _addSwimlaneChildrenToTiles(node, node.aPosition!);
-    }
-    // Для группы в развернутом состоянии добавляем детей в тайлы
-    else if (node.qType == 'group' && !(node.isCollapsed ?? false)) {
-      await _addSwimlaneChildrenToTiles(
-        node,
-        node.aPosition!,
-      ); // используем тот же метод, так как логика одинакова
-    }
-    // Для закрытого swimlane или группы также обрабатываем дочерние узлы, чтобы они были учтены в системе
-    else if ((node.qType == 'swimlane' || node.qType == 'group') &&
-        (node.isCollapsed ?? false)) {
-      await _addSwimlaneChildrenToTiles(node, node.aPosition!);
-    }
-
-    // Добавляем родительский узел в тайлы
-    // await tileManager.addNodeToTiles(node);
-
     await tileManager.updateTilesAfterNodeChange();
 
     node.isSelected = false;
@@ -565,9 +559,6 @@ class NodeManager {
         }
       }
 
-      // Добавляем детей в тайлы
-      final parentWorldPosition = state.delta + toggledNode.position;
-      await _addSwimlaneChildrenToTiles(toggledNode, parentWorldPosition);
     }
 
     // Обновляем тайлы
@@ -589,27 +580,6 @@ class NodeManager {
         return;
       }
     }
-  }
-
-  // Метод для добавления детей swimlane в тайлы
-  Future<void> _addSwimlaneChildrenToTiles(
-    TableNode swimlaneNode,
-    Offset parentWorldPosition,
-  ) async {
-    if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
-      return;
-    }
-
-    // Добавляем всех детей в тайлы
-    // for (final child in swimlaneNode.children!) {
-    //   await tileManager.addNodeToTiles(child);
-    // }
-
-    // // Для закрытого swimlane также обновляем тайлы, чтобы учесть стрелки, связанные с детьми
-    // if (swimlaneNode.qType == 'swimlane' &&
-    //     (swimlaneNode.isCollapsed ?? false)) {
-    // }
-    // await tileManager.updateTilesAfterNodeChange();
   }
 
   // Метод для проверки клика по иконке swimlane

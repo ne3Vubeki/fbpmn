@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -258,91 +259,36 @@ class TileManager {
     List<TableNode?> nodesInTile,
     List<Arrow?> arrowsInTile,
   ) async {
-    try {
-      final tileWorldSize = EditorConfig.tileSize.toDouble();
+    // Всегда создаем тайл фиксированного размера, кратного 1024
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+    final tileBounds = Rect.fromLTRB(
+      left,
+      top,
+      left + tileWorldSize,
+      top + tileWorldSize,
+    );
 
-      // Всегда создаем тайл фиксированного размера, кратного 1024
-      final tileBounds = Rect.fromLTRB(
-        left,
-        top,
-        left + tileWorldSize,
-        top + tileWorldSize,
-      );
+    // ID тайла в формате 'left:top' (мировые координаты)
+    final tileId = _generateTileId(left, top);
 
-      // ID тайла в формате 'left:top' (мировые координаты)
-      final tileId = _generateTileId(left, top);
-
-      // Фиксированный размер изображения
-      final int tileImageSize = EditorConfig.tileSize;
-      final double scale = 1.0; // Масштаб 1:1
-
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-
-      canvas.scale(scale, scale);
-      canvas.translate(-tileBounds.left, -tileBounds.top);
-
-      // Прозрачный фон
-      canvas.drawRect(
-        tileBounds,
-        Paint()
-          ..color = Colors.transparent
-          ..blendMode = BlendMode.src,
-      );
-
-      // Рисуем узлы, если они есть
-      if (nodesInTile.isNotEmpty) {
-        final rootNodes = _filterRootNodes(nodesInTile);
-        // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
-        final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
-        _nodeRenderer.drawRootNodesToTile(
-          canvas: canvas,
-          rootNodes: sortedNodes,
-          tileBounds: tileBounds,
-          delta: state.delta,
-          cache: state.nodeBoundsCache,
-        );
-      }
-
-      // Рисуем стрелки, если они есть (используем новый ArrowTilePainter)
-      if (arrowsInTile.isNotEmpty) {
-        final arrowTilePainter = ArrowTilePainter(
-          arrows: arrowsInTile,
-          coordinator: coordinator,
-        );
-        arrowTilePainter.drawArrowsInTile(
-          canvas: canvas,
-          tileBounds: tileBounds,
-          baseOffset: state.delta,
-        );
-      }
-
-      final picture = recorder.endRecording();
-      final image = await picture.toImage(tileImageSize, tileImageSize);
-      picture.dispose();
-
-      // Возвращаем тайл вместе с данными для последующего обновления маппингов
-      return ImageTile(
-        image: image,
-        bounds: tileBounds,
-        scale: scale,
-        id: tileId,
-        nodes: nodesInTile.map((node) => node?.id).toSet(),
-        arrows: arrowsInTile.map((arrow) => arrow?.id).toSet(),
-      );
-    } catch (e) {
-      print('Ошибка создания тайла: $e');
-      return null;
-    }
+    return _createUpdatedTileWithContent(
+      tileBounds,
+      tileId,
+      nodesInTile,
+      arrowsInTile,
+    );
   }
 
   // Получение узлов для тайла (исключая выделенные)
-  List<TableNode> _getNodesForTile(ImageTile tile) {
-    return state.nodes.where((node) => tile.nodes.contains(node.id)).toList();
+  List<TableNode?> _getNodesForTile(ImageTile tile) {
+    return NodeManager.nodeRecurcive(
+      state.nodes,
+      (node) => tile.nodes.contains(node.id),
+    );
   }
 
   // Получение связей для тайла (исключая выделенные)
-  List<Arrow> _getArrowsForTile(ImageTile tile) {
+  List<Arrow?> _getArrowsForTile(ImageTile tile) {
     return state.arrows
         .where((arrow) => tile.arrows.contains(arrow.id))
         .toList();
@@ -459,12 +405,12 @@ class TileManager {
   }
 
   /// Удаление выделенного узла из тайлов
-  /// 
-  /// 
-  /// 
-  /// 
-  /// 
-  /// 
+  ///
+  ///
+  ///
+  ///
+  ///
+  ///
   Future<void> removeSelectedNodeFromTiles(TableNode node) async {
     final Set<ImageTile> tilesToUpdate = {};
     final Set<String?> arrowIdsConnectedToNode = {};
@@ -511,6 +457,7 @@ class TileManager {
       await updateTileWithAllContent(tile);
     }
   }
+
   ///
   ///
   ///
@@ -644,21 +591,17 @@ class TileManager {
     }
 
     onStateUpdate();
-
   }
 
   // Создание обновленного тайла с узлами и стрелками
   Future<ImageTile?> _createUpdatedTileWithContent(
-    Rect bounds,
+    Rect tileBounds,
     String tileId,
-    List<TableNode> nodes,
-    List<Arrow> arrows,
+    List<TableNode?> nodesInTile,
+    List<Arrow?> arrowsInTile,
   ) async {
     try {
-      final rootNodes = _filterRootNodes(nodes);
-      // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
-      final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
-
+      // Фиксированный размер изображения
       final int tileImageSize = EditorConfig.tileSize;
       final double scale = 1.0;
 
@@ -666,44 +609,55 @@ class TileManager {
       final canvas = Canvas(recorder);
 
       canvas.scale(scale, scale);
-      canvas.translate(-bounds.left, -bounds.top);
+      canvas.translate(-tileBounds.left, -tileBounds.top);
 
+      // Прозрачный фон
       canvas.drawRect(
-        bounds,
+        tileBounds,
         Paint()
           ..color = Colors.transparent
           ..blendMode = BlendMode.src,
       );
 
-      if (sortedNodes.isNotEmpty) {
+      if (nodesInTile.isNotEmpty) {
+        final rootNodes = _filterRootNodes(nodesInTile);
+        // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
+        final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
         _nodeRenderer.drawRootNodesToTile(
           canvas: canvas,
           rootNodes: sortedNodes,
-          tileBounds: bounds,
+          tileBounds: tileBounds,
           delta: state.delta,
           cache: state.nodeBoundsCache,
         );
       }
 
       // Рисуем стрелки, если они есть (используем ArrowTilePainter)
-      if (arrows.isNotEmpty) {
+      if (arrowsInTile.isNotEmpty) {
         final arrowTilePainter = ArrowTilePainter(
-          arrows: arrows,
+          arrows: arrowsInTile,
           coordinator: coordinator,
         );
         arrowTilePainter.drawArrowsInTile(
           canvas: canvas,
-          tileBounds: bounds,
+          tileBounds: tileBounds,
           baseOffset: state.delta,
         );
       }
 
       final picture = recorder.endRecording();
-
       final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
 
-      return ImageTile(image: image, bounds: bounds, scale: scale, id: tileId);
+      // Возвращаем тайл вместе с данными для последующего обновления маппингов
+      return ImageTile(
+        image: image,
+        bounds: tileBounds,
+        scale: scale,
+        id: tileId,
+        nodes: nodesInTile.map((node) => node?.id).toSet(),
+        arrows: arrowsInTile.map((arrow) => arrow?.id).toSet(),
+      );
     } catch (e) {
       print('Ошибка создания обновленного тайла: $e');
       return null;
