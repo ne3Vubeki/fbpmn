@@ -43,7 +43,7 @@ class NodeManager {
 
   // Корректировка позиции при изменении масштаба
   void onScaleChanged() {
-    if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
+    if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
       _updateFramePosition();
       onStateUpdate();
     }
@@ -51,7 +51,7 @@ class NodeManager {
 
   // Корректировка позиции при изменении offset
   void onOffsetChanged() {
-    if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
+    if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
       _updateFramePosition();
       onStateUpdate();
     }
@@ -59,9 +59,9 @@ class NodeManager {
 
   // Обновление позиции РАМКИ на основе позиции УЗЛА
   void _updateFramePosition() {
-    if (state.selectedNodeOnTopLayer == null) return;
+    if (state.nodesSelected.isEmpty) return;
 
-    final node = state.selectedNodeOnTopLayer!;
+    final node = state.nodesSelected.first!;
 
     // Для swimlane в раскрытом состоянии рассчитываем общие границы
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
@@ -188,7 +188,7 @@ class NodeManager {
     // Сохраняем мировые координаты ЛЕВОГО ВЕРХНЕГО УГЛА узла
     final worldNodePosition = node.aPosition ?? (state.delta + node.position);
     state.originalNodePosition = worldNodePosition;
-    state.selectedNodeOnTopLayer = node;
+    state.nodesSelected.add(node);
     state.isNodeOnTopLayer = true;
 
     _updateFramePosition();
@@ -229,7 +229,7 @@ class NodeManager {
     final worldNodePosition = node.aPosition ?? (state.delta + node.position);
     state.originalNodePosition = worldNodePosition;
 
-    state.selectedNodeOnTopLayer = node;
+    state.nodesSelected.add(node);
     state.isNodeOnTopLayer = true;
 
     await _prepareNodeForTopLayer(node);
@@ -300,11 +300,11 @@ class NodeManager {
   }
 
   Future<void> _saveNodeToTiles() async {
-    if (!state.isNodeOnTopLayer || state.selectedNodeOnTopLayer == null) {
+    if (!state.isNodeOnTopLayer || state.nodesSelected.isEmpty) {
       return;
     }
 
-    final node = state.selectedNodeOnTopLayer!;
+    final node = state.nodesSelected.first!;
     final newPositionDelta = node.aPosition! - state.originalNodePosition;
 
     // Обновляем абсолютную позицию узла перед сохранением
@@ -356,7 +356,7 @@ class NodeManager {
     }
 
     // Добавляем родительский узел в тайлы
-    await tileManager.addNodeToTiles(node, node.aPosition!);
+    // await tileManager.addNodeToTiles(node);
 
     await tileManager.updateTilesAfterNodeChange();
 
@@ -376,7 +376,6 @@ class NodeManager {
 
     state.isNodeDragging = false;
     state.isNodeOnTopLayer = false;
-    state.selectedNodeOnTopLayer = null;
     state.nodesSelected.clear();
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
@@ -390,13 +389,12 @@ class NodeManager {
   }
 
   void handleEmptyAreaClick() {
-    if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
+    if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
       _saveNodeToTiles();
     } else {
       _deselectAllNodes();
       state.nodesSelected.clear();
       state.isNodeOnTopLayer = false;
-      state.selectedNodeOnTopLayer = null;
       state.selectedNodeOffset = Offset.zero;
       state.originalNodePosition = Offset.zero;
       onStateUpdate();
@@ -426,8 +424,8 @@ class NodeManager {
 
         // Если это выделенный узел на верхнем слое, игнорируем его
         if (state.isNodeOnTopLayer &&
-            state.selectedNodeOnTopLayer != null &&
-            state.selectedNodeOnTopLayer!.id == node.id) {
+            state.nodesSelected.isNotEmpty &&
+            state.nodesSelected.first!.id == node.id) {
           continue;
         }
 
@@ -486,8 +484,8 @@ class NodeManager {
         return;
       }
 
-      if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-        if (state.selectedNodeOnTopLayer!.id == foundNode.id) {
+      if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+        if (state.nodesSelected.first!.id == foundNode.id) {
           if (immediateDrag) {
             startNodeDrag(screenPosition);
           }
@@ -603,18 +601,15 @@ class NodeManager {
     }
 
     // Добавляем всех детей в тайлы
-    for (final child in swimlaneNode.children!) {
-      // Вычисляем мировые координаты ребенка
-      final childWorldPosition =
-          child.aPosition ?? (parentWorldPosition + child.position);
-      await tileManager.addNodeToTiles(child, childWorldPosition);
-    }
+    // for (final child in swimlaneNode.children!) {
+    //   await tileManager.addNodeToTiles(child);
+    // }
 
-    // Для закрытого swimlane также обновляем тайлы, чтобы учесть стрелки, связанные с детьми
-    if (swimlaneNode.qType == 'swimlane' &&
-        (swimlaneNode.isCollapsed ?? false)) {
-      await tileManager.updateTilesAfterNodeChange();
-    }
+    // // Для закрытого swimlane также обновляем тайлы, чтобы учесть стрелки, связанные с детьми
+    // if (swimlaneNode.qType == 'swimlane' &&
+    //     (swimlaneNode.isCollapsed ?? false)) {
+    // }
+    // await tileManager.updateTilesAfterNodeChange();
   }
 
   // Метод для проверки клика по иконке swimlane
@@ -647,7 +642,7 @@ class NodeManager {
   }
 
   void startNodeDrag(Offset screenPosition) {
-    if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
+    if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
       _nodeDragStart = screenPosition;
       _nodeStartWorldPosition = state.originalNodePosition;
 
@@ -663,7 +658,7 @@ class NodeManager {
   void updateNodeDrag(Offset screenPosition) {
     if (state.isNodeDragging &&
         state.isNodeOnTopLayer &&
-        state.selectedNodeOnTopLayer != null) {
+        state.nodesSelected.isNotEmpty) {
       final screenDelta = screenPosition - _nodeDragStart;
       final worldDelta = screenDelta / state.scale;
 

@@ -631,7 +631,7 @@ class TileManager {
   }
 
   // Добавление узла в тайлы (после перемещения)
-  Future<void> addNodeToTiles(TableNode node, Offset nodePosition) async {
+  Future<void> addNodeToTiles(TableNode node) async {
     // Создаем тайлы только там где есть узлы или стрелки
     final tiles = await _createTilesForContent(
       state.nodesSelected.toList(),

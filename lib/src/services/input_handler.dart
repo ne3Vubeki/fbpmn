@@ -86,8 +86,8 @@ class InputHandler {
     } else {
       bool clickedOnSelectedNode = false;
       
-      if (state.isNodeOnTopLayer && state.selectedNodeOnTopLayer != null) {
-        final node = state.selectedNodeOnTopLayer!;
+      if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+        final node = state.nodesSelected.first!;
         final scaledWidth = node.size.width * state.scale;
         final scaledHeight = node.size.height * state.scale;
 

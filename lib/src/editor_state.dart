@@ -22,7 +22,6 @@ class EditorState {
   // Узлы
   final List<TableNode> nodes = [];
   final Set<TableNode?> nodesSelected = {};
-  TableNode? selectedNodeOnTopLayer;
   bool isNodeOnTopLayer = false;
   Offset originalNodePosition = Offset.zero;
   bool isNodeDragging = false;

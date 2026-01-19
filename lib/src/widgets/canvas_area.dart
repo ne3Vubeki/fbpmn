@@ -170,7 +170,7 @@ class _CanvasAreaState extends State<CanvasArea> {
 
                         // Отображение выделенного узла на верхнем слое
                         if (widget.state.isNodeOnTopLayer &&
-                            widget.state.selectedNodeOnTopLayer != null)
+                            widget.state.nodesSelected.isNotEmpty)
                           _buildSelectedNode(),
                       ],
                     ),
@@ -253,9 +253,9 @@ class _CanvasAreaState extends State<CanvasArea> {
   }
 
   Widget _buildSelectedNode() {
-    if (widget.state.selectedNodeOnTopLayer == null) return Container();
+    if (widget.state.nodesSelected.isEmpty) return Container();
 
-    final node = widget.state.selectedNodeOnTopLayer!;
+    final node = widget.state.nodesSelected.first!;
     final hasAttributes = node.attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isNotGroup = node.groupId != null;
