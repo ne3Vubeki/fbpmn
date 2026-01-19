@@ -6,14 +6,16 @@ class ImageTile {
   final Rect bounds; // Границы тайла в мировых координатах
   final double scale; // Масштаб тайла
   final String id; // id тайла
-  List<String> nodes = [];
-  List<String> arrows = [];
+  Set<String?> nodes; // Список id узлов в тайле
+  Set<String?> arrows; // Список id связей в тайле
   
   ImageTile({
     required this.image,
     required this.bounds,
     required this.scale,
     required this.id,
+    this.nodes = const {},
+    this.arrows = const {},
   });
 }
 

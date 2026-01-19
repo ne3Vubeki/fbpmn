@@ -22,8 +22,7 @@ class EditorState {
   
   // Узлы
   final List<TableNode> nodes = [];
-  final List<TableNode> nodesSelected = [];
-  Node? selectedNode;
+  final Set<TableNode?> nodesSelected = {};
   TableNode? selectedNodeOnTopLayer;
   bool isNodeOnTopLayer = false;
   Offset originalNodePosition = Offset.zero;
@@ -35,7 +34,7 @@ class EditorState {
 
   // Связи/стрелки
   final List<Arrow> arrows = [];
-  final List<Arrow> arrowsSelected = [];
+  final Set<Arrow?> arrowsSelected = {};
   
   // Тайлы
   List<ImageTile> imageTiles = [];
@@ -47,8 +46,4 @@ class EditorState {
   
   // Кэши
   final Map<TableNode, Rect> nodeBoundsCache = {};
-  final Map<int, List<TableNode>> tileToNodes = {};
-  final Map<TableNode, Set<int>> nodeToTiles = {};
-  final Map<int, List<Arrow>> tileToArrows = {};
-  final Map<Arrow, Set<int>> arrowToTiles = {};
 }
