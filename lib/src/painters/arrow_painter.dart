@@ -164,6 +164,7 @@ class ArrowPainter {
     required ArrowManager arrowManager,
   }) {
     final connectionPoints = arrowManager.calculateConnectionPointsForSideCalculation(
+      arrow,
       sourceRect,
       targetRect,
       sourceNode,

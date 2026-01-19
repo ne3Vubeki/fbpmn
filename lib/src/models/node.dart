@@ -1,6 +1,8 @@
 // Модель узла
 import 'dart:ui';
 
+import 'package:fbpmn/src/models/connections.dart';
+
 class Node {
   final String id;
   String? parent;
@@ -9,6 +11,7 @@ class Node {
   String text;
   bool isSelected;
   Offset? aPosition;
+  Connections? connections;
 
   Node({
     required this.id,
@@ -18,6 +21,7 @@ class Node {
     this.text = 'Node',
     this.isSelected = false,
     this.aPosition,
+    this.connections,
   });
 
   Node copyWith({ String? parent, Offset? position, String? text, bool? isSelected, Offset? aPosition}) {

@@ -1,5 +1,7 @@
 // Модель табличного узла
+import 'package:fbpmn/src/models/connections.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get_utils/get_utils.dart';
 
 import 'node.dart';
 
@@ -26,11 +28,12 @@ class TableNode extends Node {
     required this.borderColor,
     required this.backgroundColor,
     super.isSelected,
+    super.aPosition,
+    super.parent,
+    super.connections,
     this.groupId,
     this.children,
     this.isCollapsed,
-    super.aPosition,
-    super.parent,
   });
 
   factory TableNode.fromJson(Map<String, dynamic> object, [String? parent]) {

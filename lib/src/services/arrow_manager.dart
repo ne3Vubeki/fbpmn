@@ -123,6 +123,7 @@ class ArrowManager {
 
     // Вычисляем точки соединения
     final connectionPoints = calculateConnectionPointsForSideCalculation(
+      arrow,
       sourceRect,
       targetRect,
       effectiveSourceNode,
@@ -171,6 +172,7 @@ class ArrowManager {
 
     // Вычисляем точки соединения, но без вызова методов подсчета
     final connectionPoints = calculateConnectionPointsForSideCalculation(
+      arrow,
       sourceRect,
       targetRect,
       effectiveSourceNode,
@@ -226,6 +228,7 @@ class ArrowManager {
 
   /// Расчет точек соединения для определения стороны
   ({Offset? end, Offset? start, String? sides}) calculateConnectionPointsForSideCalculation(
+    Arrow arrow,
     Rect sourceRect,
     Rect targetRect,
     TableNode sourceNode,
