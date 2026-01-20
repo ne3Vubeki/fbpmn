@@ -4,9 +4,9 @@ import '../services/arrow_manager.dart';
 
 class ArrowTilePainter {
   final List<Arrow?> arrows;
-  late final ArrowManager coordinator;
+  late final ArrowManager arrowManager;
 
-  ArrowTilePainter({required this.arrows, required this.coordinator});
+  ArrowTilePainter({required this.arrows, required this.arrowManager});
 
   void drawArrowsInTile({
     required Canvas canvas,
@@ -22,7 +22,7 @@ class ArrowTilePainter {
     // Рисуем только те стрелки, путь которых пересекает этот тайл
     for (final arrow in arrows) {
       // Получаем полный путь стрелки
-      final path = coordinator.getArrowPathForTiles(arrow!, baseOffset).path;
+      final path = arrowManager.getArrowPathForTiles(arrow!, baseOffset).path;
 
       // Рисуем путь (автоматически обрежется по границам тайла)
       canvas.drawPath(path, paint);

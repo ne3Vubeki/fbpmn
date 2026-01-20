@@ -22,11 +22,11 @@ class TileManager {
   final BoundsCalculator _boundsCalculator = BoundsCalculator();
   final NodeRenderer _nodeRenderer = NodeRenderer();
 
-  late ArrowManager coordinator;
+  late ArrowManager arrowManager;
 
   TileManager({required this.state, required this.onStateUpdate}) {
     // Создаем ArrowManager для проверки пересечений
-    coordinator = ArrowManager(
+    arrowManager = ArrowManager(
       arrows: state.arrows,
       nodes: state.nodes,
       nodeBoundsCache: state.nodeBoundsCache,
@@ -182,7 +182,7 @@ class TileManager {
       }
 
       // Получаем полный путь стрелки
-      final coordinates = coordinator
+      final coordinates = arrowManager
           .getArrowPathForTiles(arrowCopy, state.delta)
           .coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
@@ -335,38 +335,6 @@ class TileManager {
     return null;
   }
 
-  // Фильтрация корневых узлов
-  List<TableNode?> _filterRootNodes(List<TableNode?> allNodes) {
-    return allNodes.where((node) {
-      // Для свернутых swimlane всегда считаем их корневыми
-      if (node!.qType == 'swimlane' && (node.isCollapsed ?? false)) {
-        return true;
-      }
-
-      bool hasParentInList = false;
-
-      for (final potentialParent in allNodes) {
-        // Если потенциальный родитель свернут, его дети не считаются
-        if (potentialParent!.qType == 'swimlane' &&
-            (potentialParent.isCollapsed ?? false)) {
-          continue;
-        }
-
-        if (potentialParent.children != null) {
-          for (final child in potentialParent.children!) {
-            if (child.id == node.id) {
-              hasParentInList = true;
-              break;
-            }
-          }
-        }
-        if (hasParentInList) break;
-      }
-
-      return !hasParentInList;
-    }).toList();
-  }
-
   /// Сортирует узлы так, чтобы swimlane были после своих детей
   List<TableNode?> _sortNodesWithSwimlaneLast(List<TableNode?> nodes) {
     final List<TableNode> nonSwimlaneNodes = [];
@@ -415,6 +383,8 @@ class TileManager {
     final Set<ImageTile> tilesToUpdate = {};
     final Set<String?> arrowIdsConnectedToNode = {};
 
+    Set<String> nodeIds = {node.id};
+
     /// Находим все связи этого узла
     for (final arrow in state.arrows) {
       if (arrow.source == node.id || arrow.target == node.id) {
@@ -431,11 +401,20 @@ class TileManager {
       }
     }
 
+    /// Находим и добавляем для удаления id вложенных в группу узлов
+    if (node.qType == 'group' &&
+        node.children != null &&
+        node.children!.isNotEmpty) {
+      for (final child in node.children!) {
+        nodeIds.add(child.id);
+      }
+    }
+
     /// Находим все тайлы содержащие этот узел, удаляем узел и его связи
     for (final tile in state.imageTiles) {
-      if (tile.nodes.contains(node.id)) {
+      if (nodeIds.any((id) => tile.nodes.contains(id))) {
         // удаляем узел из списка узлов в тайле
-        tile.nodes.remove(node.id);
+        tile.nodes.removeAll(nodeIds);
         tile.arrows.removeAll(arrowIdsConnectedToNode);
         tilesToUpdate.add(tile);
       }
@@ -634,7 +613,7 @@ class TileManager {
       if (arrowsInTile.isNotEmpty) {
         final arrowTilePainter = ArrowTilePainter(
           arrows: arrowsInTile,
-          coordinator: coordinator,
+          arrowManager: arrowManager,
         );
         arrowTilePainter.drawArrowsInTile(
           canvas: canvas,
