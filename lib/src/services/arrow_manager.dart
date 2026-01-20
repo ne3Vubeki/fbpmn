@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
@@ -268,12 +269,6 @@ class ArrowManager {
   ) {
     final path = Path();
     List<Offset> coordinates = [];
-    void lineToCoordinates(dx, dy) {
-      path.lineTo(dx, dy);
-      coordinates.add(Offset(dx, dy));
-    }
-
-    path.moveTo(start.dx, start.dy);
     coordinates.add(Offset(start.dx, start.dy));
 
     final dx = end.dx - start.dx;
@@ -284,75 +279,138 @@ class ArrowManager {
     switch (sides) {
       case 'left:right':
         if (dy2 != 0) {
-          lineToCoordinates(start.dx - dx2, start.dy);
-          lineToCoordinates(start.dx - dx2, end.dy);
-          lineToCoordinates(end.dx, end.dy);
+          coordinates.add(Offset(start.dx - dx2, start.dy));
+          coordinates.add(Offset(start.dx - dx2, end.dy));
+          coordinates.add(Offset(end.dx, end.dy));
         } else {
-          lineToCoordinates(end.dx, end.dy);
+          coordinates.add(Offset(end.dx, end.dy));
         }
         break;
       case 'right:left':
         if (dy2 != 0) {
-          lineToCoordinates(start.dx + dx2, start.dy);
-          lineToCoordinates(start.dx + dx2, end.dy);
-          lineToCoordinates(end.dx, end.dy);
+          coordinates.add(Offset(start.dx + dx2, start.dy));
+          coordinates.add(Offset(start.dx + dx2, end.dy));
+          coordinates.add(Offset(end.dx, end.dy));
         } else {
-          lineToCoordinates(end.dx, end.dy);
+          coordinates.add(Offset(end.dx, end.dy));
         }
         break;
       case 'top:bottom':
         if (dx2 != 0) {
-          lineToCoordinates(start.dx, start.dy - dy2);
-          lineToCoordinates(end.dx, start.dy - dy2);
-          lineToCoordinates(end.dx, end.dy);
+          coordinates.add(Offset(start.dx, start.dy - dy2));
+          coordinates.add(Offset(end.dx, start.dy - dy2));
+          coordinates.add(Offset(end.dx, end.dy));
         } else {
-          lineToCoordinates(end.dx, end.dy);
+          coordinates.add(Offset(end.dx, end.dy));
         }
         break;
       case 'bottom:top':
         if (dx2 != 0) {
-          lineToCoordinates(start.dx, start.dy + dy2);
-          lineToCoordinates(end.dx, start.dy + dy2);
-          lineToCoordinates(end.dx, end.dy);
+          coordinates.add(Offset(start.dx, start.dy + dy2));
+          coordinates.add(Offset(end.dx, start.dy + dy2));
+          coordinates.add(Offset(end.dx, end.dy));
         } else {
-          lineToCoordinates(end.dx, end.dy);
+          coordinates.add(Offset(end.dx, end.dy));
         }
         break;
       case 'left:top':
       case 'right:top':
       case 'left:bottom':
       case 'right:bottom':
-        lineToCoordinates(end.dx, start.dy);
-        lineToCoordinates(end.dx, end.dy);
+        coordinates.add(Offset(end.dx, start.dy));
+        coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'top:left':
       case 'top:right':
       case 'bottom:left':
       case 'bottom:right':
-        lineToCoordinates(start.dx, end.dy);
-        lineToCoordinates(end.dx, end.dy);
+        coordinates.add(Offset(start.dx, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'left:left':
-        lineToCoordinates(start.dx - 40 + dx, start.dy);
-        lineToCoordinates(start.dx - 40 + dx, end.dy);
-        lineToCoordinates(end.dx, end.dy);
+        coordinates.add(Offset(start.dx - 40 + dx, start.dy));
+        coordinates.add(Offset(start.dx - 40 + dx, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'right:right':
-        lineToCoordinates(start.dx + 40 + dx, start.dy);
-        lineToCoordinates(start.dx + 40 + dx, end.dy);
-        lineToCoordinates(end.dx, end.dy);
+        coordinates.add(Offset(start.dx + 40 + dx, start.dy));
+        coordinates.add(Offset(start.dx + 40 + dx, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'top:top':
-        lineToCoordinates(start.dx, start.dy - 40 + dy);
-        lineToCoordinates(end.dx, start.dy - 40 + dy);
-        lineToCoordinates(end.dx, end.dy);
+        coordinates.add(Offset(start.dx, start.dy - 40 + dy));
+        coordinates.add(Offset(end.dx, start.dy - 40 + dy));
+        coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'bottom:bottom':
-        lineToCoordinates(start.dx, start.dy + 40 + dy);
-        lineToCoordinates(end.dx, start.dy + 40 + dy);
-        lineToCoordinates(end.dx, end.dy);
+        coordinates.add(Offset(start.dx, start.dy + 40 + dy));
+        coordinates.add(Offset(end.dx, start.dy + 40 + dy));
+        coordinates.add(Offset(end.dx, end.dy));
         break;
     }
+
+    String direct = sides.split(':')[0];
+    path.moveTo(coordinates.first.dx, coordinates.first.dy);
+    for (int i = 1; i < coordinates.length - 1; i++) {
+      final current = coordinates[i];
+      final next = coordinates[i + 1];
+      final dx = current.dx - next.dx;
+      final dy = current.dy - next.dy;
+      final offset = dx + dy; // отступ
+      final maxRadius = offset.abs() / 2;
+      final radius = 10.0.clamp(1.0, maxRadius);
+      double x1 = current.dx;
+      double y1 = current.dy;
+      bool clockwise = true;
+      Offset endArcPoint;
+
+      switch (direct) {
+        case 'left':
+          x1 = current.dx + radius;
+          clockwise = dy > 0;
+          break;
+        case 'right':
+          x1 = current.dx - radius;
+          clockwise = dy < 0;
+          break;
+        case 'top':
+          y1 = current.dy + radius;
+          clockwise = dx < 0;
+          break;
+        case 'bottom':
+          y1 = current.dy - radius;
+          clockwise = dx > 0;
+          break;
+        default:
+          break;
+      }
+
+      if (dx > 0) {
+        direct = "left";
+        endArcPoint = Offset(current.dx - radius, current.dy);
+      } else if (dx < 0) {
+        direct = "right";
+        endArcPoint = Offset(current.dx + radius, current.dy);
+      } else if(dy > 0) {
+        direct = "top";
+        endArcPoint = Offset(current.dx, current.dy - radius);
+      } else {
+        direct = "bottom";
+        endArcPoint = Offset(current.dx, current.dy + radius);
+      }
+
+      // Добавляем путь до дуги
+      path.lineTo(x1, y1);
+
+      // Добавляем дугу поворота 90 градусов
+      path.arcToPoint(
+        endArcPoint,
+        radius: Radius.circular(radius),
+        largeArc: false,
+        clockwise: clockwise,
+      );
+    }
+    path.lineTo(coordinates.last.dx, coordinates.last.dy);
 
     return (path: path, coordinates: coordinates);
   }
