@@ -13,7 +13,7 @@ import '../utils/bounds_calculator.dart';
 import '../utils/node_renderer.dart';
 import '../utils/editor_config.dart';
 import '../painters/arrow_tile_painter.dart';
-import 'arrow_tile_coordinator.dart';
+import 'arrow_manager.dart';
 
 class TileManager {
   final EditorState state;
@@ -22,11 +22,11 @@ class TileManager {
   final BoundsCalculator _boundsCalculator = BoundsCalculator();
   final NodeRenderer _nodeRenderer = NodeRenderer();
 
-  late ArrowTileCoordinator coordinator;
+  late ArrowManager coordinator;
 
   TileManager({required this.state, required this.onStateUpdate}) {
-    // Создаем ArrowTileCoordinator для проверки пересечений
-    coordinator = ArrowTileCoordinator(
+    // Создаем ArrowManager для проверки пересечений
+    coordinator = ArrowManager(
       arrows: state.arrows,
       nodes: state.nodes,
       nodeBoundsCache: state.nodeBoundsCache,

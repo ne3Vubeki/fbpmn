@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/arrow.dart';
-import '../services/arrow_tile_coordinator.dart';
+import '../services/arrow_manager.dart';
 
 class ArrowTilePainter {
   final List<Arrow?> arrows;
-  late final ArrowTileCoordinator coordinator;
+  late final ArrowManager coordinator;
 
   ArrowTilePainter({required this.arrows, required this.coordinator});
 
