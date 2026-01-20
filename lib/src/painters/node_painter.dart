@@ -17,7 +17,6 @@ class NodePainter {
     required Offset baseOffset,
     required Rect visibleBounds,
     bool forTile = false,
-    Map<TableNode, Rect>? nodeBoundsCache,
   }) {
     // Для всех случаев используем единую рекурсивную логику
     _drawNodeRecursive(
@@ -26,7 +25,6 @@ class NodePainter {
       parentAbsolutePosition: baseOffset,
       visibleBounds: visibleBounds,
       forTile: forTile,
-      nodeBoundsCache: nodeBoundsCache,
     );
   }
 
@@ -37,10 +35,7 @@ class NodePainter {
     required Offset parentAbsolutePosition,
     required Rect visibleBounds,
     required bool forTile,
-    Map<TableNode, Rect>? nodeBoundsCache,
   }) {
-    // Проверяем, свернут ли узел
-    final isCollapsed = currentNode.isCollapsed ?? false;
 
     // Рассчитываем абсолютную позицию текущего узла
     final nodeAbsolutePosition = currentNode.aPosition ?? (currentNode.position + parentAbsolutePosition);
@@ -53,37 +48,6 @@ class NodePainter {
         nodeAbsolutePosition.dy + currentNode.size.height,
       ),
     );
-
-    // Сохраняем в кэш
-    if (nodeBoundsCache != null) {
-      nodeBoundsCache[currentNode] = nodeWorldRect;
-    }
-
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Для тайлов всегда проверяем детей, даже если родитель не виден
-    // Это нужно для вложенных узлов swimlane, которые могут быть в других тайлах
-
-    // Сначала рисуем детей (если это развернутый swimlane)
-    if (currentNode.qType == 'swimlane' && !isCollapsed) {
-      _drawChildren(
-        canvas: canvas,
-        parentNode: currentNode,
-        parentAbsolutePosition: nodeAbsolutePosition,
-        visibleBounds: visibleBounds,
-        forTile: forTile,
-        nodeBoundsCache: nodeBoundsCache,
-      );
-    }
-
-    // Проверяем видимость текущего узла (с увеличенными границами)
-    final expandedBounds = visibleBounds.inflate(100.0);
-
-    if (!nodeWorldRect.overlaps(expandedBounds)) {
-      // Если узел не виден и это не swimlane, выходим
-      if (currentNode.qType != 'swimlane') {
-        return;
-      }
-      // Для swimlane продолжаем (дети уже нарисованы выше)
-    }
 
     canvas.save();
 
@@ -118,58 +82,6 @@ class NodePainter {
     }
 
     canvas.restore();
-
-    // Для обычных узлов рисуем детей после родителя
-    if (currentNode.qType != 'swimlane' || isCollapsed) {
-      _drawChildren(
-        canvas: canvas,
-        parentNode: currentNode,
-        parentAbsolutePosition: nodeAbsolutePosition,
-        visibleBounds: visibleBounds,
-        forTile: forTile,
-        nodeBoundsCache: nodeBoundsCache,
-      );
-    }
-  }
-
-  /// Отрисовка дочерних узлов
-  void _drawChildren({
-    required Canvas canvas,
-    required TableNode parentNode,
-    required Offset parentAbsolutePosition,
-    required Rect visibleBounds,
-    required bool forTile,
-    Map<TableNode, Rect>? nodeBoundsCache,
-  }) {
-    // Проверяем, является ли родитель свернутым swimlane
-    final isParentCollapsedSwimlane =
-        parentNode.qType == 'swimlane' && (parentNode.isCollapsed ?? false);
-
-    if (isParentCollapsedSwimlane) {
-      return; // Не рисуем детей свернутого swimlane
-    }
-
-    if (parentNode.children == null || parentNode.children!.isEmpty) {
-      return;
-    }
-
-    for (final child in parentNode.children!) {
-      // ВАЖНО: Для тайлов рисуем детей независимо от видимости родителя
-      // Вложенные узлы могут быть в других тайлах
-      
-      // Используем абсолютную позицию ребенка, если она уже рассчитана
-      // иначе рассчитываем как позиция ребенка + позиция родителя
-      final childAbsolutePosition = child.aPosition ?? (child.position + parentAbsolutePosition);
-      
-      _drawNodeRecursive(
-        canvas: canvas,
-        currentNode: child,
-        parentAbsolutePosition: childAbsolutePosition,
-        visibleBounds: visibleBounds,
-        forTile: forTile,
-        nodeBoundsCache: nodeBoundsCache,
-      );
-    }
   }
 
   /// Отрисовка одного узла (без детей)

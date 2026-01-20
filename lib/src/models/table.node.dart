@@ -1,7 +1,5 @@
 // Модель табличного узла
-import 'package:fbpmn/src/models/connections.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get_utils/get_utils.dart';
 
 import 'node.dart';
 

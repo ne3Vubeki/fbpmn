@@ -620,15 +620,13 @@ class TileManager {
       );
 
       if (nodesInTile.isNotEmpty) {
-        final rootNodes = _filterRootNodes(nodesInTile);
         // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
-        final sortedNodes = _sortNodesWithSwimlaneLast(rootNodes);
+        final sortedNodes = _sortNodesWithSwimlaneLast(nodesInTile);
         _nodeRenderer.drawRootNodesToTile(
           canvas: canvas,
-          rootNodes: sortedNodes,
+          nodes: sortedNodes,
           tileBounds: tileBounds,
           delta: state.delta,
-          cache: state.nodeBoundsCache,
         );
       }
 
