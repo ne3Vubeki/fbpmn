@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:flutter/cupertino.dart';
+
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 
@@ -15,219 +17,9 @@ class ArrowManager {
     required this.nodeBoundsCache,
   });
 
-  /// Получить все стрелки, подключенные к определенному узлу с определенной стороны
-  List<Arrow> getArrowsOnSide(String nodeId, String side) {
-    final result = <Arrow>[];
-
-    for (final arrow in arrows) {
-      // Проверяем, подключена ли стрелка к этому узлу как источник или цель
-      if (arrow.source == nodeId) {
-        // Проверяем, какая сторона используется для источника
-        if (getSideForConnection(arrow, true) == side) {
-          result.add(arrow);
-        }
-      } else if (arrow.target == nodeId) {
-        // Проверяем, какая сторона используется для цели
-        if (getSideForConnection(arrow, false) == side) {
-          result.add(arrow);
-        }
-      }
-    }
-
-    return result;
-  }
-
-  /// Получить индекс конкретной стрелки среди всех стрелок, подключенных к стороне узла
-  int getConnectionIndex(Arrow targetArrow, String nodeId, String side) {
-    int index = 0;
-
-    for (int i = 0; i < arrows.length; i++) {
-      final arrow = arrows[i];
-
-      // Пропускаем, если это сама целевая стрелка
-      if (arrow.id == targetArrow.id) {
-        break;
-      }
-
-      // Проверяем, подключена ли эта стрелка к узлу как источник или цель
-      if (arrow.source == nodeId) {
-        // Проверяем, какая сторона используется для источника
-        if (getSideForConnectionWithoutCounting(arrow, true) == side) {
-          index++;
-        }
-      } else if (arrow.target == nodeId) {
-        // Проверяем, какая сторона используется для цели
-        if (getSideForConnectionWithoutCounting(arrow, false) == side) {
-          index++;
-        }
-      }
-    }
-
-    return index;
-  }
-
-  /// Получить количество стрелок, подключенных к определенному узлу с определенной стороны
-  int getConnectionsCountOnSide(String nodeId, String side) {
-    int count = 0;
-
-    for (final arrow in arrows) {
-      // Проверяем, подключена ли стрелка к этому узлу как источник или цель
-      if (arrow.source == nodeId) {
-        // Проверяем, какая сторона используется для источника
-        if (getSideForConnectionWithoutCounting(arrow, true) == side) {
-          count++;
-        }
-      } else if (arrow.target == nodeId) {
-        // Проверяем, какая сторона используется для цели
-        if (getSideForConnectionWithoutCounting(arrow, false) == side) {
-          count++;
-        }
-      }
-    }
-
-    return count;
-  }
-
-  /// Определить сторону, к которой стрелка подключена к узлу (для источника или цели)
-  String getSideForConnection(Arrow arrow, bool isSource) {
-    // Находим эффективные узлы источника и цели (учитываем свернутые swimlane)
-    final effectiveSourceNode = _findEffectiveNodeById(arrow.source);
-    final effectiveTargetNode = _findEffectiveNodeById(arrow.target);
-
-    if (effectiveSourceNode == null || effectiveTargetNode == null) {
-      return 'top'; // запасной вариант
-    }
-
-    // Получаем абсолютные позиции узлов
-    final sourceAbsolutePos =
-        effectiveSourceNode.aPosition ?? effectiveSourceNode.position;
-    final targetAbsolutePos =
-        effectiveTargetNode.aPosition ?? effectiveTargetNode.position;
-
-    // Создаем прямоугольники для узлов
-    final sourceRect = Rect.fromPoints(
-      sourceAbsolutePos,
-      Offset(
-        sourceAbsolutePos.dx + effectiveSourceNode.size.width,
-        sourceAbsolutePos.dy + effectiveSourceNode.size.height,
-      ),
-    );
-
-    final targetRect = Rect.fromPoints(
-      targetAbsolutePos,
-      Offset(
-        targetAbsolutePos.dx + effectiveTargetNode.size.width,
-        targetAbsolutePos.dy + effectiveTargetNode.size.height,
-      ),
-    );
-
-    // Вычисляем точки соединения
-    final connectionPoints = calculateConnectionPointsForSideCalculation(
-      arrow,
-      sourceRect,
-      targetRect,
-      effectiveSourceNode,
-      effectiveTargetNode,
-    );
-
-    if (isSource) {
-      return _getSideFromPoint(connectionPoints.start!, sourceRect);
-    } else {
-      return _getSideFromPoint(connectionPoints.end!, targetRect);
-    }
-  }
-
-  /// Определить сторону, к которой стрелка подключена к узлу (для источника или цели) - без вызова методов подсчета
-  String getSideForConnectionWithoutCounting(Arrow arrow, bool isSource) {
-    // Находим эффективные узлы источника и цели (учитываем свернутые swimlane)
-    final effectiveSourceNode = _findEffectiveNodeById(arrow.source);
-    final effectiveTargetNode = _findEffectiveNodeById(arrow.target);
-
-    if (effectiveSourceNode == null || effectiveTargetNode == null) {
-      return 'top'; // запасной вариант
-    }
-
-    // Получаем абсолютные позиции узлов
-    final sourceAbsolutePos =
-        effectiveSourceNode.aPosition ?? effectiveSourceNode.position;
-    final targetAbsolutePos =
-        effectiveTargetNode.aPosition ?? effectiveTargetNode.position;
-
-    // Создаем прямоугольники для узлов
-    final sourceRect = Rect.fromPoints(
-      sourceAbsolutePos,
-      Offset(
-        sourceAbsolutePos.dx + effectiveSourceNode.size.width,
-        sourceAbsolutePos.dy + effectiveSourceNode.size.height,
-      ),
-    );
-
-    final targetRect = Rect.fromPoints(
-      targetAbsolutePos,
-      Offset(
-        targetAbsolutePos.dx + effectiveTargetNode.size.width,
-        targetAbsolutePos.dy + effectiveTargetNode.size.height,
-      ),
-    );
-
-    // Вычисляем точки соединения, но без вызова методов подсчета
-    final connectionPoints = calculateConnectionPointsForSideCalculation(
-      arrow,
-      sourceRect,
-      targetRect,
-      effectiveSourceNode,
-      effectiveTargetNode,
-    );
-
-    if (isSource) {
-      return _getSideFromPoint(connectionPoints.start!, sourceRect);
-    } else {
-      return _getSideFromPoint(connectionPoints.end!, targetRect);
-    }
-  }
-
-  /// Найти узел по ID, включая вложенные узлы
-  TableNode? _findNodeById(String id) {
-    return _findNodeByIdRecursive(nodes, id);
-  }
-
-  /// Найти эффективный узел по ID, учитывая свернутые swimlane
-  TableNode? _findEffectiveNodeById(String id) {
-    final node = _findNodeById(id);
-    if (node == null) return null;
-
-    // Если узел является дочерним для свернутого swimlane, вернуть родительский swimlane
-    if (node.parent != null) {
-      final parent = _findNodeById(node.parent!);
-      if (parent != null &&
-          parent.qType == 'swimlane' &&
-          (parent.isCollapsed ?? false)) {
-        return parent; // Вернуть свернутый swimlane вместо дочернего узла
-      }
-    }
-
-    return node;
-  }
-
-  /// Рекурсивный поиск узла по ID
-  TableNode? _findNodeByIdRecursive(List<TableNode> nodeList, String id) {
-    for (final node in nodeList) {
-      if (node.id == id) {
-        return node;
-      }
-
-      if (node.children != null) {
-        final foundChild = _findNodeByIdRecursive(node.children!, id);
-        if (foundChild != null) {
-          return foundChild;
-        }
-      }
-    }
-    return null;
-  }
-
   /// Расчет точек соединения для определения стороны
-  ({Offset? end, Offset? start, String? sides}) calculateConnectionPointsForSideCalculation(
+  ({Offset? end, Offset? start, String? sides})
+  calculateConnectionPointsForSideCalculation(
     Arrow arrow,
     Rect sourceRect,
     Rect targetRect,
@@ -249,133 +41,167 @@ class ArrowManager {
     final targetLeft = targetRect.left;
     final targetRight = targetRect.right;
 
-    Offset? startConnectionPoint;
-    Offset? endConnectionPoint;
-    String? sides;
-
     // Вычисляем расстояния между центрами узлов
     final dx = targetCenter.dx - sourceCenter.dx;
     final dy = targetCenter.dy - sourceCenter.dy;
 
-    // Определяем исходную сторону (откуда выходит связь)
-    if (sourceCenter.dy < targetTop - 20) {
-      // середина высоты узла источника находится слева и выше
-      if (sourceRight < targetCenter.dx - 20) {
-        sides = 'right:top';
-        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-      } else
-      // середина высоты узла источника находится справа и выше
-      if (sourceLeft > targetCenter.dx + 20) {
-        sides = 'left:top';
-        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-      } else {
-        sides = 'bottom:top';
-        startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
+    final isLeft40 = sourceRight <= targetLeft - 40;
+    final isTop40 = sourceBottom <= targetTop - 40;
+    final isRight40 = sourceLeft >= targetRight + 40;
+    final isBottom40 = sourceTop >= targetBottom + 40;
+
+    final isLeftCenter40 = sourceCenter.dx <= targetLeft - 40;
+    final isTopCenter40 = sourceCenter.dy <= targetTop - 40;
+    final isRightCenter40 = sourceCenter.dx >= targetRight + 40;
+    final isBottomCenter40 = sourceCenter.dy >= targetBottom + 40;
+
+    if (isLeft40 || isTop40 || isRight40 || isBottom40) {
+      if (isLeft40 && isTop40) {
+        return _getSidePosition('right:top', sourceRect, targetRect);
+      } else if (isRight40 && isTop40) {
+        return _getSidePosition('left:top', sourceRect, targetRect);
+      } else if (isLeft40 && isBottom40) {
+        return _getSidePosition('right:bottom', sourceRect, targetRect);
+      } else if (isRight40 && isBottom40) {
+        return _getSidePosition('left:bottom', sourceRect, targetRect);
+      } else if (isLeft40) {
+        return _getSidePosition('right:left', sourceRect, targetRect);
+      } else if (isTop40) {
+        return _getSidePosition('bottom:top', sourceRect, targetRect);
+      } else if (isRight40) {
+        return _getSidePosition('left:right', sourceRect, targetRect);
+      } else if (isBottom40) {
+        return _getSidePosition('top:bottom', sourceRect, targetRect);
       }
-    } else if (sourceCenter.dy > targetTop - 20 &&
-        sourceCenter.dy < targetBottom + 20) {
-      // середина высоты узла источника находится слева (расстояние между узлами более 40 по x) и внутри отступов 20 от верха и низа
-      if (sourceRight < targetLeft - 40) {
-        sides = 'right:left';
-        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
-      } else
-      // середина высоты узла источника находится справа (расстояние между узлами более 40 по x) и внутри отступов 20 от верха и низа
-      if (sourceLeft > targetRight + 40) {
-        sides = 'left:right';
-        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);
-      } else {
-        sides = 'top:top';
-        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
-        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-      }
-    } else if (sourceCenter.dy > targetBottom + 20) {
-      // середина высоты узла источника находится слева и ниже
-      if (sourceRight < targetCenter.dx - 20) {
-        sides = 'right:bottom';
-        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
-      } else
-      // середина высоты узла источника находится справа и ниже
-      if (sourceLeft > targetCenter.dx + 20) {
-        sides = 'left:bottom';
-        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
-        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
-      } else {
-        sides = 'top:bottom';
-        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
-        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
+    } else if (isLeftCenter40 ||
+        isTopCenter40 ||
+        isRightCenter40 ||
+        isBottomCenter40) {
+      if (isLeftCenter40 && isTopCenter40) {
+        return _getSidePosition('right:top', sourceRect, targetRect);
+      } else if (isRightCenter40 && isTopCenter40) {
+        return _getSidePosition('left:top', sourceRect, targetRect);
+      } else if (isLeftCenter40 && isBottomCenter40) {
+        return _getSidePosition('right:bottom', sourceRect, targetRect);
+      } else if (isRightCenter40 && isBottomCenter40) {
+        return _getSidePosition('left:bottom', sourceRect, targetRect);
+      } else if ((isLeftCenter40 || isRightCenter40) && dy > 0) {
+        return _getSidePosition('top:top', sourceRect, targetRect);
+      } else if ((isLeftCenter40 || isRightCenter40) && dy <= 0) {
+        return _getSidePosition('bottom:bottom', sourceRect, targetRect);
+      } else if ((isTopCenter40 || isBottomCenter40) && dx > 0) {
+        return _getSidePosition('left:left', sourceRect, targetRect);
+      } else if ((isTopCenter40 || isBottomCenter40) && dx <= 0) {
+        return _getSidePosition('right:right', sourceRect, targetRect);
       }
     } else {
-      // Для других случаев используем алгоритм по аналогии
-      // Определяем основное направление связи
-      if (dx.abs() >= dy.abs()) {
-        // Горизонтальное направление преобладает
-        if (dx > 0) {
-          // Справа
-          sides = 'right:left';
-          startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
-          endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
-        } else {
-          // Слева
-          sides = 'left:right';
-          startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
-          endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);
-        }
-      } else {
-        // Вертикальное направление преобладает
-        if (dy > 0) {
-          // Вниз
-          sides = 'bottom:top';
-          startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
-          endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
-        } else {
-          // Вверх
-          sides = 'top:bottom';
-          startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
-          endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
-        }
+      if ((dx > 0 || dx <= 0) && dy > 0) {
+        return _getSidePosition('top:top', sourceRect, targetRect);
+      } else if ((dx > 0 || dx <= 0) && dy <= 0) {
+        return _getSidePosition('bottom:bottom', sourceRect, targetRect);
       }
     }
-    print(sides);
 
+    return _getSidePosition('top:top', sourceRect, targetRect);
+  }
+
+  ({Offset? start, Offset? end, String? sides}) _getSidePosition(
+    String sides,
+    Rect sourceRect,
+    Rect targetRect,
+  ) {
+    // Определяем центральные точки узлов
+    final sourceCenter = sourceRect.center;
+    final targetCenter = targetRect.center;
+
+    // Определяем стороны узлов
+    final sourceTop = sourceRect.top;
+    final sourceBottom = sourceRect.bottom;
+    final sourceLeft = sourceRect.left;
+    final sourceRight = sourceRect.right;
+
+    final targetTop = targetRect.top;
+    final targetBottom = targetRect.bottom;
+    final targetLeft = targetRect.left;
+    final targetRight = targetRect.right;
+
+    Offset? startConnectionPoint;
+    Offset? endConnectionPoint;
+
+    switch (sides) {
+      case 'right:top':
+        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
+        break;
+      case 'right:bottom':
+        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
+        break;
+      case 'right:left':
+        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
+        break;
+      case 'right:right':
+        startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);
+        break;
+      case 'left:top':
+        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
+        break;
+      case 'left:bottom':
+        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
+        break;
+      case 'left:right':
+        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);
+        break;
+      case 'left:left':
+        startConnectionPoint = Offset(sourceLeft - 6, sourceCenter.dy);
+        endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
+        break;
+      case 'top:bottom':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
+        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
+        break;
+      case 'top:right':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
+        endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);
+        break;
+      case 'top:left':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
+        endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
+        break;
+      case 'top:top':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceTop - 6);
+        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
+        break;
+      case 'bottom:top':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
+        endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
+        break;
+      case 'bottom:right':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
+        endConnectionPoint = Offset(targetRight + 6, targetCenter.dy);
+        break;
+      case 'bottom:left':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
+        endConnectionPoint = Offset(targetLeft - 6, targetCenter.dy);
+        break;
+      case 'bottom:bottom':
+        startConnectionPoint = Offset(sourceCenter.dx, sourceBottom + 6);
+        endConnectionPoint = Offset(targetCenter.dx, targetBottom + 6);
+        break;
+    }
     return (start: startConnectionPoint, end: endConnectionPoint, sides: sides);
   }
 
-  /// Определяет сторону узла, к которой принадлежит точка
-  String _getSideFromPoint(Offset point, Rect rect) {
-    // Сравниваем расстояния до разных сторон и выбираем ближайшую
-    double leftDist = (point.dx - rect.left).abs();
-    double rightDist = (point.dx - rect.right).abs();
-    double topDist = (point.dy - rect.top).abs();
-    double bottomDist = (point.dy - rect.bottom).abs();
-
-    // Находим минимальное расстояние
-    double minDist = leftDist;
-    String closestSide = 'left';
-
-    if (rightDist < minDist) {
-      minDist = rightDist;
-      closestSide = 'right';
-    }
-    if (topDist < minDist) {
-      minDist = topDist;
-      closestSide = 'top';
-    }
-    if (bottomDist < minDist) {
-      minDist = bottomDist;
-      closestSide = 'bottom';
-    }
-
-    return closestSide;
-  }
-
   /// Получить полный путь стрелки для отрисовки в тайлах
-  ({Path path, List<Offset> coordinates}) getArrowPathForTiles(Arrow arrow, Offset baseOffset) {
+  ({Path path, List<Offset> coordinates}) getArrowPathForTiles(
+    Arrow arrow,
+    Offset baseOffset,
+  ) {
     // Находим эффективные узлы
     final effectiveSourceNode = _getEffectiveNode(arrow.source);
     final effectiveTargetNode = _getEffectiveNode(arrow.target);
@@ -410,14 +236,13 @@ class ArrowManager {
     );
 
     // Вычисляем точки соединения
-    final connectionPoints = 
-        calculateConnectionPointsForSideCalculation(
-          arrow,
-          sourceRect,
-          targetRect,
-          effectiveSourceNode,
-          effectiveTargetNode,
-        );
+    final connectionPoints = calculateConnectionPointsForSideCalculation(
+      arrow,
+      sourceRect,
+      targetRect,
+      effectiveSourceNode,
+      effectiveTargetNode,
+    );
 
     if (connectionPoints.start == null || connectionPoints.end == null) {
       return (path: Path(), coordinates: []);
@@ -505,6 +330,26 @@ class ArrowManager {
       case 'bottom:left':
       case 'bottom:right':
         lineToCoordinates(start.dx, end.dy);
+        lineToCoordinates(end.dx, end.dy);
+        break;
+      case 'left:left':
+        lineToCoordinates(start.dx - 40 + dx, start.dy);
+        lineToCoordinates(start.dx - 40 + dx, end.dy);
+        lineToCoordinates(end.dx, end.dy);
+        break;
+      case 'right:right':
+        lineToCoordinates(start.dx + 40 + dx, start.dy);
+        lineToCoordinates(start.dx + 40 + dx, end.dy);
+        lineToCoordinates(end.dx, end.dy);
+        break;
+      case 'top:top':
+        lineToCoordinates(start.dx, start.dy - 40 + dy);
+        lineToCoordinates(end.dx, start.dy - 40 + dy);
+        lineToCoordinates(end.dx, end.dy);
+        break;
+      case 'bottom:bottom':
+        lineToCoordinates(start.dx, start.dy + 40 + dy);
+        lineToCoordinates(end.dx, start.dy + 40 + dy);
         lineToCoordinates(end.dx, end.dy);
         break;
     }
