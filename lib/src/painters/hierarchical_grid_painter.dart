@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
@@ -17,6 +18,9 @@ class HierarchicalGridPainter extends CustomPainter {
 
   // Убираем totalBounds
   final double tileScale;
+
+  // Счетчик для отладки
+  static int _debugTileDrawCount = 0;
 
   HierarchicalGridPainter({
     required this.scale,
@@ -86,6 +90,17 @@ class HierarchicalGridPainter extends CustomPainter {
       visibleBottom,
     );
 
+    // Создаем хеш от видимых тайлов для определения необходимости обновления
+    final tilesInViewport = <String>[];
+    for (final tile in state.imageTiles) {
+      if (tile.bounds.overlaps(visibleRect)) {
+        tilesInViewport.add(tile.id);
+      }
+    }
+    
+    tilesInViewport.sort();
+    final currentTilesHash = tilesInViewport.join('-');
+
     final paint = Paint()
       ..filterQuality = FilterQuality.high
       ..isAntiAlias = true
@@ -124,10 +139,8 @@ class HierarchicalGridPainter extends CustomPainter {
           final dstRect = intersection;
 
           if (srcRect.width > 0 && srcRect.height > 0) {
-            print('Рисую тайл c площадью ${tile.id}');
+            // Рисуем только если кэш недоступен или изменился
             canvas.drawImageRect(tile.image, srcRect, dstRect, paint);
-          } else {
-            print('НЕ Рисую тайл ${tile.id}');
           }
         } catch (e) {
           // Тихая обработка ошибок при рисовании
@@ -249,16 +262,29 @@ class HierarchicalGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant HierarchicalGridPainter oldDelegate) {
+    // Проверяем только изменения, которые действительно влияют на отрисовку тайлов и сетки
     return oldDelegate.scale != scale ||
         oldDelegate.offset != offset ||
         oldDelegate.canvasSize != canvasSize ||
         oldDelegate.delta != delta ||
+        // Проверяем изменения в самих тайлах (не в их содержимом)
         oldDelegate.state.imageTiles.length != state.imageTiles.length ||
+        // Проверяем, изменились ли ID тайлов (означает добавление/удаление тайлов)
+        !_imageTilesIdsEqual(oldDelegate.state.imageTiles, state.imageTiles) ||
+        // Проверяем изменения в стрелках
         oldDelegate.arrows.length != arrows.length ||
-        // Check if arrows list is different (in case of element changes without length change)
         !listEquals(
           oldDelegate.arrows.map((a) => a.id).toList(),
           arrows.map((a) => a.id).toList(),
         );
+  }
+
+  // Вспомогательная функция для сравнения ID тайлов
+  bool _imageTilesIdsEqual(List<dynamic> oldTiles, List<dynamic> newTiles) {
+    if (oldTiles.length != newTiles.length) return false;
+    for (int i = 0; i < oldTiles.length; i++) {
+      if (oldTiles[i].id != newTiles[i].id) return false;
+    }
+    return true;
   }
 }
