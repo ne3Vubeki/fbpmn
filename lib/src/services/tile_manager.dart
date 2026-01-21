@@ -34,9 +34,10 @@ class TileManager {
   }
 
   Future<void> createTiledImage(
-    List<TableNode> nodes,
-    List<Arrow> arrows,
-  ) async {
+    List<TableNode?> nodes,
+    List<Arrow?> arrows, {
+    bool isUpdate = false,
+  }) async {
     try {
       state.isLoading = true;
       onStateUpdate();
@@ -53,7 +54,19 @@ class TileManager {
       // Создаем тайлы только там где есть узлы или стрелки
       final tiles = await _createTilesForContent(nodes, arrows);
 
-      state.imageTiles = tiles;
+      if (isUpdate) {
+        for (final tile in tiles) {
+          if (state.imageTiles.any((t) => t.id == tile.id)) {
+            state.imageTilesChanged.any((tileId) => tileId == tile.id)
+                ? _restoreTile(tile.id, tile)
+                : null;
+          } else {
+            state.imageTiles.add(tile);
+          }
+        }
+      } else {
+        state.imageTiles = tiles;
+      }
 
       state.isLoading = false;
       onStateUpdate();
@@ -373,12 +386,6 @@ class TileManager {
   }
 
   /// Удаление выделенного узла из тайлов
-  ///
-  ///
-  ///
-  ///
-  ///
-  ///
   Future<void> removeSelectedNodeFromTiles(TableNode node) async {
     final Set<ImageTile> tilesToUpdate = {};
     final Set<String?> arrowIdsConnectedToNode = {};
@@ -436,15 +443,6 @@ class TileManager {
       await updateTileWithAllContent(tile);
     }
   }
-
-  ///
-  ///
-  ///
-  ///
-  ///
-  ///
-  ///
-  ///
 
   // Поиск тайлов, содержащих указанный узел
   Set<int> _findTilesContainingNode(TableNode node) {
@@ -528,7 +526,7 @@ class TileManager {
     return node.aPosition ?? (state.delta + node.position);
   }
 
-  // Удаление тайла по id
+  // Обновление тайла по id
   Future<void> _restoreTile(String tileId, ImageTile tile) async {
     final tileIndex = _findTileIndexById(tileId);
     if (tileIndex == null) return;
@@ -641,9 +639,27 @@ class TileManager {
     }
   }
 
+  // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
   Future<void> updateTilesAfterNodeChange() async {
-    // Пересоздаем тайлы с текущими узлами
-    await createTiledImage(state.nodes, state.arrows);
+    Set<TableNode?> nodes = {...state.nodesSelected};
+    Set<Arrow?> arrows = {...state.arrowsSelected};
+
+    // for (final arrow in arrows) {
+    //   final node = state.nodes.firstWhereOrNull(
+    //     (n) => n.id == arrow!.source || n.id == arrow.target,
+    //   );
+    //   nodes.add(node);
+    // }
+
+    // for (final tileId in state.imageTilesChanged) {
+    //   final tile = getTileById(state.imageTiles, tileId);
+    //   nodes.addAll(_getNodesForTile(tile!));
+    //   arrows.addAll(_getArrowsForTile(tile));
+    // }
+
+    await createTiledImage(state.nodes, state.arrows, isUpdate: false);
+
+    state.imageTilesChanged.clear();
 
     // Уведомляем об изменении
     onStateUpdate();
@@ -657,13 +673,15 @@ class TileManager {
 
       print('Update tile: $tileId');
 
+      state.imageTilesChanged.add(tileId);
+
       // Получаем ВСЕ узлы для этого тайла из state.nodes
       final nodesInTile = _getNodesForTile(tile);
 
       // Получаем ВСЕ стрелки для этого тайла из state.arrows
       final arrowsInTile = _getArrowsForTile(tile);
 
-      tile.image.dispose();
+      // tile.image.dispose();
 
       // Перерисовываем тайл со ВСЕМИ узлами и стрелками
       final newTile = await _createUpdatedTileWithContent(
@@ -704,7 +722,6 @@ class TileManager {
     for (final tile in state.imageTiles) {
       tile.image.dispose();
     }
-    state.imageTiles.clear();
     state.nodeBoundsCache.clear();
   }
 

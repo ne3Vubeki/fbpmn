@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
@@ -328,23 +328,27 @@ class ArrowManager {
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'left:left':
-        coordinates.add(Offset(start.dx - 40 + dx, start.dy));
-        coordinates.add(Offset(start.dx - 40 + dx, end.dy));
+        final dxMin = dx > 0 ? 0 : dx;
+        coordinates.add(Offset(start.dx - 40 + dxMin, start.dy));
+        coordinates.add(Offset(start.dx - 40 + dxMin, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'right:right':
-        coordinates.add(Offset(start.dx + 40 + dx, start.dy));
-        coordinates.add(Offset(start.dx + 40 + dx, end.dy));
+        final dxMin = dx > 0 ? dx : 0;
+        coordinates.add(Offset(start.dx + 40 + dxMin, start.dy));
+        coordinates.add(Offset(start.dx + 40 + dxMin, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'top:top':
-        coordinates.add(Offset(start.dx, start.dy - 40 + dy));
-        coordinates.add(Offset(end.dx, start.dy - 40 + dy));
+        final dyMin = dy > 0 ? 0 : dy;
+        coordinates.add(Offset(start.dx, start.dy - 40 + dyMin));
+        coordinates.add(Offset(end.dx, start.dy - 40 + dyMin));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'bottom:bottom':
-        coordinates.add(Offset(start.dx, start.dy + 40 + dy));
-        coordinates.add(Offset(end.dx, start.dy + 40 + dy));
+        final dyMin = dy > 0 ? dy : 0;
+        coordinates.add(Offset(start.dx, start.dy + 40 + dyMin));
+        coordinates.add(Offset(end.dx, start.dy + 40 + dyMin));
         coordinates.add(Offset(end.dx, end.dy));
         break;
     }
@@ -352,12 +356,19 @@ class ArrowManager {
     String direct = sides.split(':')[0];
     path.moveTo(coordinates.first.dx, coordinates.first.dy);
     for (int i = 1; i < coordinates.length - 1; i++) {
-      final current = coordinates[i];
-      final next = coordinates[i + 1];
+      final previous = coordinates[i - 1]; // предыдущая точка
+      final current = coordinates[i]; // текущая точка
+      final next = coordinates[i + 1]; // следующая точка
+      // Расчет длин текущего и следующего отрезка
+      final dxPrev = previous.dx - current.dx;
+      final dyPrev = previous.dy - current.dy;
       final dx = current.dx - next.dx;
       final dy = current.dy - next.dy;
-      final offset = dx + dy; // отступ
-      final maxRadius = offset.abs() / 2;
+      final offsetCurrent = (dxPrev + dyPrev).abs(); // длина текущего отрезка
+      final offsetNext = (dx + dy).abs(); // длина следующего отрезка 
+      // Находим минимальный отрезок
+      final offset = min(offsetNext, offsetCurrent);
+      final maxRadius = offset / 2;
       final radius = 10.0.clamp(1.0, maxRadius);
       double x1 = current.dx;
       double y1 = current.dy;
@@ -391,7 +402,7 @@ class ArrowManager {
       } else if (dx < 0) {
         direct = "right";
         endArcPoint = Offset(current.dx + radius, current.dy);
-      } else if(dy > 0) {
+      } else if (dy > 0) {
         direct = "top";
         endArcPoint = Offset(current.dx, current.dy - radius);
       } else {

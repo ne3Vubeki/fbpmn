@@ -36,7 +36,7 @@ class EditorState {
   
   // Тайлы
   List<ImageTile> imageTiles = [];
-  List<String> imageTilesChanged = [];
+  Set<String> imageTilesChanged = {};
   bool showTileBorders = true;
   
   // Загрузка

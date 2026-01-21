@@ -78,19 +78,19 @@ class HierarchicalGridPainter extends CustomPainter {
     double visibleBottom,
   ) {
     if (state.imageTiles.isEmpty) return;
-    
+
     final visibleRect = Rect.fromLTRB(
       visibleLeft,
       visibleTop,
       visibleRight,
       visibleBottom,
     );
-    
+
     final paint = Paint()
       ..filterQuality = FilterQuality.high
       ..isAntiAlias = true
       ..blendMode = BlendMode.srcOver;
-    
+
     // Ищем тайлы, которые пересекаются с видимой областью
     for (final tile in state.imageTiles) {
       if (tile.bounds.overlaps(visibleRect)) {
@@ -98,35 +98,36 @@ class HierarchicalGridPainter extends CustomPainter {
           // Находим пересечение тайла с видимой областью
           final intersection = tile.bounds.intersect(visibleRect);
           if (intersection.isEmpty) continue;
-          
+
           // Вычисляем координаты в изображении тайла
           final srcLeft = (intersection.left - tile.bounds.left) * tile.scale;
           final srcTop = (intersection.top - tile.bounds.top) * tile.scale;
           final srcRight = (intersection.right - tile.bounds.left) * tile.scale;
-          final srcBottom = (intersection.bottom - tile.bounds.top) * tile.scale;
-          
+          final srcBottom =
+              (intersection.bottom - tile.bounds.top) * tile.scale;
+
           // Проверяем границы изображения
-          if (srcLeft < 0 || srcTop < 0 || 
-              srcRight > tile.image.width || srcBottom > tile.image.height) {
+          if (srcLeft < 0 ||
+              srcTop < 0 ||
+              srcRight > tile.image.width ||
+              srcBottom > tile.image.height) {
             continue;
           }
-          
+
           final srcRect = Rect.fromLTRB(
             math.max(0.0, srcLeft),
             math.max(0.0, srcTop),
             math.min(tile.image.width.toDouble(), srcRight),
             math.min(tile.image.height.toDouble(), srcBottom),
           );
-          
+
           final dstRect = intersection;
-          
+
           if (srcRect.width > 0 && srcRect.height > 0) {
-            canvas.drawImageRect(
-              tile.image,
-              srcRect,
-              dstRect,
-              paint,
-            );
+            print('Рисую тайл c площадью ${tile.id}');
+            canvas.drawImageRect(tile.image, srcRect, dstRect, paint);
+          } else {
+            print('НЕ Рисую тайл ${tile.id}');
           }
         } catch (e) {
           // Тихая обработка ошибок при рисовании
@@ -255,6 +256,9 @@ class HierarchicalGridPainter extends CustomPainter {
         oldDelegate.state.imageTiles.length != state.imageTiles.length ||
         oldDelegate.arrows.length != arrows.length ||
         // Check if arrows list is different (in case of element changes without length change)
-        !listEquals(oldDelegate.arrows.map((a) => a.id).toList(), arrows.map((a) => a.id).toList());
+        !listEquals(
+          oldDelegate.arrows.map((a) => a.id).toList(),
+          arrows.map((a) => a.id).toList(),
+        );
   }
 }

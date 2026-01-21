@@ -371,6 +371,7 @@ class NodeManager {
     state.isNodeDragging = false;
     state.isNodeOnTopLayer = false;
     state.nodesSelected.clear();
+    state.arrowsSelected.clear();
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
 
@@ -388,6 +389,7 @@ class NodeManager {
     } else {
       _deselectAllNodes();
       state.nodesSelected.clear();
+      state.arrowsSelected.clear();
       state.isNodeOnTopLayer = false;
       state.selectedNodeOffset = Offset.zero;
       state.originalNodePosition = Offset.zero;
