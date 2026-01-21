@@ -365,15 +365,21 @@ class ArrowManager {
       final dx = current.dx - next.dx;
       final dy = current.dy - next.dy;
       final offsetCurrent = (dxPrev + dyPrev).abs(); // длина текущего отрезка
-      final offsetNext = (dx + dy).abs(); // длина следующего отрезка 
+      final offsetNext = (dx + dy).abs(); // длина следующего отрезка
       // Находим минимальный отрезок
       final offset = min(offsetNext, offsetCurrent);
       final maxRadius = offset / 2;
-      final radius = 10.0.clamp(1.0, maxRadius);
+      final double radius = maxRadius > 1 ? 10.0.clamp(1.0, maxRadius) : 0;
       double x1 = current.dx;
       double y1 = current.dy;
       bool clockwise = true;
       Offset endArcPoint;
+
+      if (radius == 0) {
+        // Добавляем путь до дуги
+        path.lineTo(x1, y1);
+        continue;
+      }
 
       switch (direct) {
         case 'left':
