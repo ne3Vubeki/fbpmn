@@ -40,6 +40,7 @@ class TileBorderPainter extends CustomPainter {
     for (final tile in state.imageTiles) {
       if (tile.bounds.overlaps(visibleRect)) {
         canvas.drawRect(tile.bounds, tileBorderPaint);
+        print('Рисуем рамку тайла ${tile.id}');
         
         // Отображаем id тайла
         final idTextPainter = TextPainter(
@@ -63,9 +64,6 @@ class TileBorderPainter extends CustomPainter {
         );
         
         // Отображаем количество узлов в тайле
-        // final tileIndex = state.imageTiles.indexOf(tile);
-        // final nodesCount = state.tileToNodes[tileIndex]?.length ?? 0;
-        // final arrowsCount = state.tileToArrows[tileIndex]?.length ?? 0;
         final countText = 'узлов: ${tile.nodes.length}, связей: ${tile.arrows.length}';
         
         final countTextPainter = TextPainter(

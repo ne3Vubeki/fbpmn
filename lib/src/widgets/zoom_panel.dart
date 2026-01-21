@@ -31,6 +31,8 @@ class ZoomPanel extends StatelessWidget {
     final String heightText = '${canvasHeight.toInt()}px';
     final String sizeText = '$widthText × $heightText';
 
+    print('Рисуем Зумпанель');
+
     return Container(
       width: panelWidth,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

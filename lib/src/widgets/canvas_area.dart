@@ -144,6 +144,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                   child: ClipRect(
                     child: Stack(
                       children: [
+                        // Отображение холста и тайлов
                         CustomPaint(
                           size: scaledCanvasSize,
                           painter: HierarchicalGridPainter(
@@ -158,6 +159,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                           ),
                         ),
 
+                        // Отображение рамок тайлов
                         if (widget.state.showTileBorders)
                           CustomPaint(
                             size: scaledCanvasSize,
