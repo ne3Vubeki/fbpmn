@@ -145,7 +145,7 @@ class InputHandler {
       }
 
       scrollHandler.updateScrollControllers();
-      onStateUpdate();
+      nodeManager.onStateUpdate();
     } else if (state.isNodeDragging || _isDirectNodeDrag) {
       // Перетаскивание узла (как через выделение, так и прямое)
       nodeManager.updateNodeDrag(position);
@@ -163,7 +163,7 @@ class InputHandler {
     }
 
     _isDirectNodeDrag = false;
-    onStateUpdate();
+    nodeManager.onStateUpdate();
   }
 
   void handlePanCancel() {
@@ -177,7 +177,7 @@ class InputHandler {
     }
 
     _isDirectNodeDrag = false;
-    onStateUpdate();
+    nodeManager.onStateUpdate();
   }
 
   Offset constrainOffset(Offset offset) {

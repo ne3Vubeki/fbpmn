@@ -35,27 +35,32 @@ class _StableGridImageState extends State<StableGridImage> {
     // Сначала создаем TileManager и NodeManager
     _tileManager = TileManager(
       state: _editorState,
-      onStateUpdate: () => setState(() {}),
+      onStateUpdate: () => setState(() {
+        print('Event tiles!!!!!!!');
+      }),
     );
 
     _nodeManager = NodeManager(
       state: _editorState,
       tileManager: _tileManager,
-      onStateUpdate: () => setState(() {}),
     );
 
     // Теперь создаем ScrollHandler с передачей NodeManager
     _scrollHandler = ScrollHandler(
       state: _editorState,
       nodeManager: _nodeManager, // Передаем NodeManager
-      onStateUpdate: () => setState(() {}),
+      onStateUpdate: () => setState(() {
+        print('Event scroll!!!!!!!');
+      }),
     );
 
     _inputHandler = InputHandler(
       state: _editorState,
       nodeManager: _nodeManager,
       scrollHandler: _scrollHandler,
-      onStateUpdate: () => setState(() {}),
+      onStateUpdate: () => setState(() {
+        print('Event input!!!!!!!');
+      }),
     );
 
     // Инициализация
@@ -117,6 +122,7 @@ class _StableGridImageState extends State<StableGridImage> {
 
   @override
   Widget build(BuildContext context) {
+    print('Рисуем редактор!!!!!');
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(

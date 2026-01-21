@@ -10,7 +10,8 @@ import '../services/tile_manager.dart';
 class NodeManager {
   final EditorState state;
   final TileManager tileManager;
-  final VoidCallback onStateUpdate;
+
+  VoidCallback onStateUpdate = () {};
 
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
@@ -28,21 +29,23 @@ class NodeManager {
   NodeManager({
     required this.state,
     required this.tileManager,
-    required this.onStateUpdate,
   });
 
   static List<TableNode?> nodeRecurcive(List<TableNode?> nodes, Function test) {
-        List<TableNode?> testNodes = [];
+    List<TableNode?> testNodes = [];
     for (final node in nodes) {
       if (test(node)) {
         testNodes.add(node);
       }
-      if(node?.children != null && node!.children!.isNotEmpty) {
+      if (node?.children != null && node!.children!.isNotEmpty) {
         testNodes.addAll(nodeRecurcive(node.children!, test));
       }
     }
     return testNodes;
+  }
 
+  void setOnStateUpdate(VoidCallback callback) {
+    onStateUpdate = callback;
   }
 
   // Метод для получения экранных координат из мировых
@@ -560,7 +563,6 @@ class NodeManager {
           }
         }
       }
-
     }
 
     // Обновляем тайлы

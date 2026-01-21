@@ -7,8 +7,8 @@ import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
 import '../painters/tile_border_painter.dart';
-import '../painters/node_custom_painter.dart';
 import '../painters/hierarchical_grid_painter.dart';
+import 'node_selected.dart';
 
 class CanvasArea extends StatefulWidget {
   final EditorState state;
@@ -44,6 +44,7 @@ class _CanvasAreaState extends State<CanvasArea> {
     // Отложенное обновление после построения
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateActualSize();
+      print('Это чертово обновление!!!!!');
     });
   }
 
@@ -71,6 +72,7 @@ class _CanvasAreaState extends State<CanvasArea> {
     // Обновляем размер после изменения виджета
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateActualSize();
+      print('Это чертово обновление!!!!!');
     });
   }
 
@@ -87,6 +89,8 @@ class _CanvasAreaState extends State<CanvasArea> {
         scaledCanvasSize.width > widget.state.viewportSize.width;
     final bool needsVerticalScrollbar =
         scaledCanvasSize.height > widget.state.viewportSize.height;
+
+    print('Рисую холст!!!!!');
 
     return Container(
       key: _containerKey,
@@ -173,7 +177,10 @@ class _CanvasAreaState extends State<CanvasArea> {
                         // Отображение выделенного узла на верхнем слое
                         if (widget.state.isNodeOnTopLayer &&
                             widget.state.nodesSelected.isNotEmpty)
-                          _buildSelectedNode(),
+                          NodeSelected(
+                            state: widget.state,
+                            nodeManager: widget.nodeManager,
+                          ),
                       ],
                     ),
                   ),
@@ -250,43 +257,6 @@ class _CanvasAreaState extends State<CanvasArea> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSelectedNode() {
-    if (widget.state.nodesSelected.isEmpty) return Container();
-
-    final node = widget.state.nodesSelected.first!;
-    final hasAttributes = node.attributes.isNotEmpty;
-    final isEnum = node.qType == 'enum';
-    final isNotGroup = node.groupId != null;
-
-    // Размер узла (масштабированный)
-    final nodeSize = Size(
-      node.size.width * widget.state.scale,
-      node.size.height * widget.state.scale,
-    );
-
-    return Positioned(
-      left: widget.state.selectedNodeOffset.dx,
-      top: widget.state.selectedNodeOffset.dy,
-      child: Container(
-        padding: widget.state.framePadding,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.blue, width: frameBorderWidth),
-          borderRadius: isNotGroup || isEnum || !hasAttributes
-              ? BorderRadius.zero
-              : BorderRadius.circular(12),
-        ),
-        child: CustomPaint(
-          size: nodeSize,
-          painter: NodeCustomPainter(
-            node: node,
-            isSelected: true,
-            targetSize: nodeSize,
-          ),
-        ),
       ),
     );
   }
