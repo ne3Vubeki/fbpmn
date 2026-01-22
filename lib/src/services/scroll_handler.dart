@@ -34,6 +34,9 @@ class ScrollHandler extends Manager {
   double _horizontalDragStartOffset = 0.0;
   double _verticalDragStartOffset = 0.0;
 
+  // Флаг для предотвращения срабатывания слушателей при программном обновлении
+  bool _isUpdatingControllers = false;
+
   // Геттеры для динамических размеров холста
   double get dynamicCanvasWidth => _dynamicCanvasWidth;
   double get dynamicCanvasHeight => _dynamicCanvasHeight;
@@ -315,6 +318,9 @@ class ScrollHandler extends Manager {
       verticalMaxScroll,
     );
 
+    // Устанавливаем флаг, чтобы избежать срабатывания слушателей при программном обновлении
+    _isUpdatingControllers = true;
+
     // Обновляем скроллбары
     if (horizontalScrollController.hasClients) {
       horizontalScrollController.jumpTo(horizontalPosition);
@@ -323,6 +329,9 @@ class ScrollHandler extends Manager {
     if (verticalScrollController.hasClients) {
       verticalScrollController.jumpTo(verticalPosition);
     }
+
+    // Сбрасываем флаг
+    _isUpdatingControllers = false;
   }
 
   /// Вызывается при изменении размера viewport
@@ -344,7 +353,7 @@ class ScrollHandler extends Manager {
   }
 
   void _onHorizontalScroll() {
-    if (_isHorizontalDragging) return; // Игнорируем при перетаскивании
+    if (_isHorizontalDragging || _isUpdatingControllers) return; // Игнорируем при перетаскивании и программном обновлении
 
     final double scrollPosition = horizontalScrollController.offset;
     final Size canvasSize = _calculateCanvasSize();
@@ -365,7 +374,7 @@ class ScrollHandler extends Manager {
   }
 
   void _onVerticalScroll() {
-    if (_isVerticalDragging) return; // Игнорируем при перетаскивании
+    if (_isVerticalDragging || _isUpdatingControllers) return; // Игнорируем при перетаскивании и программном обновлении
 
     final double scrollPosition = verticalScrollController.offset;
     final Size canvasSize = _calculateCanvasSize();
