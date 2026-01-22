@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/input_handler.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -5,18 +6,21 @@ import '../editor_state.dart';
 import '../painters/tile_border_painter.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
+import 'state_widget.dart';
 
 class TileBorder extends StatefulWidget {
   final EditorState state;
   final Size size;
   final TileManager tileManager;
   final ScrollHandler scrollHandler;
+  final InputHandler inputHandler;
 
   const TileBorder({
     super.key,
     required this.state,
     required this.size,
     required this.tileManager,
+    required this.inputHandler,
     required this.scrollHandler,
   });
 
@@ -24,7 +28,7 @@ class TileBorder extends StatefulWidget {
   State<TileBorder> createState() => _TileBorderState();
 }
 
-class _TileBorderState extends State<TileBorder> {
+class _TileBorderState extends State<TileBorder> with StateWidget<TileBorder> {
   // Используем константы из NodeManager
   double get framePadding => NodeManager.framePadding;
   double get frameBorderWidth => NodeManager.frameBorderWidth;
@@ -34,14 +38,13 @@ class _TileBorderState extends State<TileBorder> {
   void initState() {
     super.initState();
     widget.tileManager.setOnStateUpdate('TileBorder', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
     widget.scrollHandler.setOnStateUpdate('TileBorder', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
+    });
+    widget.inputHandler.setOnStateUpdate('TileBorder', () {
+      timeoutSetState();
     });
   }
 

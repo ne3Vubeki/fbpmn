@@ -1,4 +1,5 @@
 import 'package:fbpmn/src/services/input_handler.dart';
+import 'package:fbpmn/src/widgets/state_widget.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
@@ -21,7 +22,8 @@ class NodeSelected extends StatefulWidget {
   State<NodeSelected> createState() => _NodeSelectedState();
 }
 
-class _NodeSelectedState extends State<NodeSelected> {
+class _NodeSelectedState extends State<NodeSelected>
+    with StateWidget<NodeSelected> {
   // Используем константы из NodeManager
   double get framePadding => NodeManager.framePadding;
   double get frameBorderWidth => NodeManager.frameBorderWidth;
@@ -31,14 +33,10 @@ class _NodeSelectedState extends State<NodeSelected> {
   void initState() {
     super.initState();
     widget.nodeManager.setOnStateUpdate('NodeSelected', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
     widget.inputHandler.setOnStateUpdate('NodeSelected', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
   }
 

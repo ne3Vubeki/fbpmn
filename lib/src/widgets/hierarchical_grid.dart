@@ -6,6 +6,7 @@ import '../painters/hierarchical_grid_painter.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
+import 'state_widget.dart';
 
 class HierarchicalGrid extends StatefulWidget {
   final EditorState state;
@@ -29,7 +30,8 @@ class HierarchicalGrid extends StatefulWidget {
   State<HierarchicalGrid> createState() => _HierarchicalGridState();
 }
 
-class _HierarchicalGridState extends State<HierarchicalGrid> {
+class _HierarchicalGridState extends State<HierarchicalGrid>
+    with StateWidget<HierarchicalGrid> {
   // Используем константы из NodeManager
   double get framePadding => NodeManager.framePadding;
   double get frameBorderWidth => NodeManager.frameBorderWidth;
@@ -39,24 +41,16 @@ class _HierarchicalGridState extends State<HierarchicalGrid> {
   void initState() {
     super.initState();
     widget.inputHandler.setOnStateUpdate('HierarchicalGrid', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
-    widget.nodeManager.setOnStateUpdate('HierarchicalGrid', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+    widget.nodeManager.setOnStateUpdate('HierarchicalGrid ', () {
+      timeoutSetState();
     });
     widget.tileManager.setOnStateUpdate('HierarchicalGrid', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
     widget.scrollHandler.setOnStateUpdate('HierarchicalGrid', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
   }
 
@@ -67,8 +61,8 @@ class _HierarchicalGridState extends State<HierarchicalGrid> {
 
   @override
   Widget build(BuildContext context) {
-    return // Отображение холста и тайлов
-    RepaintBoundary(
+    print('Запуск виджета HierarchicalGridPainter +++++++++');
+    return RepaintBoundary(
       child: CustomPaint(
         size: widget.size,
         painter: HierarchicalGridPainter(

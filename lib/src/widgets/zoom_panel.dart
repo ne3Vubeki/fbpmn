@@ -31,21 +31,13 @@ class ZoomPanel extends StatelessWidget {
     final String heightText = '${canvasHeight.toInt()}px';
     final String sizeText = '$widthText × $heightText';
 
-    print('Рисуем Зумпанель');
-
     return Container(
       width: panelWidth,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withOpacity(.9),
         borderRadius: BorderRadius.circular(6),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.grey[400]!, width: 1),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

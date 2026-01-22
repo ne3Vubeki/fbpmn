@@ -6,6 +6,7 @@ import '../services/input_handler.dart';
 import '../services/scroll_handler.dart';
 import '../services/tile_manager.dart';
 import 'canvas_thumbnail.dart';
+import 'state_widget.dart';
 import 'zoom_panel.dart';
 
 class ZoomContainer extends StatefulWidget {
@@ -26,7 +27,8 @@ class ZoomContainer extends StatefulWidget {
   State<ZoomContainer> createState() => _ZoomContainerState();
 }
 
-class _ZoomContainerState extends State<ZoomContainer> {
+class _ZoomContainerState extends State<ZoomContainer>
+    with StateWidget<ZoomContainer> {
   bool _showThumbnail = true;
 
   double get scale => widget.state.scale;
@@ -38,30 +40,24 @@ class _ZoomContainerState extends State<ZoomContainer> {
   Size get viewportSize => widget.state.viewportSize;
   List<ImageTile> get imageTiles => widget.state.imageTiles;
 
-  VoidCallback onResetZoom() => widget.scrollHandler.resetZoom;
-  
-  VoidCallback onToggleTileBorders() => widget.inputHandler.toggleTileBorders;
+  onResetZoom() => widget.scrollHandler.resetZoom();
+
+  onToggleTileBorders() => widget.inputHandler.toggleTileBorders();
 
   @override
   void initState() {
     super.initState();
     widget.inputHandler.setOnStateUpdate('ZoomContainer', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
     widget.scrollHandler.setOnStateUpdate('ZoomContainer', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
     widget.tileManager.setOnStateUpdate('ZoomContainer', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
   }
-  
+
   void onThumbnailClick(Offset newOffset) {
     // Обновляем offset в состоянии
     widget.state.offset = widget.inputHandler.constrainOffset(newOffset);
@@ -71,7 +67,6 @@ class _ZoomContainerState extends State<ZoomContainer> {
     setState(() {});
   }
 
-
   void _toggleThumbnail() {
     setState(() {
       _showThumbnail = !_showThumbnail;
@@ -79,7 +74,7 @@ class _ZoomContainerState extends State<ZoomContainer> {
   }
 
   void _handleThumbnailClick(Offset newCanvasOffset) {
-      onThumbnailClick(newCanvasOffset);
+    onThumbnailClick(newCanvasOffset);
   }
 
   @override

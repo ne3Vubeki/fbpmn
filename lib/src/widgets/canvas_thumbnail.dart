@@ -323,17 +323,10 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
         width: thumbnailWidth,
         height: thumbnailHeight,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.white.withOpacity(.7),
           borderRadius: BorderRadius.circular(6),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
           border: Border.all(
-            color: _isDragging ? Colors.blue : Colors.grey[300]!,
+            color: _isDragging ? Colors.blue : Colors.grey[400]!,
             width: _isDragging ? 2 : 1,
           ),
         ),

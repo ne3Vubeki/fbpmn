@@ -235,6 +235,7 @@ class TileManager extends Manager {
 
     /// Создание тайлов рассчитанным узлам и связям
     for (final tileId in createdTiles) {
+      print('Create tile $tileId ----------');
       final tilePos = tileId.split(':');
       final left = double.tryParse(tilePos.first);
       final top = double.tryParse(tilePos.last);
@@ -438,8 +439,6 @@ class TileManager extends Manager {
     for (final tile in tilesToUpdate) {
       await updateTileWithAllContent(tile);
     }
-
-    onStateUpdate();
   }
 
   // Поиск тайлов, содержащих указанный узел

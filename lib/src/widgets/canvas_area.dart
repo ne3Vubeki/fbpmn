@@ -165,6 +165,7 @@ class _CanvasAreaState extends State<CanvasArea> {
                         TileBorder(
                           size: scaledCanvasSize,
                           state: widget.state,
+                          inputHandler: widget.inputHandler,
                           tileManager: widget.tileManager,
                           scrollHandler: widget.scrollHandler,
                         ),

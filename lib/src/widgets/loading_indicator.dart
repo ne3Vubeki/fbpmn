@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
 import '../services/tile_manager.dart';
+import 'state_widget.dart';
 
 class LoadingIndicator extends StatefulWidget {
   final EditorState state;
@@ -17,14 +18,13 @@ class LoadingIndicator extends StatefulWidget {
   State<LoadingIndicator> createState() => _LoadingIndicatorState();
 }
 
-class _LoadingIndicatorState extends State<LoadingIndicator> {
+class _LoadingIndicatorState extends State<LoadingIndicator>
+    with StateWidget<LoadingIndicator> {
   @override
   void initState() {
     super.initState();
     widget.tileManager.setOnStateUpdate('LoadingIndicator', () {
-      if (this.mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
   }
 
