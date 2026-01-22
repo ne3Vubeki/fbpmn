@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,14 +7,15 @@ import '../editor_state.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
-import '../painters/tile_border_painter.dart';
-import '../painters/hierarchical_grid_painter.dart';
+import 'hierarchical_grid.dart';
 import 'node_selected.dart';
+import 'tile_border.dart';
 
 class CanvasArea extends StatefulWidget {
   final EditorState state;
   final InputHandler inputHandler;
   final NodeManager nodeManager;
+  final TileManager tileManager;
   final ScrollHandler scrollHandler;
 
   const CanvasArea({
@@ -21,6 +23,7 @@ class CanvasArea extends StatefulWidget {
     required this.state,
     required this.inputHandler,
     required this.nodeManager,
+    required this.tileManager,
     required this.scrollHandler,
   });
 
@@ -149,38 +152,29 @@ class _CanvasAreaState extends State<CanvasArea> {
                     child: Stack(
                       children: [
                         // Отображение холста и тайлов
-                        CustomPaint(
+                        HierarchicalGrid(
                           size: scaledCanvasSize,
-                          painter: HierarchicalGridPainter(
-                            scale: widget.state.scale,
-                            offset: widget.state.offset,
-                            canvasSize: scaledCanvasSize,
-                            nodes: widget.state.nodes,
-                            arrows: widget.state.arrows,
-                            delta: widget.state.delta,
-                            state: widget.state,
-                            tileScale: 2.0,
-                          ),
+                          state: widget.state,
+                          inputHandler: widget.inputHandler,
+                          nodeManager: widget.nodeManager,
+                          tileManager: widget.tileManager,
+                          scrollHandler: widget.scrollHandler,
                         ),
 
                         // Отображение рамок тайлов
-                        if (widget.state.showTileBorders)
-                          CustomPaint(
-                            size: scaledCanvasSize,
-                            painter: TileBorderPainter(
-                              scale: widget.state.scale,
-                              offset: widget.state.offset,
-                              state: widget.state,
-                            ),
-                          ),
+                        TileBorder(
+                          size: scaledCanvasSize,
+                          state: widget.state,
+                          tileManager: widget.tileManager,
+                          scrollHandler: widget.scrollHandler,
+                        ),
 
                         // Отображение выделенного узла на верхнем слое
-                        if (widget.state.isNodeOnTopLayer &&
-                            widget.state.nodesSelected.isNotEmpty)
-                          NodeSelected(
-                            state: widget.state,
-                            nodeManager: widget.nodeManager,
-                          ),
+                        NodeSelected(
+                          state: widget.state,
+                          nodeManager: widget.nodeManager,
+                          inputHandler: widget.inputHandler,
+                        ),
                       ],
                     ),
                   ),

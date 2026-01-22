@@ -5,17 +5,16 @@ import 'package:flutter/cupertino.dart';
 
 import '../models/table.node.dart';
 import '../models/arrow.dart';
+import 'manager.dart';
 
 /// Сервис для управления и расчета соединений стрелок
-class ArrowManager {
+class ArrowManager extends Manager {
   final List<Arrow> arrows;
   final List<TableNode> nodes;
-  final Map<TableNode, Rect> nodeBoundsCache;
 
   ArrowManager({
     required this.arrows,
     required this.nodes,
-    required this.nodeBoundsCache,
   });
 
   /// Расчет точек соединения для определения стороны

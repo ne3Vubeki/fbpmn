@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/input_handler.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
@@ -7,11 +8,13 @@ import '../services/node_manager.dart';
 class NodeSelected extends StatefulWidget {
   final EditorState state;
   final NodeManager nodeManager;
+  final InputHandler inputHandler;
 
   const NodeSelected({
     super.key,
     required this.state,
     required this.nodeManager,
+    required this.inputHandler,
   });
 
   @override
@@ -27,7 +30,12 @@ class _NodeSelectedState extends State<NodeSelected> {
   @override
   void initState() {
     super.initState();
-    widget.nodeManager.setOnStateUpdate(() {
+    widget.nodeManager.setOnStateUpdate('NodeSelected', () {
+      if (this.mounted) {
+        setState(() {});
+      }
+    });
+    widget.inputHandler.setOnStateUpdate('NodeSelected', () {
       if (this.mounted) {
         setState(() {});
       }
@@ -54,26 +62,31 @@ class _NodeSelectedState extends State<NodeSelected> {
       node.size.height * widget.state.scale,
     );
 
-    return Positioned(
-      left: widget.state.selectedNodeOffset.dx,
-      top: widget.state.selectedNodeOffset.dy,
-      child: Container(
-        padding: widget.state.framePadding,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.blue, width: frameBorderWidth),
-          borderRadius: isNotGroup || isEnum || !hasAttributes
-              ? BorderRadius.zero
-              : BorderRadius.circular(12),
-        ),
-        child: CustomPaint(
-          size: nodeSize,
-          painter: NodeCustomPainter(
-            node: node,
-            isSelected: true,
-            targetSize: nodeSize,
-          ),
-        ),
-      ),
-    );
+    return widget.state.isNodeOnTopLayer &&
+            widget.state.nodesSelected.isNotEmpty
+        ? Positioned(
+            left: widget.state.selectedNodeOffset.dx,
+            top: widget.state.selectedNodeOffset.dy,
+            child: Container(
+              padding: widget.state.framePadding,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blue, width: frameBorderWidth),
+                borderRadius: isNotGroup || isEnum || !hasAttributes
+                    ? BorderRadius.zero
+                    : BorderRadius.circular(12),
+              ),
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  size: nodeSize,
+                  painter: NodeCustomPainter(
+                    node: node,
+                    isSelected: true,
+                    targetSize: nodeSize,
+                  ),
+                ),
+              ),
+            ),
+          )
+        : Container();
   }
 }

@@ -1,35 +1,25 @@
 import 'package:flutter/material.dart';
 
+import '../editor_state.dart';
 import '../models/image_tile.dart';
+import '../services/input_handler.dart';
+import '../services/scroll_handler.dart';
+import '../services/tile_manager.dart';
 import 'canvas_thumbnail.dart';
 import 'zoom_panel.dart';
 
 class ZoomContainer extends StatefulWidget {
-  final double scale;
-  final bool showTileBorders;
-  final double canvasWidth;
-  final double canvasHeight;
-  final Offset canvasOffset;
-  final Offset delta; // Добавляем delta
-  final Size viewportSize;
-  final List<ImageTile> imageTiles;
-  final VoidCallback onResetZoom;
-  final VoidCallback onToggleTileBorders;
-  final Function(Offset)? onThumbnailClick;
+  final EditorState state;
+  final InputHandler inputHandler;
+  final ScrollHandler scrollHandler;
+  final TileManager tileManager;
 
   const ZoomContainer({
     super.key,
-    required this.scale,
-    required this.showTileBorders,
-    required this.canvasWidth,
-    required this.canvasHeight,
-    required this.canvasOffset,
-    required this.delta, // Добавляем delta
-    required this.viewportSize,
-    required this.imageTiles,
-    required this.onResetZoom,
-    required this.onToggleTileBorders,
-    required this.onThumbnailClick,
+    required this.state,
+    required this.scrollHandler,
+    required this.inputHandler,
+    required this.tileManager,
   });
 
   @override
@@ -39,6 +29,49 @@ class ZoomContainer extends StatefulWidget {
 class _ZoomContainerState extends State<ZoomContainer> {
   bool _showThumbnail = true;
 
+  double get scale => widget.state.scale;
+  bool get showTileBorders => widget.state.showTileBorders;
+  double get canvasWidth => widget.scrollHandler.dynamicCanvasWidth;
+  double get canvasHeight => widget.scrollHandler.dynamicCanvasHeight;
+  Offset get canvasOffset => widget.state.offset;
+  Offset get delta => widget.state.delta;
+  Size get viewportSize => widget.state.viewportSize;
+  List<ImageTile> get imageTiles => widget.state.imageTiles;
+
+  VoidCallback onResetZoom() => widget.scrollHandler.resetZoom;
+  
+  VoidCallback onToggleTileBorders() => widget.inputHandler.toggleTileBorders;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.inputHandler.setOnStateUpdate('ZoomContainer', () {
+      if (this.mounted) {
+        setState(() {});
+      }
+    });
+    widget.scrollHandler.setOnStateUpdate('ZoomContainer', () {
+      if (this.mounted) {
+        setState(() {});
+      }
+    });
+    widget.tileManager.setOnStateUpdate('ZoomContainer', () {
+      if (this.mounted) {
+        setState(() {});
+      }
+    });
+  }
+  
+  void onThumbnailClick(Offset newOffset) {
+    // Обновляем offset в состоянии
+    widget.state.offset = widget.inputHandler.constrainOffset(newOffset);
+    // Обновляем скроллбары
+    widget.scrollHandler.updateScrollControllers();
+    // Перерисовываем
+    setState(() {});
+  }
+
+
   void _toggleThumbnail() {
     setState(() {
       _showThumbnail = !_showThumbnail;
@@ -46,17 +79,7 @@ class _ZoomContainerState extends State<ZoomContainer> {
   }
 
   void _handleThumbnailClick(Offset newCanvasOffset) {
-    // Нужно обновить offset в основном состоянии
-    // Для этого нужно передать callback дальше или иметь доступ к EditorState
-
-    // Если ZoomContainer не имеет доступа к EditorState,
-    // нужно добавить callback в конструктор ZoomContainer:
-    // final Function(Offset) onThumbnailClick;
-
-    // И вызывать его:
-    if (widget.onThumbnailClick != null) {
-      widget.onThumbnailClick!(newCanvasOffset);
-    }
+      onThumbnailClick(newCanvasOffset);
   }
 
   @override
@@ -74,14 +97,14 @@ class _ZoomContainerState extends State<ZoomContainer> {
           // Миниатюра холста (отображается если включена)
           if (_showThumbnail) ...[
             CanvasThumbnail(
-              canvasWidth: widget.canvasWidth,
-              canvasHeight: widget.canvasHeight,
-              canvasOffset: widget.canvasOffset,
+              canvasWidth: canvasWidth,
+              canvasHeight: canvasHeight,
+              canvasOffset: canvasOffset,
               panelWidth: containerWidth,
-              delta: widget.delta, // Передаем delta
-              viewportSize: widget.viewportSize,
-              scale: widget.scale,
-              imageTiles: widget.imageTiles,
+              delta: delta, // Передаем delta
+              viewportSize: viewportSize,
+              scale: scale,
+              imageTiles: imageTiles,
               onThumbnailClick: _handleThumbnailClick,
             ),
             const SizedBox(height: 8),
@@ -89,14 +112,14 @@ class _ZoomContainerState extends State<ZoomContainer> {
 
           // Панель управления зумом (ширина равна ширине контейнера)
           ZoomPanel(
-            scale: widget.scale,
-            showTileBorders: widget.showTileBorders,
+            scale: scale,
+            showTileBorders: showTileBorders,
             showThumbnail: _showThumbnail,
-            canvasWidth: widget.canvasWidth,
-            canvasHeight: widget.canvasHeight,
+            canvasWidth: canvasWidth,
+            canvasHeight: canvasHeight,
             panelWidth: containerWidth,
-            onResetZoom: widget.onResetZoom,
-            onToggleTileBorders: widget.onToggleTileBorders,
+            onResetZoom: onResetZoom,
+            onToggleTileBorders: onToggleTileBorders,
             onToggleThumbnail: _toggleThumbnail,
           ),
         ],

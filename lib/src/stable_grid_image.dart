@@ -32,12 +32,8 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _editorState = EditorState();
 
-    // Сначала создаем TileManager и NodeManager
     _tileManager = TileManager(
       state: _editorState,
-      onStateUpdate: () => setState(() {
-        print('Event tiles!!!!!!!');
-      }),
     );
 
     _nodeManager = NodeManager(
@@ -45,22 +41,15 @@ class _StableGridImageState extends State<StableGridImage> {
       tileManager: _tileManager,
     );
 
-    // Теперь создаем ScrollHandler с передачей NodeManager
     _scrollHandler = ScrollHandler(
       state: _editorState,
-      nodeManager: _nodeManager, // Передаем NodeManager
-      onStateUpdate: () => setState(() {
-        print('Event scroll!!!!!!!');
-      }),
+      nodeManager: _nodeManager,
     );
 
     _inputHandler = InputHandler(
       state: _editorState,
       nodeManager: _nodeManager,
       scrollHandler: _scrollHandler,
-      onStateUpdate: () => setState(() {
-        print('Event input!!!!!!!');
-      }),
     );
 
     // Инициализация
@@ -117,6 +106,7 @@ class _StableGridImageState extends State<StableGridImage> {
     _inputHandler.dispose();
     _scrollHandler.dispose();
     _tileManager.dispose();
+    _nodeManager.dispose();
     super.dispose();
   }
 
@@ -133,6 +123,7 @@ class _StableGridImageState extends State<StableGridImage> {
               inputHandler: _inputHandler,
               nodeManager: _nodeManager,
               scrollHandler: _scrollHandler,
+              tileManager: _tileManager,
             ),
 
             // Контейнер с миниатюрой и панелью зума
@@ -140,33 +131,15 @@ class _StableGridImageState extends State<StableGridImage> {
               right: 0,
               bottom: 0,
               child: ZoomContainer(
-                scale: _editorState.scale,
-                showTileBorders: _editorState.showTileBorders,
-                canvasWidth: _scrollHandler.dynamicCanvasWidth,
-                canvasHeight: _scrollHandler.dynamicCanvasHeight,
-                canvasOffset: _editorState.offset,
-                delta: _editorState.delta, // Передаем delta
-                viewportSize: _editorState.viewportSize,
-                imageTiles: _editorState.imageTiles,
-                onResetZoom: () => _scrollHandler.resetZoom(),
-                onToggleTileBorders: () => _inputHandler.toggleTileBorders(),
-                onThumbnailClick: (Offset newOffset) {
-                  // Обновляем offset в состоянии
-                  _editorState.offset = _inputHandler.constrainOffset(
-                    newOffset,
-                  );
-
-                  // Обновляем скроллбары
-                  _scrollHandler.updateScrollControllers();
-
-                  // Перерисовываем
-                  setState(() {});
-                },
+                state: _editorState,
+                scrollHandler: _scrollHandler,
+                inputHandler: _inputHandler,
+                tileManager: _tileManager,
               ),
             ),
 
             // Индикатор загрузки
-            if (_editorState.isLoading) const LoadingIndicator(),
+            LoadingIndicator(state: _editorState, tileManager: _tileManager),
           ],
         );
       },

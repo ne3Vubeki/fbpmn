@@ -5,11 +5,11 @@ import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../services/node_manager.dart';
 import '../utils/bounds_calculator.dart';
+import 'manager.dart';
 
-class ScrollHandler {
+class ScrollHandler extends Manager {
   final EditorState state;
   final NodeManager? nodeManager;
-  final VoidCallback onStateUpdate;
 
   final BoundsCalculator _boundsCalculator = BoundsCalculator();
   static const double tileSize = 1024.0; // Размер тайла
@@ -37,11 +37,7 @@ class ScrollHandler {
   double get dynamicCanvasWidth => _dynamicCanvasWidth;
   double get dynamicCanvasHeight => _dynamicCanvasHeight;
 
-  ScrollHandler({
-    required this.state,
-    this.nodeManager,
-    required this.onStateUpdate,
-  }) {
+  ScrollHandler({required this.state, this.nodeManager}) {
     horizontalScrollController.addListener(_onHorizontalScroll);
     verticalScrollController.addListener(_onVerticalScroll);
   }
@@ -114,7 +110,7 @@ class ScrollHandler {
 
     // Используем бОльший размер: расчетный или статический
     _dynamicCanvasWidth = math.max(calculatedWidth, staticCanvasWidth);
-    _dynamicCanvasHeight = math.max(calculatedHeight, staticCanvasHeight);    
+    _dynamicCanvasHeight = math.max(calculatedHeight, staticCanvasHeight);
   }
 
   /// Округляет значение до ближайшего кратного размеру тайла
@@ -406,7 +402,9 @@ class ScrollHandler {
     return value;
   }
 
+  @override
   void dispose() {
+    super.dispose();
     horizontalScrollController.dispose();
     verticalScrollController.dispose();
   }

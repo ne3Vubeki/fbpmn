@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import '../editor_state.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
+import 'manager.dart';
 
-class InputHandler {
+class InputHandler extends Manager {
   final EditorState state;
   final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
-  final VoidCallback onStateUpdate;
 
   final FocusNode _focusNode = FocusNode();
 
@@ -21,7 +21,6 @@ class InputHandler {
     required this.state,
     required this.nodeManager,
     required this.scrollHandler,
-    required this.onStateUpdate,
   });
 
   void handleKeyEvent(KeyEvent event) {
@@ -85,7 +84,7 @@ class InputHandler {
       onStateUpdate();
     } else {
       bool clickedOnSelectedNode = false;
-      
+
       if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
         final node = state.nodesSelected.first!;
         final scaledWidth = node.size.width * state.scale;
@@ -99,7 +98,7 @@ class InputHandler {
             state.selectedNodeOffset.dx,
             state.selectedNodeOffset.dy,
             scaledWidth + state.framePadding.left + state.framePadding.right,
-            scaledHeight + state.framePadding.top + state.framePadding.bottom
+            scaledHeight + state.framePadding.top + state.framePadding.bottom,
           );
 
           clickedOnSelectedNode = nodeScreenRect.contains(position);
@@ -221,7 +220,9 @@ class InputHandler {
 
   FocusNode get focusNode => _focusNode;
 
+  @override
   void dispose() {
+    super.dispose();
     _focusNode.dispose();
   }
 }

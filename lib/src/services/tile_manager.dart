@@ -14,23 +14,19 @@ import '../utils/node_renderer.dart';
 import '../utils/editor_config.dart';
 import '../painters/arrow_tile_painter.dart';
 import 'arrow_manager.dart';
+import 'manager.dart';
 
-class TileManager {
+class TileManager extends Manager {
   final EditorState state;
-  final VoidCallback onStateUpdate;
 
   final BoundsCalculator _boundsCalculator = BoundsCalculator();
   final NodeRenderer _nodeRenderer = NodeRenderer();
 
   late ArrowManager arrowManager;
 
-  TileManager({required this.state, required this.onStateUpdate}) {
+  TileManager({required this.state}) {
     // Создаем ArrowManager для проверки пересечений
-    arrowManager = ArrowManager(
-      arrows: state.arrows,
-      nodes: state.nodes,
-      nodeBoundsCache: state.nodeBoundsCache,
-    );
+    arrowManager = ArrowManager(arrows: state.arrows, nodes: state.nodes);
   }
 
   Future<void> createTiledImage(
@@ -442,6 +438,8 @@ class TileManager {
     for (final tile in tilesToUpdate) {
       await updateTileWithAllContent(tile);
     }
+
+    onStateUpdate();
   }
 
   // Поиск тайлов, содержащих указанный узел
@@ -641,8 +639,8 @@ class TileManager {
 
   // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
   Future<void> updateTilesAfterNodeChange() async {
-    Set<TableNode?> nodes = {...state.nodesSelected};
-    Set<Arrow?> arrows = {...state.arrowsSelected};
+    // Set<TableNode?> nodes = {...state.nodesSelected};
+    // Set<Arrow?> arrows = {...state.arrowsSelected};
 
     // for (final arrow in arrows) {
     //   final node = state.nodes.firstWhereOrNull(
@@ -722,10 +720,11 @@ class TileManager {
     for (final tile in state.imageTiles) {
       tile.image.dispose();
     }
-    state.nodeBoundsCache.clear();
   }
 
+  @override
   void dispose() {
+    super.dispose();
     _disposeTiles();
   }
 }

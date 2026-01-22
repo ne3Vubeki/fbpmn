@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:fbpmn/src/services/manager.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -7,11 +8,9 @@ import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../services/tile_manager.dart';
 
-class NodeManager {
+class NodeManager extends Manager {
   final EditorState state;
   final TileManager tileManager;
-
-  VoidCallback onStateUpdate = () {};
 
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
@@ -42,10 +41,6 @@ class NodeManager {
       }
     }
     return testNodes;
-  }
-
-  void setOnStateUpdate(VoidCallback callback) {
-    onStateUpdate = callback;
   }
 
   // Метод для получения экранных координат из мировых

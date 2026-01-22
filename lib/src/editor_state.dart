@@ -42,6 +42,4 @@ class EditorState {
   // Загрузка
   bool isLoading = false;
   
-  // Кэши
-  final Map<TableNode, Rect> nodeBoundsCache = {};
 }

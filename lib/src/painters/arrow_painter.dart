@@ -8,13 +8,11 @@ import '../services/arrow_manager.dart';
 class ArrowPainter {
   final Arrow arrow;
   final List<TableNode> nodes;
-  final Map<TableNode, Rect> nodeBoundsCache;
   final Map<String, TableNode> _nodeMap;
 
   ArrowPainter({
     required this.arrow,
     required this.nodes,
-    required this.nodeBoundsCache,
   }) : _nodeMap = _buildNodeMap(nodes);
 
   /// Build a map of all nodes including nested ones
@@ -121,7 +119,6 @@ class ArrowPainter {
     final arrowManager = ArrowManager(
       arrows: allArrows,
       nodes: nodes,
-      nodeBoundsCache: nodeBoundsCache,
     );
 
     // Рисуем стрелку

@@ -1,32 +1,21 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 
 import '../editor_state.dart';
-import '../models/table.node.dart';
-import '../models/arrow.dart';
 
 class HierarchicalGridPainter extends CustomPainter {
   final double scale;
   final Offset offset;
-  final Offset delta;
   final Size canvasSize;
-  final List<TableNode> nodes;
-  final List<Arrow> arrows;
   final EditorState state;
-
-  // Убираем totalBounds
-  final double tileScale;
+  final bool isNodeDragging;
 
   HierarchicalGridPainter({
     required this.scale,
     required this.offset,
     required this.canvasSize,
-    required this.nodes,
-    required this.arrows,
-    required this.delta,
     required this.state,
-    required this.tileScale,
+    required this.isNodeDragging,
   });
 
   @override
@@ -124,10 +113,8 @@ class HierarchicalGridPainter extends CustomPainter {
           final dstRect = intersection;
 
           if (srcRect.width > 0 && srcRect.height > 0) {
-            print('Рисую тайл c площадью ${tile.id}');
+            print('HierarchicalGridPainter: Рисую тайл ${tile.id}');
             canvas.drawImageRect(tile.image, srcRect, dstRect, paint);
-          } else {
-            print('НЕ Рисую тайл ${tile.id}');
           }
         } catch (e) {
           // Тихая обработка ошибок при рисовании
@@ -249,16 +236,6 @@ class HierarchicalGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant HierarchicalGridPainter oldDelegate) {
-    return oldDelegate.scale != scale ||
-        oldDelegate.offset != offset ||
-        oldDelegate.canvasSize != canvasSize ||
-        oldDelegate.delta != delta ||
-        oldDelegate.state.imageTiles.length != state.imageTiles.length ||
-        oldDelegate.arrows.length != arrows.length ||
-        // Check if arrows list is different (in case of element changes without length change)
-        !listEquals(
-          oldDelegate.arrows.map((a) => a.id).toList(),
-          arrows.map((a) => a.id).toList(),
-        );
+    return !oldDelegate.isNodeDragging || !isNodeDragging;
   }
 }
