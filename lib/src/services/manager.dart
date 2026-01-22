@@ -12,7 +12,7 @@ class Manager {
   void onStateUpdate() {
     if(_onStateUpdate.keys.isNotEmpty) {
       for(final key in _onStateUpdate.keys) {
-        print('Event for $key =================================');
+        // print('Event for $key =================================');
         _onStateUpdate[key]!();
       }
     }

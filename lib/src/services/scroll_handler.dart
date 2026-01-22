@@ -160,7 +160,7 @@ class ScrollHandler extends Manager {
 
     // Оставляем небольшой отступ для лучшего восприятия
     final padding = 50.0;
-    
+
     // Масштаб по ширине и высоте
     final scaleX = (viewportWidth - padding * 2) / requiredWidth;
     final scaleY = (viewportHeight - padding * 2) / requiredHeight;
@@ -169,14 +169,20 @@ class ScrollHandler extends Manager {
     var targetScale = scaleX < scaleY ? scaleX : scaleY;
 
     // Ограничиваем масштаб в пределах допустимого диапазона
-    targetScale = _clamp(targetScale, EditorConfig.minScale, EditorConfig.maxScale);
+    targetScale = _clamp(
+      targetScale,
+      EditorConfig.minScale,
+      EditorConfig.maxScale,
+    );
 
     // Устанавливаем новый масштаб
     state.scale = targetScale;
 
     // Центрируем видимую область по центру узлов
-    final centerX = viewportWidth / 2 - (bounds.left + bounds.width / 2) * targetScale;
-    final centerY = viewportHeight / 2 - (bounds.top + bounds.height / 2) * targetScale;
+    final centerX =
+        viewportWidth / 2 - (bounds.left + bounds.width / 2) * targetScale;
+    final centerY =
+        viewportHeight / 2 - (bounds.top + bounds.height / 2) * targetScale;
 
     state.offset = Offset(centerX, centerY);
 
@@ -215,8 +221,10 @@ class ScrollHandler extends Manager {
       maxY = math.max(maxY, nodeRect.bottom);
     }
 
-    if (minX == double.infinity || minY == double.infinity ||
-        maxX == -double.infinity || maxY == -double.infinity) {
+    if (minX == double.infinity ||
+        minY == double.infinity ||
+        maxX == -double.infinity ||
+        maxY == -double.infinity) {
       return null;
     }
 
@@ -344,7 +352,8 @@ class ScrollHandler extends Manager {
   }
 
   void _onHorizontalScroll() {
-    if (_isHorizontalDragging) return; // Игнорируем при перетаскивании и программном обновлении
+    if (_isHorizontalDragging)
+      return; // Игнорируем при перетаскивании и программном обновлении
 
     final double scrollPosition = horizontalScrollController.offset;
     final Size canvasSize = _calculateCanvasSize();
@@ -365,7 +374,8 @@ class ScrollHandler extends Manager {
   }
 
   void _onVerticalScroll() {
-    if (_isVerticalDragging) return; // Игнорируем при перетаскивании и программном обновлении
+    if (_isVerticalDragging)
+      return; // Игнорируем при перетаскивании и программном обновлении
 
     final double scrollPosition = verticalScrollController.offset;
     final Size canvasSize = _calculateCanvasSize();
