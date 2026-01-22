@@ -5,6 +5,7 @@ import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../services/node_manager.dart';
 import '../utils/bounds_calculator.dart';
+import '../utils/editor_config.dart';
 import 'manager.dart';
 
 class ScrollHandler extends Manager {
@@ -128,6 +129,98 @@ class ScrollHandler extends Manager {
         math.max(_dynamicCanvasHeight, staticCanvasHeight) * state.scale;
 
     return Size(width, height);
+  }
+
+  /// Автоматически масштабирует и центрирует узлы в видимой области
+  void autoFitAndCenterNodes() {
+    if (nodeManager == null || state.nodes.isEmpty) {
+      centerCanvas();
+      return;
+    }
+
+    // Рассчитываем границы всех узлов
+    final bounds = _calculateNodesBounds(state.nodes);
+    if (bounds == null) {
+      centerCanvas();
+      return;
+    }
+
+    // Получаем размеры видимой области
+    final viewportWidth = state.viewportSize.width;
+    final viewportHeight = state.viewportSize.height;
+
+    if (viewportWidth <= 0 || viewportHeight <= 0) {
+      centerCanvas();
+      return;
+    }
+
+    // Рассчитываем требуемый масштаб для размещения всех узлов в видимой области
+    final requiredWidth = bounds.width;
+    final requiredHeight = bounds.height;
+
+    // Оставляем небольшой отступ для лучшего восприятия
+    final padding = 50.0;
+    
+    // Масштаб по ширине и высоте
+    final scaleX = (viewportWidth - padding * 2) / requiredWidth;
+    final scaleY = (viewportHeight - padding * 2) / requiredHeight;
+
+    // Берем минимальный масштаб, чтобы всё поместилось
+    var targetScale = scaleX < scaleY ? scaleX : scaleY;
+
+    // Ограничиваем масштаб в пределах допустимого диапазона
+    targetScale = _clamp(targetScale, EditorConfig.minScale, EditorConfig.maxScale);
+
+    // Устанавливаем новый масштаб
+    state.scale = targetScale;
+
+    // Центрируем видимую область по центру узлов
+    final centerX = viewportWidth / 2 - (bounds.left + bounds.width / 2) * targetScale;
+    final centerY = viewportHeight / 2 - (bounds.top + bounds.height / 2) * targetScale;
+
+    state.offset = Offset(centerX, centerY);
+
+    // Корректируем offset, чтобы не выходить за границы
+    _constrainCurrentOffset();
+
+    // Обновляем позицию выделенного узла
+    if (state.isNodeOnTopLayer) {
+      nodeManager?.onOffsetChanged();
+    }
+
+    updateScrollControllers();
+    state.isInitialized = true;
+    onStateUpdate();
+  }
+
+  /// Рассчитывает границы всех узлов
+  Rect? _calculateNodesBounds(List<TableNode> nodes) {
+    if (nodes.isEmpty) return null;
+
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = -double.infinity;
+    double maxY = -double.infinity;
+
+    for (final node in nodes) {
+      final nodePosition = state.delta + node.position;
+      final nodeRect = _boundsCalculator.calculateNodeRect(
+        node: node,
+        position: nodePosition,
+      );
+
+      minX = math.min(minX, nodeRect.left);
+      minY = math.min(minY, nodeRect.top);
+      maxX = math.max(maxX, nodeRect.right);
+      maxY = math.max(maxY, nodeRect.bottom);
+    }
+
+    if (minX == double.infinity || minY == double.infinity ||
+        maxX == -double.infinity || maxY == -double.infinity) {
+      return null;
+    }
+
+    return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
 
   void centerCanvas() {

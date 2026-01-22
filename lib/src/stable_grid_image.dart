@@ -97,7 +97,7 @@ class _StableGridImageState extends State<StableGridImage> {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollHandler.centerCanvas();
+      _scrollHandler.autoFitAndCenterNodes();
     });
   }
 
