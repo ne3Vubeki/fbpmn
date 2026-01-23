@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
@@ -88,21 +89,24 @@ class HierarchicalGridPainter extends CustomPainter {
           final intersection = tile.bounds.intersect(visibleRect);
           if (intersection.isEmpty) continue;
 
-          // Вычисляем координаты в изображении тайла
+          // Вычисляем координаты в изображении тайла с учетом масштаба тайла
           final srcLeft = (intersection.left - tile.bounds.left) * tile.scale;
           final srcTop = (intersection.top - tile.bounds.top) * tile.scale;
           final srcRight = (intersection.right - tile.bounds.left) * tile.scale;
           final srcBottom =
               (intersection.bottom - tile.bounds.top) * tile.scale;
 
-          // Проверяем границы изображения
-          if (srcLeft < 0 ||
-              srcTop < 0 ||
-              srcRight > tile.image.width ||
-              srcBottom > tile.image.height) {
+          // Проверяем границы изображения с небольшим запасом
+          final double epsilon =
+              0.5; // Небольшой запас для предотвращения артефактов
+          if (srcLeft < -epsilon ||
+              srcTop < -epsilon ||
+              srcRight > tile.image.width + epsilon ||
+              srcBottom > tile.image.height + epsilon) {
             continue;
           }
 
+          // Ограничиваем координаты с учетом эпсилон
           final srcRect = Rect.fromLTRB(
             math.max(0.0, srcLeft),
             math.max(0.0, srcTop),
@@ -112,14 +116,40 @@ class HierarchicalGridPainter extends CustomPainter {
 
           final dstRect = intersection;
 
-          if (srcRect.width > 0 && srcRect.height > 0) {
-            print('HierarchicalGridPainter: Рисую тайл ${tile.id}');
-            canvas.drawImageRect(tile.image, srcRect, dstRect, paint);
+          // Увеличиваем порог для очень тонких линий
+          // При малых масштабах линии могут быть очень тонкими, но все равно должны отображаться
+          final double minVisibleSize =
+              0.1; // Минимальный размер для отображения
+          if (srcRect.width > minVisibleSize &&
+              srcRect.height > minVisibleSize) {
+            // Используем улучшенный метод отрисовки с учетом масштаба
+            _drawTileWithQuality(canvas, tile.image, srcRect, dstRect, paint);
           }
         } catch (e) {
           // Тихая обработка ошибок при рисовании
         }
       }
+    }
+  }
+
+  // Улучшенный метод отрисовки тайлов с учетом качества
+  void _drawTileWithQuality(
+    Canvas canvas,
+    ui.Image image,
+    Rect srcRect,
+    Rect dstRect,
+    Paint paint,
+  ) {
+    // При очень маленьких масштабах используем более агрессивный антиалиасинг
+    if (scale < 0.5) {
+      final highQualityPaint = Paint()
+        ..filterQuality = FilterQuality.high
+        ..isAntiAlias = true
+        ..blendMode = BlendMode.srcOver;
+
+      canvas.drawImageRect(image, srcRect, dstRect, highQualityPaint);
+    } else {
+      canvas.drawImageRect(image, srcRect, dstRect, paint);
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:fbpmn/src/services/tile_manager.dart';
+import 'package:fbpmn/src/widgets/state_widget.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,7 +34,7 @@ class CanvasArea extends StatefulWidget {
   State<CanvasArea> createState() => _CanvasAreaState();
 }
 
-class _CanvasAreaState extends State<CanvasArea> {
+class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
   // Используем константы из NodeManager
   double get framePadding => NodeManager.framePadding;
   double get frameBorderWidth => NodeManager.frameBorderWidth;
@@ -49,6 +50,10 @@ class _CanvasAreaState extends State<CanvasArea> {
     // Отложенное обновление после построения
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateActualSize();
+    });
+    widget.inputHandler.setOnStateUpdate('CanvasArea', () {
+      print('Event inputHandler ------');
+      timeoutSetState();
     });
   }
 

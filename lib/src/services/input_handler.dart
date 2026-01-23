@@ -24,10 +24,15 @@ class InputHandler extends Manager {
   });
 
   void handleKeyEvent(KeyEvent event) {
+    bool shiftStateChanged = false;
+
     if (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
         event.logicalKey == LogicalKeyboardKey.shiftRight) {
-      state.isShiftPressed = event is KeyDownEvent || event is KeyRepeatEvent;
-      onStateUpdate();
+      final bool newShiftState = event is KeyDownEvent || event is KeyRepeatEvent;
+      if (state.isShiftPressed != newShiftState) {
+        state.isShiftPressed = newShiftState;
+        shiftStateChanged = true;
+      }
     }
 
     if (event is KeyDownEvent) {
@@ -39,6 +44,11 @@ class InputHandler extends Manager {
           nodeManager.handleEmptyAreaClick();
           break;
       }
+    }
+
+    // Вызываем onStateUpdate только если состояние shift изменилось
+    if (shiftStateChanged) {
+      onStateUpdate();
     }
   }
 
@@ -144,7 +154,7 @@ class InputHandler extends Manager {
       }
 
       scrollHandler.updateScrollControllers();
-      nodeManager.onStateUpdate();
+      // Не вызываем onStateUpdate здесь - он будет вызван в scrollHandler.updateScrollControllers()
     } else if (state.isNodeDragging || _isDirectNodeDrag) {
       // Перетаскивание узла (как через выделение, так и прямое)
       nodeManager.updateNodeDrag(position);
@@ -162,7 +172,7 @@ class InputHandler extends Manager {
     }
 
     _isDirectNodeDrag = false;
-    nodeManager.onStateUpdate();
+    // Не вызываем onStateUpdate здесь - nodeManager.endNodeDrag() уже вызывает его при необходимости
   }
 
   void handlePanCancel() {
@@ -176,7 +186,7 @@ class InputHandler extends Manager {
     }
 
     _isDirectNodeDrag = false;
-    nodeManager.onStateUpdate();
+    // Не вызываем onStateUpdate здесь - nodeManager.endNodeDrag() уже вызывает его при необходимости
   }
 
   Offset constrainOffset(Offset offset) {
