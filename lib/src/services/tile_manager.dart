@@ -26,7 +26,7 @@ class TileManager extends Manager {
 
   TileManager({required this.state}) {
     // Создаем ArrowManager для проверки пересечений
-    arrowManager = ArrowManager(arrows: state.arrows, nodes: state.nodes);
+    arrowManager = ArrowManager(arrows: state.arrows, nodes: state.nodes, tiles: state.imageTiles);
   }
 
   Future<void> createTiledImage(
