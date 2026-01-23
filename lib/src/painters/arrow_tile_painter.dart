@@ -14,8 +14,8 @@ class ArrowTilePainter {
     required Offset baseOffset,
   }) {
     final paint = Paint()
-      ..color = Colors.black
-      ..strokeWidth = 1.0
+      ..color = Colors.grey
+      ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
 
