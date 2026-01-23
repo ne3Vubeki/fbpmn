@@ -9,6 +9,8 @@ import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
 import 'hierarchical_grid.dart';
 import 'node_selected.dart';
+import 'scroll_bar_horizontal.dart';
+import 'scroll_bar_vertical.dart';
 import 'tile_border.dart';
 
 class CanvasArea extends StatefulWidget {
@@ -47,7 +49,6 @@ class _CanvasAreaState extends State<CanvasArea> {
     // Отложенное обновление после построения
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateActualSize();
-      print('Это чертово обновление!!!!!');
     });
   }
 
@@ -75,24 +76,11 @@ class _CanvasAreaState extends State<CanvasArea> {
     // Обновляем размер после изменения виджета
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateActualSize();
-      print('Это чертово обновление!!!!!');
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Используем динамический размер холста с учетом масштаба
-    // Размер рассчитывается в ScrollHandler на основе расположения узлов
-    final Size scaledCanvasSize = Size(
-      widget.scrollHandler.dynamicCanvasWidth * widget.state.scale,
-      widget.scrollHandler.dynamicCanvasHeight * widget.state.scale,
-    );
-
-    final bool needsHorizontalScrollbar =
-        scaledCanvasSize.width > widget.state.viewportSize.width;
-    final bool needsVerticalScrollbar =
-        scaledCanvasSize.height > widget.state.viewportSize.height;
-
     print('Рисую холст!!!!!');
 
     return Container(
@@ -102,8 +90,8 @@ class _CanvasAreaState extends State<CanvasArea> {
           Positioned(
             left: 0,
             top: 0,
-            right: needsVerticalScrollbar ? 10 : 0,
-            bottom: needsHorizontalScrollbar ? 10 : 0,
+            right: 0, //needsVerticalScrollbar ? 10 : 0,
+            bottom: 10, //needsHorizontalScrollbar ? 10 : 0,
             child: KeyboardListener(
               focusNode: widget.inputHandler.focusNode,
               autofocus: true,
@@ -153,7 +141,6 @@ class _CanvasAreaState extends State<CanvasArea> {
                       children: [
                         // Отображение холста и тайлов
                         HierarchicalGrid(
-                          size: scaledCanvasSize,
                           state: widget.state,
                           inputHandler: widget.inputHandler,
                           nodeManager: widget.nodeManager,
@@ -163,7 +150,6 @@ class _CanvasAreaState extends State<CanvasArea> {
 
                         // Отображение рамок тайлов
                         TileBorder(
-                          size: scaledCanvasSize,
                           state: widget.state,
                           inputHandler: widget.inputHandler,
                           tileManager: widget.tileManager,
@@ -184,73 +170,16 @@ class _CanvasAreaState extends State<CanvasArea> {
             ),
           ),
 
-          if (needsHorizontalScrollbar)
-            Positioned(
-              left: 0,
-              right: needsVerticalScrollbar ? 10 : 0,
-              bottom: 0,
-              height: 10,
-              child: Listener(
-                onPointerDown:
-                    widget.scrollHandler.handleHorizontalScrollbarDragStart,
-                onPointerMove:
-                    widget.scrollHandler.handleHorizontalScrollbarDragUpdate,
-                onPointerUp:
-                    widget.scrollHandler.handleHorizontalScrollbarDragEnd,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.grab,
-                  child: Scrollbar(
-                    controller: widget.scrollHandler.horizontalScrollController,
-                    thumbVisibility: true,
-                    trackVisibility: false,
-                    thickness: 10,
-                    child: SingleChildScrollView(
-                      controller:
-                          widget.scrollHandler.horizontalScrollController,
-                      scrollDirection: Axis.horizontal,
-                      physics: const NeverScrollableScrollPhysics(),
-                      child: SizedBox(
-                        width: scaledCanvasSize.width,
-                        height: 10,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          if (needsVerticalScrollbar)
-            Positioned(
-              top: 0,
-              bottom: needsHorizontalScrollbar ? 10 : 0,
-              right: 0,
-              width: 10,
-              child: Listener(
-                onPointerDown:
-                    widget.scrollHandler.handleVerticalScrollbarDragStart,
-                onPointerMove:
-                    widget.scrollHandler.handleVerticalScrollbarDragUpdate,
-                onPointerUp:
-                    widget.scrollHandler.handleVerticalScrollbarDragEnd,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.grab,
-                  child: Scrollbar(
-                    controller: widget.scrollHandler.verticalScrollController,
-                    thumbVisibility: true,
-                    trackVisibility: false,
-                    thickness: 10,
-                    child: SingleChildScrollView(
-                      controller: widget.scrollHandler.verticalScrollController,
-                      physics: const NeverScrollableScrollPhysics(),
-                      child: SizedBox(
-                        width: 10,
-                        height: scaledCanvasSize.height,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          ScrollBarHorizontal(
+            state: widget.state,
+            scrollHandler: widget.scrollHandler,
+            inputHandler: widget.inputHandler,
+          ),
+          ScrollBarVertical(
+            state: widget.state,
+            scrollHandler: widget.scrollHandler,
+            inputHandler: widget.inputHandler,
+          ),
         ],
       ),
     );

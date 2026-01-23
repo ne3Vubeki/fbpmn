@@ -37,6 +37,14 @@ class ScrollHandler extends Manager {
   // Геттеры для динамических размеров холста
   double get dynamicCanvasWidth => _dynamicCanvasWidth;
   double get dynamicCanvasHeight => _dynamicCanvasHeight;
+  Size get scaledCanvasSize => Size(
+    _dynamicCanvasWidth * state.scale,
+    _dynamicCanvasHeight * state.scale,
+  );
+
+  // Наличие скроллбаров
+  bool get needsHorizontalScrollbar => scaledCanvasSize.width > state.viewportSize.width;
+  bool get needsVerticalScrollbar => scaledCanvasSize.height > state.viewportSize.height;
 
   ScrollHandler({required this.state, this.nodeManager}) {
     horizontalScrollController.addListener(_onHorizontalScroll);

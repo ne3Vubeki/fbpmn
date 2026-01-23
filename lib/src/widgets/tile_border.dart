@@ -10,7 +10,6 @@ import 'state_widget.dart';
 
 class TileBorder extends StatefulWidget {
   final EditorState state;
-  final Size size;
   final TileManager tileManager;
   final ScrollHandler scrollHandler;
   final InputHandler inputHandler;
@@ -18,7 +17,6 @@ class TileBorder extends StatefulWidget {
   const TileBorder({
     super.key,
     required this.state,
-    required this.size,
     required this.tileManager,
     required this.inputHandler,
     required this.scrollHandler,
@@ -58,7 +56,7 @@ class _TileBorderState extends State<TileBorder> with StateWidget<TileBorder> {
     return widget.state.showTileBorders
         ? RepaintBoundary(
             child: CustomPaint(
-              size: widget.size,
+              size: widget.scrollHandler.scaledCanvasSize,
               painter: TileBorderPainter(
                 state: widget.state,
                 isNodeDragging: widget.state.isNodeDragging,

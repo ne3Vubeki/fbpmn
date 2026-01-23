@@ -10,7 +10,6 @@ import 'state_widget.dart';
 
 class HierarchicalGrid extends StatefulWidget {
   final EditorState state;
-  final Size size;
   final InputHandler inputHandler;
   final NodeManager nodeManager;
   final TileManager tileManager;
@@ -19,7 +18,6 @@ class HierarchicalGrid extends StatefulWidget {
   const HierarchicalGrid({
     super.key,
     required this.state,
-    required this.size,
     required this.inputHandler,
     required this.nodeManager,
     required this.tileManager,
@@ -64,11 +62,11 @@ class _HierarchicalGridState extends State<HierarchicalGrid>
     print('Запуск виджета HierarchicalGridPainter +++++++++');
     return RepaintBoundary(
       child: CustomPaint(
-        size: widget.size,
+        size: widget.scrollHandler.scaledCanvasSize,
         painter: HierarchicalGridPainter(
           scale: widget.state.scale,
           offset: widget.state.offset,
-          canvasSize: widget.size,
+          canvasSize: widget.scrollHandler.scaledCanvasSize,
           state: widget.state,
           isNodeDragging: widget.state.isNodeDragging,
         ),
