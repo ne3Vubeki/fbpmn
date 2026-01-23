@@ -374,7 +374,7 @@ class NodeManager extends Manager {
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
 
-    // onStateUpdate();
+    onStateUpdate();
   }
 
   // Метод для поиска родителя swimlane
