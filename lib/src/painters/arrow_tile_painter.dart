@@ -22,7 +22,8 @@ class ArrowTilePainter {
     // Рисуем только те стрелки, путь которых пересекает этот тайл
     for (final arrow in arrows) {
       // Получаем полный путь стрелки
-      final path = arrowManager.getArrowPathForTiles(arrow!, baseOffset).path;
+      final result = arrowManager.getArrowPathForTiles(arrow!, baseOffset);
+      final path = result.path;
 
       // Рисуем путь (автоматически обрежется по границам тайла)
       canvas.drawPath(path, paint);

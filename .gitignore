@@ -1,33 +1,15 @@
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-*.class
-*.exe
-*.dll
-*.so
-*.a
-*.out
-dist/
-build/
-target/
+```
+# Build artifacts
+*.dart_tool/
+*.build/
+*.dist/
 
 # Dependencies
-.venv/
-venv/
-node_modules/
-.julia/
-zig*/
-.dart_tool/
 .pub/
-build/
+pubspec.lock
 
-# Logs and temp files
+# Logs
 *.log
-*.tmp
-*.swp
-*.swo
 
 # Environment
 .env
@@ -40,18 +22,7 @@ build/
 *.swp
 *.swo
 
-# OS specific
+# OS generated files
 .DS_Store
 Thumbs.db
-
-# Testing and coverage
-.coverage
-coverage/
-htmlcov/
-.mypy_cache/
-.pytest_cache/
-
-# Dart specific
-.dart_tool/
-.pub/
-build/
+```
