@@ -3,18 +3,22 @@ import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 
+import '../models/image_tile.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import 'manager.dart';
+import 'tile_manager.dart'; 
 
 /// Сервис для управления и расчета соединений стрелок
 class ArrowManager extends Manager {
   final List<Arrow> arrows;
   final List<TableNode> nodes;
+  TileManager? tileManager; // Добавим tileManager для доступа к тайлам
 
   ArrowManager({
     required this.arrows,
     required this.nodes,
+    this.tileManager,
   });
 
   /// Расчет точек соединения для определения стороны
@@ -105,7 +109,417 @@ class ArrowManager extends Manager {
     return _getSidePosition('top:top', sourceRect, targetRect);
   }
 
-  ({Offset? start, Offset? end, String? sides}) _getSidePosition(
+  /// Получить точки соединения с проверкой на пересечения с другими узлами
+  ({Offset? start, Offset? end, String? sides}) getConnectionPointsWithCollisionAvoidance(
+    Arrow arrow,
+    Rect sourceRect,
+    Rect targetRect,
+    TableNode sourceNode,
+    TableNode targetNode,
+    Offset baseOffset,
+  ) {
+    // Получаем базовые точки соединения
+    final basePoints = calculateConnectionPointsForSideCalculation(
+      arrow,
+      sourceRect,
+      targetRect,
+      sourceNode,
+      targetNode,
+    );
+
+    // Получаем список узлов для проверки пересечений
+    final nodesToCheck = _getNodesForCollisionCheck(
+      sourceRect,
+      targetRect,
+      baseOffset,
+    );
+
+    // Удаляем исходный и целевой узлы из списка проверки
+    nodesToCheck.removeWhere((node) => 
+      node.id == sourceNode.id || node.id == targetNode.id);
+
+    // Если нет узлов для проверки, возвращаем базовые точки
+    if (nodesToCheck.isEmpty) {
+      return basePoints;
+    }
+
+    // Пытаемся найти оптимальные точки соединения без пересечений
+    final optimizedPoints = _findOptimalConnectionPoints(
+      basePoints,
+      sourceRect,
+      targetRect,
+      sourceNode,
+      targetNode,
+      nodesToCheck,
+      baseOffset,
+    );
+
+    return optimizedPoints ?? basePoints;
+  }
+
+  /// Получить список узлов для проверки коллизий
+  List<TableNode> _getNodesForCollisionCheck(
+    Rect sourceRect,
+    Rect targetRect,
+    Offset baseOffset,
+  ) {
+    final List<TableNode> nodesToCheck = [];
+
+    // Рассчитываем область для поиска узлов
+    final searchArea = _calculateSearchArea(sourceRect, targetRect);
+
+    // Получаем тайлы, которые пересекаются с областью поиска
+    final tiles = _getTilesInArea(searchArea);
+    
+    // Собираем уникальные узлы из всех найденных тайлов
+    final Set<String> uniqueNodeIds = {};
+    
+    for (final tile in tiles) {
+      for (final nodeId in tile.nodes) {
+        if (nodeId != null && !uniqueNodeIds.contains(nodeId)) {
+          final node = _getEffectiveNode(nodeId);
+          if (node != null) {
+            nodesToCheck.add(node);
+            uniqueNodeIds.add(nodeId);
+          }
+        }
+      }
+    }
+
+    return nodesToCheck;
+  }
+
+  /// Рассчитать область поиска узлов на основе крайних координат
+  Rect _calculateSearchArea(Rect sourceRect, Rect targetRect) {
+    final minLeft = min(sourceRect.left, targetRect.left);
+    final minTop = min(sourceRect.top, targetRect.top);
+    final maxRight = max(sourceRect.right, targetRect.right);
+    final maxBottom = max(sourceRect.bottom, targetRect.bottom);
+
+    // Добавляем отступ для безопасной зоны
+    const padding = 100.0;
+    
+    return Rect.fromLTRB(
+      minLeft - padding,
+      minTop - padding,
+      maxRight + padding,
+      maxBottom + padding,
+    );
+  }
+
+  /// Получить тайлы, пересекающиеся с областью
+  List<ImageTile> _getTilesInArea(Rect area) {
+    if (tileManager == null || tileManager!.state.imageTiles.isEmpty) {
+      return [];
+    }
+
+    return tileManager!.state.imageTiles.where((tile) {
+      return tile.bounds.overlaps(area);
+    }).toList();
+  }
+
+  /// Найти оптимальные точки соединения без пересечений
+  ({Offset? start, Offset? end, String? sides})? _findOptimalConnectionPoints(
+    ({Offset? start, Offset? end, String? sides}) basePoints,
+    Rect sourceRect,
+    Rect targetRect,
+    TableNode sourceNode,
+    TableNode targetNode,
+    List<TableNode> nodesToCheck,
+    Offset baseOffset,
+  ) {
+    if (basePoints.start == null || basePoints.end == null) {
+      return null;
+    }
+
+    final String sides = basePoints.sides ?? 'top:top';
+    final List<String> sideVariants = _getSideVariants(sides);
+
+    // Пробуем разные варианты сторон соединения
+    for (final variant in sideVariants) {
+      final variantPoints = _getSidePosition(variant, sourceRect, targetRect);
+      
+      if (variantPoints.start == null || variantPoints.end == null) {
+        continue;
+      }
+
+      // Проверяем пересечение пути с узлами
+      final pathCoordinates = _calculatePathCoordinates(
+        variantPoints.start!,
+        variantPoints.end!,
+        variant,
+      );
+
+      // Проверяем, что путь не пересекает собственные узлы
+      if (!_doesPathIntersectOwnNodes(pathCoordinates, sourceRect, targetRect) &&
+          !_doesPathIntersectOtherNodes(pathCoordinates, nodesToCheck, baseOffset)) {
+        return variantPoints;
+      }
+    }
+
+    // Если не нашли вариант без пересечений, проверяем базовый путь
+    final basePathCoordinates = _calculatePathCoordinates(
+      basePoints.start!,
+      basePoints.end!,
+      sides,
+    );
+
+    // Проверяем, что базовый путь не пересекает собственные узлы
+    if (!_doesPathIntersectOwnNodes(basePathCoordinates, sourceRect, targetRect) &&
+        !_doesPathIntersectOtherNodes(basePathCoordinates, nodesToCheck, baseOffset)) {
+      return basePoints;
+    }
+
+    return null; // Не нашли подходящего варианта
+  }
+
+  /// Проверить, пересекает ли путь собственные узлы (источник и цель)
+  bool _doesPathIntersectOwnNodes(
+    List<Offset> pathCoordinates,
+    Rect sourceRect,
+    Rect targetRect,
+  ) {
+    // Исключаем первую и последнюю точки (точки соединения)
+    for (int i = 1; i < pathCoordinates.length - 1; i++) {
+      final start = pathCoordinates[i];
+      final end = pathCoordinates[i + 1];
+      
+      // Проверяем, проходит ли отрезок через sourceRect или targetRect
+      if (_doesLineIntersectRect(start, end, sourceRect) ||
+          _doesLineIntersectRect(start, end, targetRect)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /// Проверить, пересекает ли путь другие узлы
+  bool _doesPathIntersectOtherNodes(
+    List<Offset> pathCoordinates,
+    List<TableNode> nodesToCheck,
+    Offset baseOffset,
+  ) {
+    for (int i = 0; i < pathCoordinates.length - 1; i++) {
+      final start = pathCoordinates[i];
+      final end = pathCoordinates[i + 1];
+      
+      for (final node in nodesToCheck) {
+        final nodePos = node.aPosition ?? (baseOffset + node.position);
+        final nodeRect = Rect.fromPoints(
+          nodePos,
+          Offset(
+            nodePos.dx + node.size.width,
+            nodePos.dy + node.size.height,
+          ),
+        );
+
+        // Проверяем пересечение линии с прямоугольником узла
+        if (_doesLineIntersectRect(start, end, nodeRect)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  /// Получить варианты сторон для тестирования
+  List<String> _getSideVariants(String baseSides) {
+    final parts = baseSides.split(':');
+    if (parts.length != 2) return [baseSides];
+
+    final sourceSide = parts[0];
+    final targetSide = parts[1];
+    
+    final List<String> sourceSides = ['top', 'bottom', 'left', 'right'];
+    final List<String> targetSides = ['top', 'bottom', 'left', 'right'];
+
+    final List<String> variants = [baseSides];
+
+    // Генерируем альтернативные варианты, начиная с наиболее вероятных
+    final priorityVariants = <String>[];
+    
+    // Варианты с той же стороной источника
+    for (final tgtSide in targetSides) {
+      if (tgtSide != targetSide) {
+        priorityVariants.add('$sourceSide:$tgtSide');
+      }
+    }
+    
+    // Варианты с той же стороной цели
+    for (final srcSide in sourceSides) {
+      if (srcSide != sourceSide) {
+        priorityVariants.add('$srcSide:$targetSide');
+      }
+    }
+    
+    // Остальные варианты
+    for (final srcSide in sourceSides) {
+      for (final tgtSide in targetSides) {
+        if (srcSide != sourceSide && tgtSide != targetSide) {
+          final variant = '$srcSide:$tgtSide';
+          if (!priorityVariants.contains(variant)) {
+            priorityVariants.add(variant);
+          }
+        }
+      }
+    }
+
+    return [...variants, ...priorityVariants];
+  }
+
+  /// Рассчитать координаты пути (без создания Path)
+  List<Offset> _calculatePathCoordinates(
+    Offset start,
+    Offset end,
+    String sides,
+  ) {
+    final coordinates = <Offset>[start];
+    
+    final dx = end.dx - start.dx;
+    final dy = end.dy - start.dy;
+    final dx2 = dx.abs() / 2;
+    final dy2 = dy.abs() / 2;
+
+    switch (sides) {
+      case 'left:right':
+        if (dy2 != 0) {
+          coordinates.add(Offset(start.dx - dx2, start.dy));
+          coordinates.add(Offset(start.dx - dx2, end.dy));
+        }
+        break;
+      case 'right:left':
+        if (dy2 != 0) {
+          coordinates.add(Offset(start.dx + dx2, start.dy));
+          coordinates.add(Offset(start.dx + dx2, end.dy));
+        }
+        break;
+      case 'top:bottom':
+        if (dx2 != 0) {
+          coordinates.add(Offset(start.dx, start.dy - dy2));
+          coordinates.add(Offset(end.dx, start.dy - dy2));
+        }
+        break;
+      case 'bottom:top':
+        if (dx2 != 0) {
+          coordinates.add(Offset(start.dx, start.dy + dy2));
+          coordinates.add(Offset(end.dx, start.dy + dy2));
+        }
+        break;
+      case 'left:top':
+      case 'right:top':
+      case 'left:bottom':
+      case 'right:bottom':
+        coordinates.add(Offset(end.dx, start.dy));
+        break;
+      case 'top:left':
+      case 'top:right':
+      case 'bottom:left':
+      case 'bottom:right':
+        coordinates.add(Offset(start.dx, end.dy));
+        break;
+      case 'left:left':
+        final dxMin = dx > 0 ? 0 : dx;
+        coordinates.add(Offset(start.dx - 40 + dxMin, start.dy));
+        coordinates.add(Offset(start.dx - 40 + dxMin, end.dy));
+        break;
+      case 'right:right':
+        final dxMin = dx > 0 ? dx : 0;
+        coordinates.add(Offset(start.dx + 40 + dxMin, start.dy));
+        coordinates.add(Offset(start.dx + 40 + dxMin, end.dy));
+        break;
+      case 'top:top':
+        final dyMin = dy > 0 ? 0 : dy;
+        coordinates.add(Offset(start.dx, start.dy - 40 + dyMin));
+        coordinates.add(Offset(end.dx, start.dy - 40 + dyMin));
+        break;
+      case 'bottom:bottom':
+        final dyMin = dy > 0 ? dy : 0;
+        coordinates.add(Offset(start.dx, start.dy + 40 + dyMin));
+        coordinates.add(Offset(end.dx, start.dy + 40 + dyMin));
+        break;
+    }
+
+    coordinates.add(end);
+    return coordinates;
+  }
+
+  /// Проверить пересечение линии с прямоугольником
+  bool _doesLineIntersectRect(Offset lineStart, Offset lineEnd, Rect rect) {
+    // Проверяем, находятся ли конечные точки внутри прямоугольника
+    // Исключаем точки, которые находятся на границе прямоугольника (точки соединения)
+    final borderTolerance = 1.0;
+    final rectWithTolerance = Rect.fromLTRB(
+      rect.left - borderTolerance,
+      rect.top - borderTolerance,
+      rect.right + borderTolerance,
+      rect.bottom + borderTolerance,
+    );
+    
+    final rectWithoutTolerance = Rect.fromLTRB(
+      rect.left + borderTolerance,
+      rect.top + borderTolerance,
+      rect.right - borderTolerance,
+      rect.bottom - borderTolerance,
+    );
+    
+    // Если конечная точка находится внутри прямоугольника (но не на границе)
+    if (rectWithoutTolerance.contains(lineStart) || rectWithoutTolerance.contains(lineEnd)) {
+      return true;
+    }
+
+    // Проверяем пересечение с каждой стороной прямоугольника
+    final List<Offset> rectPoints = [
+      rect.topLeft,
+      rect.topRight,
+      rect.bottomRight,
+      rect.bottomLeft,
+    ];
+
+    for (int i = 0; i < 4; i++) {
+      final sideStart = rectPoints[i];
+      final sideEnd = rectPoints[(i + 1) % 4];
+      
+      if (_doLinesIntersect(lineStart, lineEnd, sideStart, sideEnd)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Проверить пересечение двух отрезков
+  bool _doLinesIntersect(Offset p1, Offset p2, Offset q1, Offset q2) {
+    final orient1 = _orientation(p1, p2, q1);
+    final orient2 = _orientation(p1, p2, q2);
+    final orient3 = _orientation(q1, q2, p1);
+    final orient4 = _orientation(q1, q2, p2);
+
+    return (orient1 != orient2 && orient3 != orient4) ||
+           (orient1 == 0 && _onSegment(p1, q1, p2)) ||
+           (orient2 == 0 && _onSegment(p1, q2, p2)) ||
+           (orient3 == 0 && _onSegment(q1, p1, q2)) ||
+           (orient4 == 0 && _onSegment(q1, p2, q2));
+  }
+
+  /// Вычислить ориентацию трех точек
+  int _orientation(Offset p, Offset q, Offset r) {
+    final val = (q.dy - p.dy) * (r.dx - q.dx) - (q.dx - p.dx) * (r.dy - q.dy);
+    
+    if (val == 0) return 0; // коллинеарны
+    return (val > 0) ? 1 : 2; // по часовой или против
+  }
+
+  /// Проверить, лежит ли точка q на отрезке pr
+  bool _onSegment(Offset p, Offset q, Offset r) {
+    return q.dx <= max(p.dx, r.dx) &&
+           q.dx >= min(p.dx, r.dx) &&
+           q.dy <= max(p.dy, r.dy) &&
+           q.dy >= min(p.dy, r.dy);
+  }
+
+  ({Offset? end, Offset? start, String? sides}) _getSidePosition(
     String sides,
     Rect sourceRect,
     Rect targetRect,
@@ -197,7 +611,7 @@ class ArrowManager extends Manager {
     return (start: startConnectionPoint, end: endConnectionPoint, sides: sides);
   }
 
-  /// Получить полный путь стрелки для отрисовки в тайлах
+  /// Получить полный путь стрелки для отрисовки в тайлах (обновленная версия)
   ({Path path, List<Offset> coordinates}) getArrowPathForTiles(
     Arrow arrow,
     Offset baseOffset,
@@ -235,13 +649,14 @@ class ArrowManager extends Manager {
       ),
     );
 
-    // Вычисляем точки соединения
-    final connectionPoints = calculateConnectionPointsForSideCalculation(
+    // Вычисляем точки соединения с проверкой на пересечения
+    final connectionPoints = getConnectionPointsWithCollisionAvoidance(
       arrow,
       sourceRect,
       targetRect,
       effectiveSourceNode,
       effectiveTargetNode,
+      baseOffset,
     );
 
     if (connectionPoints.start == null || connectionPoints.end == null) {
