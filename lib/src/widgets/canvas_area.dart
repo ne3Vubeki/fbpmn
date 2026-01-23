@@ -91,7 +91,7 @@ class _CanvasAreaState extends State<CanvasArea> {
             left: 0,
             top: 0,
             right: 0, //needsVerticalScrollbar ? 10 : 0,
-            bottom: 10, //needsHorizontalScrollbar ? 10 : 0,
+            bottom: 0, //needsHorizontalScrollbar ? 10 : 0,
             child: KeyboardListener(
               focusNode: widget.inputHandler.focusNode,
               autofocus: true,

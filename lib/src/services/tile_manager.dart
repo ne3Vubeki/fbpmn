@@ -359,7 +359,7 @@ class TileManager extends Manager {
     }
 
     // Сначала не-swimlane узлы, потом swimlane
-    return [...nonSwimlaneNodes, ...swimlaneNodes];
+    return [...swimlaneNodes, ...nonSwimlaneNodes];
   }
 
   /// Удаление детей swimlane из тайлов

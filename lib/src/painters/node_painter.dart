@@ -36,9 +36,10 @@ class NodePainter {
     required Rect visibleBounds,
     required bool forTile,
   }) {
-
     // Рассчитываем абсолютную позицию текущего узла
-    final nodeAbsolutePosition = currentNode.aPosition ?? (currentNode.position + parentAbsolutePosition);
+    final nodeAbsolutePosition =
+        currentNode.aPosition ??
+        (currentNode.position + parentAbsolutePosition);
 
     // Создаем Rect узла в мировых координатах
     final nodeWorldRect = Rect.fromPoints(
@@ -376,14 +377,11 @@ class NodePainter {
     final iconMargin = 8.0;
     final textLeftMargin = iconSize + iconMargin * 2;
 
-    // Определяем, свернут ли swimlane
-    final isActuallyCollapsed =
-        node.qType == 'swimlane' && (node.isCollapsed ?? false);
-    final actualHeaderHeight = isActuallyCollapsed
-        ? nodeRect.height
-        : headerHeight;
+    // ВАЖНО: Заголовок всегда должен быть вверху, независимо от состояния свернутости
+    // Используем фиксированную высоту заголовка
+    final actualHeaderHeight = headerHeight;
 
-    // Рисуем иконку
+    // Рисуем иконку - всегда вверху заголовка
     final iconRect = Rect.fromLTWH(
       nodeRect.left + iconMargin,
       nodeRect.top + (actualHeaderHeight - iconSize) / 2,

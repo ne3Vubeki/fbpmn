@@ -130,7 +130,7 @@ class ZoomPanel extends StatelessWidget {
                 onPressed: onResetZoom,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                tooltip: 'Сбросить масштаб до 100%',
+                tooltip: 'Сфокусироваться',
               ),
 
               const SizedBox(width: 4),

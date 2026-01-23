@@ -40,7 +40,7 @@ class _ZoomContainerState extends State<ZoomContainer>
   Size get viewportSize => widget.state.viewportSize;
   List<ImageTile> get imageTiles => widget.state.imageTiles;
 
-  onResetZoom() => widget.scrollHandler.resetZoom();
+  onResetZoom() => widget.scrollHandler.autoFitAndCenterNodes();
 
   onToggleTileBorders() => widget.inputHandler.toggleTileBorders();
 
