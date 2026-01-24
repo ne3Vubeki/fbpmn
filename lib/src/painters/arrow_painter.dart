@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:flutter/material.dart';
 
 import '../models/table.node.dart';
@@ -9,19 +10,18 @@ class ArrowPainter {
   final Arrow arrow;
   final List<TableNode> nodes;
   final Map<String, TableNode> _nodeMap;
+  final TileManager tileManager;
 
-  ArrowPainter({
-    required this.arrow,
-    required this.nodes,
-  }) : _nodeMap = _buildNodeMap(nodes);
+  ArrowPainter({required this.arrow, required this.nodes, required this.tileManager})
+    : _nodeMap = _buildNodeMap(nodes);
 
   /// Build a map of all nodes including nested ones
   static Map<String, TableNode> _buildNodeMap(List<TableNode> nodes) {
     Map<String, TableNode> nodeMap = {};
-    
+
     void addNodeRecursively(TableNode node) {
       nodeMap[node.id] = node;
-      
+
       // Add all children recursively
       if (node.children != null) {
         for (final child in node.children!) {
@@ -29,11 +29,11 @@ class ArrowPainter {
         }
       }
     }
-    
+
     for (final node in nodes) {
       addNodeRecursively(node);
     }
-    
+
     return nodeMap;
   }
 
@@ -45,8 +45,8 @@ class ArrowPainter {
     // If the node is a child of a collapsed swimlane, return the parent swimlane instead
     if (node.parent != null) {
       final parent = _nodeMap[node.parent!];
-      if (parent != null && 
-          parent.qType == 'swimlane' && 
+      if (parent != null &&
+          parent.qType == 'swimlane' &&
           (parent.isCollapsed ?? false)) {
         return parent; // Return the collapsed swimlane instead of the child
       }
@@ -72,13 +72,18 @@ class ArrowPainter {
     }
 
     // Проверяем, не являются ли узлы скрытыми из-за свернутого родителя
-    if (_isNodeHiddenByCollapsedParent(effectiveSourceNode) || _isNodeHiddenByCollapsedParent(effectiveTargetNode)) {
+    if (_isNodeHiddenByCollapsedParent(effectiveSourceNode) ||
+        _isNodeHiddenByCollapsedParent(effectiveTargetNode)) {
       return; // Не рисуем стрелку, если один из узлов скрыт из-за свернутого родителя
     }
 
     // Получаем абсолютные позиции узлов
-    final sourceAbsolutePos = effectiveSourceNode.aPosition ?? (effectiveSourceNode.position + baseOffset);
-    final targetAbsolutePos = effectiveTargetNode.aPosition ?? (effectiveTargetNode.position + baseOffset);
+    final sourceAbsolutePos =
+        effectiveSourceNode.aPosition ??
+        (effectiveSourceNode.position + baseOffset);
+    final targetAbsolutePos =
+        effectiveTargetNode.aPosition ??
+        (effectiveTargetNode.position + baseOffset);
 
     // Создаем Rect для узлов в мировых координатах
     final sourceRect = Rect.fromPoints(
@@ -119,6 +124,7 @@ class ArrowPainter {
     final arrowManager = ArrowManager(
       arrows: allArrows,
       nodes: nodes,
+      tileManager: tileManager,
     );
 
     // Рисуем стрелку
@@ -136,7 +142,7 @@ class ArrowPainter {
   /// Проверяет, является ли узел скрытым из-за свернутого родителя
   bool _isNodeHiddenByCollapsedParent(TableNode node) {
     String? currentParentId = node.parent;
-    
+
     // Проверяем всю цепочку родителей
     while (currentParentId != null) {
       TableNode? parentNode = _nodeMap[currentParentId];
@@ -146,12 +152,12 @@ class ArrowPainter {
       // Переходим к следующему родителю
       currentParentId = parentNode?.parent;
     }
-    
+
     return false;
   }
 
   /// Рисование стрелки
- void _drawArrow({
+  void _drawArrow({
     required Canvas canvas,
     required Rect sourceRect,
     required Rect targetRect,
@@ -160,14 +166,15 @@ class ArrowPainter {
     required bool forTile,
     required ArrowManager arrowManager,
   }) {
-    final connectionPoints = arrowManager.calculateConnectionPointsForSideCalculation(
-      arrow,
-      sourceRect,
-      targetRect,
-      sourceNode,
-      targetNode,
-    );
-    
+    final connectionPoints = arrowManager
+        .calculateConnectionPointsForSideCalculation(
+          arrow,
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+        );
+
     if (connectionPoints.start == null || connectionPoints.end == null) {
       return;
     }
@@ -176,7 +183,12 @@ class ArrowPainter {
     final endPoint = connectionPoints.end!;
 
     // Создаем простой путь без проверок пересечений
-    final path = _createSimplePath(startPoint, endPoint, sourceRect, targetRect);
+    final path = _createSimplePath(
+      startPoint,
+      endPoint,
+      sourceRect,
+      targetRect,
+    );
 
     // Всегда черный цвет
     final paint = Paint()
@@ -203,7 +215,7 @@ class ArrowPainter {
 
     // Определяем тип соединения в зависимости от сторон
     bool isParallelSides = _areParallelSides(startSide, endSide);
-    
+
     if (isParallelSides) {
       // Параллельные стороны (правая-левая или левая-правая): может быть 0 или 2 изгиба
       if (_shouldDrawDirectLine(start, end, startSide, endSide)) {
@@ -228,48 +240,71 @@ class ArrowPainter {
     double rightDist = (point.dx - rect.right).abs();
     double topDist = (point.dy - rect.top).abs();
     double bottomDist = (point.dy - rect.bottom).abs();
-    
+
     // Находим минимальное расстояние
     double minDist = leftDist;
     String closestSide = 'left';
-    
-    if (rightDist < minDist) { minDist = rightDist; closestSide = 'right'; }
-    if (topDist < minDist) { minDist = topDist; closestSide = 'top'; }
-    if (bottomDist < minDist) { minDist = bottomDist; closestSide = 'bottom'; }
-    
+
+    if (rightDist < minDist) {
+      minDist = rightDist;
+      closestSide = 'right';
+    }
+    if (topDist < minDist) {
+      minDist = topDist;
+      closestSide = 'top';
+    }
+    if (bottomDist < minDist) {
+      minDist = bottomDist;
+      closestSide = 'bottom';
+    }
+
     return closestSide;
   }
 
   // Проверка, являются ли стороны параллельными (правая-левая или левая-правая, верхняя-нижняя или нижняя-верхняя)
   bool _areParallelSides(String side1, String side2) {
     return (side1 == 'left' && side2 == 'right') ||
-           (side1 == 'right' && side2 == 'left') ||
-           (side1 == 'top' && side2 == 'bottom') ||
-           (side1 == 'bottom' && side2 == 'top');
+        (side1 == 'right' && side2 == 'left') ||
+        (side1 == 'top' && side2 == 'bottom') ||
+        (side1 == 'bottom' && side2 == 'top');
   }
 
   // Проверка необходимости прямой линии
-  bool _shouldDrawDirectLine(Offset start, Offset end, String startSide, String endSide) {
+  bool _shouldDrawDirectLine(
+    Offset start,
+    Offset end,
+    String startSide,
+    String endSide,
+  ) {
     // Рисуем прямую линию, если стороны противоположные и точки находятся примерно на одной оси
-    if ((startSide == 'left' && endSide == 'right') || (startSide == 'right' && endSide == 'left')) {
+    if ((startSide == 'left' && endSide == 'right') ||
+        (startSide == 'right' && endSide == 'left')) {
       return (start.dy - end.dy).abs() < 5; // Маленькая разница по Y
-    } else if ((startSide == 'top' && endSide == 'bottom') || (startSide == 'bottom' && endSide == 'top')) {
+    } else if ((startSide == 'top' && endSide == 'bottom') ||
+        (startSide == 'bottom' && endSide == 'top')) {
       return (start.dx - end.dx).abs() < 5; // Маленькая разница по X
     }
     return false;
   }
 
   // Добавление пути с двумя изгибами
-  void _addTwoBendPath(Path path, Offset start, Offset end, String startSide, String endSide) {
+  void _addTwoBendPath(
+    Path path,
+    Offset start,
+    Offset end,
+    String startSide,
+    String endSide,
+  ) {
     // Для параллельных сторон с двумя изгибами первый и третий отрезки должны быть одинаковой длины
-    
+
     // Определяем среднюю точку между началом и концом
     double midX = (start.dx + end.dx) / 2;
     double midY = (start.dy + end.dy) / 2;
 
     Offset middlePoint1, middlePoint2;
 
-    if ((startSide == 'left' || startSide == 'right') && (endSide == 'left' || endSide == 'right')) {
+    if ((startSide == 'left' || startSide == 'right') &&
+        (endSide == 'left' || endSide == 'right')) {
       // Горизонтальное соединение (левая-левая, левая-правая, правая-левая, правая-правая)
       // Используем среднюю Y координату
       middlePoint1 = Offset(start.dx, midY);
@@ -288,23 +323,31 @@ class ArrowPainter {
   }
 
   // Добавление пути с одним изгибом
-  void _addOneBendPath(Path path, Offset start, Offset end, String startSide, String endSide) {
+  void _addOneBendPath(
+    Path path,
+    Offset start,
+    Offset end,
+    String startSide,
+    String endSide,
+  ) {
     Offset bendPoint;
 
     // При соединении между перпендикулярными сторонами делаем один изгиб
     // Определяем, какая координата должна совпадать у начальной точки и точки изгиба,
     // а какая - у конечной точки и точки изгиба
-    if ((startSide == 'top' || startSide == 'bottom') && (endSide == 'left' || endSide == 'right')) {
+    if ((startSide == 'top' || startSide == 'bottom') &&
+        (endSide == 'left' || endSide == 'right')) {
       // Вертикальная сторона к горизонтальной: изгиб по X координате конца
       bendPoint = Offset(end.dx, start.dy);
-    } else if ((startSide == 'left' || startSide == 'right') && (endSide == 'top' || endSide == 'bottom')) {
+    } else if ((startSide == 'left' || startSide == 'right') &&
+        (endSide == 'top' || endSide == 'bottom')) {
       // Горизонтальная сторона к вертикальной: изгиб по Y координате конца
       bendPoint = Offset(start.dx, end.dy);
     } else {
       // По умолчанию используем координаты центра
       double midX = (start.dx + end.dx) / 2;
       double midY = (start.dy + end.dy) / 2;
-      
+
       // Выбираем, какая ось будет изгибаться
       if ((startSide == 'top' || startSide == 'bottom')) {
         bendPoint = Offset(midX, start.dy);
@@ -316,7 +359,7 @@ class ArrowPainter {
     path.lineTo(bendPoint.dx, bendPoint.dy);
     path.lineTo(end.dx, end.dy);
   }
-  
+
   /// Проверяет, пересекает ли линия заданный прямоугольник
   bool _lineIntersectsRect(Offset start, Offset end, Rect rect) {
     // Проверяем пересечение отрезка с каждой стороной прямоугольника
@@ -324,42 +367,69 @@ class ArrowPainter {
     final right = rect.right;
     final top = rect.top;
     final bottom = rect.bottom;
-    
+
     // Проверяем пересечение с левой стороной
-    if (_lineIntersectsLine(start, end, Offset(left, top), Offset(left, bottom))) return true;
+    if (_lineIntersectsLine(
+      start,
+      end,
+      Offset(left, top),
+      Offset(left, bottom),
+    ))
+      return true;
     // Проверяем пересечение с правой стороной
-    if (_lineIntersectsLine(start, end, Offset(right, top), Offset(right, bottom))) return true;
+    if (_lineIntersectsLine(
+      start,
+      end,
+      Offset(right, top),
+      Offset(right, bottom),
+    ))
+      return true;
     // Проверяем пересечение с верхней стороной
-    if (_lineIntersectsLine(start, end, Offset(left, top), Offset(right, top))) return true;
+    if (_lineIntersectsLine(start, end, Offset(left, top), Offset(right, top)))
+      return true;
     // Проверяем пересечение с нижней стороной
-    if (_lineIntersectsLine(start, end, Offset(left, bottom), Offset(right, bottom))) return true;
-    
+    if (_lineIntersectsLine(
+      start,
+      end,
+      Offset(left, bottom),
+      Offset(right, bottom),
+    ))
+      return true;
+
     // Также проверяем, находится ли хотя бы одна точка внутри прямоугольника
     if (_isPointInRect(start, rect) || _isPointInRect(end, rect)) return true;
-    
+
     return false;
   }
 
   /// Проверяет, пересекаются ли две линии
   bool _lineIntersectsLine(Offset p1, Offset p2, Offset p3, Offset p4) {
     // Формула для определения пересечения двух отрезков
-    final denom = (p4.dy - p3.dy) * (p2.dx - p1.dx) - (p4.dx - p3.dx) * (p2.dy - p1.dy);
-    
+    final denom =
+        (p4.dy - p3.dy) * (p2.dx - p1.dx) - (p4.dx - p3.dx) * (p2.dy - p1.dy);
+
     if (denom == 0) {
       // Линии параллельны
       return false;
     }
-    
-    final ua = ((p4.dx - p3.dx) * (p1.dy - p3.dy) - (p4.dy - p3.dy) * (p1.dx - p3.dx)) / denom;
-    final ub = ((p2.dx - p1.dx) * (p1.dy - p3.dy) - (p2.dy - p1.dy) * (p1.dx - p3.dx)) / denom;
-    
+
+    final ua =
+        ((p4.dx - p3.dx) * (p1.dy - p3.dy) -
+            (p4.dy - p3.dy) * (p1.dx - p3.dx)) /
+        denom;
+    final ub =
+        ((p2.dx - p1.dx) * (p1.dy - p3.dy) -
+            (p2.dy - p1.dy) * (p1.dx - p3.dx)) /
+        denom;
+
     return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
   }
 
   /// Проверяет, находится ли точка внутри прямоугольника
   bool _isPointInRect(Offset point, Rect rect) {
-    return point.dx >= rect.left && point.dx <= rect.right &&
-           point.dy >= rect.top && point.dy <= rect.bottom;
+    return point.dx >= rect.left &&
+        point.dx <= rect.right &&
+        point.dy >= rect.top &&
+        point.dy <= rect.bottom;
   }
-  
 }

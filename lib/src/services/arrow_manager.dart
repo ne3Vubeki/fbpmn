@@ -6,18 +6,22 @@ import 'package:flutter/cupertino.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import 'manager.dart';
+import 'tile_manager.dart';
 
 /// Сервис для управления и расчета соединений стрелок
 class ArrowManager extends Manager {
   final List<Arrow> arrows;
   final List<TableNode> nodes;
+  final TileManager tileManager;
 
   ArrowManager({
     required this.arrows,
     required this.nodes,
+    required this.tileManager,
   });
 
   /// Расчет точек соединения для определения стороны
+  /// по расположению узлов относительно друг друга
   ({Offset? end, Offset? start, String? sides})
   calculateConnectionPointsForSideCalculation(
     Arrow arrow,
@@ -105,6 +109,7 @@ class ArrowManager extends Manager {
     return _getSidePosition('top:top', sourceRect, targetRect);
   }
 
+  /// Расчет координат точек соединения
   ({Offset? start, Offset? end, String? sides}) _getSidePosition(
     String sides,
     Rect sourceRect,
@@ -236,7 +241,7 @@ class ArrowManager extends Manager {
     );
 
     // Вычисляем точки соединения
-    final connectionPoints = calculateConnectionPointsForSideCalculation(
+    final baseConnectionPoints = calculateConnectionPointsForSideCalculation(
       arrow,
       sourceRect,
       targetRect,
@@ -244,18 +249,21 @@ class ArrowManager extends Manager {
       effectiveTargetNode,
     );
 
-    if (connectionPoints.start == null || connectionPoints.end == null) {
+    if (baseConnectionPoints.start == null ||
+        baseConnectionPoints.end == null) {
       return (path: Path(), coordinates: []);
     }
 
     // Создаем простой ортогональный путь без проверок пересечений
-    return _createSimpleOrthogonalPath(
-      connectionPoints.start!,
-      connectionPoints.end!,
+    final basePath = _createSimpleOrthogonalPath(
+      baseConnectionPoints.start!,
+      baseConnectionPoints.end!,
       sourceRect,
       targetRect,
-      connectionPoints.sides!,
+      baseConnectionPoints.sides!,
     );
+
+    return basePath;
   }
 
   /// Создание простого ортогонального пути

@@ -26,7 +26,11 @@ class TileManager extends Manager {
 
   TileManager({required this.state}) {
     // Создаем ArrowManager для проверки пересечений
-    arrowManager = ArrowManager(arrows: state.arrows, nodes: state.nodes);
+    arrowManager = ArrowManager(
+      arrows: state.arrows,
+      nodes: state.nodes,
+      tileManager: this,
+    );
   }
 
   Future<void> createTiledImage(
@@ -150,21 +154,12 @@ class TileManager extends Manager {
         position: nodePosition,
       );
 
-      // Рассчитываем grid позиции, которые покрывает узел
-      final tileWorldSize = EditorConfig.tileSize.toDouble();
-      final gridXStart = (nodeRect.left / tileWorldSize).floor();
-      final gridYStart = (nodeRect.top / tileWorldSize).floor();
-      final gridXEnd = (nodeRect.right / tileWorldSize).ceil();
-      final gridYEnd = (nodeRect.bottom / tileWorldSize).ceil();
-
-      // Создаем тайлы для всех grid позиций
-      for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-        for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-          final left = gridX * tileWorldSize;
-          final top = gridY * tileWorldSize;
+      await _tilesIntersectingRect(
+        nodeRect,
+        callback: ({required double left, required double top}) async {
           await createTiles(top: top, left: left, node: node);
-        }
-      }
+        },
+      );
     }
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
@@ -712,6 +707,60 @@ class TileManager extends Manager {
     } catch (e) {
       state.isLoading = false;
       onStateUpdate();
+    }
+  }
+
+  /// Получает список тайлов, которые пересекает прямоугольник, заданный начальными и конечными координатами
+  /// [start] - начальная точка прямоугольника (левый верхний угол)
+  /// [end] - конечная точка прямоугольника (правый нижний угол)
+  /// Возвращает список тайлов, которые пересекаются с прямоугольником
+  List<ImageTile> getTilesIntersectingRect(Offset start, Offset end) {
+    final intersectingTiles = <ImageTile>[];
+
+    // Создаем прямоугольник из начальных и конечных координат
+    final rect = Rect.fromPoints(start, end);
+
+    _tilesIntersectingRect(
+      rect,
+      callback: ({required double left, required double top}) {
+        final tileId = _generateTileId(left, top);
+
+        // Ищем тайл с таким ID в существующих тайлах
+        final tile = getTileById(state.imageTiles, tileId);
+        if (tile != null) {
+          intersectingTiles.add(tile);
+        }
+      },
+    );
+
+    return intersectingTiles;
+  }
+
+  Future<void> _tilesIntersectingRect(Rect rect, {Function? callback}) async {
+    // Получаем границы прямоугольника
+    final left = rect.left;
+    final top = rect.top;
+    final right = rect.right;
+    final bottom = rect.bottom;
+
+    // Размер тайла в мировых координатах
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+
+    // Рассчитываем grid позиции, которые пересекает прямоугольник
+    final gridXStart = (left / tileWorldSize).floor();
+    final gridYStart = (top / tileWorldSize).floor();
+    final gridXEnd = (right / tileWorldSize).ceil();
+    final gridYEnd = (bottom / tileWorldSize).ceil();
+
+    // Проходим по всем grid позициям в пределах прямоугольника
+    for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+      for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+        final left = gridX * tileWorldSize;
+        final top = gridY * tileWorldSize;
+        if (callback != null) {
+          await callback(left: left, top: top);
+        }
+      }
     }
   }
 
