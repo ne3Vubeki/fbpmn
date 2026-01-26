@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
@@ -10,6 +11,7 @@ class InputHandler extends Manager {
   final EditorState state;
   final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
+  final ArrowManager arrowManager;
 
   final FocusNode _focusNode = FocusNode();
 
@@ -21,6 +23,7 @@ class InputHandler extends Manager {
     required this.state,
     required this.nodeManager,
     required this.scrollHandler,
+    required this.arrowManager,
   });
 
   void handleKeyEvent(KeyEvent event) {
@@ -151,6 +154,10 @@ class InputHandler extends Manager {
       // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при панорамировании
       if (state.isNodeOnTopLayer) {
         nodeManager.onOffsetChanged();
+      }
+
+      if (state.isNodeOnTopLayer) {
+        arrowManager.onOffsetChanged();
       }
 
       scrollHandler.updateScrollControllers();

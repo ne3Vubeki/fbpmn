@@ -24,7 +24,7 @@ class TileManager extends Manager {
   final NodeRenderer _nodeRenderer = NodeRenderer();
 
   TileManager({required this.state, required this.arrowManager});
-  
+
   Future<void> createTiledImage(
     List<TableNode?> nodes,
     List<Arrow?> arrows, {
@@ -377,20 +377,9 @@ class TileManager extends Manager {
     Set<String> nodeIds = {node.id};
 
     /// Находим все связи этого узла
-    for (final arrow in state.arrows) {
-      if (arrow.source == node.id || arrow.target == node.id) {
-        arrowIdsConnectedToNode.add(arrow.id);
-        state.arrowsSelected.add(arrow);
-      }
-      if (node.children != null && node.children!.isNotEmpty) {
-        for (final n in node.children!) {
-          if (arrow.source == n.id || arrow.target == n.id) {
-            arrowIdsConnectedToNode.add(arrow.id);
-            state.arrowsSelected.add(arrow);
-          }
-        }
-      }
-    }
+    final arrowsSelected = arrowManager.getArrowsForNodes([node]);
+    arrowIdsConnectedToNode.addAll(arrowsSelected.map((arrow) => arrow!.id));
+    state.arrowsSelected.addAll(arrowsSelected);
 
     /// Находим и добавляем для удаления id вложенных в группу узлов
     if (node.qType == 'group' &&
@@ -593,11 +582,11 @@ class TileManager extends Manager {
 
       // Рисуем стрелки, если они есть (используем ArrowTilePainter)
       if (arrowsInTile.isNotEmpty) {
-        final arrowTilePainter = ArrowPainter(
+        final arrowsPainter = ArrowsPainter(
           arrows: arrowsInTile,
           arrowManager: arrowManager,
         );
-        arrowTilePainter.drawArrowsInTile(
+        arrowsPainter.drawArrowsInTile(
           canvas: canvas,
           baseOffset: state.delta,
         );

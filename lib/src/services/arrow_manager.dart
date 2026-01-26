@@ -12,7 +12,61 @@ import 'manager.dart';
 class ArrowManager extends Manager {
   final EditorState state;
 
+  Map<String, Offset> _arrowsDragStart = {};
+  Map<String, Offset> _arrowsStartWorldPosition = {};
+
   ArrowManager({required this.state});
+
+  selectAllArrows() {
+    final arrowsSelected = getArrowsForNodes(
+      state.nodesSelected.toList(),
+    ).toSet();
+    state.arrowsSelected.addAll(arrowsSelected);
+    onStateUpdate();
+  }
+
+  // Корректировка позиции при изменении offset
+  void onOffsetChanged() {
+    if (state.isArrowsOnTopLayer && state.arrowsSelected.isNotEmpty) {
+      _updateArrowsPosition();
+      onStateUpdate();
+    }
+  }
+
+  // Обновление позиции связей на стороне узла
+  void _updateArrowsPosition() {
+    if (state.arrowsSelected.isEmpty) return;
+
+    for (var arrowId in state.originalArrowsPosition.keys) {
+      final worldNodePosition = state.originalArrowsPosition[arrowId];
+      final screenNodePosition = _worldToScreen(worldNodePosition!);
+
+      state.selectedArrowsOffset[arrowId] = Offset(
+        screenNodePosition.dx,
+        screenNodePosition.dy,
+      );
+    }
+  }
+
+  void updateArrowsDrag(Offset screenPosition) {
+    if (state.isNodeDragging &&
+        state.isNodeOnTopLayer &&
+        state.nodesSelected.isNotEmpty) {
+      for (var arrowId in state.originalArrowsPosition.keys) {
+        final screenDelta = screenPosition - _arrowsDragStart[arrowId]!;
+        final worldDelta = screenDelta / state.scale;
+        // Обновляем мировые координаты связей
+        final newWorldPosition =
+            _arrowsStartWorldPosition[arrowId]! + worldDelta;
+        state.originalArrowsPosition[arrowId] = newWorldPosition;
+      }
+
+      // Обновляем позиции связей на стороне узла
+      _updateArrowsPosition();
+
+      onStateUpdate();
+    }
+  }
 
   /// Расчет точек соединения для определения стороны
   /// по расположению узлов относительно друг друга
@@ -196,197 +250,6 @@ class ArrowManager extends Manager {
     return (start: startConnectionPoint, end: endConnectionPoint, sides: sides);
   }
 
-  /// Получает путь стрелки с учетом выбранных узлов и текущего масштаба
-  ({Path path, List<Offset> coordinates}) getArrowPathWithSelectedNodes(
-    Arrow arrow,
-  ) {
-    // Сначала ищем узлы в state.nodesSelected, если нет - в state.nodes
-    final effectiveSourceNode = _getEffectiveNodeFromSelectedOrAll(
-      arrow.source,
-    );
-    final effectiveTargetNode = _getEffectiveNodeFromSelectedOrAll(
-      arrow.target,
-    );
-
-    if (effectiveSourceNode == null || effectiveTargetNode == null) {
-      return (path: Path(), coordinates: []);
-    }
-
-    // Получаем мировые позиции узлов
-    final sourceWorldPos = _getNodeWorldPosition(effectiveSourceNode);
-    final targetWorldPos = _getNodeWorldPosition(effectiveTargetNode);
-
-    // Создаем Rect для узлов в мировых координатах
-    final sourceRect = Rect.fromPoints(
-      sourceWorldPos,
-      Offset(
-        sourceWorldPos.dx + effectiveSourceNode.size.width,
-        sourceWorldPos.dy + effectiveSourceNode.size.height,
-      ),
-    );
-
-    final targetRect = Rect.fromPoints(
-      targetWorldPos,
-      Offset(
-        targetWorldPos.dx + effectiveTargetNode.size.width,
-        targetWorldPos.dy + effectiveTargetNode.size.height,
-      ),
-    );
-
-    // Вычисляем точки соединения в мировых координатах
-    final baseConnectionPoints = calculateConnectionPointsForSideCalculation(
-      arrow,
-      sourceRect,
-      targetRect,
-      effectiveSourceNode,
-      effectiveTargetNode,
-    );
-
-    if (baseConnectionPoints.start == null ||
-        baseConnectionPoints.end == null) {
-      return (path: Path(), coordinates: []);
-    }
-
-    // Создаем простой ортогональный путь в мировых координатах
-    final basePath = _createSimpleOrthogonalPath(
-      baseConnectionPoints.start!,
-      baseConnectionPoints.end!,
-      sourceRect,
-      targetRect,
-      baseConnectionPoints.sides!,
-    );
-
-    // Преобразуем путь и координаты в экранные координаты
-    return _convertPathToScreenCoordinates(basePath);
-  }
-
-  /// Преобразует путь из мировых координат в экранные
-  ({Path path, List<Offset> coordinates}) _convertPathToScreenCoordinates(
-    ({Path path, List<Offset> coordinates}) worldPath,
-  ) {
-    final screenPath = Path();
-    final screenCoordinates = <Offset>[];
-
-    // Преобразуем каждую координату
-    for (final worldCoord in worldPath.coordinates) {
-      final screenCoord = worldCoord * state.scale + state.offset;
-      screenCoordinates.add(screenCoord);
-    }
-
-    // Создаем новый путь с экранными координатами
-    if (screenCoordinates.isNotEmpty) {
-      screenPath.moveTo(screenCoordinates.first.dx, screenCoordinates.first.dy);
-
-      // Для экранных координат используем упрощенный путь без дуг
-      for (int i = 1; i < screenCoordinates.length; i++) {
-        screenPath.lineTo(screenCoordinates[i].dx, screenCoordinates[i].dy);
-      }
-    }
-
-    return (path: screenPath, coordinates: screenCoordinates);
-  }
-
-  /// Получает мировую позицию узла с учетом родительских узлов
-  Offset _getNodeWorldPosition(TableNode node) {
-    // Если у узла есть aPosition, используем его
-    if (node.aPosition != null) {
-      return node.aPosition!;
-    }
-
-    // Иначе вычисляем позицию через родителей
-    Offset calculatePosition(TableNode currentNode) {
-      // Если это корневой узел
-      if (currentNode.parent == null) {
-        return currentNode.position + state.delta;
-      }
-
-      // Находим родительский узел
-      final parentNode = _getEffectiveNodeFromSelectedOrAll(
-        currentNode.parent!,
-      );
-      if (parentNode == null) {
-        return currentNode.position + state.delta;
-      }
-
-      // Рекурсивно получаем позицию родителя
-      final parentWorldPosition = calculatePosition(parentNode);
-
-      // Возвращаем позицию родителя + позицию узла
-      return parentWorldPosition + currentNode.position;
-    }
-
-    return calculatePosition(node);
-  }
-
-  /// Находит эффективный узел сначала в выбранных узлах, затем во всех узлах
-  TableNode? _getEffectiveNodeFromSelectedOrAll(String nodeId) {
-    // Сначала ищем в выбранных узлах
-    TableNode? findInSelected() {
-      for (final node in state.nodesSelected) {
-        if (node!.id == nodeId) {
-          return node;
-        }
-        // Рекурсивно ищем в детях выбранных узлов
-        if (node.children != null) {
-          TableNode? findInChildren(List<TableNode> children) {
-            for (final child in children) {
-              if (child.id == nodeId) {
-                return child;
-              }
-              if (child.children != null && child.children!.isNotEmpty) {
-                final found = findInChildren(child.children!);
-                if (found != null) return found;
-              }
-            }
-            return null;
-          }
-
-          final found = findInChildren(node.children!);
-          if (found != null) return found;
-        }
-      }
-      return null;
-    }
-
-    // Если не нашли в выбранных, ищем во всех узлах
-    TableNode? findInAll() {
-      TableNode? findNodeRecursive(List<TableNode> nodeList) {
-        for (final node in nodeList) {
-          if (node.id == nodeId) {
-            return node;
-          }
-          if (node.children != null) {
-            final found = findNodeRecursive(node.children!);
-            if (found != null) return found;
-          }
-        }
-        return null;
-      }
-
-      return findNodeRecursive(state.nodes);
-    }
-
-    final nodeInSelected = findInSelected();
-    if (nodeInSelected != null) {
-      return nodeInSelected;
-    }
-
-    final nodeInAll = findInAll();
-    if (nodeInAll == null) return null;
-
-    // Проверка на свернутые swimlane
-    if (nodeInAll.parent != null) {
-      final parent = _getEffectiveNodeFromSelectedOrAll(nodeInAll.parent!);
-      if (parent != null &&
-          parent.qType == 'swimlane' &&
-          (parent.isCollapsed ?? false)) {
-        return parent;
-      }
-    }
-
-    return nodeInAll;
-  }
-
   /// Получить полный путь стрелки для отрисовки в тайлах
   ({Path path, List<Offset> coordinates}) getArrowPathInTile(
     Arrow arrow,
@@ -434,6 +297,9 @@ class ArrowManager extends Manager {
       effectiveTargetNode,
     );
 
+    arrow.aPositionSource = baseConnectionPoints.start!;
+    arrow.aPositionTarget = baseConnectionPoints.end!;
+
     if (baseConnectionPoints.start == null ||
         baseConnectionPoints.end == null) {
       return (path: Path(), coordinates: []);
@@ -451,6 +317,41 @@ class ArrowManager extends Manager {
     return basePath;
   }
 
+  /// Получает путь стрелки с учетом выбранных узлов и текущего масштаба
+  ({Path path, List<Offset> coordinates}) getArrowPathWithSelectedNodes(
+    Arrow arrow,
+    Rect arrowsRect,
+  ) {
+    // Создаем простой ортогональный путь в мировых координатах
+    final basePath = getArrowPathInTile(arrow, state.delta);
+
+    // Преобразуем путь и координаты в экранные координаты
+    return _convertPathToScreenCoordinates(basePath, arrowsRect);
+  }
+
+  /// Преобразует путь из мировых координат в экранные
+  ({Path path, List<Offset> coordinates}) _convertPathToScreenCoordinates(
+    ({Path path, List<Offset> coordinates}) worldPath,
+    Rect arrowsRect,
+  ) {
+    final screenCoordinates = <Offset>[];
+
+    // Преобразуем каждую координату
+    for (final worldCoord in worldPath.coordinates) {
+      final screenCoord =
+          Offset(
+            worldCoord.dx - arrowsRect.left,
+            worldCoord.dy - arrowsRect.top,
+          ) *
+          state.scale;
+      screenCoordinates.add(screenCoord);
+    }
+
+    final screenPath = _createPath(screenCoordinates, scale: state.scale);
+
+    return (path: screenPath, coordinates: screenCoordinates);
+  }
+
   /// Создание простого ортогонального пути
   ({Path path, List<Offset> coordinates}) _createSimpleOrthogonalPath(
     Offset start,
@@ -459,7 +360,6 @@ class ArrowManager extends Manager {
     Rect targetRect,
     String sides,
   ) {
-    final path = Path();
     List<Offset> coordinates = [];
     coordinates.add(Offset(start.dx, start.dy));
 
@@ -546,6 +446,29 @@ class ArrowManager extends Manager {
     }
 
     String direct = sides.split(':')[0];
+    final path = _createPath(coordinates, direct: direct);
+
+    return (path: path, coordinates: coordinates);
+  }
+
+  Path _createPath(List<Offset> coordinates, {String? direct, double? scale}) {
+    final path = Path();
+    final baseRadius = 10.0 * (scale ?? 1);
+    final dx = coordinates.first.dx - coordinates[1].dx;
+    final dy = coordinates.first.dy - coordinates[1].dy;
+
+    if (direct == null) {
+      if (dx > 0) {
+        direct = 'left';
+      } else if (dx < 0) {
+        direct = 'right';
+      } else if (dy > 0) {
+        direct = 'top';
+      } else {
+        direct = 'bottom';
+      }
+    }
+
     path.moveTo(coordinates.first.dx, coordinates.first.dy);
     for (int i = 1; i < coordinates.length - 1; i++) {
       final previous = coordinates[i - 1]; // предыдущая точка
@@ -561,7 +484,9 @@ class ArrowManager extends Manager {
       // Находим минимальный отрезок
       final offset = min(offsetNext, offsetCurrent);
       final maxRadius = offset / 2;
-      final double radius = maxRadius > 1 ? 10.0.clamp(1.0, maxRadius) : 0;
+      final double radius = maxRadius > 1
+          ? baseRadius.clamp(1.0, maxRadius)
+          : 0;
       double x1 = current.dx;
       double y1 = current.dy;
       bool clockwise = true;
@@ -621,7 +546,7 @@ class ArrowManager extends Manager {
     }
     path.lineTo(coordinates.last.dx, coordinates.last.dy);
 
-    return (path: path, coordinates: coordinates);
+    return path;
   }
 
   /// Найти эффективный узел
@@ -694,6 +619,32 @@ class ArrowManager extends Manager {
 
     // Преобразуем Set в List и возвращаем
     return arrowsSet.toList();
+  }
+
+  /// Рассчитывает прямоугольник, который вмещает все стрелки
+  Rect calculateBoundingRect(List<Arrow?> arrows) {
+    if (arrows.isEmpty) return Rect.zero;
+
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = double.negativeInfinity;
+    double maxY = double.negativeInfinity;
+
+    for (final arrow in arrows) {
+      // Проверяем source позицию
+      minX = arrow!.aPositionSource.dx < minX ? arrow.aPositionSource.dx : minX;
+      minY = arrow.aPositionSource.dy < minY ? arrow.aPositionSource.dy : minY;
+      maxX = arrow.aPositionSource.dx > maxX ? arrow.aPositionSource.dx : maxX;
+      maxY = arrow.aPositionSource.dy > maxY ? arrow.aPositionSource.dy : maxY;
+
+      // Проверяем target позицию
+      minX = arrow.aPositionTarget.dx < minX ? arrow.aPositionTarget.dx : minX;
+      minY = arrow.aPositionTarget.dy < minY ? arrow.aPositionTarget.dy : minY;
+      maxX = arrow.aPositionTarget.dx > maxX ? arrow.aPositionTarget.dx : maxX;
+      maxY = arrow.aPositionTarget.dy > maxY ? arrow.aPositionTarget.dy : maxY;
+    }
+
+    return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
 
   // Метод для получения экранных координат из мировых

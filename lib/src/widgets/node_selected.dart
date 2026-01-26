@@ -53,9 +53,6 @@ class _NodeSelectedState extends State<NodeSelected>
     if (widget.state.nodesSelected.isEmpty) return Container();
 
     final node = widget.state.nodesSelected.first!;
-    final arrows = widget.arrowManager.getArrowsForNodes(
-      widget.state.nodesSelected.toList(),
-    );
     final hasAttributes = node.attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isNotGroup = node.groupId != null;
@@ -66,8 +63,7 @@ class _NodeSelectedState extends State<NodeSelected>
       node.size.height * widget.state.scale,
     );
 
-    return widget.state.isNodeOnTopLayer &&
-            widget.state.nodesSelected.isNotEmpty
+    return widget.state.nodesSelected.isNotEmpty
         ? Positioned(
             left: widget.state.selectedNodeOffset.dx,
             top: widget.state.selectedNodeOffset.dy,
@@ -84,10 +80,7 @@ class _NodeSelectedState extends State<NodeSelected>
                   size: nodeSize,
                   painter: NodeCustomPainter(
                     node: node,
-                    arrows: arrows,
-                    isSelected: true,
                     targetSize: nodeSize,
-                    arrowManager: widget.arrowManager
                   ),
                 ),
               ),

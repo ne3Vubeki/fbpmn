@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import '../models/arrow.dart';
 import '../services/arrow_manager.dart';
 
-class ArrowPainter {
+class ArrowsPainter {
   final List<Arrow?> arrows;
-  late final ArrowManager arrowManager;
+  final ArrowManager arrowManager;
 
-  ArrowPainter({required this.arrows, required this.arrowManager});
+  ArrowsPainter({
+    required this.arrows,
+    required this.arrowManager,
+  });
 
-  void drawArrowsInTile({
-    required Canvas canvas,
-    required Offset baseOffset,
-  }) {
+  void drawArrowsInTile({required Canvas canvas, required Offset baseOffset}) {
     final paint = Paint()
       ..color = Colors.grey
       ..strokeWidth = 3
@@ -28,22 +28,26 @@ class ArrowPainter {
     }
   }
 
-  void drawArrowsSelectedNodes({
-    required Canvas canvas,
-  }) {
-    final paint = Paint()
+  void paint(Canvas canvas, double scale, Rect arrowsRect) {
+    // Рассчитываем толщину линии
+    final lineWidth = 2.0 * scale;
+
+    final arrowPaint = Paint()
       ..color = Colors.blue
-      ..strokeWidth = 6
+      ..strokeWidth = lineWidth
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
 
-    // Рисуем только те стрелки, путь которых пересекает этот тайл
+    // Рисуем стрелки
     for (final arrow in arrows) {
-      // Получаем полный путь стрелки
-      final path = arrowManager.getArrowPathWithSelectedNodes(arrow!).path;
+      if (arrow == null) continue;
 
-      // Рисуем путь (автоматически обрежется по границам тайла)
-      canvas.drawPath(path, paint);
+      // Получаем полный путь стрелки
+      final pathResult = arrowManager.getArrowPathWithSelectedNodes(arrow, arrowsRect);
+      final path = pathResult.path;
+
+      // Рисуем путь стрелки
+      canvas.drawPath(path, arrowPaint);
     }
   }
 }

@@ -41,7 +41,7 @@ class _StableGridImageState extends State<StableGridImage> {
       arrowManager: _arrowManager,
     );
 
-    _nodeManager = NodeManager(state: _editorState, tileManager: _tileManager);
+    _nodeManager = NodeManager(state: _editorState, tileManager: _tileManager, arrowManager: _arrowManager);
 
     _scrollHandler = ScrollHandler(
       state: _editorState,
@@ -52,6 +52,7 @@ class _StableGridImageState extends State<StableGridImage> {
       state: _editorState,
       nodeManager: _nodeManager,
       scrollHandler: _scrollHandler,
+      arrowManager: _arrowManager,
     );
 
     // Инициализация

@@ -9,6 +9,7 @@ import '../editor_state.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
+import 'arrows_selected.dart';
 import 'hierarchical_grid.dart';
 import 'node_selected.dart';
 import 'scroll_bar_horizontal.dart';
@@ -168,6 +169,13 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         NodeSelected(
                           state: widget.state,
                           nodeManager: widget.nodeManager,
+                          arrowManager: widget.arrowManager,
+                          inputHandler: widget.inputHandler,
+                        ),
+                        
+                        // Отображение выделенных связей на верхнем слое
+                        ArrowsSelected(
+                          state: widget.state,
                           arrowManager: widget.arrowManager,
                           inputHandler: widget.inputHandler,
                         ),

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/manager.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,6 +12,7 @@ import '../services/tile_manager.dart';
 class NodeManager extends Manager {
   final EditorState state;
   final TileManager tileManager;
+  final ArrowManager arrowManager;
 
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
@@ -28,6 +30,7 @@ class NodeManager extends Manager {
   NodeManager({
     required this.state,
     required this.tileManager,
+    required this.arrowManager,
   });
 
   static List<TableNode?> nodeRecurcive(List<TableNode?> nodes, Function test) {
@@ -205,27 +208,10 @@ class NodeManager extends Manager {
 
     _updateFramePosition();
 
-    // ВАЖНО: Сначала удаляем узел из state.nodes
-    // _removeNodeFromNodesList(node);
-
-    // Для swimlane в развернутом состоянии удаляем узел и детей из тайлов
-    // if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-    //   // Сохраняем абсолютные позиции детей перед удалением
-    //   if (node.children != null) {
-    //     for (final child in node.children!) {
-    //       child.aPosition ??= state.delta + node.position + child.position;
-    //     }
-    //   }
-    //   final tilesToUpdate = <int>{};
-    //   await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
-    //   // Обновляем все затронутые тайлы
-    //   for (final tileIndex in tilesToUpdate) {
-    //     await tileManager.updateTileWithAllContent(tileIndex);
-    //   }
-    // }
-
     // Затем удаляем узел из тайлов и ЖДЕМ завершения
     await tileManager.removeSelectedNodeFromTiles(node);
+
+    arrowManager.selectAllArrows();
 
     startNodeDrag(screenPosition);
 
@@ -247,6 +233,8 @@ class NodeManager extends Manager {
     await _prepareNodeForTopLayer(node);
 
     _updateFramePosition();
+
+    arrowManager.selectAllArrows();
 
     onStateUpdate();
   }

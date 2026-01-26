@@ -1,24 +1,15 @@
-import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:flutter/material.dart';
-import '../models/arrow.dart';
 import '../models/table.node.dart';
-import 'arrow_painter.dart';
 import 'node_painter.dart';
 
 /// Адаптер для использования NodePainter как CustomPainter (простая версия)
 class NodeCustomPainter extends CustomPainter {
   final TableNode node;
-  final List<Arrow?> arrows;
-  final bool isSelected;
   final Size targetSize;
-  final ArrowManager arrowManager;
 
   NodeCustomPainter({
     required this.node,
-    required this.arrows,
-    required this.isSelected,
     required this.targetSize,
-    required this.arrowManager,
   });
 
   @override
@@ -27,10 +18,6 @@ class NodeCustomPainter extends CustomPainter {
     final scaleX = targetSize.width / node.size.width;
     final scaleY = targetSize.height / node.size.height;
     final isSwimlane = node.qType == 'swimlane';
-    final arrowTilePainter = ArrowPainter(
-      arrows: arrows,
-      arrowManager: arrowManager,
-    );
 
     void parentNodePaint() {
       final painter = NodePainter(node: node);
@@ -89,19 +76,12 @@ class NodeCustomPainter extends CustomPainter {
       parentNodePaint();
     }
 
-    if (arrows.isNotEmpty) {
-      arrowTilePainter.drawArrowsSelectedNodes(
-        canvas: canvas,
-      );
-    }
-
     canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant NodeCustomPainter oldDelegate) {
     return oldDelegate.node != node ||
-        oldDelegate.isSelected != isSelected ||
         oldDelegate.targetSize != targetSize;
   }
 }

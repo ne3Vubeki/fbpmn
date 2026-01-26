@@ -1,9 +1,13 @@
 // Модель стрелки/связи
+import 'dart:ui';
+
 class Arrow {
   final String id;
   final String qType; // arrowObject, qRelationship, qEdgeToJson
   String source; // ID источника
   String target; // ID цели
+  Offset aPositionSource;
+  Offset aPositionTarget;
   final String style;
   List<Map<String, dynamic>>? powers; // Опционально
   List<Map<String, dynamic>>? points; // Опционально
@@ -15,6 +19,8 @@ class Arrow {
     required this.source,
     required this.target,
     required this.style,
+    this.aPositionSource = Offset.zero,
+    this.aPositionTarget = Offset.zero,
     this.powers,
     this.points,
     this.strokeWidth = 1.0,
