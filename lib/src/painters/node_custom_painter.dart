@@ -1,17 +1,24 @@
+import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:flutter/material.dart';
+import '../models/arrow.dart';
 import '../models/table.node.dart';
-import 'node_painter.dart' as node_painter_lib;
+import 'arrow_painter.dart';
+import 'node_painter.dart';
 
 /// Адаптер для использования NodePainter как CustomPainter (простая версия)
 class NodeCustomPainter extends CustomPainter {
   final TableNode node;
+  final List<Arrow?> arrows;
   final bool isSelected;
   final Size targetSize;
+  final ArrowManager arrowManager;
 
   NodeCustomPainter({
     required this.node,
+    required this.arrows,
     required this.isSelected,
     required this.targetSize,
+    required this.arrowManager,
   });
 
   @override
@@ -20,9 +27,13 @@ class NodeCustomPainter extends CustomPainter {
     final scaleX = targetSize.width / node.size.width;
     final scaleY = targetSize.height / node.size.height;
     final isSwimlane = node.qType == 'swimlane';
+    final arrowTilePainter = ArrowPainter(
+      arrows: arrows,
+      arrowManager: arrowManager,
+    );
 
     void parentNodePaint() {
-      final painter = node_painter_lib.NodePainter(node: node);
+      final painter = NodePainter(node: node);
       final rect = Rect.fromLTWH(0, 0, node.size.width, node.size.height);
       painter.paint(canvas, rect, forTile: false);
     }
@@ -53,14 +64,15 @@ class NodeCustomPainter extends CustomPainter {
         final relativePosition = child.aPosition != null
             ? Offset(
                 (child.aPosition!.dx - (node.aPosition?.dx ?? 0)),
-                (child.aPosition!.dy - (node.aPosition?.dy ?? 0)))
+                (child.aPosition!.dy - (node.aPosition?.dy ?? 0)),
+              )
             : child.position;
 
         // Перемещаемся к позиции ребенка (в координатах родителя)
         canvas.translate(relativePosition.dx, relativePosition.dy);
 
         // Рисуем ребенка
-        final childPainter = node_painter_lib.NodePainter(node: child);
+        final childPainter = NodePainter(node: child);
         final childRect = Rect.fromLTWH(
           0,
           0,
@@ -75,6 +87,12 @@ class NodeCustomPainter extends CustomPainter {
 
     if (isSwimlane) {
       parentNodePaint();
+    }
+
+    if (arrows.isNotEmpty) {
+      arrowTilePainter.drawArrowsSelectedNodes(
+        canvas: canvas,
+      );
     }
 
     canvas.restore();

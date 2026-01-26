@@ -9,30 +9,22 @@ import '../models/image_tile.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import '../editor_state.dart';
+import '../painters/arrow_painter.dart';
 import '../utils/bounds_calculator.dart';
 import '../utils/node_renderer.dart';
 import '../utils/editor_config.dart';
-import '../painters/arrow_tile_painter.dart';
 import 'arrow_manager.dart';
 import 'manager.dart';
 
 class TileManager extends Manager {
   final EditorState state;
+  final ArrowManager arrowManager;
 
   final BoundsCalculator _boundsCalculator = BoundsCalculator();
   final NodeRenderer _nodeRenderer = NodeRenderer();
 
-  late ArrowManager arrowManager;
-
-  TileManager({required this.state}) {
-    // Создаем ArrowManager для проверки пересечений
-    arrowManager = ArrowManager(
-      arrows: state.arrows,
-      nodes: state.nodes,
-      tileManager: this,
-    );
-  }
-
+  TileManager({required this.state, required this.arrowManager});
+  
   Future<void> createTiledImage(
     List<TableNode?> nodes,
     List<Arrow?> arrows, {
@@ -187,7 +179,7 @@ class TileManager extends Manager {
 
       // Получаем полный путь стрелки
       final coordinates = arrowManager
-          .getArrowPathForTiles(arrowCopy, state.delta)
+          .getArrowPathInTile(arrowCopy, state.delta)
           .coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
 
@@ -601,13 +593,12 @@ class TileManager extends Manager {
 
       // Рисуем стрелки, если они есть (используем ArrowTilePainter)
       if (arrowsInTile.isNotEmpty) {
-        final arrowTilePainter = ArrowTilePainter(
+        final arrowTilePainter = ArrowPainter(
           arrows: arrowsInTile,
           arrowManager: arrowManager,
         );
         arrowTilePainter.drawArrowsInTile(
           canvas: canvas,
-          tileBounds: tileBounds,
           baseOffset: state.delta,
         );
       }

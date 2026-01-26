@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/input_handler.dart';
 import 'package:fbpmn/src/widgets/state_widget.dart';
 import 'package:flutter/material.dart';
@@ -9,12 +10,14 @@ import '../services/node_manager.dart';
 class NodeSelected extends StatefulWidget {
   final EditorState state;
   final NodeManager nodeManager;
+  final ArrowManager arrowManager;
   final InputHandler inputHandler;
 
   const NodeSelected({
     super.key,
     required this.state,
     required this.nodeManager,
+    required this.arrowManager,
     required this.inputHandler,
   });
 
@@ -50,6 +53,9 @@ class _NodeSelectedState extends State<NodeSelected>
     if (widget.state.nodesSelected.isEmpty) return Container();
 
     final node = widget.state.nodesSelected.first!;
+    final arrows = widget.arrowManager.getArrowsForNodes(
+      widget.state.nodesSelected.toList(),
+    );
     final hasAttributes = node.attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isNotGroup = node.groupId != null;
@@ -78,8 +84,10 @@ class _NodeSelectedState extends State<NodeSelected>
                   size: nodeSize,
                   painter: NodeCustomPainter(
                     node: node,
+                    arrows: arrows,
                     isSelected: true,
                     targetSize: nodeSize,
+                    arrowManager: widget.arrowManager
                   ),
                 ),
               ),

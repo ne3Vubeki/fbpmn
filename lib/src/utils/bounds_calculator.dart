@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import '../models/image_tile.dart';
 import '../models/table.node.dart';
 import 'editor_config.dart';
 
@@ -47,7 +46,8 @@ class BoundsCalculator {
           node.children != null &&
           node.children!.isNotEmpty) {
         for (final child in node.children!) {
-          final childPosition = child.aPosition ?? (child.position + nodePosition);
+          final childPosition =
+              child.aPosition ?? (child.position + nodePosition);
           collectNodes(child, childPosition, isCurrentCollapsedSwimlane);
         }
       }
@@ -68,65 +68,8 @@ class BoundsCalculator {
     return Rect.fromLTWH(position.dx, position.dy, actualWidth, actualHeight);
   }
 
-  Set<int> getTileIndicesForNode({
-    required TableNode node,
-    required Offset nodePosition,
-    required List<ImageTile> imageTiles,
-  }) {
-    final Set<int> indices = {};
-    final nodeRect = calculateNodeRect(node: node, position: nodePosition);
-
-    for (int i = 0; i < imageTiles.length; i++) {
-      final tile = imageTiles[i];
-      if (nodeRect.overlaps(tile.bounds)) {
-        indices.add(i);
-      }
-    }
-
-    return indices;
-  }
-
   double _calculateMinHeight(TableNode node) {
     return EditorConfig.headerHeight +
         (node.attributes.length * EditorConfig.minRowHeight);
-  }
-
-  /// Получает только корневые узлы для тайла
-  List<TableNode> getRootNodesForTile({
-    required Rect bounds,
-    required List<TableNode> allNodes,
-    required Offset delta,
-    required TableNode? excludedNode,
-  }) {
-    final List<TableNode> rootNodes = [];
-
-    void checkNode(TableNode node, Offset parentOffset, bool isRoot) {
-      // Пропускаем исключенный узел
-      if (excludedNode != null && node.id == excludedNode.id) {
-        return;
-      }
-
-      final nodePosition = node.aPosition ?? (node.position + parentOffset);
-      final nodeRect = calculateNodeRect(node: node, position: nodePosition);
-
-      if (nodeRect.overlaps(bounds)) {
-        if (isRoot) {
-          rootNodes.add(node);
-        }
-      }
-
-      if (node.children != null && node.children!.isNotEmpty) {
-        for (final child in node.children!) {
-          final childPosition = child.aPosition ?? (child.position + nodePosition);
-          checkNode(child, childPosition, false);
-        }
-      }
-    }
-
-    for (final node in allNodes) {
-      checkNode(node, delta, true);
-    }
-
-    return rootNodes;
   }
 }

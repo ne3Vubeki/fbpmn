@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:fbpmn/src/widgets/state_widget.dart';
 import 'package:flutter/gestures.dart';
@@ -18,6 +19,7 @@ class CanvasArea extends StatefulWidget {
   final EditorState state;
   final InputHandler inputHandler;
   final NodeManager nodeManager;
+  final ArrowManager arrowManager;
   final TileManager tileManager;
   final ScrollHandler scrollHandler;
 
@@ -26,6 +28,7 @@ class CanvasArea extends StatefulWidget {
     required this.state,
     required this.inputHandler,
     required this.nodeManager,
+    required this.arrowManager,
     required this.tileManager,
     required this.scrollHandler,
   });
@@ -165,6 +168,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         NodeSelected(
                           state: widget.state,
                           nodeManager: widget.nodeManager,
+                          arrowManager: widget.arrowManager,
                           inputHandler: widget.inputHandler,
                         ),
                       ],

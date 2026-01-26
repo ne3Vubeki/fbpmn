@@ -1,24 +1,18 @@
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:fbpmn/src/editor_state.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import 'manager.dart';
-import 'tile_manager.dart';
 
 /// Сервис для управления и расчета соединений стрелок
 class ArrowManager extends Manager {
-  final List<Arrow> arrows;
-  final List<TableNode> nodes;
-  final TileManager tileManager;
+  final EditorState state;
 
-  ArrowManager({
-    required this.arrows,
-    required this.nodes,
-    required this.tileManager,
-  });
+  ArrowManager({required this.state});
 
   /// Расчет точек соединения для определения стороны
   /// по расположению узлов относительно друг друга
@@ -202,8 +196,199 @@ class ArrowManager extends Manager {
     return (start: startConnectionPoint, end: endConnectionPoint, sides: sides);
   }
 
+  /// Получает путь стрелки с учетом выбранных узлов и текущего масштаба
+  ({Path path, List<Offset> coordinates}) getArrowPathWithSelectedNodes(
+    Arrow arrow,
+  ) {
+    // Сначала ищем узлы в state.nodesSelected, если нет - в state.nodes
+    final effectiveSourceNode = _getEffectiveNodeFromSelectedOrAll(
+      arrow.source,
+    );
+    final effectiveTargetNode = _getEffectiveNodeFromSelectedOrAll(
+      arrow.target,
+    );
+
+    if (effectiveSourceNode == null || effectiveTargetNode == null) {
+      return (path: Path(), coordinates: []);
+    }
+
+    // Получаем мировые позиции узлов
+    final sourceWorldPos = _getNodeWorldPosition(effectiveSourceNode);
+    final targetWorldPos = _getNodeWorldPosition(effectiveTargetNode);
+
+    // Создаем Rect для узлов в мировых координатах
+    final sourceRect = Rect.fromPoints(
+      sourceWorldPos,
+      Offset(
+        sourceWorldPos.dx + effectiveSourceNode.size.width,
+        sourceWorldPos.dy + effectiveSourceNode.size.height,
+      ),
+    );
+
+    final targetRect = Rect.fromPoints(
+      targetWorldPos,
+      Offset(
+        targetWorldPos.dx + effectiveTargetNode.size.width,
+        targetWorldPos.dy + effectiveTargetNode.size.height,
+      ),
+    );
+
+    // Вычисляем точки соединения в мировых координатах
+    final baseConnectionPoints = calculateConnectionPointsForSideCalculation(
+      arrow,
+      sourceRect,
+      targetRect,
+      effectiveSourceNode,
+      effectiveTargetNode,
+    );
+
+    if (baseConnectionPoints.start == null ||
+        baseConnectionPoints.end == null) {
+      return (path: Path(), coordinates: []);
+    }
+
+    // Создаем простой ортогональный путь в мировых координатах
+    final basePath = _createSimpleOrthogonalPath(
+      baseConnectionPoints.start!,
+      baseConnectionPoints.end!,
+      sourceRect,
+      targetRect,
+      baseConnectionPoints.sides!,
+    );
+
+    // Преобразуем путь и координаты в экранные координаты
+    return _convertPathToScreenCoordinates(basePath);
+  }
+
+  /// Преобразует путь из мировых координат в экранные
+  ({Path path, List<Offset> coordinates}) _convertPathToScreenCoordinates(
+    ({Path path, List<Offset> coordinates}) worldPath,
+  ) {
+    final screenPath = Path();
+    final screenCoordinates = <Offset>[];
+
+    // Преобразуем каждую координату
+    for (final worldCoord in worldPath.coordinates) {
+      final screenCoord = worldCoord * state.scale + state.offset;
+      screenCoordinates.add(screenCoord);
+    }
+
+    // Создаем новый путь с экранными координатами
+    if (screenCoordinates.isNotEmpty) {
+      screenPath.moveTo(screenCoordinates.first.dx, screenCoordinates.first.dy);
+
+      // Для экранных координат используем упрощенный путь без дуг
+      for (int i = 1; i < screenCoordinates.length; i++) {
+        screenPath.lineTo(screenCoordinates[i].dx, screenCoordinates[i].dy);
+      }
+    }
+
+    return (path: screenPath, coordinates: screenCoordinates);
+  }
+
+  /// Получает мировую позицию узла с учетом родительских узлов
+  Offset _getNodeWorldPosition(TableNode node) {
+    // Если у узла есть aPosition, используем его
+    if (node.aPosition != null) {
+      return node.aPosition!;
+    }
+
+    // Иначе вычисляем позицию через родителей
+    Offset calculatePosition(TableNode currentNode) {
+      // Если это корневой узел
+      if (currentNode.parent == null) {
+        return currentNode.position + state.delta;
+      }
+
+      // Находим родительский узел
+      final parentNode = _getEffectiveNodeFromSelectedOrAll(
+        currentNode.parent!,
+      );
+      if (parentNode == null) {
+        return currentNode.position + state.delta;
+      }
+
+      // Рекурсивно получаем позицию родителя
+      final parentWorldPosition = calculatePosition(parentNode);
+
+      // Возвращаем позицию родителя + позицию узла
+      return parentWorldPosition + currentNode.position;
+    }
+
+    return calculatePosition(node);
+  }
+
+  /// Находит эффективный узел сначала в выбранных узлах, затем во всех узлах
+  TableNode? _getEffectiveNodeFromSelectedOrAll(String nodeId) {
+    // Сначала ищем в выбранных узлах
+    TableNode? findInSelected() {
+      for (final node in state.nodesSelected) {
+        if (node!.id == nodeId) {
+          return node;
+        }
+        // Рекурсивно ищем в детях выбранных узлов
+        if (node.children != null) {
+          TableNode? findInChildren(List<TableNode> children) {
+            for (final child in children) {
+              if (child.id == nodeId) {
+                return child;
+              }
+              if (child.children != null && child.children!.isNotEmpty) {
+                final found = findInChildren(child.children!);
+                if (found != null) return found;
+              }
+            }
+            return null;
+          }
+
+          final found = findInChildren(node.children!);
+          if (found != null) return found;
+        }
+      }
+      return null;
+    }
+
+    // Если не нашли в выбранных, ищем во всех узлах
+    TableNode? findInAll() {
+      TableNode? findNodeRecursive(List<TableNode> nodeList) {
+        for (final node in nodeList) {
+          if (node.id == nodeId) {
+            return node;
+          }
+          if (node.children != null) {
+            final found = findNodeRecursive(node.children!);
+            if (found != null) return found;
+          }
+        }
+        return null;
+      }
+
+      return findNodeRecursive(state.nodes);
+    }
+
+    final nodeInSelected = findInSelected();
+    if (nodeInSelected != null) {
+      return nodeInSelected;
+    }
+
+    final nodeInAll = findInAll();
+    if (nodeInAll == null) return null;
+
+    // Проверка на свернутые swimlane
+    if (nodeInAll.parent != null) {
+      final parent = _getEffectiveNodeFromSelectedOrAll(nodeInAll.parent!);
+      if (parent != null &&
+          parent.qType == 'swimlane' &&
+          (parent.isCollapsed ?? false)) {
+        return parent;
+      }
+    }
+
+    return nodeInAll;
+  }
+
   /// Получить полный путь стрелки для отрисовки в тайлах
-  ({Path path, List<Offset> coordinates}) getArrowPathForTiles(
+  ({Path path, List<Offset> coordinates}) getArrowPathInTile(
     Arrow arrow,
     Offset baseOffset,
   ) {
@@ -454,7 +639,7 @@ class ArrowManager extends Manager {
       return null;
     }
 
-    final node = findNodeRecursive(nodes);
+    final node = findNodeRecursive(state.nodes);
     if (node == null) return null;
 
     // Проверка на свернутые swimlane
@@ -468,5 +653,56 @@ class ArrowManager extends Manager {
     }
 
     return node;
+  }
+
+  /// Находит все связи, связанные с указанными узлами
+  /// [nodes] - список узлов, для которых нужно найти связанные стрелки
+  /// Возвращает список всех стрелок, где источник или цель находится в списке узлов
+  List<Arrow?> getArrowsForNodes(List<TableNode?> nodes) {
+    // Создаем Set для хранения уникальных ID узлов
+    final Set<String> nodeIds = {};
+
+    // Добавляем ID всех узлов из списка
+    for (final node in nodes) {
+      nodeIds.add(node!.id);
+
+      // Также добавляем ID всех вложенных узлов, если они есть
+      if (node.children != null && node.children!.isNotEmpty) {
+        void addChildrenIds(TableNode parentNode) {
+          for (final child in parentNode.children!) {
+            nodeIds.add(child.id);
+            if (child.children != null && child.children!.isNotEmpty) {
+              addChildrenIds(child);
+            }
+          }
+        }
+
+        addChildrenIds(node);
+      }
+    }
+
+    // Создаем Set для хранения уникальных стрелок
+    final Set<Arrow?> arrowsSet = {};
+
+    // Проходим по всем стрелкам в state.arrows
+    for (final arrow in state.arrows) {
+      // Проверяем, связана ли стрелка с любым из узлов в списке
+      if (nodeIds.contains(arrow.source) || nodeIds.contains(arrow.target)) {
+        arrowsSet.add(arrow);
+      }
+    }
+
+    // Преобразуем Set в List и возвращаем
+    return arrowsSet.toList();
+  }
+
+  // Метод для получения экранных координат из мировых
+  Offset _worldToScreen(Offset worldPosition) {
+    return worldPosition * state.scale + state.offset;
+  }
+
+  // Метод для получения мировых координат из экранных
+  Offset _screenToWorld(Offset screenPosition) {
+    return (screenPosition - state.offset) / state.scale;
   }
 }

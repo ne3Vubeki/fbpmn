@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'models/table.node.dart';
 import 'models/arrow.dart';
+import 'services/arrow_manager.dart';
 import 'services/input_handler.dart';
 import 'services/scroll_handler.dart';
 import 'services/tile_manager.dart';
@@ -25,6 +26,7 @@ class _StableGridImageState extends State<StableGridImage> {
   late ScrollHandler _scrollHandler;
   late TileManager _tileManager;
   late NodeManager _nodeManager;
+  late ArrowManager _arrowManager;
 
   @override
   void initState() {
@@ -32,14 +34,14 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _editorState = EditorState();
 
+    _arrowManager = ArrowManager(state: _editorState);
+
     _tileManager = TileManager(
       state: _editorState,
+      arrowManager: _arrowManager,
     );
 
-    _nodeManager = NodeManager(
-      state: _editorState,
-      tileManager: _tileManager,
-    );
+    _nodeManager = NodeManager(state: _editorState, tileManager: _tileManager);
 
     _scrollHandler = ScrollHandler(
       state: _editorState,
@@ -124,6 +126,7 @@ class _StableGridImageState extends State<StableGridImage> {
               nodeManager: _nodeManager,
               scrollHandler: _scrollHandler,
               tileManager: _tileManager,
+              arrowManager: _arrowManager,
             ),
 
             // Контейнер с миниатюрой и панелью зума
