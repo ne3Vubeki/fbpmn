@@ -382,7 +382,7 @@ class TileManager extends Manager {
     state.arrowsSelected.addAll(arrowsSelected);
 
     /// Находим и добавляем для удаления id вложенных в группу узлов
-    if (node.qType == 'group' &&
+    if ((node.qType == 'group' || node.qType == 'swimlane') &&
         node.children != null &&
         node.children!.isNotEmpty) {
       for (final child in node.children!) {
@@ -411,7 +411,6 @@ class TileManager extends Manager {
     }
 
     // Обновляем ВСЕ тайлы, из которых удаляли узлы ИЛИ стрелки
-    print('Тайлы для обновления: $tilesToUpdate');
     for (final tile in tilesToUpdate) {
       await updateTileWithAllContent(tile);
     }
@@ -586,10 +585,7 @@ class TileManager extends Manager {
           arrows: arrowsInTile,
           arrowManager: arrowManager,
         );
-        arrowsPainter.drawArrowsInTile(
-          canvas: canvas,
-          baseOffset: state.delta,
-        );
+        arrowsPainter.drawArrowsInTile(canvas: canvas, baseOffset: state.delta);
       }
 
       final picture = recorder.endRecording();

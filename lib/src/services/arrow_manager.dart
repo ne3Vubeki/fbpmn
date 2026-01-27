@@ -12,9 +12,6 @@ import 'manager.dart';
 class ArrowManager extends Manager {
   final EditorState state;
 
-  Map<String, Offset> _arrowsDragStart = {};
-  Map<String, Offset> _arrowsStartWorldPosition = {};
-
   ArrowManager({required this.state});
 
   selectAllArrows() {
@@ -23,49 +20,6 @@ class ArrowManager extends Manager {
     ).toSet();
     state.arrowsSelected.addAll(arrowsSelected);
     onStateUpdate();
-  }
-
-  // Корректировка позиции при изменении offset
-  void onOffsetChanged() {
-    if (state.isArrowsOnTopLayer && state.arrowsSelected.isNotEmpty) {
-      _updateArrowsPosition();
-      onStateUpdate();
-    }
-  }
-
-  // Обновление позиции связей на стороне узла
-  void _updateArrowsPosition() {
-    if (state.arrowsSelected.isEmpty) return;
-
-    for (var arrowId in state.originalArrowsPosition.keys) {
-      final worldNodePosition = state.originalArrowsPosition[arrowId];
-      final screenNodePosition = _worldToScreen(worldNodePosition!);
-
-      state.selectedArrowsOffset[arrowId] = Offset(
-        screenNodePosition.dx,
-        screenNodePosition.dy,
-      );
-    }
-  }
-
-  void updateArrowsDrag(Offset screenPosition) {
-    if (state.isNodeDragging &&
-        state.isNodeOnTopLayer &&
-        state.nodesSelected.isNotEmpty) {
-      for (var arrowId in state.originalArrowsPosition.keys) {
-        final screenDelta = screenPosition - _arrowsDragStart[arrowId]!;
-        final worldDelta = screenDelta / state.scale;
-        // Обновляем мировые координаты связей
-        final newWorldPosition =
-            _arrowsStartWorldPosition[arrowId]! + worldDelta;
-        state.originalArrowsPosition[arrowId] = newWorldPosition;
-      }
-
-      // Обновляем позиции связей на стороне узла
-      _updateArrowsPosition();
-
-      onStateUpdate();
-    }
   }
 
   /// Расчет точек соединения для определения стороны
@@ -645,15 +599,5 @@ class ArrowManager extends Manager {
     }
 
     return Rect.fromLTRB(minX, minY, maxX, maxY);
-  }
-
-  // Метод для получения экранных координат из мировых
-  Offset _worldToScreen(Offset worldPosition) {
-    return worldPosition * state.scale + state.offset;
-  }
-
-  // Метод для получения мировых координат из экранных
-  Offset _screenToWorld(Offset screenPosition) {
-    return (screenPosition - state.offset) / state.scale;
   }
 }

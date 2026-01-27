@@ -59,7 +59,7 @@ class NodeManager extends Manager {
   // Корректировка позиции при изменении масштаба
   void onScaleChanged() {
     if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
-      _updateFramePosition();
+      _updateNodePosition();
       onStateUpdate();
     }
   }
@@ -67,20 +67,20 @@ class NodeManager extends Manager {
   // Корректировка позиции при изменении offset
   void onOffsetChanged() {
     if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
-      _updateFramePosition();
+      _updateNodePosition();
       onStateUpdate();
     }
   }
 
   // Обновление позиции РАМКИ на основе позиции УЗЛА
-  void _updateFramePosition() {
+  void _updateNodePosition() {
     if (state.nodesSelected.isEmpty) return;
 
     final node = state.nodesSelected.first!;
 
     // Для swimlane в раскрытом состоянии рассчитываем общие границы
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-      _updateSwimlaneFramePosition(node);
+      _updateSwimlaneNodePosition(node);
       return;
     }
 
@@ -92,16 +92,25 @@ class NodeManager extends Manager {
       screenNodePosition.dx - frameTotalOffset,
       screenNodePosition.dy - frameTotalOffset,
     );
+
+    node.position = worldNodePosition - state.delta;
+    node.aPosition = worldNodePosition;
+    if (node.children != null && node.children!.isNotEmpty) {
+      for (final child in node.children!) {
+        child.aPosition = worldNodePosition + child.position;
+      }
+    }
+
     state.framePadding = EdgeInsets.all(framePadding);
   }
 
   // Метод для обновления рамки выделения swimlane
-  void _updateSwimlaneFramePosition(TableNode swimlaneNode) {
+  void _updateSwimlaneNodePosition(TableNode swimlaneNode) {
     if (state.isNodeDragging && _initialSwimlaneBounds != null) {
       // Если мы перетаскиваем swimlane и у нас есть начальные параметры,
       // просто сдвигаем рамку на ту же величину, что и узел
-      final currentWorldPos = state.originalNodePosition;
-      final positionDelta = currentWorldPos - _nodeStartWorldPosition;
+      final worldNodePosition = state.originalNodePosition;
+      final positionDelta = worldNodePosition - _nodeStartWorldPosition;
 
       // Вычисляем новую позицию рамки
       final newFrameScreenPos =
@@ -115,6 +124,16 @@ class NodeManager extends Manager {
         newFrameScreenPos.dx - frameTotalOffset,
         newFrameScreenPos.dy - frameTotalOffset,
       );
+
+      swimlaneNode.position = worldNodePosition - state.delta;
+      swimlaneNode.aPosition = worldNodePosition;
+      if (swimlaneNode.children != null && swimlaneNode.children!.isNotEmpty) {
+        for (final child in swimlaneNode.children!) {
+          child.aPosition = worldNodePosition + child.position;
+        }
+      }
+
+      print('Двигается узел из swimlane');
 
       // Используем сохраненные отступы
       state.framePadding = _initialFramePadding!;
@@ -187,6 +206,9 @@ class NodeManager extends Manager {
         maxX - minX,
         maxY - minY,
       );
+
+      print('Двигается весь swimlane');
+
       _initialFramePadding = state.framePadding;
     }
   }
@@ -206,7 +228,7 @@ class NodeManager extends Manager {
     state.nodesSelected.add(node);
     state.isNodeOnTopLayer = true;
 
-    _updateFramePosition();
+    _updateNodePosition();
 
     // Затем удаляем узел из тайлов и ЖДЕМ завершения
     await tileManager.removeSelectedNodeFromTiles(node);
@@ -232,7 +254,7 @@ class NodeManager extends Manager {
 
     await _prepareNodeForTopLayer(node);
 
-    _updateFramePosition();
+    _updateNodePosition();
 
     arrowManager.selectAllArrows();
 
@@ -363,6 +385,7 @@ class NodeManager extends Manager {
     state.originalNodePosition = Offset.zero;
 
     onStateUpdate();
+    arrowManager.onStateUpdate();
   }
 
   // Метод для поиска родителя swimlane
@@ -381,6 +404,7 @@ class NodeManager extends Manager {
       state.selectedNodeOffset = Offset.zero;
       state.originalNodePosition = Offset.zero;
       onStateUpdate();
+      arrowManager.onStateUpdate();
     }
   }
 
@@ -625,9 +649,10 @@ class NodeManager extends Manager {
       state.originalNodePosition = newWorldPosition;
 
       // Обновляем позицию рамки на основе новой позиции узла
-      _updateFramePosition();
+      _updateNodePosition();
 
       onStateUpdate();
+      arrowManager.onStateUpdate();
     }
   }
 

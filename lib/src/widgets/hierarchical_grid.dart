@@ -30,10 +30,6 @@ class HierarchicalGrid extends StatefulWidget {
 
 class _HierarchicalGridState extends State<HierarchicalGrid>
     with StateWidget<HierarchicalGrid> {
-  // Используем константы из NodeManager
-  double get framePadding => NodeManager.framePadding;
-  double get frameBorderWidth => NodeManager.frameBorderWidth;
-  double get frameTotalOffset => NodeManager.frameTotalOffset;
 
   @override
   void initState() {
@@ -59,7 +55,6 @@ class _HierarchicalGridState extends State<HierarchicalGrid>
 
   @override
   Widget build(BuildContext context) {
-    print('Запуск виджета HierarchicalGridPainter +++++++++');
     return RepaintBoundary(
       child: CustomPaint(
         size: widget.scrollHandler.scaledCanvasSize,

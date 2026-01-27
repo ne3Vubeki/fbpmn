@@ -157,7 +157,7 @@ class InputHandler extends Manager {
       }
 
       if (state.isNodeOnTopLayer) {
-        arrowManager.onOffsetChanged();
+        arrowManager.onStateUpdate();
       }
 
       scrollHandler.updateScrollControllers();

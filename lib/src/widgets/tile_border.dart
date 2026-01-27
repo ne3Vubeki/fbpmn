@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
 import '../painters/tile_border_painter.dart';
-import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
 import 'state_widget.dart';
 
@@ -27,10 +26,6 @@ class TileBorder extends StatefulWidget {
 }
 
 class _TileBorderState extends State<TileBorder> with StateWidget<TileBorder> {
-  // Используем константы из NodeManager
-  double get framePadding => NodeManager.framePadding;
-  double get frameBorderWidth => NodeManager.frameBorderWidth;
-  double get frameTotalOffset => NodeManager.frameTotalOffset;
 
   @override
   void initState() {

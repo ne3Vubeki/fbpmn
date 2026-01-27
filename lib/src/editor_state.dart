@@ -31,10 +31,6 @@ class EditorState {
   // Связи/стрелки
   final List<Arrow> arrows = [];
   final Set<Arrow?> arrowsSelected = {};
-  bool isArrowsOnTopLayer = false;
-  Map<String, Offset> originalArrowsPosition = {};
-  bool isArrowsDragging = false;
-  Map<String, Offset> selectedArrowsOffset = {};
 
   // Тайлы
   List<ImageTile> imageTiles = [];

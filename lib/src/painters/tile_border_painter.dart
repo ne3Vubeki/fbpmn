@@ -43,7 +43,6 @@ class TileBorderPainter extends CustomPainter {
       if (tile.bounds.overlaps(visibleRect)) {
         canvas.drawRect(tile.bounds, tilePaint);
         canvas.drawRect(tile.bounds, tileBorderPaint);
-        print('Рисуем рамку тайла ${tile.id}');
 
         // Отображаем id тайла
         final idTextPainter = TextPainter(

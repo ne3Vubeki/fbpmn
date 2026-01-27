@@ -28,8 +28,6 @@ class NodeCustomPainter extends CustomPainter {
     // Сохраняем состояние canvas
     canvas.save();
 
-    print('Рисуем узел!!!!!');
-
     // Применяем масштаб ко всему (узлу и детям)
     canvas.scale(scaleX, scaleY);
 

@@ -115,7 +115,6 @@ class _StableGridImageState extends State<StableGridImage> {
 
   @override
   Widget build(BuildContext context) {
-    print('Рисуем редактор!!!!!');
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(

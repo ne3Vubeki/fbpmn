@@ -13,8 +13,8 @@ class ArrowsPainter {
 
   void drawArrowsInTile({required Canvas canvas, required Offset baseOffset}) {
     final paint = Paint()
-      ..color = Colors.grey
-      ..strokeWidth = 3
+      ..color = Colors.black
+      ..strokeWidth = 1
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
 

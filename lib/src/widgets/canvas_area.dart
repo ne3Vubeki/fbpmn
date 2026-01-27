@@ -39,10 +39,6 @@ class CanvasArea extends StatefulWidget {
 }
 
 class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
-  // Используем константы из NodeManager
-  double get framePadding => NodeManager.framePadding;
-  double get frameBorderWidth => NodeManager.frameBorderWidth;
-  double get frameTotalOffset => NodeManager.frameTotalOffset;
 
   // GlobalKey для получения реального размера
   final GlobalKey _containerKey = GlobalKey();
@@ -56,7 +52,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
       _updateActualSize();
     });
     widget.inputHandler.setOnStateUpdate('CanvasArea', () {
-      print('Event inputHandler ------');
       timeoutSetState();
     });
   }
@@ -90,7 +85,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
 
   @override
   Widget build(BuildContext context) {
-    print('Рисую холст!!!!!');
 
     return Container(
       key: _containerKey,

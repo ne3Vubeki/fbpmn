@@ -72,20 +72,16 @@ class _ArrowsSelected extends State<ArrowsSelected>
         ? Positioned(
             left: screenPositionRect.dx,
             top: screenPositionRect.dy,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.amber, width: 1),
-              ),
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  size: arrowsSize,
-                  painter: ArrowsCustomPainter(
-                    arrows: arrows,
-                    scale: widget.state.scale,
-                    arrowsSize: arrowsSize,
-                    arrowsRect: boundingRect,
-                    arrowManager: widget.arrowManager,
-                  ),
+            child: RepaintBoundary(
+              child: CustomPaint(
+                size: arrowsSize,
+                painter: ArrowsCustomPainter(
+                  arrows: arrows,
+                  scale: widget.state.scale,
+                  nodeOffset: widget.state.selectedNodeOffset,
+                  arrowsSize: arrowsSize,
+                  arrowsRect: boundingRect,
+                  arrowManager: widget.arrowManager,
                 ),
               ),
             ),
