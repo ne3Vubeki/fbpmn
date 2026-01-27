@@ -70,7 +70,7 @@ class _NodeSelectedState extends State<NodeSelected>
             child: Container(
               padding: widget.state.framePadding,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue, width: frameBorderWidth * widget.state.scale ),
+                border: Border.all(color: Colors.blue, width: frameBorderWidth ),
                 borderRadius: isNotGroup || isEnum || !hasAttributes
                     ? BorderRadius.zero
                     : BorderRadius.circular(12 * widget.state.scale),
