@@ -1,0 +1,225 @@
+{
+  "metadata": {
+    "qAdmin": "0",
+    "dx": 876,
+    "dy": 1050,
+    "pageWidth": 800,
+    "pageHeight": 1200,
+    "objects": 4,
+    "arrows": 5,
+    "time_convert": 111.912
+  },
+  "objects": [
+    {
+      "label": "Дочерний объект",
+      "id": "1768315075755",
+      "style": "shape=table;html=1;whiteSpace=wrap;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fontStyle=1;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;align=center;=undefined;fillColor=#7AC5B4;rounded=1",
+      "parent": "1",
+      "tags": "pbc tab1 q q_pbc layer data object",
+      "originalId": "2000001155001",
+      "qCompStatus": "1",
+      "qType": "bo",
+      "attributes": [
+        {
+          "id": "1768315075755_startDate",
+          "label": "Дата начала",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "8",
+          "qCompStatus": "1",
+          "originalId": "2000001095004",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315075755_attributeStereotype_0",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315075755_endDate",
+          "label": "Дата окончания",
+          "boAttributeTypeId": "5",
+          "params": {
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "8",
+          "qCompStatus": "1",
+          "originalId": "2000001095005",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315075755_attributeStereotype_1",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315075755_status",
+          "label": "Статус (KV)",
+          "boAttributeTypeId": "5",
+          "params": {
+            "param_link_bo_name": "Статус",
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "9",
+          "qCompStatus": "1",
+          "originalId": "2000001095006",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315075755_attributeStereotype_2",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315075755_mainObjectId",
+          "label": "Главный объект (FK)",
+          "boAttributeTypeId": "5",
+          "params": {
+            "param_link_bo_name": "Главный объект",
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "9",
+          "qCompStatus": "1",
+          "originalId": "2000001095012",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315075755_attributeStereotype_3",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        },
+        {
+          "id": "1768315075755_tstvVersionId",
+          "label": "tstv Версия (FK)",
+          "boAttributeTypeId": "5",
+          "params": {
+            "param_link_bo_name": "",
+            "qRequiredForCaching": "0"
+          },
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;overflow=hidden;fontStyle=0;fontSize=12;fontFamily=Open Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DOpen%2BSans;",
+          "qType": "attribute",
+          "qAttributeType": "9",
+          "qCompStatus": "1",
+          "originalId": "2000001095031",
+          "user_object": {
+            "tooltip": "Стандартный",
+            "id": "1768315075755_attributeStereotype_4",
+            "style": "shape=partialRectangle;html=1;whiteSpace=wrap;fillColor=none;top=0;left=0;bottom=0;right=0;connectable=0;overflow=hidden;fontStyle=0;fontSize=12;rotation=0;",
+            "geometry": {
+              "x": 80.0,
+              "y": 0.0,
+              "width": 40.0,
+              "height": 20.0
+            }
+          }
+        }
+      ],
+      "geometry": {
+        "x": 854.0,
+        "y": 217.0,
+        "width": 120.0,
+        "height": 130.0
+      }
+    },
+    {
+      "label": "Статус",
+      "id": "1768315075757",
+      "style": "shape=table;startSize=30;container=1;collapsible=1;childLayout=tableLayout;fontStyle=1;align=center;pointerEvents=1;rounded=0;shadow=0;glass=0;labelBackgroundColor=none;comic=0;sketch=0;fontColor=default;strokeWidth=1;gradientColor=none;html=1;rowLines=0;resizeLastRow=1;resizeLast=1;whiteSpace=wrap;fontFamily=Open Sans;fillColor=#FFFF99;",
+      "parent": "1",
+      "qCompStatus": "1",
+      "qType": "enum",
+      "tags": "pbc tab1 q q_pbc layer data object",
+      "originalId": "10030610",
+      "attributes": [
+        {
+          "id": "1768315075757_1_ACTIVE",
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;top=0;left=0;bottom=0;right=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;",
+          "qCompStatus": "0",
+          "qType": "enumRow",
+          "originalId": "5009342",
+          "position": "1",
+          "label": "Действует",
+          "geometry": {
+            "x": 0.0,
+            "y": 30.0,
+            "width": 120.0,
+            "height": 20.0
+          }
+        },
+        {
+          "id": "1768315075757_2_INACTIVE",
+          "style": "shape=partialRectangle;html=1;whiteSpace=wrap;collapsible=0;dropTarget=0;pointerEvents=0;fillColor=none;top=0;left=0;bottom=0;right=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;",
+          "qCompStatus": "0",
+          "qType": "enumRow",
+          "originalId": "5009343",
+          "position": "2",
+          "label": "Не действует",
+          "geometry": {
+            "x": 0.0,
+            "y": 50.0,
+            "width": 120.0,
+            "height": 20.0
+          }
+        }
+      ],
+      "geometry": {
+        "x": 1050.0,
+        "y": 490.0,
+        "width": 120.0,
+        "height": 70.0
+      }
+    }
+  ],
+  "arrows": [
+    {
+      "originalId": "93060",
+      "id": "1768315075762",
+      "qType": "qRelationship",
+      "style": "endArrow=block;html=1;endFill=0;edgeStyle=orthogonalEdgeStyle;elbow=vertical;",
+      "source": "1768315075757",
+      "target": "1768315075755",
+      "points": [
+        {
+          "x": 950.0,
+          "y": 638.0,
+          "type": "sourcePoint"
+        },
+        {
+          "x": 710.0,
+          "y": 638.0,
+          "type": "targetPoint"
+        }
+      ]
+    }
+  ]
+}
