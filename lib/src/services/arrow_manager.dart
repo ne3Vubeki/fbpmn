@@ -24,8 +24,7 @@ class ArrowManager extends Manager {
 
   /// Расчет точек соединения для определения стороны
   /// по расположению узлов относительно друг друга
-  ({Offset? end, Offset? start, String? sides})
-  calculateConnectionPointsForSideCalculation(
+  ({Offset? end, Offset? start, String? sides}) calculateConnectionPoints(
     Arrow arrow,
     Rect sourceRect,
     Rect targetRect,
@@ -89,29 +88,29 @@ class ArrowManager extends Manager {
         isRightCenter40 ||
         isBottomCenter40) {
       if (isLeftCenter40 && isTopCenter40) {
-        return _getSidePosition('leftС|topС', sourceRect, targetRect);
+        return _getSidePosition('leftC|topC', sourceRect, targetRect);
       } else if (isRightCenter40 && isTopCenter40) {
-        return _getSidePosition('rightС|topС', sourceRect, targetRect);
+        return _getSidePosition('rightC|topC', sourceRect, targetRect);
       } else if (isLeftCenter40 && isBottomCenter40) {
-        return _getSidePosition('leftС|bottomС', sourceRect, targetRect);
+        return _getSidePosition('leftC|bottomC', sourceRect, targetRect);
       } else if (isRightCenter40 && isBottomCenter40) {
-        return _getSidePosition('rightС|bottomС', sourceRect, targetRect);
+        return _getSidePosition('rightC|bottomC', sourceRect, targetRect);
       } else if (isLeftCenter40 && cy > 0) {
-        return _getSidePosition('leftС|top', sourceRect, targetRect);
+        return _getSidePosition('leftC|top', sourceRect, targetRect);
       } else if (isRightCenter40 && cy > 0) {
-        return _getSidePosition('rightС|top', sourceRect, targetRect);
+        return _getSidePosition('rightC|top', sourceRect, targetRect);
       } else if (isLeftCenter40 && cy <= 0) {
-        return _getSidePosition('leftС|bottom', sourceRect, targetRect);
+        return _getSidePosition('leftC|bottom', sourceRect, targetRect);
       } else if (isRightCenter40 && cy <= 0) {
-        return _getSidePosition('rightС|bottom', sourceRect, targetRect);
+        return _getSidePosition('rightC|bottom', sourceRect, targetRect);
       } else if (isTopCenter40 && cx > 0) {
-        return _getSidePosition('left|topС', sourceRect, targetRect);
+        return _getSidePosition('left|topC', sourceRect, targetRect);
       } else if (isBottomCenter40 && cx > 0) {
-        return _getSidePosition('left|bottomС', sourceRect, targetRect);
+        return _getSidePosition('left|bottomC', sourceRect, targetRect);
       } else if (isTopCenter40 && cx <= 0) {
-        return _getSidePosition('right|topС', sourceRect, targetRect);
+        return _getSidePosition('right|topC', sourceRect, targetRect);
       } else if (isBottomCenter40 && cx <= 0) {
-        return _getSidePosition('right|bottomС', sourceRect, targetRect);
+        return _getSidePosition('right|bottomC', sourceRect, targetRect);
       }
     } else {
       // Source находится центром внутри 40px зоны Target, положение от центра Target
@@ -143,8 +142,6 @@ class ArrowManager extends Manager {
     final sourceHeight = sourceRect.height;
 
     final targetCenter = targetRect.center;
-    final targetWidth = targetRect.width;
-    final targetHeight = targetRect.height;
 
     // Определяем стороны узлов
     final sourceTop = sourceRect.top;
@@ -186,26 +183,123 @@ class ArrowManager extends Manager {
         sides = sourceWidth < sourceHeight ? 'left:bottom' : 'top:right';
         break;
       case 'leftC|topC':
+      case 'leftC|bottomC':
         if (sourceWidth < sourceHeight) {
-          sides = sourceRight <= targetCenter.dx ? 'right:top' : '';
+          if (sourceRight <= targetCenter.dx - 20) {
+            sides = position == 'leftC|topC' ? 'right:top' : 'right:bottom';
+          } else if (sourceBottom <= targetCenter.dy - 20) {
+            sides = position == 'leftC|topC' ? 'bottom:left' : 'top:left';
+          } else {
+            sides = 'right:right';
+          }
         } else {
-          sides = 'bottom:left';
+          if (sourceBottom <= targetCenter.dy - 20) {
+            sides = position == 'leftC|topC' ? 'bottom:left' : 'top:left';
+          } else if (sourceRight <= targetCenter.dx - 20) {
+            sides = position == 'leftC|topC' ? 'right:top' : 'right:bottom';
+          } else {
+            sides = 'bottom:bottom';
+          }
         }
         break;
       case 'rightC|topC':
-        sides = sourceWidth < sourceHeight ? 'left:top' : 'bottom:right';
-        break;
-      case 'leftC|bottomC':
-        sides = sourceWidth < sourceHeight ? 'right:bottom' : 'top:left';
-        break;
       case 'rightC|bottomC':
-        sides = sourceWidth < sourceHeight ? 'left:bottom' : 'top:right';
+        if (sourceWidth < sourceHeight) {
+          if (sourceRight > targetCenter.dx + 20) {
+            sides = position == 'rightC|topC' ? 'left:top' : 'left:bottom';
+          } else if (sourceBottom <= targetCenter.dy - 20) {
+            sides = position == 'rightC|topC' ? 'bottom:right' : 'top:right';
+          } else {
+            sides = 'left:left';
+          }
+        } else {
+          if (sourceBottom <= targetCenter.dy - 20) {
+            sides = position == 'rightC|topC' ? 'bottom:right' : 'top:right';
+          } else if (sourceRight > targetCenter.dx - 20) {
+            sides = position == 'rightC|topC' ? 'left:top' : 'left:bottom';
+          } else {
+            sides = 'bottom:bottom';
+          }
+        }
+        break;
+      case 'leftC|top':
+        sides = sourceBottom <= targetCenter.dy - 20
+            ? 'bottom:left'
+            : 'bottom:bottom';
+        break;
+      case 'rightC|top':
+        sides = sourceBottom <= targetCenter.dy - 20
+            ? 'bottom:right'
+            : 'bottom:bottom';
+        break;
+      case 'leftC|bottom':
+        sides = sourceTop > targetCenter.dy + 20 ? 'top:left' : 'top:top';
+        break;
+      case 'rightC|bottom':
+        sides = sourceTop > targetCenter.dy + 20 ? 'top:right' : 'top:top';
+        break;
+      case 'left|topC':
+      case 'left|bottomC':
+        sides = 'left:left';
+        break;
+      case 'right|topC':
+      case 'right|bottomC':
+        sides = 'right:right';
+        break;
+      case 'left|top':
+        if (sourceTop < targetTop) {
+          sides = 'top:right:3';
+        } else if (sourceBottom > targetBottom) {
+          sides = 'bottom:right:3';
+        } else if (sourceLeft < targetLeft) {
+          sides = 'left:top:3';
+        } else {
+          sides = 'left:top:3';
+        }
+        break;
+      case 'right|top':
+        if (sourceTop < targetTop) {
+          sides = 'top:left:3';
+        } else if (sourceBottom > targetBottom) {
+          sides = 'bottom:left:3';
+        } else if (sourceRight > targetRight) {
+          sides = 'right:top:3';
+        } else {
+          sides = 'right:top:3';
+        }
+        break;
+      case 'left|bottom':
+        if (sourceBottom > targetBottom) {
+          sides = 'bottom:right:3';
+        } else if (sourceTop < targetTop) {
+          sides = 'top:right:3';
+        } else if (sourceLeft < targetLeft) {
+          sides = 'left:bottom:3';
+        } else {
+          sides = 'left:bottom:3';
+        }
+        break;
+      case 'right|bottom':
+        if (sourceBottom > targetBottom) {
+          sides = 'bottom:left:3';
+        } else if (sourceTop < targetTop) {
+          sides = 'top:left:3';
+        } else if (sourceRight > targetRight) {
+          sides = 'right:bottom:3';
+        } else {
+          sides = 'right:bottom:3';
+        }
+        break;
+      default:
+        sides = 'error';
         break;
     }
 
     print('Source:Target=$sides, Position Source=$position');
 
-    switch (sides) {
+    final sidesNodes = sides.split(':').take(2).join(':');
+
+    switch (sidesNodes) {
       case 'right:top':
         startConnectionPoint = Offset(sourceRight + 6, sourceCenter.dy);
         endConnectionPoint = Offset(targetCenter.dx, targetTop - 6);
@@ -313,7 +407,7 @@ class ArrowManager extends Manager {
     );
 
     // Вычисляем точки соединения
-    final baseConnectionPoints = calculateConnectionPointsForSideCalculation(
+    final baseConnectionPoints = calculateConnectionPoints(
       arrow,
       sourceRect,
       targetRect,
@@ -385,6 +479,18 @@ class ArrowManager extends Manager {
     String sides,
   ) {
     List<Offset> coordinates = [];
+
+    // Определяем стороны и размеры узлов
+    final sourceTop = sourceRect.top;
+    final sourceBottom = sourceRect.bottom;
+    final sourceLeft = sourceRect.left;
+    final sourceRight = sourceRect.right;
+
+    final targetTop = targetRect.top;
+    final targetBottom = targetRect.bottom;
+    final targetLeft = targetRect.left;
+    final targetRight = targetRect.right;
+
     coordinates.add(Offset(start.dx, start.dy));
 
     final dx = end.dx - start.dx;
@@ -466,6 +572,64 @@ class ArrowManager extends Manager {
         coordinates.add(Offset(start.dx, start.dy + 40 + dyMin));
         coordinates.add(Offset(end.dx, start.dy + 40 + dyMin));
         coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'left:top:3':
+        final dyUp = min(sourceTop, targetTop) - 40;
+        coordinates.add(Offset(start.dx - 40, start.dy));
+        coordinates.add(Offset(start.dx - 40, dyUp));
+        coordinates.add(Offset(end.dx, dyUp));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'right:top:3':
+        final dyUp = min(sourceTop, targetTop) - 40;
+        coordinates.add(Offset(start.dx + 40, start.dy));
+        coordinates.add(Offset(start.dx + 40, dyUp));
+        coordinates.add(Offset(end.dx, dyUp));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'left:bottom:3':
+        final dyDown = max(sourceBottom, targetBottom) + 40;
+        coordinates.add(Offset(start.dx - 40, start.dy));
+        coordinates.add(Offset(start.dx - 40, dyDown));
+        coordinates.add(Offset(end.dx, dyDown));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'right:bottom:3':
+        final dyDown = max(sourceBottom, targetBottom) + 40;
+        coordinates.add(Offset(start.dx + 40, start.dy));
+        coordinates.add(Offset(start.dx + 40, dyDown));
+        coordinates.add(Offset(end.dx, dyDown));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'top:left:3':
+        final dyLeft = min(sourceLeft, targetLeft) - 40;
+        coordinates.add(Offset(start.dx, start.dy - 40));
+        coordinates.add(Offset(dyLeft, start.dy - 40));
+        coordinates.add(Offset(dyLeft, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'bottom:left:3':
+        final dyLeft = min(sourceLeft, targetLeft) - 40;
+        coordinates.add(Offset(start.dx, start.dy + 40));
+        coordinates.add(Offset(dyLeft, start.dy + 40));
+        coordinates.add(Offset(dyLeft, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'top:right:3':
+        final dyRight = max(sourceRight, targetRight) + 40;
+        coordinates.add(Offset(start.dx, start.dy - 40));
+        coordinates.add(Offset(dyRight, start.dy - 40));
+        coordinates.add(Offset(dyRight, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'bottom:right:3':
+        final dyRight = max(sourceRight, targetRight) + 40;
+        coordinates.add(Offset(start.dx, start.dy + 40));
+        coordinates.add(Offset(dyRight, start.dy + 40));
+        coordinates.add(Offset(dyRight, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      default:
         break;
     }
 
