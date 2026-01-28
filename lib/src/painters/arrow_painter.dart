@@ -30,7 +30,7 @@ class ArrowsPainter {
 
   void paint(Canvas canvas, double scale, Rect arrowsRect) {
     // Рассчитываем толщину линии
-    final lineWidth = 2.0 * scale;
+    final lineWidth = 3.0 * scale;
 
     final arrowPaint = Paint()
       ..color = Colors.blue
