@@ -36,7 +36,7 @@ class ArrowManager extends Manager {
     final sourceCenter = sourceRect.center;
     final targetCenter = targetRect.center;
 
-    // Определяем стороны узлов
+    // Определяем стороны и размеры узлов
     final sourceTop = sourceRect.top;
     final sourceBottom = sourceRect.bottom;
     final sourceLeft = sourceRect.left;
@@ -48,78 +48,103 @@ class ArrowManager extends Manager {
     final targetRight = targetRect.right;
 
     // Вычисляем расстояния между центрами узлов
-    final dx = targetCenter.dx - sourceCenter.dx;
-    final dy = targetCenter.dy - sourceCenter.dy;
+    final cx = targetCenter.dx - sourceCenter.dx;
+    final cy = targetCenter.dy - sourceCenter.dy;
 
-    final isLeft40 = sourceRight <= targetLeft - 40;
-    final isTop40 = sourceBottom <= targetTop - 40;
-    final isRight40 = sourceLeft >= targetRight + 40;
-    final isBottom40 = sourceTop >= targetBottom + 40;
+    // Истино для Source узла
+    final isLeftSide40 = sourceRight <= targetLeft - 40;
+    final isTopSide40 = sourceBottom <= targetTop - 40;
+    final isRightSide40 = sourceLeft >= targetRight + 40;
+    final isBottomSide40 = sourceTop >= targetBottom + 40;
 
+    // Истино для Source узла
     final isLeftCenter40 = sourceCenter.dx <= targetLeft - 40;
     final isTopCenter40 = sourceCenter.dy <= targetTop - 40;
     final isRightCenter40 = sourceCenter.dx >= targetRight + 40;
     final isBottomCenter40 = sourceCenter.dy >= targetBottom + 40;
 
-    if (isLeft40 || isTop40 || isRight40 || isBottom40) {
-      if (isLeft40 && isTop40) {
-        return _getSidePosition('right:top', sourceRect, targetRect);
-      } else if (isRight40 && isTop40) {
-        return _getSidePosition('left:top', sourceRect, targetRect);
-      } else if (isLeft40 && isBottom40) {
-        return _getSidePosition('right:bottom', sourceRect, targetRect);
-      } else if (isRight40 && isBottom40) {
-        return _getSidePosition('left:bottom', sourceRect, targetRect);
-      } else if (isLeft40) {
-        return _getSidePosition('right:left', sourceRect, targetRect);
-      } else if (isTop40) {
-        return _getSidePosition('bottom:top', sourceRect, targetRect);
-      } else if (isRight40) {
-        return _getSidePosition('left:right', sourceRect, targetRect);
-      } else if (isBottom40) {
-        return _getSidePosition('top:bottom', sourceRect, targetRect);
+    // Source находится сторонами за пределами 40px зоны Target
+    if (isLeftSide40 || isTopSide40 || isRightSide40 || isBottomSide40) {
+      if (isLeftSide40 && isTopSide40) {
+        return _getSidePosition('left40|top40', sourceRect, targetRect);
+      } else if (isRightSide40 && isTopSide40) {
+        return _getSidePosition('right40|top40', sourceRect, targetRect);
+      } else if (isLeftSide40 && isBottomSide40) {
+        return _getSidePosition('left40|bottom40', sourceRect, targetRect);
+      } else if (isRightSide40 && isBottomSide40) {
+        return _getSidePosition('right40|bottom40', sourceRect, targetRect);
+      } else if (isLeftSide40) {
+        return _getSidePosition('left40', sourceRect, targetRect);
+      } else if (isTopSide40) {
+        return _getSidePosition('top40', sourceRect, targetRect);
+      } else if (isRightSide40) {
+        return _getSidePosition('right40', sourceRect, targetRect);
+      } else if (isBottomSide40) {
+        return _getSidePosition('bottom40', sourceRect, targetRect);
       }
-    } else if (isLeftCenter40 ||
+    } else 
+    // Source находится центром за пределами 40px зоны Target
+    if (isLeftCenter40 ||
         isTopCenter40 ||
         isRightCenter40 ||
         isBottomCenter40) {
       if (isLeftCenter40 && isTopCenter40) {
-        return _getSidePosition('right:top', sourceRect, targetRect);
+        return _getSidePosition('leftС|topС', sourceRect, targetRect);
       } else if (isRightCenter40 && isTopCenter40) {
-        return _getSidePosition('left:top', sourceRect, targetRect);
+        return _getSidePosition('rightС|topС', sourceRect, targetRect);
       } else if (isLeftCenter40 && isBottomCenter40) {
-        return _getSidePosition('right:bottom', sourceRect, targetRect);
+        return _getSidePosition('leftС|bottomС', sourceRect, targetRect);
       } else if (isRightCenter40 && isBottomCenter40) {
-        return _getSidePosition('left:bottom', sourceRect, targetRect);
-      } else if ((isLeftCenter40 || isRightCenter40) && dy > 0) {
-        return _getSidePosition('top:top', sourceRect, targetRect);
-      } else if ((isLeftCenter40 || isRightCenter40) && dy <= 0) {
-        return _getSidePosition('bottom:bottom', sourceRect, targetRect);
-      } else if ((isTopCenter40 || isBottomCenter40) && dx > 0) {
-        return _getSidePosition('left:left', sourceRect, targetRect);
-      } else if ((isTopCenter40 || isBottomCenter40) && dx <= 0) {
-        return _getSidePosition('right:right', sourceRect, targetRect);
+        return _getSidePosition('rightС|bottomС', sourceRect, targetRect);
+      } else if (isLeftCenter40 && cy > 0) {
+        return _getSidePosition('leftС|top', sourceRect, targetRect);
+      } else if (isRightCenter40 && cy > 0) {
+        return _getSidePosition('rightС|top', sourceRect, targetRect);
+      } else if (isLeftCenter40 && cy <= 0) {
+        return _getSidePosition('leftС|bottom', sourceRect, targetRect);
+      } else if (isRightCenter40 && cy <= 0) {
+        return _getSidePosition('rightС|bottom', sourceRect, targetRect);
+      } else if (isTopCenter40 && cx > 0) {
+        return _getSidePosition('left|topС', sourceRect, targetRect);
+      } else if (isBottomCenter40 && cx > 0) {
+        return _getSidePosition('left|bottomС', sourceRect, targetRect);
+      } else if (isTopCenter40 && cx <= 0) {
+        return _getSidePosition('right|topС', sourceRect, targetRect);
+      } else if (isBottomCenter40 && cx <= 0) {
+        return _getSidePosition('right|bottomС', sourceRect, targetRect);
       }
     } else {
-      if ((dx > 0 || dx <= 0) && dy > 0) {
-        return _getSidePosition('top:top', sourceRect, targetRect);
-      } else if ((dx > 0 || dx <= 0) && dy <= 0) {
-        return _getSidePosition('bottom:bottom', sourceRect, targetRect);
+      // Source находится центром внутри 40px зоны Target, положение от центра Target
+      if (cx > 0 && cy > 0) {
+        return _getSidePosition('left|top', sourceRect, targetRect);
+      } else if (cx > 0 && cy <= 0) {
+        return _getSidePosition('left|bottom', sourceRect, targetRect);
+      } else if (cx <= 0 && cy > 0) {
+        return _getSidePosition('right|top', sourceRect, targetRect);
+      } else if (cx <= 0 && cy <= 0) {
+        return _getSidePosition('right|bottom', sourceRect, targetRect);
       }
     }
 
-    return _getSidePosition('top:top', sourceRect, targetRect);
+    return _getSidePosition('error', sourceRect, targetRect);
   }
 
   /// Расчет координат точек соединения
   ({Offset? start, Offset? end, String? sides}) _getSidePosition(
-    String sides,
+    String position,
     Rect sourceRect,
     Rect targetRect,
   ) {
+    String sides = '';
+
     // Определяем центральные точки узлов
     final sourceCenter = sourceRect.center;
+    final sourceWidth = sourceRect.width;
+    final sourceHeight = sourceRect.height;
+
     final targetCenter = targetRect.center;
+    final targetWidth = targetRect.width;
+    final targetHeight = targetRect.height;
 
     // Определяем стороны узлов
     final sourceTop = sourceRect.top;
@@ -134,6 +159,47 @@ class ArrowManager extends Manager {
 
     Offset? startConnectionPoint;
     Offset? endConnectionPoint;
+
+    switch (position) {
+      case 'left40':
+        sides = 'right:left';
+        break;
+      case 'right40':
+        sides = 'left:right';
+        break;
+      case 'top40':
+        sides = 'bottom:top';
+        break;
+      case 'bottom40':
+        sides = 'top:bottom';
+        break;
+      case 'left40|top40':
+        sides = sourceWidth < sourceHeight ? 'right:top' : 'bottom:left';
+        break;
+      case 'right40|top40':
+        sides = sourceWidth < sourceHeight ? 'left:top' : 'bottom:right';
+        break;
+      case 'left40|bottom40':
+        sides = sourceWidth < sourceHeight ? 'right:bottom' : 'top:left';
+        break;
+      case 'right40|bottom40':
+        sides = sourceWidth < sourceHeight ? 'left:bottom' : 'top:right';
+        break;
+      case 'leftC|topC':
+        sides = sourceWidth < sourceHeight ? 'right:top' : 'bottom:left';
+        break;
+      case 'rightC|topC':
+        sides = sourceWidth < sourceHeight ? 'left:top' : 'bottom:right';
+        break;
+      case 'leftC|bottomC':
+        sides = sourceWidth < sourceHeight ? 'right:bottom' : 'top:left';
+        break;
+      case 'rightC|bottomC':
+        sides = sourceWidth < sourceHeight ? 'left:bottom' : 'top:right';
+        break;
+    }
+
+    print('Source:Target=$sides, Position Source=$position');
 
     switch (sides) {
       case 'right:top':
