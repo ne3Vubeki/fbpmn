@@ -82,7 +82,7 @@ class ArrowManager extends Manager {
       } else if (isBottomSide40) {
         return _getSidePosition('bottom40', sourceRect, targetRect);
       }
-    } else 
+    } else
     // Source находится центром за пределами 40px зоны Target
     if (isLeftCenter40 ||
         isTopCenter40 ||
@@ -186,7 +186,11 @@ class ArrowManager extends Manager {
         sides = sourceWidth < sourceHeight ? 'left:bottom' : 'top:right';
         break;
       case 'leftC|topC':
-        sides = sourceWidth < sourceHeight ? 'right:top' : 'bottom:left';
+        if (sourceWidth < sourceHeight) {
+          sides = sourceRight <= targetCenter.dx ? 'right:top' : '';
+        } else {
+          sides = 'bottom:left';
+        }
         break;
       case 'rightC|topC':
         sides = sourceWidth < sourceHeight ? 'left:top' : 'bottom:right';
