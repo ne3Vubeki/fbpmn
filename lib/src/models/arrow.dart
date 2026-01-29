@@ -8,6 +8,7 @@ class Arrow {
   String target; // ID цели
   Offset aPositionSource;
   Offset aPositionTarget;
+  Path? path;
   final String style;
   List<Map<String, dynamic>>? powers; // Опционально
   List<Map<String, dynamic>>? points; // Опционально
@@ -21,6 +22,7 @@ class Arrow {
     required this.style,
     this.aPositionSource = Offset.zero,
     this.aPositionTarget = Offset.zero,
+    this.path,
     this.powers,
     this.points,
     this.strokeWidth = 1.0,

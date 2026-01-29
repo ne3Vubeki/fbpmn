@@ -6,10 +6,7 @@ class ArrowsPainter {
   final List<Arrow?> arrows;
   final ArrowManager arrowManager;
 
-  ArrowsPainter({
-    required this.arrows,
-    required this.arrowManager,
-  });
+  ArrowsPainter({required this.arrows, required this.arrowManager});
 
   void drawArrowsInTile({required Canvas canvas, required Offset baseOffset}) {
     final paint = Paint()
@@ -21,7 +18,7 @@ class ArrowsPainter {
     // Рисуем только те стрелки, путь которых пересекает этот тайл
     for (final arrow in arrows) {
       // Получаем полный путь стрелки
-      final path = arrowManager.getArrowPathInTile(arrow!, baseOffset).path;
+      final path = arrow?.path ?? Path();
 
       // Рисуем путь (автоматически обрежется по границам тайла)
       canvas.drawPath(path, paint);
@@ -37,13 +34,21 @@ class ArrowsPainter {
       ..strokeWidth = lineWidth
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
+      
+    // Удаляем все коннекты из выбранных узлов для повторного расчета
+    for (var node in arrowManager.state.nodesSelected) {
+      node?.connections?.removeAll();
+    }
 
     // Рисуем стрелки
     for (final arrow in arrows) {
       if (arrow == null) continue;
 
       // Получаем полный путь стрелки
-      final pathResult = arrowManager.getArrowPathWithSelectedNodes(arrow, arrowsRect);
+      final pathResult = arrowManager.getArrowPathWithSelectedNodes(
+        arrow,
+        arrowsRect,
+      );
       final path = pathResult.path;
 
       // Рисуем путь стрелки

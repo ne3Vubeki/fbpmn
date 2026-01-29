@@ -85,9 +85,14 @@ class TileManager extends Manager {
   ) async {
     final Map<String, List<TableNode?>> mapNodesInTile =
         {}; // узлы для создаваемых тайлов
-    final Map<String, List<Arrow?>> mapArrowssInTile =
+    final Map<String, List<Arrow?>> mapArrowsInTile =
         {}; // связи для создаваемых тайлов
     final createdTiles = <String>[];
+
+    // Удаляем все коннекты из выбранных узлов для повторного расчета
+    for (var node in allNodes) {
+      node?.connections?.removeAll();
+    }
 
     // Собираем все узлы (включая вложенные) для определения, где создавать тайлы
     final allNodesIncludingChildren = <TableNode>[];
@@ -125,12 +130,12 @@ class TileManager extends Manager {
             ? mapNodesInTile[tileId]!.add(node)
             : null;
       }
-      if (mapArrowssInTile[tileId] == null) {
+      if (mapArrowsInTile[tileId] == null) {
         // Создаем маптайл в этой позиции
-        mapArrowssInTile[tileId] = arrow != null ? [arrow] : <Arrow>[];
+        mapArrowsInTile[tileId] = arrow != null ? [arrow] : <Arrow>[];
       } else {
-        arrow != null && !mapArrowssInTile[tileId]!.contains(arrow)
-            ? mapArrowssInTile[tileId]!.add(arrow)
+        arrow != null && !mapArrowsInTile[tileId]!.contains(arrow)
+            ? mapArrowsInTile[tileId]!.add(arrow)
             : null;
       }
     }
@@ -156,7 +161,7 @@ class TileManager extends Manager {
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
     for (final arrow in allArrows) {
-      final Arrow arrowCopy = arrow!.copyWith();
+      final Arrow arrowCopy = arrow!;
 
       /// Перенаправляем связи скрытых узлов на узел родителя
       for (final n in allNodesIncludingChildren) {
@@ -182,6 +187,10 @@ class TileManager extends Manager {
           .getArrowPathInTile(arrowCopy, state.delta)
           .coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
+
+      print(
+        '-------------------------------------------------------------------------------',
+      );
 
       if (coordinates.isNotEmpty) {
         for (int ind = 0; ind < coordinates.length - 1; ind++) {
@@ -227,7 +236,7 @@ class TileManager extends Manager {
       final left = double.tryParse(tilePos.first);
       final top = double.tryParse(tilePos.last);
       final List<TableNode?> nodesInTile = mapNodesInTile[tileId]!;
-      final List<Arrow?> arrowsInTile = mapArrowssInTile[tileId]!;
+      final List<Arrow?> arrowsInTile = mapArrowsInTile[tileId]!;
       final ImageTile? tile = await _createTileAtPosition(
         left!,
         top!,
