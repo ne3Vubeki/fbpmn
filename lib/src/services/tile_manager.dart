@@ -165,18 +165,31 @@ class TileManager extends Manager {
 
       /// Перенаправляем связи скрытых узлов на узел родителя
       for (final n in allNodesIncludingChildren) {
-        if (n.isCollapsed == true &&
-            n.children != null &&
-            n.children!.isNotEmpty) {
+        if (n.children != null && n.children!.isNotEmpty) {
           final children = n.children;
           for (final child in children!) {
-            if (arrowCopy.source == child.id) {
-              arrowCopy.source = n.id;
-              break;
-            }
-            if (arrowCopy.target == child.id) {
-              arrowCopy.target = n.id;
-              break;
+            if (n.isCollapsed == true) {
+              if (arrowCopy.source == child.id) {
+                arrowCopy.sourceCache = arrowCopy.source;
+                arrowCopy.source = n.id;
+                break;
+              }
+              if (arrowCopy.target == child.id) {
+                arrowCopy.targetCache = arrowCopy.target;
+                arrowCopy.target = n.id;
+                break;
+              }
+            } else {
+              if (arrowCopy.sourceCache == child.id) {
+                arrowCopy.source = arrowCopy.sourceCache!;
+                arrowCopy.sourceCache = null;
+                break;
+              }
+              if (arrowCopy.targetCache == child.id) {
+                arrowCopy.target = arrowCopy.targetCache!;
+                arrowCopy.targetCache = null;
+                break;
+              }
             }
           }
         }
@@ -187,10 +200,6 @@ class TileManager extends Manager {
           .getArrowPathInTile(arrowCopy, state.delta)
           .coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
-
-      print(
-        '-------------------------------------------------------------------------------',
-      );
 
       if (coordinates.isNotEmpty) {
         for (int ind = 0; ind < coordinates.length - 1; ind++) {

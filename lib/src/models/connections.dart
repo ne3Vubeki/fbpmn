@@ -74,15 +74,10 @@ class Connections {
 
     final sidePropList = sideProp?.toList();
 
-    print('До -----');
-    sideProp?.forEach((con) => print(con!.index));
-
     sidePropList?.sort((a, b) => a!.index!.compareTo(b!.index!));
     sideProp?.clear();
     sideProp?.addAll(sidePropList as Iterable<Connection?>);
 
-    print('После -----');
-    sideProp?.forEach((con) => print(con!.index));
     return newConn;
   }
 
@@ -92,6 +87,6 @@ class Connections {
     if (n == 0) return 0;
     int sign = (n % 2 == 0) ? -1 : 1;
     int multiplier = ((n + 1) ~/ 2);
-    return (multiplier * 10.0) * sign;
+    return (multiplier * 5.0) * sign;
   }
 }

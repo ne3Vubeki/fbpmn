@@ -5,7 +5,9 @@ class Arrow {
   final String id;
   final String qType; // arrowObject, qRelationship, qEdgeToJson
   String source; // ID источника
+  String? sourceCache; // ID источника кеш
   String target; // ID цели
+  String? targetCache; // ID цели кеш
   Offset aPositionSource;
   Offset aPositionTarget;
   Path? path;
