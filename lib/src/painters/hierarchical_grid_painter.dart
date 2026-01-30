@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
@@ -9,6 +10,7 @@ class HierarchicalGridPainter extends CustomPainter {
   final Offset offset;
   final Size canvasSize;
   final EditorState state;
+  final NodeManager nodeManager;
   final bool isNodeDragging;
 
   HierarchicalGridPainter({
@@ -16,16 +18,14 @@ class HierarchicalGridPainter extends CustomPainter {
     required this.offset,
     required this.canvasSize,
     required this.state,
+    required this.nodeManager,
     required this.isNodeDragging,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Рисуем белый фон холста
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-      Paint()..color = Colors.white,
-    );
+    canvas.drawRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height), Paint()..color = Colors.white);
 
     // 2. Применяем трансформации (масштабирование и смещение)
     canvas.save();
@@ -39,22 +39,10 @@ class HierarchicalGridPainter extends CustomPainter {
     final double visibleBottom = (size.height - offset.dy) / scale;
 
     // 4. Рисуем иерархическую сетку ПЕРВОЙ (она будет под узлами)
-    _drawHierarchicalGrid(
-      canvas,
-      visibleLeft,
-      visibleTop,
-      visibleRight,
-      visibleBottom,
-    );
+    _drawHierarchicalGrid(canvas, visibleLeft, visibleTop, visibleRight, visibleBottom);
 
     // 5. Рисуем видимые тайлы
-    _drawVisibleTiles(
-      canvas,
-      visibleLeft,
-      visibleTop,
-      visibleRight,
-      visibleBottom,
-    );
+    _drawVisibleTiles(canvas, visibleLeft, visibleTop, visibleRight, visibleBottom);
 
     canvas.restore();
   }
@@ -69,12 +57,7 @@ class HierarchicalGridPainter extends CustomPainter {
   ) {
     if (state.imageTiles.isEmpty) return;
 
-    final visibleRect = Rect.fromLTRB(
-      visibleLeft,
-      visibleTop,
-      visibleRight,
-      visibleBottom,
-    );
+    final visibleRect = Rect.fromLTRB(visibleLeft, visibleTop, visibleRight, visibleBottom);
 
     final paint = Paint()
       ..filterQuality = FilterQuality.high
@@ -93,12 +76,10 @@ class HierarchicalGridPainter extends CustomPainter {
           final srcLeft = (intersection.left - tile.bounds.left) * tile.scale;
           final srcTop = (intersection.top - tile.bounds.top) * tile.scale;
           final srcRight = (intersection.right - tile.bounds.left) * tile.scale;
-          final srcBottom =
-              (intersection.bottom - tile.bounds.top) * tile.scale;
+          final srcBottom = (intersection.bottom - tile.bounds.top) * tile.scale;
 
           // Проверяем границы изображения с небольшим запасом
-          final double epsilon =
-              0.5; // Небольшой запас для предотвращения артефактов
+          final double epsilon = 0.5; // Небольшой запас для предотвращения артефактов
           if (srcLeft < -epsilon ||
               srcTop < -epsilon ||
               srcRight > tile.image.width + epsilon ||
@@ -118,10 +99,8 @@ class HierarchicalGridPainter extends CustomPainter {
 
           // Увеличиваем порог для очень тонких линий
           // При малых масштабах линии могут быть очень тонкими, но все равно должны отображаться
-          final double minVisibleSize =
-              0.1; // Минимальный размер для отображения
-          if (srcRect.width > minVisibleSize &&
-              srcRect.height > minVisibleSize) {
+          final double minVisibleSize = 0.1; // Минимальный размер для отображения
+          if (srcRect.width > minVisibleSize && srcRect.height > minVisibleSize) {
             // Используем улучшенный метод отрисовки с учетом масштаба
             _drawTileWithQuality(canvas, tile.image, srcRect, dstRect, paint);
           }
@@ -133,13 +112,7 @@ class HierarchicalGridPainter extends CustomPainter {
   }
 
   // Улучшенный метод отрисовки тайлов с учетом качества
-  void _drawTileWithQuality(
-    Canvas canvas,
-    ui.Image image,
-    Rect srcRect,
-    Rect dstRect,
-    Paint paint,
-  ) {
+  void _drawTileWithQuality(Canvas canvas, ui.Image image, Rect srcRect, Rect dstRect, Paint paint) {
     // При очень маленьких масштабах используем более агрессивный антиалиасинг
     if (scale < 0.5) {
       final highQualityPaint = Paint()
@@ -170,15 +143,7 @@ class HierarchicalGridPainter extends CustomPainter {
 
     for (int level = -2; level <= 5; level++) {
       double levelParentSize = baseParentSize * math.pow(4, level).toDouble();
-      _drawGridLevel(
-        canvas,
-        extendedLeft,
-        extendedTop,
-        extendedRight,
-        extendedBottom,
-        levelParentSize,
-        level,
-      );
+      _drawGridLevel(canvas, extendedLeft, extendedTop, extendedRight, extendedBottom, levelParentSize, level);
     }
   }
 
@@ -191,7 +156,7 @@ class HierarchicalGridPainter extends CustomPainter {
     double parentSize,
     int level,
   ) {
-    double alpha = _calculateAlphaForLevel(level);
+    double alpha = nodeManager.calculateGridAlphaForLevel(level);
     if (alpha < 0.01) return;
 
     final Paint parentGridPaint = Paint()
@@ -200,33 +165,17 @@ class HierarchicalGridPainter extends CustomPainter {
 
     final double childSize = parentSize / 4;
 
-    _drawGridLines(
-      canvas,
-      left,
-      top,
-      right,
-      bottom,
-      parentSize,
-      parentGridPaint,
-    );
+    _drawGridLines(canvas, left, top, right, bottom, parentSize, parentGridPaint);
 
     if (childSize > 2) {
       final double childAlpha = alpha * 0.8;
 
-      if (childAlpha > 0.01) {
+      if (childAlpha > 0.0005) {
         final Paint childGridPaint = Paint()
           ..color = Color(0xFFF0F0F0).withOpacity(childAlpha)
           ..strokeWidth = 0.5 / scale;
 
-        _drawGridLines(
-          canvas,
-          left,
-          top,
-          right,
-          bottom,
-          childSize,
-          childGridPaint,
-        );
+        _drawGridLines(canvas, left, top, right, bottom, childSize, childGridPaint);
       }
     }
   }
@@ -253,15 +202,6 @@ class HierarchicalGridPainter extends CustomPainter {
     for (double y = startY; y <= endY; y += cellSize) {
       canvas.drawLine(Offset(left, y), Offset(right, y), paint);
     }
-  }
-
-  double _calculateAlphaForLevel(int level) {
-    double idealScale = 1.0 / math.pow(4, level).toDouble();
-    double logDifference = (math.log(scale) - math.log(idealScale)).abs();
-    double maxLogDifference = 2.0;
-    double alpha =
-        (1.0 - (logDifference / maxLogDifference)).clamp(0.0, 1.0) * 0.8;
-    return alpha;
   }
 
   @override

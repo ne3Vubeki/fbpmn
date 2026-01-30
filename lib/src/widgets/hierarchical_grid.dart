@@ -63,6 +63,7 @@ class _HierarchicalGridState extends State<HierarchicalGrid>
           offset: widget.state.offset,
           canvasSize: widget.scrollHandler.scaledCanvasSize,
           state: widget.state,
+          nodeManager: widget.nodeManager,
           isNodeDragging: widget.state.isNodeDragging,
         ),
       ),

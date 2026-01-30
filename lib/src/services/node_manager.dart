@@ -24,14 +24,9 @@ class NodeManager extends Manager {
   // Константы для рамки выделения (в пикселях)
   static const double framePadding = 4.0; // Отступ рамки от узла
   static const double frameBorderWidth = 2.0; // Толщина рамки
-  static const double frameTotalOffset =
-      framePadding + frameBorderWidth; // Общий отступ для рамки
+  static const double frameTotalOffset = framePadding + frameBorderWidth; // Общий отступ для рамки
 
-  NodeManager({
-    required this.state,
-    required this.tileManager,
-    required this.arrowManager,
-  });
+  NodeManager({required this.state, required this.tileManager, required this.arrowManager});
 
   static List<TableNode?> nodeRecurcive(List<TableNode?> nodes, Function test) {
     List<TableNode?> testNodes = [];
@@ -44,6 +39,101 @@ class NodeManager extends Manager {
       }
     }
     return testNodes;
+  }
+
+  /// Получает размер сетки от HierarchicalGridPainter
+  /// Нужно передавать или вычислять одинаково
+  double _getVisibleGridCellSize() {
+    const double baseParentSize = 100.0;
+
+    // Определяем, какая сетка сейчас наиболее видима
+    // Ищем уровень с максимальной alpha
+    double maxAlpha = 0.0;
+    double bestGridSize = baseParentSize;
+
+    for (int level = -2; level <= 5; level++) {
+      double levelParentSize = baseParentSize * math.pow(4, level).toDouble();
+      double alpha = calculateGridAlphaForLevel(level);
+
+      if (alpha > maxAlpha) {
+        maxAlpha = alpha;
+        bestGridSize = levelParentSize;
+      }
+    }
+
+    // Используем дочернюю сетку, если она тоже видна
+    double childAlpha = maxAlpha * 0.8;
+    if (childAlpha > 0.0005) {
+      return bestGridSize / 4;
+    }
+
+    return bestGridSize;
+  }
+
+  double calculateGridAlphaForLevel(int level) {
+
+    // Для каждого уровня идеальный масштаб = 1 / (4^level)
+    // Например:
+    // level = 0: idealScale = 1.0 (базовый масштаб)
+    // level = 1: idealScale = 1/4 = 0.25
+    // level = -1: idealScale = 4.0
+    // level = -2: idealScale = 16.0
+    double idealScale = 1.0 / math.pow(4, level).toDouble();
+
+    // Разница в логарифмической шкале между текущим масштабом и идеальным
+    // log(scale) - log(idealScale) = log(scale / idealScale)
+    double logDifference = (math.log(state.scale) - math.log(idealScale)).abs();
+
+    // Максимальная допустимая разница (2.0 означает примерно e^2 ≈ 7.4 раза)
+    double maxLogDifference = 2.0;
+
+    // Вычисляем alpha (прозрачность) по формуле:
+    // alpha = (1 - (logDifference / maxLogDifference)) * 0.8
+    // Где:
+    // - 0.8 - максимальная alpha
+    // - logDifference/maxLogDifference - относительная разница (0..1)
+    // - 1 - (logDifference/maxLogDifference) - обратная пропорция
+    double alpha = (1.0 - (logDifference / maxLogDifference)).clamp(0.0, 1.0) * 0.8;
+
+    return alpha;
+  }
+
+  /// Улучшенный метод дискретного перемещения
+  Offset _snapToVisibleGrid(Offset worldPosition) {
+    // Получаем текущий размер ячейки видимой сетки
+    double gridCellSize = _getVisibleGridCellSize();
+
+    // Всегда привязываем к пересечениям линий сетки
+    double snappedX = (worldPosition.dx / gridCellSize).roundToDouble() * gridCellSize;
+    double snappedY = (worldPosition.dy / gridCellSize).roundToDouble() * gridCellSize;
+
+    return Offset(snappedX, snappedY);
+  }
+
+  void updateNodeDrag(Offset screenPosition) {
+    if (state.isNodeDragging && state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+      final screenDelta = screenPosition - _nodeDragStart;
+      final worldDelta = screenDelta / state.scale;
+
+      // Обновляем мировые координаты УЗЛА
+      Offset newWorldPosition = _nodeStartWorldPosition + worldDelta;
+
+      // ВСЕГДА применяем дискретную привязку к видимой сетке
+      newWorldPosition = _snapToVisibleGrid(newWorldPosition);
+
+      // Проверяем, действительно ли позиция изменилась
+      // (предотвращаем микродвижения в пределах одной ячейки)
+      final double threshold = _getVisibleGridCellSize() * 0.1;
+      if ((newWorldPosition - state.originalNodePosition).distance > threshold) {
+        state.originalNodePosition = newWorldPosition;
+
+        // Обновляем позицию рамки на основе новой позиции узла
+        _updateNodePosition();
+
+        onStateUpdate();
+        arrowManager.onStateUpdate();
+      }
+    }
   }
 
   // Метод для получения экранных координат из мировых
@@ -115,10 +205,7 @@ class NodeManager extends Manager {
       // Вычисляем новую позицию рамки
       final newFrameScreenPos =
           _worldToScreen(_initialSwimlaneBounds!.topLeft) +
-          Offset(
-            positionDelta.dx * state.scale,
-            positionDelta.dy * state.scale,
-          );
+          Offset(positionDelta.dx * state.scale, positionDelta.dy * state.scale);
 
       state.selectedNodeOffset = Offset(
         newFrameScreenPos.dx - frameTotalOffset,
@@ -165,14 +252,8 @@ class NodeManager extends Manager {
       if (swimlaneNode.children != null) {
         for (final child in swimlaneNode.children!) {
           // Для детей используем их абсолютные позиции, если они установлены
-          final childWorldPos =
-              child.aPosition ?? (parentWorldPos + child.position);
-          final childRect = Rect.fromLTWH(
-            childWorldPos.dx,
-            childWorldPos.dy,
-            child.size.width,
-            child.size.height,
-          );
+          final childWorldPos = child.aPosition ?? (parentWorldPos + child.position);
+          final childRect = Rect.fromLTWH(childWorldPos.dx, childWorldPos.dy, child.size.width, child.size.height);
 
           minX = math.min(minX, childRect.left);
           minY = math.min(minY, childRect.top);
@@ -186,10 +267,7 @@ class NodeManager extends Manager {
       final screenMax = _worldToScreen(Offset(maxX, maxY));
 
       // Позиция рамки с отступом
-      state.selectedNodeOffset = Offset(
-        screenMin.dx - frameTotalOffset,
-        screenMin.dy - frameTotalOffset,
-      );
+      state.selectedNodeOffset = Offset(screenMin.dx - frameTotalOffset, screenMin.dy - frameTotalOffset);
 
       // Размер отступов рамки слева и сверху для родительского узла
       state.framePadding = EdgeInsets.only(
@@ -200,12 +278,7 @@ class NodeManager extends Manager {
       );
 
       // Сохраняем начальные параметры рамки при первом вычислении
-      _initialSwimlaneBounds = Rect.fromLTWH(
-        minX,
-        minY,
-        maxX - minX,
-        maxY - minY,
-      );
+      _initialSwimlaneBounds = Rect.fromLTWH(minX, minY, maxX - minX, maxY - minY);
 
       print('Двигается весь swimlane');
 
@@ -213,10 +286,7 @@ class NodeManager extends Manager {
     }
   }
 
-  Future<void> _selectNodeImmediate(
-    TableNode node,
-    Offset screenPosition,
-  ) async {
+  Future<void> _selectNodeImmediate(TableNode node, Offset screenPosition) async {
     _deselectAllNodes();
 
     node.isSelected = true;
@@ -308,8 +378,7 @@ class NodeManager extends Manager {
     TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
     if (parentSwimlane != null) {
       // Проверяем, что узел еще не в списке детей
-      if (parentSwimlane.children != null &&
-          !parentSwimlane.children!.any((child) => child.id == node.id)) {
+      if (parentSwimlane.children != null && !parentSwimlane.children!.any((child) => child.id == node.id)) {
         parentSwimlane.children!.add(node);
       }
     } else {
@@ -408,10 +477,7 @@ class NodeManager extends Manager {
     }
   }
 
-  Future<void> selectNodeAtPosition(
-    Offset screenPosition, {
-    bool immediateDrag = false,
-  }) async {
+  Future<void> selectNodeAtPosition(Offset screenPosition, {bool immediateDrag = false}) async {
     final worldPos = _screenToWorld(screenPosition);
 
     TableNode? foundNode;
@@ -422,17 +488,10 @@ class NodeManager extends Manager {
       for (int i = nodes.length - 1; i >= 0; i--) {
         final node = nodes[i];
         final nodeOffset = node.aPosition ?? (parentOffset + node.position);
-        final nodeRect = Rect.fromLTWH(
-          nodeOffset.dx,
-          nodeOffset.dy,
-          node.size.width,
-          node.size.height,
-        );
+        final nodeRect = Rect.fromLTWH(nodeOffset.dx, nodeOffset.dy, node.size.width, node.size.height);
 
         // Если это выделенный узел на верхнем слое, игнорируем его
-        if (state.isNodeOnTopLayer &&
-            state.nodesSelected.isNotEmpty &&
-            state.nodesSelected.first!.id == node.id) {
+        if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty && state.nodesSelected.first!.id == node.id) {
           continue;
         }
 
@@ -442,24 +501,15 @@ class NodeManager extends Manager {
         }
 
         // Проверяем, является ли узел свернутым swimlane
-        final isCollapsedSwimlane =
-            node.qType == 'swimlane' && (node.isCollapsed ?? false);
+        final isCollapsedSwimlane = node.qType == 'swimlane' && (node.isCollapsed ?? false);
 
         // Если узел не свернут, проверяем детей
-        if (!isCollapsedSwimlane &&
-            node.children != null &&
-            node.children!.isNotEmpty) {
+        if (!isCollapsedSwimlane && node.children != null && node.children!.isNotEmpty) {
           // Для развернутого swimlane, дети используют свои абсолютные позиции
           for (int j = node.children!.length - 1; j >= 0; j--) {
             final child = node.children![j];
-            final childOffset =
-                child.aPosition ?? (nodeOffset + child.position);
-            final childRect = Rect.fromLTWH(
-              childOffset.dx,
-              childOffset.dy,
-              child.size.width,
-              child.size.height,
-            );
+            final childOffset = child.aPosition ?? (nodeOffset + child.position);
+            final childRect = Rect.fromLTWH(childOffset.dx, childOffset.dy, child.size.width, child.size.height);
 
             if (childRect.contains(worldPos)) {
               foundNodeWorldPosition = childOffset;
@@ -481,12 +531,7 @@ class NodeManager extends Manager {
 
     if (foundNode != null && foundNodeWorldPosition != null) {
       // Проверяем клик по иконке swimlane
-      if (foundNode.qType == 'swimlane' &&
-          _isSwimlaneIconClicked(
-            foundNode,
-            worldPos,
-            foundNodeWorldPosition!,
-          )) {
+      if (foundNode.qType == 'swimlane' && _isSwimlaneIconClicked(foundNode, worldPos, foundNodeWorldPosition!)) {
         await _toggleSwimlaneCollapsed(foundNode);
         return;
       }
@@ -545,10 +590,7 @@ class NodeManager extends Manager {
     if (toggledNode.isCollapsed ?? false) {
       // Удаляем детей из тайлов
       final tilesToUpdate = <int>{};
-      await tileManager.removeSwimlaneChildrenFromTiles(
-        swimlaneNode,
-        tilesToUpdate,
-      );
+      await tileManager.removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
       // Обновляем все затронутые тайлы
       for (final tileIndex in tilesToUpdate) {
         await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
@@ -561,13 +603,11 @@ class NodeManager extends Manager {
           if (child.aPosition != null) {
             // Рассчитываем относительные координаты ребенка из абсолютных,
             // вычитая delta и позицию родителя
-            child.position =
-                child.aPosition! - state.delta - toggledNode.position;
+            child.position = child.aPosition! - state.delta - toggledNode.position;
           } else {
             // Если у ребенка нет абсолютной позиции, используем текущую относительную
             // Это важно для сохранения перемещенных дочерних узлов
-            child.aPosition =
-                state.delta + toggledNode.position + child.position;
+            child.aPosition = state.delta + toggledNode.position + child.position;
           }
         }
       }
@@ -595,11 +635,7 @@ class NodeManager extends Manager {
   }
 
   // Метод для проверки клика по иконке swimlane
-  bool _isSwimlaneIconClicked(
-    TableNode node,
-    Offset worldPosition,
-    Offset nodeWorldPosition,
-  ) {
+  bool _isSwimlaneIconClicked(TableNode node, Offset worldPosition, Offset nodeWorldPosition) {
     if (node.qType != 'swimlane') return false;
 
     final iconSize = 16.0 * state.scale;
@@ -634,25 +670,6 @@ class NodeManager extends Manager {
 
       state.isNodeDragging = true;
       onStateUpdate();
-    }
-  }
-
-  void updateNodeDrag(Offset screenPosition) {
-    if (state.isNodeDragging &&
-        state.isNodeOnTopLayer &&
-        state.nodesSelected.isNotEmpty) {
-      final screenDelta = screenPosition - _nodeDragStart;
-      final worldDelta = screenDelta / state.scale;
-
-      // Обновляем мировые координаты УЗЛА
-      final newWorldPosition = _nodeStartWorldPosition + worldDelta;
-      state.originalNodePosition = newWorldPosition;
-
-      // Обновляем позицию рамки на основе новой позиции узла
-      _updateNodePosition();
-
-      onStateUpdate();
-      arrowManager.onStateUpdate();
     }
   }
 
