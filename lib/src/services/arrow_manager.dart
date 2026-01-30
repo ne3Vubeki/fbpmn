@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:flutter/cupertino.dart';
 
+import '../models/connections.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import 'manager.dart';
@@ -11,7 +12,7 @@ import 'manager.dart';
 /// Сервис для управления и расчета соединений стрелок
 class ArrowManager extends Manager {
   final EditorState state;
-  
+
   double get arrowIndent => 12;
 
   ArrowManager({required this.state});
@@ -293,10 +294,23 @@ class ArrowManager extends Manager {
       }
 
       final sidesNodesList = sides.split(':').take(2).toList();
-      final sidesNodes = sidesNodesList.join(':');
+      String sidesNodes = sidesNodesList.join(':');
 
       final startConnections = sourceNode.connections;
       final endConnections = targetNode.connections;
+
+      // final startConnectionsCount = startConnections?.length(sidesNodesList[0]) ?? 0;
+      // final endConnectionsCount = endConnections?.length(sidesNodesList[1]) ?? 0;
+
+      // if (endConnectionsCount * Connections.discreteness >= targetRect.height) {
+      //   if (sidesNodes == 'bottom:right') {
+      //     sidesNodes = 'bottom:top';
+      //     sides = '$sidesNodes:4';
+      //   } else if(sidesNodes == 'right:bottom') {
+      //     sidesNodes = 'top:bottom';
+      //     sides = '$sidesNodes:4';
+      //   }
+      // }
 
       final startConnection = startConnections?.add(sidesNodesList[0], arrow.id, startConnectionPoint);
       final endConnection = endConnections?.add(sidesNodesList[1], arrow.id, endConnectionPoint);
@@ -629,6 +643,22 @@ class ArrowManager extends Manager {
         coordinates.add(Offset(start.dx, start.dy + 40));
         coordinates.add(Offset(dyRight, start.dy + 40));
         coordinates.add(Offset(dyRight, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'bottom:top:4':
+        final dxRight = max(sourceRight, targetRight) + 40;
+        coordinates.add(Offset(start.dx, start.dy + 40));
+        coordinates.add(Offset(dxRight, start.dy + 40));
+        coordinates.add(Offset(dxRight, targetTop - 40));
+        coordinates.add(Offset(end.dx, targetTop - 40));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'top:bottom:4':
+        final dxRight = max(sourceRight, targetRight) + 40;
+        coordinates.add(Offset(start.dx, start.dy - 40));
+        coordinates.add(Offset(dxRight, start.dy - 40));
+        coordinates.add(Offset(dxRight, targetBottom + 40));
+        coordinates.add(Offset(end.dx, targetBottom + 40));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       default:

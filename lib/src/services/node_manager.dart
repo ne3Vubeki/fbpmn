@@ -28,46 +28,29 @@ class NodeManager extends Manager {
 
   NodeManager({required this.state, required this.tileManager, required this.arrowManager});
 
-  static List<TableNode?> nodeRecurcive(List<TableNode?> nodes, Function test) {
+  static List<TableNode?> whereAllNodes(List<TableNode?> nodes, Function test) {
     List<TableNode?> testNodes = [];
     for (final node in nodes) {
       if (test(node)) {
         testNodes.add(node);
       }
       if (node?.children != null && node!.children!.isNotEmpty) {
-        testNodes.addAll(nodeRecurcive(node.children!, test));
+        testNodes.addAll(whereAllNodes(node.children!, test));
       }
     }
     return testNodes;
   }
 
-  /// Получает размер сетки от HierarchicalGridPainter
-  /// Нужно передавать или вычислять одинаково
-  double _getVisibleGridCellSize() {
-    const double baseParentSize = 100.0;
-
-    // Определяем, какая сетка сейчас наиболее видима
-    // Ищем уровень с максимальной alpha
-    double maxAlpha = 0.0;
-    double bestGridSize = baseParentSize;
-
-    for (int level = -2; level <= 5; level++) {
-      double levelParentSize = baseParentSize * math.pow(4, level).toDouble();
-      double alpha = calculateGridAlphaForLevel(level);
-
-      if (alpha > maxAlpha) {
-        maxAlpha = alpha;
-        bestGridSize = levelParentSize;
+  static TableNode? getNodeById(List<TableNode?> nodes, String id) {
+    for (final node in nodes) {
+      if (node!.id == id) {
+        return node;
+      }
+      if (node.children != null && node!.children!.isNotEmpty) {
+        return getNodeById(node.children!, id);
       }
     }
-
-    // Используем дочернюю сетку, если она тоже видна
-    double childAlpha = maxAlpha * 0.8;
-    if (childAlpha > 0.0005) {
-      return bestGridSize / 4;
-    }
-
-    return bestGridSize;
+    return null;
   }
 
   double calculateGridAlphaForLevel(int level) {
@@ -98,41 +81,22 @@ class NodeManager extends Manager {
     return alpha;
   }
 
-  /// Улучшенный метод дискретного перемещения
-  Offset _snapToVisibleGrid(Offset worldPosition) {
-    // Получаем текущий размер ячейки видимой сетки
-    double gridCellSize = _getVisibleGridCellSize();
-
-    // Всегда привязываем к пересечениям линий сетки
-    double snappedX = (worldPosition.dx / gridCellSize).roundToDouble() * gridCellSize;
-    double snappedY = (worldPosition.dy / gridCellSize).roundToDouble() * gridCellSize;
-
-    return Offset(snappedX, snappedY);
-  }
-
   void updateNodeDrag(Offset screenPosition) {
-    if (state.isNodeDragging && state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+    if (state.isNodeDragging &&
+        state.isNodeOnTopLayer &&
+        state.nodesSelected.isNotEmpty) {
       final screenDelta = screenPosition - _nodeDragStart;
       final worldDelta = screenDelta / state.scale;
 
       // Обновляем мировые координаты УЗЛА
-      Offset newWorldPosition = _nodeStartWorldPosition + worldDelta;
+      final newWorldPosition = _nodeStartWorldPosition + worldDelta;
+      state.originalNodePosition = newWorldPosition;
 
-      // ВСЕГДА применяем дискретную привязку к видимой сетке
-      newWorldPosition = _snapToVisibleGrid(newWorldPosition);
+      // Обновляем позицию рамки на основе новой позиции узла
+      _updateNodePosition();
 
-      // Проверяем, действительно ли позиция изменилась
-      // (предотвращаем микродвижения в пределах одной ячейки)
-      final double threshold = _getVisibleGridCellSize() * 0.1;
-      if ((newWorldPosition - state.originalNodePosition).distance > threshold) {
-        state.originalNodePosition = newWorldPosition;
-
-        // Обновляем позицию рамки на основе новой позиции узла
-        _updateNodePosition();
-
-        onStateUpdate();
-        arrowManager.onStateUpdate();
-      }
+      onStateUpdate();
+      arrowManager.onStateUpdate();
     }
   }
 

@@ -34,7 +34,7 @@ class ArrowsPainter {
       ..strokeWidth = lineWidth
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
-      
+
     // Удаляем все коннекты из выбранных узлов для повторного расчета
     for (var node in arrowManager.state.nodesSelected) {
       node?.connections?.removeAll();
@@ -42,13 +42,10 @@ class ArrowsPainter {
 
     // Рисуем стрелки
     for (final arrow in arrows) {
-      if (arrow == null) continue;
+      if (arrow == null || arrow.source == arrow.target) continue;
 
       // Получаем полный путь стрелки
-      final pathResult = arrowManager.getArrowPathWithSelectedNodes(
-        arrow,
-        arrowsRect,
-      );
+      final pathResult = arrowManager.getArrowPathWithSelectedNodes(arrow, arrowsRect);
       final path = pathResult.path;
 
       // Рисуем путь стрелки

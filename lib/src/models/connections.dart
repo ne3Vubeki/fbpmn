@@ -8,6 +8,8 @@ class Connections {
   Set<Connection?>? bottom;
   Set<Connection?>? left;
 
+  static double discreteness = 5.0;
+
   Connections({this.top, this.right, this.bottom, this.left}) {
     top = {};
     right = {};
@@ -87,6 +89,6 @@ class Connections {
     if (n == 0) return 0;
     int sign = (n % 2 == 0) ? -1 : 1;
     int multiplier = ((n + 1) ~/ 2);
-    return (multiplier * 5.0) * sign;
+    return (multiplier * Connections.discreteness) * sign;
   }
 }
