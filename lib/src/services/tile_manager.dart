@@ -177,7 +177,7 @@ class TileManager extends Manager {
       }
 
       // Получаем полный путь стрелки
-      final coordinates = arrowManager.getArrowPathInTile(arrowCopy, state.delta, isNotCalculate: true).coordinates;
+      final coordinates = arrowManager.getArrowPathInTile(arrowCopy, state.delta, isTiles: true, isNotCalculate: true).coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
 
       if (coordinates.isNotEmpty) {
@@ -531,7 +531,7 @@ class TileManager extends Manager {
       // Рисуем стрелки, если они есть (используем ArrowTilePainter)
       if (arrowsInTile.isNotEmpty) {
         final arrowsPainter = ArrowsPainter(arrows: arrowsInTile, arrowManager: arrowManager);
-        arrowsPainter.drawArrowsInTile(canvas: canvas, baseOffset: state.delta);
+        arrowsPainter.drawArrowsInTile(canvas: canvas, baseOffset: state.delta, scale: scale);
       }
 
       final picture = recorder.endRecording();

@@ -8,8 +8,10 @@ class Arrow {
 
   String source; // ID источника
   String? sourceCache; // ID источника кеш
+  String? sourceArrow; // тип стрелки
   String target; // ID цели
   String? targetCache; // ID цели кеш
+  String? targetArrow; // тип стрелки
 
   List<Map<String, dynamic>>? powers; // Опционально
   List<Map<String, dynamic>>? points; // Опционально
@@ -33,10 +35,8 @@ class Arrow {
   });
 
   factory Arrow.fromJson(Map<String, dynamic> json) {
-    final powers = (json['powers'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
-    final points = (json['points'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
+    final powers = (json['powers'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    final points = (json['points'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
 
     final arrow = Arrow(
       id: json['id'] as String,
@@ -45,6 +45,29 @@ class Arrow {
       target: json['target'] as String,
       style: json['style'] as String? ?? '',
     );
+
+    // определяем по стилям окончание стрелок
+    final style = arrow.style;
+    final styleItems = style.split(';');
+    Map styleMap = {};
+    for (final item in styleItems) {
+      final itemList = item.split('=');
+      if (itemList.length == 2) {
+        styleMap[itemList[0]] = itemList[1];
+      }
+    }
+    if (styleMap['endArrow'] == 'block') {
+      arrow.targetArrow = 'block';
+    } else if (styleMap['endArrow'] == 'none' &&
+        styleMap['startArrow'] == 'diamondThin' &&
+        styleMap['startFill'] == '1') {
+      arrow.sourceArrow = 'diamondThin';
+    } else if (styleMap['endArrow'] == 'none' &&
+        styleMap['startArrow'] == 'diamondThin' &&
+        styleMap['startFill'] == '0') {
+      arrow.sourceArrow = 'diamond';
+    }
+
     if (powers.isNotEmpty) {
       arrow.powers = powers;
     }
