@@ -1,3 +1,5 @@
+import 'package:fbpmn/src/services/arrow_manager.dart';
+import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
@@ -14,6 +16,7 @@ class ZoomContainer extends StatefulWidget {
   final InputHandler inputHandler;
   final ScrollHandler scrollHandler;
   final TileManager tileManager;
+  final NodeManager nodeManager;
 
   const ZoomContainer({
     super.key,
@@ -21,14 +24,14 @@ class ZoomContainer extends StatefulWidget {
     required this.scrollHandler,
     required this.inputHandler,
     required this.tileManager,
+    required this.nodeManager,
   });
 
   @override
   State<ZoomContainer> createState() => _ZoomContainerState();
 }
 
-class _ZoomContainerState extends State<ZoomContainer>
-    with StateWidget<ZoomContainer> {
+class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomContainer> {
   bool _showThumbnail = true;
 
   double get scale => widget.state.scale;
@@ -40,7 +43,12 @@ class _ZoomContainerState extends State<ZoomContainer>
   Size get viewportSize => widget.state.viewportSize;
   List<ImageTile> get imageTiles => widget.state.imageTiles;
 
-  onResetZoom() => widget.scrollHandler.autoFitAndCenterNodes();
+  onResetZoom() async {
+    if (widget.state.nodesSelected.isNotEmpty) {
+      widget.nodeManager.handleEmptyAreaClick();
+    }
+    widget.scrollHandler.autoFitAndCenterNodes();
+  }
 
   onToggleTileBorders() => widget.inputHandler.toggleTileBorders();
 
@@ -77,6 +85,16 @@ class _ZoomContainerState extends State<ZoomContainer>
     onThumbnailClick(newCanvasOffset);
   }
 
+  void _toggleCurves() async {
+    widget.state.useCurves = !widget.state.useCurves;
+    if (widget.state.nodesSelected.isNotEmpty) {
+      widget.nodeManager.handleEmptyAreaClick();
+    }
+    await widget.tileManager.updateTilesAfterNodeChange();
+    // Перерисовываем
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     // Ширина контейнера (равна ширине миниатюры или минимальная ширина панели)
@@ -110,12 +128,14 @@ class _ZoomContainerState extends State<ZoomContainer>
             scale: scale,
             showTileBorders: showTileBorders,
             showThumbnail: _showThumbnail,
+            showCurves: widget.state.useCurves,
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
             panelWidth: containerWidth,
             onResetZoom: onResetZoom,
             onToggleTileBorders: onToggleTileBorders,
             onToggleThumbnail: _toggleThumbnail,
+            onToggleCurves: _toggleCurves,
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/input_handler.dart';
+import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/widgets/state_widget.dart';
 import 'package:flutter/material.dart';
 
@@ -10,12 +11,14 @@ class ArrowsSelected extends StatefulWidget {
   final EditorState state;
   final ArrowManager arrowManager;
   final InputHandler inputHandler;
+  final ScrollHandler scrollHandler;
 
   const ArrowsSelected({
     super.key,
     required this.state,
     required this.arrowManager,
     required this.inputHandler,
+    required this.scrollHandler,
   });
 
   @override
@@ -30,7 +33,10 @@ class _ArrowsSelected extends State<ArrowsSelected>
     widget.arrowManager.setOnStateUpdate('ArrowsSelected', () {
       timeoutSetState();
     });
-    widget.inputHandler.setOnStateUpdate('ArrowsSelected', () {
+    // widget.inputHandler.setOnStateUpdate('ArrowsSelected', () {
+    //   timeoutSetState();
+    // });
+    widget.scrollHandler.setOnStateUpdate('ArrowsSelected', () {
       timeoutSetState();
     });
   }

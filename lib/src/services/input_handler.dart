@@ -118,7 +118,7 @@ class InputHandler extends Manager {
         } else {
           // Для обычных узлов и свернутых swimlane используем стандартную логику
           // Рамка окружает узел с фиксированным отступом
-          final double frameOffset = NodeManager.frameTotalOffset;
+          final double frameOffset = nodeManager.frameTotalOffset;
           final nodeScreenRect = Rect.fromLTWH(
             state.selectedNodeOffset.dx,
             state.selectedNodeOffset.dy,

@@ -28,9 +28,9 @@ class NodeSelected extends StatefulWidget {
 class _NodeSelectedState extends State<NodeSelected>
     with StateWidget<NodeSelected> {
   // Используем константы из NodeManager
-  double get framePadding => NodeManager.framePadding;
-  double get frameBorderWidth => NodeManager.frameBorderWidth;
-  double get frameTotalOffset => NodeManager.frameTotalOffset;
+  double get framePadding => widget.nodeManager.framePadding;
+  double get frameBorderWidth => widget.nodeManager.frameBorderWidth;
+  double get frameTotalOffset => widget.nodeManager.frameTotalOffset;
 
   @override
   void initState() {
@@ -38,9 +38,9 @@ class _NodeSelectedState extends State<NodeSelected>
     widget.nodeManager.setOnStateUpdate('NodeSelected', () {
       timeoutSetState();
     });
-    widget.inputHandler.setOnStateUpdate('NodeSelected', () {
-      timeoutSetState();
-    });
+    // widget.inputHandler.setOnStateUpdate('NodeSelected', () {
+    //   timeoutSetState();
+    // });
   }
 
   @override
@@ -56,6 +56,7 @@ class _NodeSelectedState extends State<NodeSelected>
     final hasAttributes = node.attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isNotGroup = node.groupId != null;
+    final scale = widget.state.scale;
 
     // Размер узла (масштабированный)
     final nodeSize = Size(
@@ -73,7 +74,7 @@ class _NodeSelectedState extends State<NodeSelected>
                 border: Border.all(color: Colors.blue, width: frameBorderWidth ),
                 borderRadius: isNotGroup || isEnum || !hasAttributes
                     ? BorderRadius.zero
-                    : BorderRadius.circular(12 * widget.state.scale),
+                    : BorderRadius.circular(12 * scale),
               ),
               child: RepaintBoundary(
                 child: CustomPaint(

@@ -4,31 +4,35 @@ class ZoomPanel extends StatelessWidget {
   final double scale;
   final bool showTileBorders;
   final bool showThumbnail;
+  final bool showCurves; // Новый параметр
   final double canvasWidth;
   final double canvasHeight;
   final double panelWidth;
   final VoidCallback onResetZoom;
   final VoidCallback onToggleTileBorders;
   final VoidCallback onToggleThumbnail;
+  final VoidCallback onToggleCurves; // Новый колбэк
 
   const ZoomPanel({
     super.key,
     required this.scale,
     required this.showTileBorders,
     required this.showThumbnail,
+    required this.showCurves, // Новый параметр
     required this.canvasWidth,
     required this.canvasHeight,
     required this.panelWidth,
     required this.onResetZoom,
     required this.onToggleTileBorders,
     required this.onToggleThumbnail,
+    required this.onToggleCurves, // Новый колбэк
   });
 
   @override
   Widget build(BuildContext context) {
     // Форматируем размеры для отображения
-    final String widthText = '${canvasWidth.toInt()}px';
-    final String heightText = '${canvasHeight.toInt()}px';
+    final String widthText = '${(canvasWidth / 1000).floor().toInt()}K';
+    final String heightText = '${(canvasHeight / 1000).floor().toInt()}K';
     final String sizeText = '$widthText × $heightText';
 
     return Container(
@@ -50,44 +54,42 @@ class ZoomPanel extends StatelessWidget {
                 // Кнопка скрытия/показа миниатюры
                 IconButton(
                   icon: Icon(
-                    showThumbnail
-                        ? Icons.picture_in_picture_alt
-                        : Icons.picture_in_picture,
+                    showThumbnail ? Icons.picture_in_picture_alt : Icons.picture_in_picture,
                     size: 18,
                     color: showThumbnail ? Colors.blue : Colors.grey,
                   ),
                   onPressed: onToggleThumbnail,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
-                  ),
-                  tooltip: showThumbnail
-                      ? 'Скрыть миниатюру'
-                      : 'Показать миниатюру',
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  tooltip: showThumbnail ? 'Скрыть миниатюру' : 'Показать миниатюру',
                 ),
 
                 const SizedBox(width: 4),
+
+                // Информация о размерах холста
+                Tooltip(
+                  message: 'Размер холста (ширина × высота)',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(4)),
+                    child: Text(
+                      sizeText,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[700]),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 8),
 
                 // Масштаб
                 Tooltip(
                   message: 'Текущий масштаб',
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4)),
                     child: Text(
                       '${(scale * 100).round()}%',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue[800],
-                      ),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.blue[800]),
                     ),
                   ),
                 ),
@@ -99,6 +101,21 @@ class ZoomPanel extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Кнопка переключения кривые/ортогональные связи
+              IconButton(
+                icon: Icon(
+                  showCurves ? Icons.timeline : Icons.show_chart,
+                  size: 18,
+                  color: showCurves ? Colors.purple : Colors.grey,
+                ),
+                onPressed: onToggleCurves,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                tooltip: showCurves ? 'Ортогональные связи' : 'Кривые связи',
+              ),
+
+              const SizedBox(width: 4),
+
               // Кнопка сброса масштаба
               IconButton(
                 icon: const Icon(Icons.zoom_out_map, size: 18),
@@ -120,9 +137,7 @@ class ZoomPanel extends StatelessWidget {
                 onPressed: onToggleTileBorders,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                tooltip: showTileBorders
-                    ? 'Скрыть границы тайлов'
-                    : 'Показать границы тайлов',
+                tooltip: showTileBorders ? 'Скрыть границы тайлов' : 'Показать границы тайлов',
               ),
             ],
           ),

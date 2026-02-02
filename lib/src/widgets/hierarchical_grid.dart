@@ -34,9 +34,9 @@ class _HierarchicalGridState extends State<HierarchicalGrid>
   @override
   void initState() {
     super.initState();
-    widget.inputHandler.setOnStateUpdate('HierarchicalGrid', () {
-      timeoutSetState();
-    });
+    // widget.inputHandler.setOnStateUpdate('HierarchicalGrid', () {
+    //   timeoutSetState();
+    // });
     widget.nodeManager.setOnStateUpdate('HierarchicalGrid ', () {
       timeoutSetState();
     });

@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
@@ -11,6 +12,7 @@ import 'manager.dart';
 class ScrollHandler extends Manager {
   final EditorState state;
   final NodeManager? nodeManager;
+  final ArrowManager? arrowManager;
 
   final BoundsCalculator _boundsCalculator = BoundsCalculator();
   static const double tileSize = 1024.0; // Размер тайла
@@ -46,7 +48,7 @@ class ScrollHandler extends Manager {
   bool get needsHorizontalScrollbar => scaledCanvasSize.width > state.viewportSize.width;
   bool get needsVerticalScrollbar => scaledCanvasSize.height > state.viewportSize.height;
 
-  ScrollHandler({required this.state, this.nodeManager}) {
+  ScrollHandler({required this.state, this.nodeManager, this.arrowManager}) {
     horizontalScrollController.addListener(_onHorizontalScroll);
     verticalScrollController.addListener(_onVerticalScroll);
   }

@@ -555,22 +555,6 @@ class TileManager extends Manager {
 
   // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
   Future<void> updateTilesAfterNodeChange() async {
-    // Set<TableNode?> nodes = {...state.nodesSelected};
-    // Set<Arrow?> arrows = {...state.arrowsSelected};
-
-    // for (final arrow in arrows) {
-    //   final node = state.nodes.firstWhereOrNull(
-    //     (n) => n.id == arrow!.source || n.id == arrow.target,
-    //   );
-    //   nodes.add(node);
-    // }
-
-    // for (final tileId in state.imageTilesChanged) {
-    //   final tile = getTileById(state.imageTiles, tileId);
-    //   nodes.addAll(_getNodesForTile(tile!));
-    //   arrows.addAll(_getArrowsForTile(tile));
-    // }
-
     await createTiledImage(state.nodes, state.arrows, isUpdate: false);
 
     state.imageTilesChanged.clear();

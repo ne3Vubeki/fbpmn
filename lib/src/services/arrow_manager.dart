@@ -402,9 +402,9 @@ class ArrowManager extends Manager {
   }) {
 
     // Для рассчитанных путей не считаем - отдаем сразу
-    if (isNotCalculate && arrow.path != null && arrow.coordinates != null) {
-      return (path: arrow.path!, coordinates: arrow.coordinates!);
-    }
+    // if (isNotCalculate && arrow.path != null && arrow.coordinates != null) {
+    //   return (path: arrow.path!, coordinates: arrow.coordinates!);
+    // }
 
     // Находим эффективные узлы
     final effectiveSourceNode = _getEffectiveNode(arrow.source);
@@ -491,7 +491,7 @@ class ArrowManager extends Manager {
       screenCoordinates.add(screenCoord);
     }
 
-    final screenPath = _createPath(screenCoordinates, scale: state.scale, isNotOrtogonal: true);
+    final screenPath = _createPath(screenCoordinates, scale: state.scale, isCurves: state.useCurves);
 
     return (path: screenPath, coordinates: screenCoordinates);
   }
@@ -676,12 +676,12 @@ class ArrowManager extends Manager {
     }
 
     String direct = sides.split(':')[0];
-    final path = _createPath(coordinates, direct: direct, isNotOrtogonal: true);
+    final path = _createPath(coordinates, direct: direct, isCurves: state.useCurves);
 
     return (path: path, coordinates: coordinates);
   }
 
-  Path _createPath(List<Offset> coordinates, {String? direct, double? scale, bool isNotOrtogonal = false}) {
+  Path _createPath(List<Offset> coordinates, {String? direct, double? scale, bool isCurves = false}) {
     final path = Path();
     final baseRadius = 10.0 * (scale ?? 1);
     final dx = coordinates.first.dx - coordinates[1].dx;
@@ -715,7 +715,7 @@ class ArrowManager extends Manager {
       double offsetCurrent = (dxPrev + dyPrev).abs(); // длина текущего отрезка
       double offsetNext = (dx + dy).abs(); // длина следующего отрезка
       double radius = 0.0;
-      if(!isNotOrtogonal) {
+      if(!isCurves) {
       // Находим минимальный отрезок
       final offset = min(offsetNext, offsetCurrent);
       final maxRadius = offset / 2;
