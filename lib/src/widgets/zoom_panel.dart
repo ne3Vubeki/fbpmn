@@ -69,31 +69,6 @@ class ZoomPanel extends StatelessWidget {
 
                 const SizedBox(width: 4),
 
-                // Информация о размерах холста
-                Tooltip(
-                  message: 'Размер холста (ширина × высота)',
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      sizeText,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
                 // Масштаб
                 Tooltip(
                   message: 'Текущий масштаб',

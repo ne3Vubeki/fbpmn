@@ -177,7 +177,7 @@ class TileManager extends Manager {
       }
 
       // Получаем полный путь стрелки
-      final coordinates = arrowManager.getArrowPathInTile(arrowCopy, state.delta).coordinates;
+      final coordinates = arrowManager.getArrowPathInTile(arrowCopy, state.delta, isNotCalculate: true).coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
 
       if (coordinates.isNotEmpty) {

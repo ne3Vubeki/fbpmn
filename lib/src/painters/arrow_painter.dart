@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:flutter/material.dart';
 import '../models/arrow.dart';
 import '../services/arrow_manager.dart';
@@ -11,7 +12,7 @@ class ArrowsPainter {
   void drawArrowsInTile({required Canvas canvas, required Offset baseOffset}) {
     final paint = Paint()
       ..color = Colors.black
-      ..strokeWidth = 1
+      ..strokeWidth = EditorConfig.arrowTileWidth
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
 
@@ -27,7 +28,7 @@ class ArrowsPainter {
 
   void paint(Canvas canvas, double scale, Rect arrowsRect) {
     // Рассчитываем толщину линии
-    final lineWidth = 2.0 * scale;
+    final lineWidth = EditorConfig.arrowSelectedWidth * scale;
 
     final arrowPaint = Paint()
       ..color = Colors.blue

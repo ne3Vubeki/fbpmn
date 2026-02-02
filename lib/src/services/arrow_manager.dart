@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:flutter/cupertino.dart';
 
-import '../models/connections.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import 'manager.dart';
@@ -396,7 +395,17 @@ class ArrowManager extends Manager {
   }
 
   /// Получить полный путь стрелки для отрисовки в тайлах
-  ({Path path, List<Offset> coordinates}) getArrowPathInTile(Arrow arrow, Offset baseOffset) {
+  ({Path path, List<Offset> coordinates}) getArrowPathInTile(
+    Arrow arrow,
+    Offset baseOffset, {
+    bool isNotCalculate = false,
+  }) {
+
+    // Для рассчитанных путей не считаем - отдаем сразу
+    if (isNotCalculate && arrow.path != null && arrow.coordinates != null) {
+      return (path: arrow.path!, coordinates: arrow.coordinates!);
+    }
+
     // Находим эффективные узлы
     final effectiveSourceNode = _getEffectiveNode(arrow.source);
     final effectiveTargetNode = _getEffectiveNode(arrow.target);
@@ -455,6 +464,7 @@ class ArrowManager extends Manager {
     );
 
     arrow.path = basePath.path;
+    arrow.coordinates = basePath.coordinates;
 
     return basePath;
   }
@@ -481,7 +491,7 @@ class ArrowManager extends Manager {
       screenCoordinates.add(screenCoord);
     }
 
-    final screenPath = _createPath(screenCoordinates, scale: state.scale);
+    final screenPath = _createPath(screenCoordinates, scale: state.scale, isNotOrtogonal: true);
 
     return (path: screenPath, coordinates: screenCoordinates);
   }
@@ -666,12 +676,12 @@ class ArrowManager extends Manager {
     }
 
     String direct = sides.split(':')[0];
-    final path = _createPath(coordinates, direct: direct);
+    final path = _createPath(coordinates, direct: direct, isNotOrtogonal: true);
 
     return (path: path, coordinates: coordinates);
   }
 
-  Path _createPath(List<Offset> coordinates, {String? direct, double? scale}) {
+  Path _createPath(List<Offset> coordinates, {String? direct, double? scale, bool isNotOrtogonal = false}) {
     final path = Path();
     final baseRadius = 10.0 * (scale ?? 1);
     final dx = coordinates.first.dx - coordinates[1].dx;
@@ -689,8 +699,11 @@ class ArrowManager extends Manager {
       }
     }
 
+    final len = coordinates.length;
+
     path.moveTo(coordinates.first.dx, coordinates.first.dy);
-    for (int i = 1; i < coordinates.length - 1; i++) {
+
+    for (int i = 1; i < len - 1; i++) {
       final previous = coordinates[i - 1]; // предыдущая точка
       final current = coordinates[i]; // текущая точка
       final next = coordinates[i + 1]; // следующая точка
@@ -699,12 +712,20 @@ class ArrowManager extends Manager {
       final dyPrev = previous.dy - current.dy;
       final dx = current.dx - next.dx;
       final dy = current.dy - next.dy;
-      final offsetCurrent = (dxPrev + dyPrev).abs(); // длина текущего отрезка
-      final offsetNext = (dx + dy).abs(); // длина следующего отрезка
+      double offsetCurrent = (dxPrev + dyPrev).abs(); // длина текущего отрезка
+      double offsetNext = (dx + dy).abs(); // длина следующего отрезка
+      double radius = 0.0;
+      if(!isNotOrtogonal) {
       // Находим минимальный отрезок
       final offset = min(offsetNext, offsetCurrent);
       final maxRadius = offset / 2;
-      final double radius = maxRadius > 1 ? baseRadius.clamp(1.0, maxRadius) : 0;
+      radius = maxRadius > 1 ? baseRadius.clamp(1.0, maxRadius) : 0;
+    } else {
+      offsetCurrent = (len == 4 || len == 5) && (i == 2 || i == 4) ? offsetCurrent / 2 : offsetCurrent;
+      offsetNext = (len == 4 || len == 5) && (i == 1 || i == 3) ? offsetNext / 2 : offsetNext;
+      final offset = min(offsetNext, offsetCurrent);
+      radius = offset;
+    }
       double x1 = current.dx;
       double y1 = current.dy;
       bool clockwise = true;

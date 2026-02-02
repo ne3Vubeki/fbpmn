@@ -4,17 +4,20 @@ import 'dart:ui';
 class Arrow {
   final String id;
   final String qType; // arrowObject, qRelationship, qEdgeToJson
+  final String style;
+
   String source; // ID источника
   String? sourceCache; // ID источника кеш
   String target; // ID цели
   String? targetCache; // ID цели кеш
+
+  List<Map<String, dynamic>>? powers; // Опционально
+  List<Map<String, dynamic>>? points; // Опционально
+
   Offset aPositionSource;
   Offset aPositionTarget;
   Path? path;
-  final String style;
-  List<Map<String, dynamic>>? powers; // Опционально
-  List<Map<String, dynamic>>? points; // Опционально
-  final double strokeWidth;
+  List<Offset>? coordinates;
 
   Arrow({
     required this.id,
@@ -22,12 +25,11 @@ class Arrow {
     required this.source,
     required this.target,
     required this.style,
-    this.aPositionSource = Offset.zero,
-    this.aPositionTarget = Offset.zero,
     this.path,
     this.powers,
     this.points,
-    this.strokeWidth = 1.0,
+    this.aPositionSource = Offset.zero,
+    this.aPositionTarget = Offset.zero,
   });
 
   factory Arrow.fromJson(Map<String, dynamic> json) {
@@ -42,7 +44,6 @@ class Arrow {
       source: json['source'] as String,
       target: json['target'] as String,
       style: json['style'] as String? ?? '',
-      strokeWidth: 1.0, // по умолчанию толщина 1
     );
     if (powers.isNotEmpty) {
       arrow.powers = powers;
@@ -61,7 +62,6 @@ class Arrow {
     String? style,
     List<Map<String, dynamic>>? powers,
     List<Map<String, dynamic>>? points,
-    double? strokeWidth,
   }) {
     return Arrow(
       id: id ?? this.id,
@@ -71,7 +71,6 @@ class Arrow {
       style: style ?? this.style,
       powers: powers ?? this.powers,
       points: points ?? this.points,
-      strokeWidth: strokeWidth ?? this.strokeWidth,
     );
   }
 }

@@ -46,7 +46,7 @@ class NodeManager extends Manager {
       if (node!.id == id) {
         return node;
       }
-      if (node.children != null && node!.children!.isNotEmpty) {
+      if (node.children != null && node.children!.isNotEmpty) {
         return getNodeById(node.children!, id);
       }
     }
