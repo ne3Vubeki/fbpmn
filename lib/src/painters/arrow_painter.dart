@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/models/arrow_paths.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:flutter/material.dart';
 import '../models/arrow.dart';
@@ -10,24 +11,29 @@ class ArrowsPainter {
   ArrowsPainter({required this.arrows, required this.arrowManager});
 
   void drawArrowsInTile({required Canvas canvas, required Offset baseOffset, required double scale}) {
-    final paint = Paint()
+    final linePaint = Paint()
       ..color = Colors.black
       ..strokeWidth = EditorConfig.arrowTileWidth / scale
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
 
+    final strokePaint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
     // Рисуем только те стрелки, путь которых пересекает этот тайл
     for (final arrow in arrows) {
+      if (arrow == null) continue;
       // Получаем полный путь стрелки
-      final path = arrow?.path ?? Path();
-      final fillPaint = Paint()
-        ..color = _getFillColor(arrow?.sourceArrow ?? arrow?.targetArrow)
-        ..style = PaintingStyle.fill;
+      final paths = arrow.paths ?? ArrowPaths(path: Path());
 
-      // Сначала заливка, потом обводка
-      canvas.drawPath(path, fillPaint);
-      // Рисуем путь (автоматически обрежется по границам тайла)
-      canvas.drawPath(path, paint);
+      _drawPaths(canvas, arrow, paths, linePaint, fillPaint, strokePaint, Colors.black);
     }
   }
 
@@ -35,10 +41,20 @@ class ArrowsPainter {
     // Рассчитываем толщину линии
     final lineWidth = EditorConfig.arrowSelectedWidth * scale;
 
-    final arrowPaint = Paint()
+    final linePaint = Paint()
       ..color = Colors.blue
       ..strokeWidth = lineWidth
       ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    final strokePaint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = lineWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
     // Удаляем все коннекты из выбранных узлов для повторного расчета
@@ -52,27 +68,44 @@ class ArrowsPainter {
 
       // Получаем полный путь стрелки
       final pathResult = arrowManager.getArrowPathWithSelectedNodes(arrow, arrowsRect);
-      final path = pathResult.path;
-      final fillPaint = Paint()
-        ..color = _getFillColor(arrow.sourceArrow ?? arrow.targetArrow)
-        ..style = PaintingStyle.fill;
+      final paths = pathResult.paths;
 
-      // Сначала заливка, потом обводка
-      canvas.drawPath(path, fillPaint);
-      // Рисуем путь стрелки
-      canvas.drawPath(path, arrowPaint);
+      _drawPaths(canvas, arrow, paths, linePaint, fillPaint, strokePaint, Colors.blue);
     }
   }
 
-  Color _getFillColor(String? arrowType) {
-    switch (arrowType) {
-      case 'block':
-      case 'diamond':
-        return Colors.white;
-      case 'diamondThin':
-        return Colors.black;
-      default:
-        return Colors.transparent;
+  _drawPaths(
+    Canvas canvas,
+    Arrow arrow,
+    ArrowPaths paths,
+    Paint linePaint,
+    Paint fillPaint,
+    Paint strokePaint,
+    Color color,
+  ) {
+    // 1. Рисуем линию
+    canvas.drawPath(paths.path, linePaint);
+
+    // 2. Рисуем фигуру в начале (ромб)
+    if (paths.startArrow != null) {
+      if (arrow.sourceArrow == 'diamondThin') {
+        // Черный ромб
+        fillPaint.color = color;
+        canvas.drawPath(paths.startArrow!, fillPaint);
+      } else {
+        // Белый ромб с черной границей
+        fillPaint.color = Colors.white;
+        canvas.drawPath(paths.startArrow!, fillPaint);
+        canvas.drawPath(paths.startArrow!, strokePaint);
+      }
+    }
+
+    // 3. Рисуем фигуру в конце (треугольник)
+    if (paths.endArrow != null) {
+      // Белый треугольник с черной границей
+      fillPaint.color = Colors.white;
+      canvas.drawPath(paths.endArrow!, fillPaint);
+      canvas.drawPath(paths.endArrow!, strokePaint);
     }
   }
 }

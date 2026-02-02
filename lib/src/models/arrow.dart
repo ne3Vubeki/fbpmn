@@ -1,6 +1,8 @@
 // Модель стрелки/связи
 import 'dart:ui';
 
+import 'package:fbpmn/src/models/arrow_paths.dart';
+
 class Arrow {
   final String id;
   final String qType; // arrowObject, qRelationship, qEdgeToJson
@@ -18,7 +20,7 @@ class Arrow {
 
   Offset aPositionSource;
   Offset aPositionTarget;
-  Path? path;
+  ArrowPaths? paths;
   List<Offset>? coordinates;
 
   Arrow({
@@ -27,7 +29,7 @@ class Arrow {
     required this.source,
     required this.target,
     required this.style,
-    this.path,
+    this.paths,
     this.powers,
     this.points,
     this.aPositionSource = Offset.zero,

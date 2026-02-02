@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:fbpmn/src/editor_state.dart';
+import 'package:fbpmn/src/models/arrow_paths.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../models/table.node.dart';
@@ -395,7 +396,7 @@ class ArrowManager extends Manager {
   }
 
   /// Получить полный путь стрелки для отрисовки в тайлах
-  ({Path path, List<Offset> coordinates}) getArrowPathInTile(
+  ({ArrowPaths paths, List<Offset> coordinates}) getArrowPathInTile(
     Arrow arrow,
     Offset baseOffset, {
     bool isNotCalculate = false,
@@ -411,7 +412,7 @@ class ArrowManager extends Manager {
     final effectiveTargetNode = _getEffectiveNode(arrow.target);
 
     if (effectiveSourceNode == null || effectiveTargetNode == null) {
-      return (path: Path(), coordinates: []);
+      return (paths: ArrowPaths(path: Path()), coordinates: []);
     }
 
     // Получаем абсолютные позиции
@@ -451,7 +452,7 @@ class ArrowManager extends Manager {
     arrow.aPositionTarget = baseConnectionPoints.end!;
 
     if (baseConnectionPoints.start == null || baseConnectionPoints.end == null) {
-      return (path: Path(), coordinates: []);
+      return (paths: ArrowPaths(path: Path()), coordinates: []);
     }
 
     // Создаем простой ортогональный путь без проверок пересечений
@@ -465,14 +466,14 @@ class ArrowManager extends Manager {
       isTiles,
     );
 
-    arrow.path = basePath.path;
+    arrow.paths = basePath.paths;
     arrow.coordinates = basePath.coordinates;
 
     return basePath;
   }
 
   /// Получает путь стрелки с учетом выбранных узлов и текущего масштаба
-  ({Path path, List<Offset> coordinates}) getArrowPathWithSelectedNodes(Arrow arrow, Rect arrowsRect) {
+  ({ArrowPaths paths, List<Offset> coordinates}) getArrowPathWithSelectedNodes(Arrow arrow, Rect arrowsRect) {
     // Создаем простой ортогональный путь в мировых координатах
     final basePath = getArrowPathInTile(arrow, state.delta);
 
@@ -481,9 +482,9 @@ class ArrowManager extends Manager {
   }
 
   /// Преобразует путь из мировых координат в экранные
-  ({Path path, List<Offset> coordinates}) _convertPathToScreenCoordinates(
+  ({ArrowPaths paths, List<Offset> coordinates}) _convertPathToScreenCoordinates(
     Arrow arrow,
-    ({Path path, List<Offset> coordinates}) worldPath,
+    ({ArrowPaths paths, List<Offset> coordinates}) worldPath,
     Rect arrowsRect,
   ) {
     final screenCoordinates = <Offset>[];
@@ -494,19 +495,13 @@ class ArrowManager extends Manager {
       screenCoordinates.add(screenCoord);
     }
 
-    final screenPath = _createPath(
-      arrow,
-      screenCoordinates,
-      scale: state.scale,
-      isTiles: false,
-      isCurves: state.useCurves,
-    );
+    final paths = _createPath(arrow, screenCoordinates, scale: state.scale, isTiles: false, isCurves: state.useCurves);
 
-    return (path: screenPath, coordinates: screenCoordinates);
+    return (paths: paths, coordinates: screenCoordinates);
   }
 
   /// Создание простого ортогонального пути
-  ({Path path, List<Offset> coordinates}) _createSimpleOrthogonalPath(
+  ({ArrowPaths paths, List<Offset> coordinates}) _createSimpleOrthogonalPath(
     Arrow arrow,
     Offset start,
     Offset end,
@@ -687,12 +682,12 @@ class ArrowManager extends Manager {
     }
 
     String direct = sides.split(':')[0];
-    final path = _createPath(arrow, coordinates, direct: direct, isCurves: state.useCurves, isTiles: isTiles);
+    final paths = _createPath(arrow, coordinates, direct: direct, isCurves: state.useCurves, isTiles: isTiles);
 
-    return (path: path, coordinates: coordinates);
+    return (paths: paths, coordinates: coordinates);
   }
 
-  Path _createPath(
+  ArrowPaths _createPath(
     Arrow arrow,
     List<Offset> coordinates, {
     required bool isTiles,
@@ -703,7 +698,7 @@ class ArrowManager extends Manager {
     final path = Path();
     final baseRadius = 10.0 * (scale ?? 1);
 
-    if (coordinates.isEmpty) return path;
+    if (coordinates.isEmpty) return ArrowPaths(path: path);
 
     final dx = coordinates.first.dx - coordinates[1].dx;
     final dy = coordinates.first.dy - coordinates[1].dy;
@@ -721,9 +716,6 @@ class ArrowManager extends Manager {
     }
 
     final len = coordinates.length;
-
-    // Добавляем начальную фигуру для targetArrow
-    _addStartArrowHead(path, arrow, coordinates, direct, isTiles);
 
     path.moveTo(coordinates.first.dx, coordinates.first.dy);
 
@@ -808,15 +800,18 @@ class ArrowManager extends Manager {
       path.lineTo(coordinates.last.dx, coordinates.last.dy);
     }
 
-    // Добавляем конечную фигуру для sourceArrow
-    _addEndArrowHead(path, arrow, coordinates, direct, isTiles);
+    // Добавляем начальную фигуру для targetArrow
+    final startArrow = _addStartArrowHead(arrow, coordinates, direct, isTiles);
 
-    return path;
+    // Добавляем конечную фигуру для sourceArrow
+    final endArrow = _addEndArrowHead(arrow, coordinates, direct, isTiles);
+
+    return ArrowPaths(path: path, startArrow: startArrow, endArrow: endArrow);
   }
 
   /// Добавляет фигуру стрелки в начале пути
-  void _addStartArrowHead(Path path, Arrow arrow, List<Offset> coordinates, String? direct, bool isTiles) {
-    if (coordinates.length < 2) return;
+  Path? _addStartArrowHead(Arrow arrow, List<Offset> coordinates, String? direct, bool isTiles) {
+    if (coordinates.length < 2) return null;
 
     final startPos = coordinates.first;
     final nextPos = coordinates[1];
@@ -826,15 +821,14 @@ class ArrowManager extends Manager {
     final direction = Offset(nextPos.dx - startPos.dx, nextPos.dy - startPos.dy);
     final directionLength = sqrt(direction.dx * direction.dx + direction.dy * direction.dy);
 
-    if (directionLength == 0) return;
+    if (directionLength == 0) return null;
 
     final normalizedDir = Offset(direction.dx / directionLength, direction.dy / directionLength);
     final rotationAngle = atan2(normalizedDir.dy, normalizedDir.dx);
 
     // Добавляем фигуру в зависимости от targetArrow
     if (arrow.sourceArrow == 'diamondThin' || arrow.sourceArrow == 'diamond') {
-      _addDiamondToPath(
-        path,
+      return _addDiamondToPath(
         startPos + normalizedDir * sizeArrow,
         rotationAngle,
         isFilled: arrow.sourceArrow == 'diamondThin',
@@ -842,35 +836,38 @@ class ArrowManager extends Manager {
         size: sizeArrow,
       );
     }
+    return null;
   }
 
   /// Добавляет фигуру стрелки в конце пути
-  void _addEndArrowHead(Path path, Arrow arrow, List<Offset> coordinates, String? direct, bool isTiles) {
-    if (coordinates.length < 2) return;
+  Path? _addEndArrowHead(Arrow arrow, List<Offset> coordinates, String? direct, bool isTiles) {
+    if (coordinates.length < 2) return null;
 
     final endPos = coordinates.last;
     final prevPos = coordinates[coordinates.length - 2];
-    final sizeArrow = 6.0 * (isTiles ? 1 : state.scale);
+    final sizeArrow = 8.0 * (isTiles ? 1 : state.scale);
 
     // Определяем направление от prevPos к endPos
     final direction = Offset(endPos.dx - prevPos.dx, endPos.dy - prevPos.dy);
     final directionLength = sqrt(direction.dx * direction.dx + direction.dy * direction.dy);
 
-    if (directionLength == 0) return;
+    if (directionLength == 0) return null;
 
     final normalizedDir = Offset(direction.dx / directionLength, direction.dy / directionLength);
     final rotationAngle = atan2(normalizedDir.dy, normalizedDir.dx);
 
     // Добавляем фигуру в зависимости от sourceArrow
     if (arrow.targetArrow == 'block') {
-      _addTriangleToPath(path, endPos - normalizedDir * sizeArrow, rotationAngle, isTiles: isTiles, size: sizeArrow);
+      return _addTriangleToPath(endPos - normalizedDir * sizeArrow, rotationAngle, isTiles: isTiles, size: sizeArrow);
     }
+    return null;
   }
 
   /// Добавляет треугольник к пути
-  void _addTriangleToPath(Path path, Offset position, double rotationAngle, {required isTiles, double size = 5.0}) {
+  Path _addTriangleToPath(Offset position, double rotationAngle, {required isTiles, double size = 5.0}) {
     final halfSize = size / 2;
     final triangleHeight = size * sqrt(3) / 2; // Высота равностороннего треугольника
+    final path = Path();
 
     // Вершины треугольника (вершина направлена вперед)
     final vertices = [
@@ -891,11 +888,11 @@ class ArrowManager extends Manager {
     path.lineTo(rotatedVertices[1].dx, rotatedVertices[1].dy);
     path.lineTo(rotatedVertices[2].dx, rotatedVertices[2].dy);
     path.close();
+    return path;
   }
 
   /// Добавляет ромб к пути
-  void _addDiamondToPath(
-    Path path,
+  Path _addDiamondToPath(
     Offset position,
     double rotationAngle, {
     required isTiles,
@@ -903,6 +900,7 @@ class ArrowManager extends Manager {
     double size = 6.0,
   }) {
     final halfSize = size;
+    final path = Path();
 
     // Вершины ромба (длинная диагональ вдоль направления)
     final outerVertices = [
@@ -925,6 +923,7 @@ class ArrowManager extends Manager {
       path.lineTo(rotatedOuterVertices[i].dx, rotatedOuterVertices[i].dy);
     }
     path.close();
+    return path;
   }
 
   /// Найти эффективный узел
