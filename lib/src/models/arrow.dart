@@ -2,6 +2,7 @@
 import 'dart:ui';
 
 import 'package:fbpmn/src/models/arrow_paths.dart';
+import 'package:fbpmn/src/models/power.dart';
 
 class Arrow {
   final String id;
@@ -15,13 +16,14 @@ class Arrow {
   String? targetCache; // ID цели кеш
   String? targetArrow; // тип стрелки
 
-  List<Map<String, dynamic>>? powers; // Опционально
+  List<Power>? powers; // Опционально
   List<Map<String, dynamic>>? points; // Опционально
 
   Offset aPositionSource;
   Offset aPositionTarget;
   ArrowPaths? paths;
   List<Offset>? coordinates;
+  String? sides;
 
   Arrow({
     required this.id,
@@ -37,7 +39,9 @@ class Arrow {
   });
 
   factory Arrow.fromJson(Map<String, dynamic> json) {
-    final powers = (json['powers'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    final powers = (json['powers'] as List<dynamic>? ?? [])
+        .map((e) => Power.fromJson(e as Map<String, dynamic>))
+        .toList();
     final points = (json['points'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
 
     final arrow = Arrow(
@@ -85,7 +89,7 @@ class Arrow {
     String? source,
     String? target,
     String? style,
-    List<Map<String, dynamic>>? powers,
+    List<Power>? powers,
     List<Map<String, dynamic>>? points,
   }) {
     return Arrow(

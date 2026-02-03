@@ -22,7 +22,7 @@ class NodeManager extends Manager {
   EdgeInsets? _initialFramePadding;
 
   // Константы для рамки выделения (в пикселях)
-  double get framePadding => 4.0 * state.scale; // Отступ рамки от узла
+  double get framePadding => 2.0 * state.scale; // Отступ рамки от узла
   double get frameBorderWidth => 2.0 * state.scale; // Толщина рамки
   double get frameTotalOffset => framePadding + frameBorderWidth; // Общий отступ для рамки
 

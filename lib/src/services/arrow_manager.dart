@@ -14,6 +14,8 @@ class ArrowManager extends Manager {
   final EditorState state;
 
   double get arrowIndent => 12;
+  double get sizeLimit => 60;
+  double get halfSizeLimit => 30;
 
   ArrowManager({required this.state});
 
@@ -52,66 +54,66 @@ class ArrowManager extends Manager {
     final cy = targetCenter.dy - sourceCenter.dy;
 
     // Истино для Source узла
-    final isLeftSide40 = sourceRight <= targetLeft - 40;
-    final isTopSide40 = sourceBottom <= targetTop - 40;
-    final isRightSide40 = sourceLeft >= targetRight + 40;
-    final isBottomSide40 = sourceTop >= targetBottom + 40;
+    final isLeftSide60 = sourceRight <= targetLeft - 60;
+    final isTopSide60 = sourceBottom <= targetTop - 60;
+    final isRightSide60 = sourceLeft >= targetRight + 60;
+    final isBottomSide60 = sourceTop >= targetBottom + 60;
 
     // Истино для Source узла
-    final isLeftCenter40 = sourceCenter.dx <= targetLeft - 40;
-    final isTopCenter40 = sourceCenter.dy <= targetTop - 40;
-    final isRightCenter40 = sourceCenter.dx >= targetRight + 40;
-    final isBottomCenter40 = sourceCenter.dy >= targetBottom + 40;
+    final isLeftCenter60 = sourceCenter.dx <= targetLeft - 60;
+    final isTopCenter60 = sourceCenter.dy <= targetTop - 60;
+    final isRightCenter60 = sourceCenter.dx >= targetRight + 60;
+    final isBottomCenter60 = sourceCenter.dy >= targetBottom + 60;
 
-    // Source находится сторонами за пределами 40px зоны Target
-    if (isLeftSide40 || isTopSide40 || isRightSide40 || isBottomSide40) {
-      if (isLeftSide40 && isTopSide40) {
-        return _getSidePosition('left40|top40', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isRightSide40 && isTopSide40) {
-        return _getSidePosition('right40|top40', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isLeftSide40 && isBottomSide40) {
-        return _getSidePosition('left40|bottom40', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isRightSide40 && isBottomSide40) {
-        return _getSidePosition('right40|bottom40', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isLeftSide40) {
-        return _getSidePosition('left40', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isTopSide40) {
-        return _getSidePosition('top40', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isRightSide40) {
-        return _getSidePosition('right40', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isBottomSide40) {
-        return _getSidePosition('bottom40', sourceRect, targetRect, sourceNode, targetNode, arrow);
+    // Source находится сторонами за пределами 60px зоны Target
+    if (isLeftSide60 || isTopSide60 || isRightSide60 || isBottomSide60) {
+      if (isLeftSide60 && isTopSide60) {
+        return _getSidePosition('left60|top60', sourceRect, targetRect, sourceNode, targetNode, arrow);
+      } else if (isRightSide60 && isTopSide60) {
+        return _getSidePosition('right60|top60', sourceRect, targetRect, sourceNode, targetNode, arrow);
+      } else if (isLeftSide60 && isBottomSide60) {
+        return _getSidePosition('left60|bottom60', sourceRect, targetRect, sourceNode, targetNode, arrow);
+      } else if (isRightSide60 && isBottomSide60) {
+        return _getSidePosition('right60|bottom60', sourceRect, targetRect, sourceNode, targetNode, arrow);
+      } else if (isLeftSide60) {
+        return _getSidePosition('left60', sourceRect, targetRect, sourceNode, targetNode, arrow);
+      } else if (isTopSide60) {
+        return _getSidePosition('top60', sourceRect, targetRect, sourceNode, targetNode, arrow);
+      } else if (isRightSide60) {
+        return _getSidePosition('right60', sourceRect, targetRect, sourceNode, targetNode, arrow);
+      } else if (isBottomSide60) {
+        return _getSidePosition('bottom60', sourceRect, targetRect, sourceNode, targetNode, arrow);
       }
     } else
-    // Source находится центром за пределами 40px зоны Target
-    if (isLeftCenter40 || isTopCenter40 || isRightCenter40 || isBottomCenter40) {
-      if (isLeftCenter40 && isTopCenter40) {
+    // Source находится центром за пределами 60px зоны Target
+    if (isLeftCenter60 || isTopCenter60 || isRightCenter60 || isBottomCenter60) {
+      if (isLeftCenter60 && isTopCenter60) {
         return _getSidePosition('leftC|topC', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isRightCenter40 && isTopCenter40) {
+      } else if (isRightCenter60 && isTopCenter60) {
         return _getSidePosition('rightC|topC', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isLeftCenter40 && isBottomCenter40) {
+      } else if (isLeftCenter60 && isBottomCenter60) {
         return _getSidePosition('leftC|bottomC', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isRightCenter40 && isBottomCenter40) {
+      } else if (isRightCenter60 && isBottomCenter60) {
         return _getSidePosition('rightC|bottomC', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isLeftCenter40 && cy > 0) {
+      } else if (isLeftCenter60 && cy > 0) {
         return _getSidePosition('leftC|top', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isRightCenter40 && cy > 0) {
+      } else if (isRightCenter60 && cy > 0) {
         return _getSidePosition('rightC|top', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isLeftCenter40 && cy <= 0) {
+      } else if (isLeftCenter60 && cy <= 0) {
         return _getSidePosition('leftC|bottom', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isRightCenter40 && cy <= 0) {
+      } else if (isRightCenter60 && cy <= 0) {
         return _getSidePosition('rightC|bottom', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isTopCenter40 && cx > 0) {
+      } else if (isTopCenter60 && cx > 0) {
         return _getSidePosition('left|topC', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isBottomCenter40 && cx > 0) {
+      } else if (isBottomCenter60 && cx > 0) {
         return _getSidePosition('left|bottomC', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isTopCenter40 && cx <= 0) {
+      } else if (isTopCenter60 && cx <= 0) {
         return _getSidePosition('right|topC', sourceRect, targetRect, sourceNode, targetNode, arrow);
-      } else if (isBottomCenter40 && cx <= 0) {
+      } else if (isBottomCenter60 && cx <= 0) {
         return _getSidePosition('right|bottomC', sourceRect, targetRect, sourceNode, targetNode, arrow);
       }
     } else {
-      // Source находится центром внутри 40px зоны Target, положение от центра Target
+      // Source находится центром внутри 60px зоны Target, положение от центра Target
       if (cx > 0 && cy > 0) {
         return _getSidePosition('left|top', sourceRect, targetRect, sourceNode, targetNode, arrow);
       } else if (cx > 0 && cy <= 0) {
@@ -160,44 +162,44 @@ class ArrowManager extends Manager {
       Offset endConnectionPoint = Offset.zero;
 
       switch (position) {
-        case 'left40':
+        case 'left60':
           sides = 'right:left';
           break;
-        case 'right40':
+        case 'right60':
           sides = 'left:right';
           break;
-        case 'top40':
+        case 'top60':
           sides = 'bottom:top';
           break;
-        case 'bottom40':
+        case 'bottom60':
           sides = 'top:bottom';
           break;
-        case 'left40|top40':
+        case 'left60|top60':
           sides = sourceWidth < sourceHeight ? 'right:top' : 'bottom:left';
           break;
-        case 'right40|top40':
+        case 'right60|top60':
           sides = sourceWidth < sourceHeight ? 'left:top' : 'bottom:right';
           break;
-        case 'left40|bottom40':
+        case 'left60|bottom60':
           sides = sourceWidth < sourceHeight ? 'right:bottom' : 'top:left';
           break;
-        case 'right40|bottom40':
+        case 'right60|bottom60':
           sides = sourceWidth < sourceHeight ? 'left:bottom' : 'top:right';
           break;
         case 'leftC|topC':
         case 'leftC|bottomC':
           if (sourceWidth < sourceHeight) {
-            if (sourceRight <= targetCenter.dx - 20) {
+            if (sourceRight <= targetCenter.dx - halfSizeLimit) {
               sides = position == 'leftC|topC' ? 'right:top' : 'right:bottom';
-            } else if (sourceBottom <= targetCenter.dy - 20) {
+            } else if (sourceBottom <= targetCenter.dy - halfSizeLimit) {
               sides = position == 'leftC|topC' ? 'bottom:left' : 'top:left';
             } else {
               sides = 'right:right';
             }
           } else {
-            if (sourceBottom <= targetCenter.dy - 20) {
+            if (sourceBottom <= targetCenter.dy - halfSizeLimit) {
               sides = position == 'leftC|topC' ? 'bottom:left' : 'top:left';
-            } else if (sourceRight <= targetCenter.dx - 20) {
+            } else if (sourceRight <= targetCenter.dx - halfSizeLimit) {
               sides = position == 'leftC|topC' ? 'right:top' : 'right:bottom';
             } else {
               sides = 'bottom:bottom';
@@ -207,17 +209,17 @@ class ArrowManager extends Manager {
         case 'rightC|topC':
         case 'rightC|bottomC':
           if (sourceWidth < sourceHeight) {
-            if (sourceLeft > targetCenter.dx + 20) {
+            if (sourceLeft > targetCenter.dx + halfSizeLimit) {
               sides = position == 'rightC|topC' ? 'left:top' : 'left:bottom';
-            } else if (sourceBottom <= targetCenter.dy - 20) {
+            } else if (sourceBottom <= targetCenter.dy - halfSizeLimit) {
               sides = position == 'rightC|topC' ? 'bottom:right' : 'top:right';
             } else {
               sides = 'left:left';
             }
           } else {
-            if (sourceBottom <= targetCenter.dy - 20) {
+            if (sourceBottom <= targetCenter.dy - halfSizeLimit) {
               sides = position == 'rightC|topC' ? 'bottom:right' : 'top:right';
-            } else if (sourceLeft > targetCenter.dx - 20) {
+            } else if (sourceLeft > targetCenter.dx - halfSizeLimit) {
               sides = position == 'rightC|topC' ? 'left:top' : 'left:bottom';
             } else {
               sides = 'bottom:bottom';
@@ -225,16 +227,16 @@ class ArrowManager extends Manager {
           }
           break;
         case 'leftC|top':
-          sides = sourceBottom <= targetCenter.dy - 20 ? 'bottom:left' : 'bottom:bottom';
+          sides = sourceBottom <= targetCenter.dy - halfSizeLimit ? 'bottom:left' : 'bottom:bottom';
           break;
         case 'rightC|top':
-          sides = sourceBottom <= targetCenter.dy - 20 ? 'bottom:right' : 'bottom:bottom';
+          sides = sourceBottom <= targetCenter.dy - halfSizeLimit ? 'bottom:right' : 'bottom:bottom';
           break;
         case 'leftC|bottom':
-          sides = sourceTop > targetCenter.dy + 20 ? 'top:left' : 'top:top';
+          sides = sourceTop > targetCenter.dy + halfSizeLimit ? 'top:left' : 'top:top';
           break;
         case 'rightC|bottom':
-          sides = sourceTop > targetCenter.dy + 20 ? 'top:right' : 'top:top';
+          sides = sourceTop > targetCenter.dy + halfSizeLimit ? 'top:right' : 'top:top';
           break;
         case 'left|topC':
         case 'left|bottomC':
@@ -468,6 +470,7 @@ class ArrowManager extends Manager {
 
     arrow.paths = basePath.paths;
     arrow.coordinates = basePath.coordinates;
+    arrow.sides = baseConnectionPoints.sides;
 
     return basePath;
   }
@@ -583,98 +586,98 @@ class ArrowManager extends Manager {
         break;
       case 'left:left':
         final dxMin = dx > 0 ? 0 : dx;
-        coordinates.add(Offset(start.dx - 40 + dxMin, start.dy));
-        coordinates.add(Offset(start.dx - 40 + dxMin, end.dy));
+        coordinates.add(Offset(start.dx - 60 + dxMin, start.dy));
+        coordinates.add(Offset(start.dx - 60 + dxMin, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'right:right':
         final dxMin = dx > 0 ? dx : 0;
-        coordinates.add(Offset(start.dx + 40 + dxMin, start.dy));
-        coordinates.add(Offset(start.dx + 40 + dxMin, end.dy));
+        coordinates.add(Offset(start.dx + 60 + dxMin, start.dy));
+        coordinates.add(Offset(start.dx + 60 + dxMin, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'top:top':
         final dyMin = dy > 0 ? 0 : dy;
-        coordinates.add(Offset(start.dx, start.dy - 40 + dyMin));
-        coordinates.add(Offset(end.dx, start.dy - 40 + dyMin));
+        coordinates.add(Offset(start.dx, start.dy - 60 + dyMin));
+        coordinates.add(Offset(end.dx, start.dy - 60 + dyMin));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'bottom:bottom':
         final dyMin = dy > 0 ? dy : 0;
-        coordinates.add(Offset(start.dx, start.dy + 40 + dyMin));
-        coordinates.add(Offset(end.dx, start.dy + 40 + dyMin));
+        coordinates.add(Offset(start.dx, start.dy + 60 + dyMin));
+        coordinates.add(Offset(end.dx, start.dy + 60 + dyMin));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'left:top:3':
-        final dyUp = min(sourceTop, targetTop) - 40;
-        coordinates.add(Offset(start.dx - 40, start.dy));
-        coordinates.add(Offset(start.dx - 40, dyUp));
+        final dyUp = min(sourceTop, targetTop) - 60;
+        coordinates.add(Offset(start.dx - 60, start.dy));
+        coordinates.add(Offset(start.dx - 60, dyUp));
         coordinates.add(Offset(end.dx, dyUp));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'right:top:3':
-        final dyUp = min(sourceTop, targetTop) - 40;
-        coordinates.add(Offset(start.dx + 40, start.dy));
-        coordinates.add(Offset(start.dx + 40, dyUp));
+        final dyUp = min(sourceTop, targetTop) - 60;
+        coordinates.add(Offset(start.dx + 60, start.dy));
+        coordinates.add(Offset(start.dx + 60, dyUp));
         coordinates.add(Offset(end.dx, dyUp));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'left:bottom:3':
-        final dyDown = max(sourceBottom, targetBottom) + 40;
-        coordinates.add(Offset(start.dx - 40, start.dy));
-        coordinates.add(Offset(start.dx - 40, dyDown));
+        final dyDown = max(sourceBottom, targetBottom) + 60;
+        coordinates.add(Offset(start.dx - 60, start.dy));
+        coordinates.add(Offset(start.dx - 60, dyDown));
         coordinates.add(Offset(end.dx, dyDown));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'right:bottom:3':
-        final dyDown = max(sourceBottom, targetBottom) + 40;
-        coordinates.add(Offset(start.dx + 40, start.dy));
-        coordinates.add(Offset(start.dx + 40, dyDown));
+        final dyDown = max(sourceBottom, targetBottom) + 60;
+        coordinates.add(Offset(start.dx + 60, start.dy));
+        coordinates.add(Offset(start.dx + 60, dyDown));
         coordinates.add(Offset(end.dx, dyDown));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'top:left:3':
-        final dyLeft = min(sourceLeft, targetLeft) - 40;
-        coordinates.add(Offset(start.dx, start.dy - 40));
-        coordinates.add(Offset(dyLeft, start.dy - 40));
+        final dyLeft = min(sourceLeft, targetLeft) - 60;
+        coordinates.add(Offset(start.dx, start.dy - 60));
+        coordinates.add(Offset(dyLeft, start.dy - 60));
         coordinates.add(Offset(dyLeft, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'bottom:left:3':
-        final dyLeft = min(sourceLeft, targetLeft) - 40;
-        coordinates.add(Offset(start.dx, start.dy + 40));
-        coordinates.add(Offset(dyLeft, start.dy + 40));
+        final dyLeft = min(sourceLeft, targetLeft) - 60;
+        coordinates.add(Offset(start.dx, start.dy + 60));
+        coordinates.add(Offset(dyLeft, start.dy + 60));
         coordinates.add(Offset(dyLeft, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'top:right:3':
-        final dyRight = max(sourceRight, targetRight) + 40;
-        coordinates.add(Offset(start.dx, start.dy - 40));
-        coordinates.add(Offset(dyRight, start.dy - 40));
+        final dyRight = max(sourceRight, targetRight) + 60;
+        coordinates.add(Offset(start.dx, start.dy - 60));
+        coordinates.add(Offset(dyRight, start.dy - 60));
         coordinates.add(Offset(dyRight, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'bottom:right:3':
-        final dyRight = max(sourceRight, targetRight) + 40;
-        coordinates.add(Offset(start.dx, start.dy + 40));
-        coordinates.add(Offset(dyRight, start.dy + 40));
+        final dyRight = max(sourceRight, targetRight) + 60;
+        coordinates.add(Offset(start.dx, start.dy + 60));
+        coordinates.add(Offset(dyRight, start.dy + 60));
         coordinates.add(Offset(dyRight, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'bottom:top:4':
-        final dxRight = max(sourceRight, targetRight) + 40;
-        coordinates.add(Offset(start.dx, start.dy + 40));
-        coordinates.add(Offset(dxRight, start.dy + 40));
-        coordinates.add(Offset(dxRight, targetTop - 40));
-        coordinates.add(Offset(end.dx, targetTop - 40));
+        final dxRight = max(sourceRight, targetRight) + 60;
+        coordinates.add(Offset(start.dx, start.dy + 60));
+        coordinates.add(Offset(dxRight, start.dy + 60));
+        coordinates.add(Offset(dxRight, targetTop - 60));
+        coordinates.add(Offset(end.dx, targetTop - 60));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'top:bottom:4':
-        final dxRight = max(sourceRight, targetRight) + 40;
-        coordinates.add(Offset(start.dx, start.dy - 40));
-        coordinates.add(Offset(dxRight, start.dy - 40));
-        coordinates.add(Offset(dxRight, targetBottom + 40));
-        coordinates.add(Offset(end.dx, targetBottom + 40));
+        final dxRight = max(sourceRight, targetRight) + 60;
+        coordinates.add(Offset(start.dx, start.dy - 60));
+        coordinates.add(Offset(dxRight, start.dy - 60));
+        coordinates.add(Offset(dxRight, targetBottom + 60));
+        coordinates.add(Offset(end.dx, targetBottom + 60));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       default:
@@ -815,7 +818,7 @@ class ArrowManager extends Manager {
 
     final startPos = coordinates.first;
     final nextPos = coordinates[1];
-    final sizeArrow = 6.0 * (isTiles ? 1 : state.scale);
+    final sizeArrow = 8.0 * (isTiles ? 1 : state.scale);
 
     // Определяем направление от startPos к nextPos
     final direction = Offset(nextPos.dx - startPos.dx, nextPos.dy - startPos.dy);
