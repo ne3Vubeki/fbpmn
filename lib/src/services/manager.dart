@@ -9,6 +9,10 @@ class Manager {
     _onStateUpdate[key] = callback;
   }
 
+  void removeOnStateUpdate(String key) {
+    _onStateUpdate.remove(key);
+  }
+
   void onStateUpdate() {
     if(_onStateUpdate.keys.isNotEmpty) {
       for(final key in _onStateUpdate.keys) {

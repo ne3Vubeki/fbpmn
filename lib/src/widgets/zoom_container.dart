@@ -95,6 +95,12 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
     setState(() {});
   }
 
+  void _toggleSnap() {
+    setState(() {
+      widget.state.snapEnabled = !widget.state.snapEnabled;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Ширина контейнера (равна ширине миниатюры или минимальная ширина панели)
@@ -129,6 +135,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
             showTileBorders: showTileBorders,
             showThumbnail: _showThumbnail,
             showCurves: widget.state.useCurves,
+            snapEnabled: widget.state.snapEnabled,
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
             panelWidth: containerWidth,
@@ -136,6 +143,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
             onToggleTileBorders: onToggleTileBorders,
             onToggleThumbnail: _toggleThumbnail,
             onToggleCurves: _toggleCurves,
+            onToggleSnap: _toggleSnap,
           ),
         ],
       ),

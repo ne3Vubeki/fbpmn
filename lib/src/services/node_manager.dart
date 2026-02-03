@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:fbpmn/src/models/snap_line.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/manager.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,9 @@ class NodeManager extends Manager {
   // Переменные для хранения начальных параметров рамки swimlane
   Rect? _initialSwimlaneBounds;
   EdgeInsets? _initialFramePadding;
+
+  // Константы для snap-прилипания
+  static const double snapThreshold = 15.0; // Порог прилипания в пикселях
 
   // Константы для рамки выделения (в пикселях)
   double get framePadding => 2.0 * state.scale; // Отступ рамки от узла
@@ -89,7 +93,17 @@ class NodeManager extends Manager {
       final worldDelta = screenDelta / state.scale;
 
       // Обновляем мировые координаты УЗЛА
-      final newWorldPosition = _nodeStartWorldPosition + worldDelta;
+      var newWorldPosition = _nodeStartWorldPosition + worldDelta;
+
+      // Применяем snap-прилипание (если включено)
+      if (state.snapEnabled) {
+        final snapResult = _applySnap(newWorldPosition);
+        newWorldPosition = snapResult.position;
+        state.snapLines = snapResult.snapLines;
+      } else {
+        state.snapLines = [];
+      }
+
       state.originalNodePosition = newWorldPosition;
 
       // Обновляем позицию рамки на основе новой позиции узла
@@ -643,6 +657,8 @@ class NodeManager extends Manager {
       // Очищаем начальные параметры рамки после завершения перетаскивания
       _initialSwimlaneBounds = null;
       _initialFramePadding = null;
+      // Очищаем snap-линии
+      clearSnapLines();
       onStateUpdate();
     }
   }
@@ -658,5 +674,157 @@ class NodeManager extends Manager {
     }
 
     deselectRecursive(state.nodes);
+  }
+
+  // Применяет snap-прилипание к позиции узла
+  ({Offset position, List<SnapLine> snapLines}) _applySnap(Offset worldPosition) {
+    if (state.nodesSelected.isEmpty || state.nodesSelected.first == null) {
+      return (position: worldPosition, snapLines: []);
+    }
+
+    final selectedNode = state.nodesSelected.first!;
+    final nodeSize = selectedNode.size;
+
+    // Границы и центр перемещаемого узла
+    final nodeLeft = worldPosition.dx;
+    final nodeRight = worldPosition.dx + nodeSize.width;
+    final nodeCenterX = worldPosition.dx + nodeSize.width / 2;
+    final nodeTop = worldPosition.dy;
+    final nodeBottom = worldPosition.dy + nodeSize.height;
+    final nodeCenterY = worldPosition.dy + nodeSize.height / 2;
+
+    // Получаем видимые узлы в viewport
+    final visibleNodes = _getVisibleNodes();
+
+    // Собираем все snap-точки от видимых узлов
+    final snapPointsX = <double>[]; // Вертикальные линии (X координаты)
+    final snapPointsY = <double>[]; // Горизонтальные линии (Y координаты)
+
+    for (final node in visibleNodes) {
+      if (node.id == selectedNode.id) continue;
+
+      final nodeWorldPos = node.aPosition ?? (state.delta + node.position);
+      final left = nodeWorldPos.dx;
+      final right = nodeWorldPos.dx + node.size.width;
+      final centerX = nodeWorldPos.dx + node.size.width / 2;
+      final top = nodeWorldPos.dy;
+      final bottom = nodeWorldPos.dy + node.size.height;
+      final centerY = nodeWorldPos.dy + node.size.height / 2;
+
+      snapPointsX.addAll([left, right, centerX]);
+      snapPointsY.addAll([top, bottom, centerY]);
+    }
+
+    // Ищем ближайшие snap-точки
+    double newX = worldPosition.dx;
+    double newY = worldPosition.dy;
+    final snapLines = <SnapLine>[];
+
+    // Проверяем snap по X (вертикальные линии)
+    double? bestSnapX;
+    double bestSnapDistX = snapThreshold / state.scale;
+
+    for (final snapX in snapPointsX) {
+      // Проверяем левую границу
+      final distLeft = (nodeLeft - snapX).abs();
+      if (distLeft < bestSnapDistX) {
+        bestSnapDistX = distLeft;
+        bestSnapX = snapX;
+        newX = snapX;
+      }
+      // Проверяем правую границу
+      final distRight = (nodeRight - snapX).abs();
+      if (distRight < bestSnapDistX) {
+        bestSnapDistX = distRight;
+        bestSnapX = snapX;
+        newX = snapX - nodeSize.width;
+      }
+      // Проверяем центр
+      final distCenter = (nodeCenterX - snapX).abs();
+      if (distCenter < bestSnapDistX) {
+        bestSnapDistX = distCenter;
+        bestSnapX = snapX;
+        newX = snapX - nodeSize.width / 2;
+      }
+    }
+
+    if (bestSnapX != null) {
+      final screenX = bestSnapX * state.scale + state.offset.dx;
+      snapLines.add(SnapLine(type: SnapLineType.vertical, position: screenX));
+    }
+
+    // Проверяем snap по Y (горизонтальные линии)
+    double? bestSnapY;
+    double bestSnapDistY = snapThreshold / state.scale;
+
+    for (final snapY in snapPointsY) {
+      // Проверяем верхнюю границу
+      final distTop = (nodeTop - snapY).abs();
+      if (distTop < bestSnapDistY) {
+        bestSnapDistY = distTop;
+        bestSnapY = snapY;
+        newY = snapY;
+      }
+      // Проверяем нижнюю границу
+      final distBottom = (nodeBottom - snapY).abs();
+      if (distBottom < bestSnapDistY) {
+        bestSnapDistY = distBottom;
+        bestSnapY = snapY;
+        newY = snapY - nodeSize.height;
+      }
+      // Проверяем центр
+      final distCenter = (nodeCenterY - snapY).abs();
+      if (distCenter < bestSnapDistY) {
+        bestSnapDistY = distCenter;
+        bestSnapY = snapY;
+        newY = snapY - nodeSize.height / 2;
+      }
+    }
+
+    if (bestSnapY != null) {
+      final screenY = bestSnapY * state.scale + state.offset.dy;
+      snapLines.add(SnapLine(type: SnapLineType.horizontal, position: screenY));
+    }
+
+    return (position: Offset(newX, newY), snapLines: snapLines);
+  }
+
+  // Получает список видимых узлов в viewport
+  List<TableNode> _getVisibleNodes() {
+    final visibleNodes = <TableNode>[];
+
+    // Вычисляем видимую область в мировых координатах
+    final viewportLeft = -state.offset.dx / state.scale;
+    final viewportTop = -state.offset.dy / state.scale;
+    final viewportRight = viewportLeft + state.viewportSize.width / state.scale;
+    final viewportBottom = viewportTop + state.viewportSize.height / state.scale;
+    final viewportRect = Rect.fromLTRB(viewportLeft, viewportTop, viewportRight, viewportBottom);
+
+    void checkNodeVisibility(TableNode node, Offset parentOffset) {
+      final nodeWorldPos = node.aPosition ?? (parentOffset + node.position);
+      final nodeRect = Rect.fromLTWH(nodeWorldPos.dx, nodeWorldPos.dy, node.size.width, node.size.height);
+
+      if (viewportRect.overlaps(nodeRect)) {
+        visibleNodes.add(node);
+      }
+
+      // Проверяем детей для развернутых swimlane
+      if (node.qType == 'swimlane' && !(node.isCollapsed ?? false) && node.children != null) {
+        for (final child in node.children!) {
+          checkNodeVisibility(child, nodeWorldPos);
+        }
+      }
+    }
+
+    for (final node in state.nodes) {
+      checkNodeVisibility(node, state.delta);
+    }
+
+    return visibleNodes;
+  }
+
+  // Очищает snap-линии
+  void clearSnapLines() {
+    state.snapLines.clear();
   }
 }

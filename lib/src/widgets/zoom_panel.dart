@@ -4,28 +4,32 @@ class ZoomPanel extends StatelessWidget {
   final double scale;
   final bool showTileBorders;
   final bool showThumbnail;
-  final bool showCurves; // Новый параметр
+  final bool showCurves;
+  final bool snapEnabled;
   final double canvasWidth;
   final double canvasHeight;
   final double panelWidth;
   final VoidCallback onResetZoom;
   final VoidCallback onToggleTileBorders;
   final VoidCallback onToggleThumbnail;
-  final VoidCallback onToggleCurves; // Новый колбэк
+  final VoidCallback onToggleCurves;
+  final VoidCallback onToggleSnap;
 
   const ZoomPanel({
     super.key,
     required this.scale,
     required this.showTileBorders,
     required this.showThumbnail,
-    required this.showCurves, // Новый параметр
+    required this.showCurves,
+    required this.snapEnabled,
     required this.canvasWidth,
     required this.canvasHeight,
     required this.panelWidth,
     required this.onResetZoom,
     required this.onToggleTileBorders,
     required this.onToggleThumbnail,
-    required this.onToggleCurves, // Новый колбэк
+    required this.onToggleCurves,
+    required this.onToggleSnap,
   });
 
   @override
@@ -101,6 +105,21 @@ class ZoomPanel extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Кнопка переключения snap-прилипания
+              IconButton(
+                icon: Icon(
+                  snapEnabled ? Icons.grid_on : Icons.grid_off,
+                  size: 18,
+                  color: snapEnabled ? Colors.green : Colors.grey,
+                ),
+                onPressed: onToggleSnap,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                tooltip: snapEnabled ? 'Выключить прилипание' : 'Включить прилипание',
+              ),
+
+              const SizedBox(width: 4),
+
               // Кнопка переключения кривые/ортогональные связи
               IconButton(
                 icon: Icon(

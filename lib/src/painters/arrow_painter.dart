@@ -1,5 +1,4 @@
 import 'package:fbpmn/src/models/arrow_paths.dart';
-import 'package:fbpmn/src/models/power.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:flutter/material.dart';
 import '../models/arrow.dart';

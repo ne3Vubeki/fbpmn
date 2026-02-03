@@ -133,7 +133,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
             tile.image.height.toDouble(),
           ),
           tileRect,
-          Paint()..filterQuality = FilterQuality.medium,
+          Paint()..filterQuality = FilterQuality.high,
         );
       }
 

@@ -14,6 +14,7 @@ import 'hierarchical_grid.dart';
 import 'node_selected.dart';
 import 'scroll_bar_horizontal.dart';
 import 'scroll_bar_vertical.dart';
+import 'snap_lines_overlay.dart';
 import 'tile_border.dart';
 
 class CanvasArea extends StatefulWidget {
@@ -173,6 +174,12 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           arrowManager: widget.arrowManager,
                           inputHandler: widget.inputHandler,
                           scrollHandler: widget.scrollHandler,
+                        ),
+
+                        // Отображение snap-линий при перетаскивании узла
+                        SnapLinesOverlay(
+                          state: widget.state,
+                          nodeManager: widget.nodeManager,
                         ),
                       ],
                     ),
