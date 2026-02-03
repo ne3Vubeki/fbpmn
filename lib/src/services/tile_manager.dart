@@ -27,11 +27,10 @@ class TileManager extends Manager {
 
   Future<void> createTiledImage(List<TableNode?> nodes, List<Arrow?> arrows, {bool isUpdate = false}) async {
     try {
-      state.isLoading = true;
-      onStateUpdate();
-
-      // Очищаем старые данные
-      _disposeTiles();
+      // Очищаем старые данные только при полном пересоздании
+      if (!isUpdate) {
+        _disposeTiles();
+      }
 
       if (nodes.isEmpty) {
         // Если узлов нет, создаем несколько пустых тайлов для начала
@@ -43,19 +42,39 @@ class TileManager extends Manager {
       final tiles = await _createTilesForContent(nodes, arrows);
 
       if (isUpdate) {
+        // Собираем ID новых тайлов
+        final newTileIds = tiles.map((t) => t.id).toSet();
+        
+        // Удаляем старые тайлы, которых нет в новом списке
+        final tilesToRemove = state.imageTiles.where((t) => !newTileIds.contains(t.id)).toList();
+        for (final oldTile in tilesToRemove) {
+          try {
+            oldTile.image.dispose();
+          } catch (e) {
+            print('Warning: Error disposing removed tile: $e');
+          }
+          state.imageTiles.removeWhere((t) => t.id == oldTile.id);
+        }
+        
+        // Обновляем существующие и добавляем новые тайлы
         for (final tile in tiles) {
-          if (state.imageTiles.any((t) => t.id == tile.id)) {
-            state.imageTilesChanged.any((tileId) => tileId == tile.id) ? _restoreTile(tile.id, tile) : null;
+          final existingIndex = state.imageTiles.indexWhere((t) => t.id == tile.id);
+          if (existingIndex >= 0) {
+            // Тайл существует - заменяем его, dispose старого
+            try {
+              state.imageTiles[existingIndex].image.dispose();
+            } catch (e) {
+              print('Warning: Error disposing old tile in update: $e');
+            }
+            state.imageTiles[existingIndex] = tile;
           } else {
+            // Новый тайл - просто добавляем
             state.imageTiles.add(tile);
           }
         }
       } else {
         state.imageTiles = tiles;
       }
-
-      state.isLoading = false;
-      onStateUpdate();
     } catch (e) {
       await createFallbackTiles();
     }
@@ -177,7 +196,9 @@ class TileManager extends Manager {
       }
 
       // Получаем полный путь стрелки
-      final coordinates = arrowManager.getArrowPathInTile(arrowCopy, state.delta, isTiles: true, isNotCalculate: true).coordinates;
+      final coordinates = arrowManager
+          .getArrowPathInTile(arrowCopy, state.delta, isTiles: true, isNotCalculate: true)
+          .coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
 
       if (coordinates.isNotEmpty) {
@@ -450,18 +471,6 @@ class TileManager extends Manager {
     return node.aPosition ?? (state.delta + node.position);
   }
 
-  // Обновление тайла по id
-  Future<void> _restoreTile(String tileId, ImageTile tile) async {
-    final tileIndex = _findTileIndexById(tileId);
-    if (tileIndex == null) return;
-
-    try {
-      state.imageTiles[tileIndex] = tile;
-
-      onStateUpdate();
-    } catch (e) {}
-  }
-
   // Удаление тайла по id
   Future<void> _removeTile(String tileId) async {
     final tileIndex = _findTileIndexById(tileId);
@@ -469,7 +478,12 @@ class TileManager extends Manager {
 
     try {
       final tile = state.imageTiles[tileIndex];
-      tile.image.dispose();
+      try {
+        tile.image.dispose();
+      } catch (e) {
+        // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
+        print('Warning: Error disposing tile image: $e');
+      }
 
       // Удаляем тайл из списка
       state.imageTiles.removeAt(tileIndex);
@@ -555,11 +569,16 @@ class TileManager extends Manager {
 
   // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
   Future<void> updateTilesAfterNodeChange() async {
-    await createTiledImage(state.nodes, state.arrows, isUpdate: false);
+    state.isLoading = true;
+    onStateUpdate();
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    await createTiledImage(state.nodes, state.arrows, isUpdate: true);
 
     state.imageTilesChanged.clear();
 
     // Уведомляем об изменении
+    state.isLoading = false;
     onStateUpdate();
   }
 
@@ -569,8 +588,6 @@ class TileManager extends Manager {
       final tileId = tile.id;
       final bounds = tile.bounds;
 
-      // print('Update tile: $tileId');
-
       state.imageTilesChanged.add(tileId);
 
       // Получаем ВСЕ узлы для этого тайла из state.nodes
@@ -579,12 +596,20 @@ class TileManager extends Manager {
       // Получаем ВСЕ стрелки для этого тайла из state.arrows
       final arrowsInTile = _getArrowsForTile(tile);
 
-      // tile.image.dispose();
-
       // Перерисовываем тайл со ВСЕМИ узлами и стрелками
       final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
       if (newTile != null) {
-        await _restoreTile(tileId, newTile);
+        // Находим и dispose старый тайл перед заменой
+        final tileIndex = _findTileIndexById(tileId);
+        if (tileIndex != null) {
+          try {
+            state.imageTiles[tileIndex].image.dispose();
+          } catch (e) {
+            // Игнорируем ошибки disposal
+          }
+          state.imageTiles[tileIndex] = newTile;
+          onStateUpdate();
+        }
       } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
         // Если тайл пустой, удаляем его
         await _removeTile(tileId);
@@ -667,7 +692,12 @@ class TileManager extends Manager {
 
   void _disposeTiles() {
     for (final tile in state.imageTiles) {
-      tile.image.dispose();
+      try {
+        tile.image.dispose();
+      } catch (e) {
+        // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
+        print('Warning: Error disposing tile image: $e');
+      }
     }
   }
 

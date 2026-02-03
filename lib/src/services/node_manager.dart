@@ -440,9 +440,9 @@ class NodeManager extends Manager {
     return state.nodes.firstWhereOrNull((n) => n.id == node.parent);
   }
 
-  void handleEmptyAreaClick() {
+  Future<void> handleEmptyAreaClick() async {
     if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
-      _saveNodeToTiles();
+      await _saveNodeToTiles();
     } else {
       _deselectAllNodes();
       state.nodesSelected.clear();
@@ -547,7 +547,7 @@ class NodeManager extends Manager {
         }
       }
     } else {
-      handleEmptyAreaClick();
+      await handleEmptyAreaClick();
     }
   }
 
