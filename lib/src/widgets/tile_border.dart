@@ -36,9 +36,9 @@ class _TileBorderState extends State<TileBorder> with StateWidget<TileBorder> {
     widget.scrollHandler.setOnStateUpdate('TileBorder', () {
       timeoutSetState();
     });
-    widget.inputHandler.setOnStateUpdate('TileBorder', () {
-      timeoutSetState();
-    });
+    // widget.inputHandler.setOnStateUpdate('TileBorder', () {
+    //   timeoutSetState();
+    // });
   }
 
   @override

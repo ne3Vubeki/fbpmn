@@ -138,6 +138,7 @@ class _StableGridImageState extends State<StableGridImage> {
                 scrollHandler: _scrollHandler,
                 inputHandler: _inputHandler,
                 tileManager: _tileManager,
+                nodeManager: _nodeManager,
               ),
             ),
 

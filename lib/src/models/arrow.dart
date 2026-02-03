@@ -1,17 +1,29 @@
 // Модель стрелки/связи
 import 'dart:ui';
 
+import 'package:fbpmn/src/models/arrow_paths.dart';
+import 'package:fbpmn/src/models/power.dart';
+
 class Arrow {
   final String id;
   final String qType; // arrowObject, qRelationship, qEdgeToJson
+  final String style;
+
   String source; // ID источника
+  String? sourceCache; // ID источника кеш
+  String? sourceArrow; // тип стрелки
   String target; // ID цели
+  String? targetCache; // ID цели кеш
+  String? targetArrow; // тип стрелки
+
+  List<Power>? powers; // Опционально
+  List<Map<String, dynamic>>? points; // Опционально
+
   Offset aPositionSource;
   Offset aPositionTarget;
-  final String style;
-  List<Map<String, dynamic>>? powers; // Опционально
-  List<Map<String, dynamic>>? points; // Опционально
-  final double strokeWidth;
+  ArrowPaths? paths;
+  List<Offset>? coordinates;
+  String? sides;
 
   Arrow({
     required this.id,
@@ -19,18 +31,18 @@ class Arrow {
     required this.source,
     required this.target,
     required this.style,
-    this.aPositionSource = Offset.zero,
-    this.aPositionTarget = Offset.zero,
+    this.paths,
     this.powers,
     this.points,
-    this.strokeWidth = 1.0,
+    this.aPositionSource = Offset.zero,
+    this.aPositionTarget = Offset.zero,
   });
 
   factory Arrow.fromJson(Map<String, dynamic> json) {
     final powers = (json['powers'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
-    final points = (json['points'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
+        .map((e) => Power.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final points = (json['points'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
 
     final arrow = Arrow(
       id: json['id'] as String,
@@ -38,8 +50,30 @@ class Arrow {
       source: json['source'] as String,
       target: json['target'] as String,
       style: json['style'] as String? ?? '',
-      strokeWidth: 1.0, // по умолчанию толщина 1
     );
+
+    // определяем по стилям окончание стрелок
+    final style = arrow.style;
+    final styleItems = style.split(';');
+    Map styleMap = {};
+    for (final item in styleItems) {
+      final itemList = item.split('=');
+      if (itemList.length == 2) {
+        styleMap[itemList[0]] = itemList[1];
+      }
+    }
+    if (styleMap['endArrow'] == 'block') {
+      arrow.targetArrow = 'block';
+    } else if (styleMap['endArrow'] == 'none' &&
+        styleMap['startArrow'] == 'diamondThin' &&
+        styleMap['startFill'] == '1') {
+      arrow.sourceArrow = 'diamondThin';
+    } else if (styleMap['endArrow'] == 'none' &&
+        styleMap['startArrow'] == 'diamondThin' &&
+        styleMap['startFill'] == '0') {
+      arrow.sourceArrow = 'diamond';
+    }
+
     if (powers.isNotEmpty) {
       arrow.powers = powers;
     }
@@ -55,9 +89,8 @@ class Arrow {
     String? source,
     String? target,
     String? style,
-    List<Map<String, dynamic>>? powers,
+    List<Power>? powers,
     List<Map<String, dynamic>>? points,
-    double? strokeWidth,
   }) {
     return Arrow(
       id: id ?? this.id,
@@ -67,7 +100,6 @@ class Arrow {
       style: style ?? this.style,
       powers: powers ?? this.powers,
       points: points ?? this.points,
-      strokeWidth: strokeWidth ?? this.strokeWidth,
     );
   }
 }

@@ -22,7 +22,9 @@ class Node {
     this.isSelected = false,
     this.aPosition,
     this.connections,
-  });
+  }) {
+    connections = Connections();
+  }
 
   Node copyWith({ String? parent, Offset? position, String? text, bool? isSelected, Offset? aPosition}) {
     return Node(

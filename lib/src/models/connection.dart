@@ -1,11 +1,13 @@
 import 'dart:ui';
 
 class Connection {
-  String id;
+  final String id;
   Offset pos;
+  int? index;
 
   Connection({
     required this.id,
     required this.pos,
+    this.index,
   });
 }

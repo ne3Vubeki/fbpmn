@@ -7,7 +7,7 @@
     "pageHeight": 1200,
     "objects": 13,
     "arrows": 18,
-    "time_convert": 21758.123
+    "time_convert": 46940.276
   },
   "objects": [
     {
@@ -5163,7 +5163,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450306",
@@ -5171,7 +5172,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5189,7 +5191,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450310",
@@ -5197,7 +5200,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5215,7 +5219,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450326",
@@ -5223,7 +5228,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5241,7 +5247,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450294",
@@ -5249,7 +5256,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5267,7 +5275,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450298",
@@ -5275,7 +5284,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5290,13 +5300,15 @@
           "id": "1769111450301",
           "value": "1",
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450302",
           "value": "1",
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5314,7 +5326,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450314",
@@ -5322,7 +5335,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5346,7 +5360,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450318",
@@ -5354,7 +5369,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5372,7 +5388,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450322",
@@ -5380,7 +5397,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5398,7 +5416,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450330",
@@ -5406,7 +5425,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5421,13 +5441,15 @@
           "id": "1769111450333",
           "value": "n",
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450334",
           "value": "1",
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5445,7 +5467,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450338",
@@ -5453,7 +5476,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5485,7 +5509,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450342",
@@ -5493,7 +5518,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5511,7 +5537,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450346",
@@ -5519,7 +5546,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5534,13 +5562,15 @@
           "id": "1769111450349",
           "value": "n",
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450350",
           "value": "1",
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5558,7 +5588,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450354",
@@ -5566,7 +5597,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5594,7 +5626,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450358",
@@ -5602,7 +5635,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -5620,7 +5654,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1769111450362",
@@ -5628,7 +5663,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     }

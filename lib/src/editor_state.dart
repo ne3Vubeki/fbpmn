@@ -39,4 +39,6 @@ class EditorState {
 
   // Загрузка
   bool isLoading = false;
+
+  bool useCurves = false;
 }

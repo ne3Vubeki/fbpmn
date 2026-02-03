@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/arrow.dart';
 import 'arrow_painter.dart';
 
-/// Адаптер для использования NodePainter как CustomPainter (простая версия)
 class ArrowsCustomPainter extends CustomPainter {
   final List<Arrow?> arrows;
   final double scale;

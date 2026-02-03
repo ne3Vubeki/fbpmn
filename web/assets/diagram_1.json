@@ -7,7 +7,7 @@
     "pageHeight": 1200,
     "objects": 10,
     "arrows": 9,
-    "time_convert": 497.141
+    "time_convert": 226.905
   },
   "objects": [
     {
@@ -1854,7 +1854,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1764944131437",
@@ -1862,7 +1863,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -1896,7 +1898,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1764944131441",
@@ -1904,7 +1907,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -1922,7 +1926,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1764944131445",
@@ -1930,7 +1935,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -1958,7 +1964,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1764944131449",
@@ -1966,7 +1973,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },
@@ -1994,7 +2002,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=right;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "1"
         },
         {
           "id": "1764944131453",
@@ -2002,7 +2011,8 @@
           "style": "edgeLabel;resizable=0;html=1;align=left;verticalAlign=top;;spacingLeft=5;spacingRight=5",
           "qType": "arrowPower",
           "qCompStatus": "0",
-          "connectable": "0"
+          "connectable": "0",
+          "side": "-1"
         }
       ]
     },

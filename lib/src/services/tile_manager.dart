@@ -25,11 +25,7 @@ class TileManager extends Manager {
 
   TileManager({required this.state, required this.arrowManager});
 
-  Future<void> createTiledImage(
-    List<TableNode?> nodes,
-    List<Arrow?> arrows, {
-    bool isUpdate = false,
-  }) async {
+  Future<void> createTiledImage(List<TableNode?> nodes, List<Arrow?> arrows, {bool isUpdate = false}) async {
     try {
       state.isLoading = true;
       onStateUpdate();
@@ -49,9 +45,7 @@ class TileManager extends Manager {
       if (isUpdate) {
         for (final tile in tiles) {
           if (state.imageTiles.any((t) => t.id == tile.id)) {
-            state.imageTilesChanged.any((tileId) => tileId == tile.id)
-                ? _restoreTile(tile.id, tile)
-                : null;
+            state.imageTilesChanged.any((tileId) => tileId == tile.id) ? _restoreTile(tile.id, tile) : null;
           } else {
             state.imageTiles.add(tile);
           }
@@ -79,15 +73,15 @@ class TileManager extends Manager {
   }
 
   // Создание тайлов для узлов и стрелок
-  Future<List<ImageTile>> _createTilesForContent(
-    List<TableNode?> allNodes,
-    List<Arrow?> allArrows,
-  ) async {
-    final Map<String, List<TableNode?>> mapNodesInTile =
-        {}; // узлы для создаваемых тайлов
-    final Map<String, List<Arrow?>> mapArrowssInTile =
-        {}; // связи для создаваемых тайлов
+  Future<List<ImageTile>> _createTilesForContent(List<TableNode?> allNodes, List<Arrow?> allArrows) async {
+    final Map<String, List<TableNode?>> mapNodesInTile = {}; // узлы для создаваемых тайлов
+    final Map<String, List<Arrow?>> mapArrowsInTile = {}; // связи для создаваемых тайлов
     final createdTiles = <String>[];
+
+    // Удаляем все коннекты из выбранных узлов для повторного расчета
+    for (var node in allNodes) {
+      node?.connections?.removeAll();
+    }
 
     // Собираем все узлы (включая вложенные) для определения, где создавать тайлы
     final allNodesIncludingChildren = <TableNode>[];
@@ -107,12 +101,7 @@ class TileManager extends Manager {
       }
     }
 
-    Future<void> createTiles({
-      required double left,
-      required double top,
-      TableNode? node,
-      Arrow? arrow,
-    }) async {
+    Future<void> createTiles({required double left, required double top, TableNode? node, Arrow? arrow}) async {
       final tileId = _generateTileId(left, top);
       if (!createdTiles.contains(tileId)) {
         createdTiles.add(tileId);
@@ -121,17 +110,13 @@ class TileManager extends Manager {
         // Создаем маптайл в этой позиции
         mapNodesInTile[tileId] = node != null ? [node] : <TableNode>[];
       } else {
-        node != null && !mapNodesInTile[tileId]!.contains(node)
-            ? mapNodesInTile[tileId]!.add(node)
-            : null;
+        node != null && !mapNodesInTile[tileId]!.contains(node) ? mapNodesInTile[tileId]!.add(node) : null;
       }
-      if (mapArrowssInTile[tileId] == null) {
+      if (mapArrowsInTile[tileId] == null) {
         // Создаем маптайл в этой позиции
-        mapArrowssInTile[tileId] = arrow != null ? [arrow] : <Arrow>[];
+        mapArrowsInTile[tileId] = arrow != null ? [arrow] : <Arrow>[];
       } else {
-        arrow != null && !mapArrowssInTile[tileId]!.contains(arrow)
-            ? mapArrowssInTile[tileId]!.add(arrow)
-            : null;
+        arrow != null && !mapArrowsInTile[tileId]!.contains(arrow) ? mapArrowsInTile[tileId]!.add(arrow) : null;
       }
     }
 
@@ -141,10 +126,7 @@ class TileManager extends Manager {
     for (final node in allNodesIncludingChildren) {
       // Получаем абсолютную позицию узла
       final nodePosition = node.aPosition ?? (state.delta + node.position);
-      final nodeRect = _boundsCalculator.calculateNodeRect(
-        node: node,
-        position: nodePosition,
-      );
+      final nodeRect = _boundsCalculator.calculateNodeRect(node: node, position: nodePosition);
 
       await _tilesIntersectingRect(
         nodeRect,
@@ -156,31 +138,46 @@ class TileManager extends Manager {
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
     for (final arrow in allArrows) {
-      final Arrow arrowCopy = arrow!.copyWith();
+      final Arrow arrowCopy = arrow!;
 
       /// Перенаправляем связи скрытых узлов на узел родителя
       for (final n in allNodesIncludingChildren) {
-        if (n.isCollapsed == true &&
-            n.children != null &&
-            n.children!.isNotEmpty) {
+        if (n.children != null && n.children!.isNotEmpty) {
           final children = n.children;
           for (final child in children!) {
-            if (arrowCopy.source == child.id) {
-              arrowCopy.source = n.id;
-              break;
-            }
-            if (arrowCopy.target == child.id) {
-              arrowCopy.target = n.id;
-              break;
+            if (n.isCollapsed == true) {
+              if (arrowCopy.source == child.id) {
+                arrowCopy.sourceCache = arrowCopy.source;
+                arrowCopy.source = n.id;
+              }
+              if (arrowCopy.target == child.id) {
+                arrowCopy.targetCache = arrowCopy.target;
+                arrowCopy.target = n.id;
+              }
+              if (arrowCopy.source == arrowCopy.target) {
+                break;
+              }
+            } else {
+              if (arrowCopy.sourceCache == child.id) {
+                arrowCopy.source = arrowCopy.sourceCache!;
+                arrowCopy.sourceCache = null;
+              }
+              if (arrowCopy.targetCache == child.id) {
+                arrowCopy.target = arrowCopy.targetCache!;
+                arrowCopy.targetCache = null;
+              }
             }
           }
         }
       }
 
+      // не отображаем замкнутую стрелку
+      if (arrowCopy.source == arrowCopy.target) {
+        continue;
+      }
+
       // Получаем полный путь стрелки
-      final coordinates = arrowManager
-          .getArrowPathInTile(arrowCopy, state.delta)
-          .coordinates;
+      final coordinates = arrowManager.getArrowPathInTile(arrowCopy, state.delta, isTiles: true, isNotCalculate: true).coordinates;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
 
       if (coordinates.isNotEmpty) {
@@ -190,10 +187,8 @@ class TileManager extends Manager {
 
           /// Вертикальный отрезок связи
           if (coordStart.dx == coordEnd.dx) {
-            final gridYStart =
-                (math.min(coordStart.dy, coordEnd.dy) / tileWorldSize).floor();
-            final gridYEnd =
-                (math.max(coordStart.dy, coordEnd.dy) / tileWorldSize).ceil();
+            final gridYStart = (math.min(coordStart.dy, coordEnd.dy) / tileWorldSize).floor();
+            final gridYEnd = (math.max(coordStart.dy, coordEnd.dy) / tileWorldSize).ceil();
             final gridX = (coordStart.dx / tileWorldSize).floor();
             for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
               final left = gridX * tileWorldSize;
@@ -203,10 +198,8 @@ class TileManager extends Manager {
           }
           /// Горизонтальный отрезок связи
           else {
-            final gridXStart =
-                (math.min(coordStart.dx, coordEnd.dx) / tileWorldSize).floor();
-            final gridXEnd =
-                (math.max(coordStart.dx, coordEnd.dx) / tileWorldSize).ceil();
+            final gridXStart = (math.min(coordStart.dx, coordEnd.dx) / tileWorldSize).floor();
+            final gridXEnd = (math.max(coordStart.dx, coordEnd.dx) / tileWorldSize).ceil();
             final gridY = (coordStart.dy / tileWorldSize).floor();
             for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
               final left = gridX * tileWorldSize;
@@ -222,18 +215,13 @@ class TileManager extends Manager {
 
     /// Создание тайлов рассчитанным узлам и связям
     for (final tileId in createdTiles) {
-      print('Create tile $tileId ----------');
+      // print('Create tile $tileId ----------');
       final tilePos = tileId.split(':');
       final left = double.tryParse(tilePos.first);
       final top = double.tryParse(tilePos.last);
       final List<TableNode?> nodesInTile = mapNodesInTile[tileId]!;
-      final List<Arrow?> arrowsInTile = mapArrowssInTile[tileId]!;
-      final ImageTile? tile = await _createTileAtPosition(
-        left!,
-        top!,
-        nodesInTile,
-        arrowsInTile,
-      );
+      final List<Arrow?> arrowsInTile = mapArrowsInTile[tileId]!;
+      final ImageTile? tile = await _createTileAtPosition(left!, top!, nodesInTile, arrowsInTile);
       tile != null ? tiles.add(tile) : null;
     }
 
@@ -258,37 +246,22 @@ class TileManager extends Manager {
   ) async {
     // Всегда создаем тайл фиксированного размера, кратного 1024
     final tileWorldSize = EditorConfig.tileSize.toDouble();
-    final tileBounds = Rect.fromLTRB(
-      left,
-      top,
-      left + tileWorldSize,
-      top + tileWorldSize,
-    );
+    final tileBounds = Rect.fromLTRB(left, top, left + tileWorldSize, top + tileWorldSize);
 
     // ID тайла в формате 'left:top' (мировые координаты)
     final tileId = _generateTileId(left, top);
 
-    return _createUpdatedTileWithContent(
-      tileBounds,
-      tileId,
-      nodesInTile,
-      arrowsInTile,
-    );
+    return _createUpdatedTileWithContent(tileBounds, tileId, nodesInTile, arrowsInTile);
   }
 
   // Получение узлов для тайла (исключая выделенные)
   List<TableNode?> _getNodesForTile(ImageTile tile) {
-    return NodeManager.nodeRecurcive(
-      state.nodes,
-      (node) => tile.nodes.contains(node.id),
-    );
+    return NodeManager.whereAllNodes(state.nodes, (node) => tile.nodes.contains(node.id));
   }
 
   // Получение связей для тайла (исключая выделенные)
   List<Arrow?> _getArrowsForTile(ImageTile tile) {
-    return state.arrows
-        .where((arrow) => tile.arrows.contains(arrow.id))
-        .toList();
+    return state.arrows.where((arrow) => tile.arrows.contains(arrow.id)).toList();
   }
 
   // Создание тайлов в grid сетке
@@ -307,12 +280,7 @@ class TileManager extends Manager {
       for (int x = startX; x < startX + width; x++) {
         final left = x * tileWorldSize;
         final top = y * tileWorldSize;
-        final tile = await _createTileAtPosition(
-          left,
-          top,
-          allNodes,
-          allArrows,
-        );
+        final tile = await _createTileAtPosition(left, top, allNodes, allArrows);
         if (tile != null) {
           tiles.add(tile);
         }
@@ -350,10 +318,7 @@ class TileManager extends Manager {
   }
 
   /// Удаление детей swimlane из тайлов
-  Future<void> removeSwimlaneChildrenFromTiles(
-    TableNode swimlaneNode,
-    Set<int> tilesToUpdate,
-  ) async {
+  Future<void> removeSwimlaneChildrenFromTiles(TableNode swimlaneNode, Set<int> tilesToUpdate) async {
     if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
       return;
     }
@@ -382,9 +347,7 @@ class TileManager extends Manager {
     state.arrowsSelected.addAll(arrowsSelected);
 
     /// Находим и добавляем для удаления id вложенных в группу узлов
-    if ((node.qType == 'group' || node.qType == 'swimlane') &&
-        node.children != null &&
-        node.children!.isNotEmpty) {
+    if ((node.qType == 'group' || node.qType == 'swimlane') && node.children != null && node.children!.isNotEmpty) {
       for (final child in node.children!) {
         nodeIds.add(child.id);
       }
@@ -402,9 +365,7 @@ class TileManager extends Manager {
 
     /// Находим все тайлы содержащие связи этого узла и удаляем связи
     for (final tile in state.imageTiles) {
-      if (arrowIdsConnectedToNode.any(
-        (arrowId) => tile.arrows.contains(arrowId),
-      )) {
+      if (arrowIdsConnectedToNode.any((arrowId) => tile.arrows.contains(arrowId))) {
         tile.arrows.removeAll(arrowIdsConnectedToNode);
         tilesToUpdate.add(tile);
       }
@@ -426,10 +387,7 @@ class TileManager extends Manager {
 
       // Проверяем, пересекается ли узел с тайлом
       final nodePosition = _findNodeAbsolutePosition(node);
-      final nodeRect = _boundsCalculator.calculateNodeRect(
-        node: node,
-        position: nodePosition,
-      );
+      final nodeRect = _boundsCalculator.calculateNodeRect(node: node, position: nodePosition);
 
       if (nodeRect.overlaps(tile.bounds)) {
         tileIndices.add(i);
@@ -440,10 +398,7 @@ class TileManager extends Manager {
   }
 
   // ignore: unused_element
-  TableNode? _findParentExpandedSwimlaneInNode(
-    TableNode parent,
-    TableNode targetNode,
-  ) {
+  TableNode? _findParentExpandedSwimlaneInNode(TableNode parent, TableNode targetNode) {
     if (parent.children != null) {
       for (final child in parent.children!) {
         if (child.id == targetNode.id) {
@@ -453,10 +408,7 @@ class TileManager extends Manager {
         }
 
         // Рекурсивно проверяем вложенные узлы
-        TableNode? result = _findParentExpandedSwimlaneInNode(
-          child,
-          targetNode,
-        );
+        TableNode? result = _findParentExpandedSwimlaneInNode(child, targetNode);
         if (result != null) {
           return result;
         }
@@ -529,10 +481,7 @@ class TileManager extends Manager {
   // Добавление узла в тайлы (после перемещения)
   Future<void> addNodeToTiles(TableNode node) async {
     // Создаем тайлы только там где есть узлы или стрелки
-    final tiles = await _createTilesForContent(
-      state.nodesSelected.toList(),
-      state.arrowsSelected.toList(),
-    );
+    final tiles = await _createTilesForContent(state.nodesSelected.toList(), state.arrowsSelected.toList());
 
     // Обновляем все тайлы, в которые добавили стрелки
     for (final tile in tiles) {
@@ -581,11 +530,8 @@ class TileManager extends Manager {
 
       // Рисуем стрелки, если они есть (используем ArrowTilePainter)
       if (arrowsInTile.isNotEmpty) {
-        final arrowsPainter = ArrowsPainter(
-          arrows: arrowsInTile,
-          arrowManager: arrowManager,
-        );
-        arrowsPainter.drawArrowsInTile(canvas: canvas, baseOffset: state.delta);
+        final arrowsPainter = ArrowsPainter(arrows: arrowsInTile, arrowManager: arrowManager);
+        arrowsPainter.drawArrowsInTile(canvas: canvas, baseOffset: state.delta, scale: scale);
       }
 
       final picture = recorder.endRecording();
@@ -609,22 +555,6 @@ class TileManager extends Manager {
 
   // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
   Future<void> updateTilesAfterNodeChange() async {
-    // Set<TableNode?> nodes = {...state.nodesSelected};
-    // Set<Arrow?> arrows = {...state.arrowsSelected};
-
-    // for (final arrow in arrows) {
-    //   final node = state.nodes.firstWhereOrNull(
-    //     (n) => n.id == arrow!.source || n.id == arrow.target,
-    //   );
-    //   nodes.add(node);
-    // }
-
-    // for (final tileId in state.imageTilesChanged) {
-    //   final tile = getTileById(state.imageTiles, tileId);
-    //   nodes.addAll(_getNodesForTile(tile!));
-    //   arrows.addAll(_getArrowsForTile(tile));
-    // }
-
     await createTiledImage(state.nodes, state.arrows, isUpdate: false);
 
     state.imageTilesChanged.clear();
@@ -639,7 +569,7 @@ class TileManager extends Manager {
       final tileId = tile.id;
       final bounds = tile.bounds;
 
-      print('Update tile: $tileId');
+      // print('Update tile: $tileId');
 
       state.imageTilesChanged.add(tileId);
 
@@ -652,12 +582,7 @@ class TileManager extends Manager {
       // tile.image.dispose();
 
       // Перерисовываем тайл со ВСЕМИ узлами и стрелками
-      final newTile = await _createUpdatedTileWithContent(
-        bounds,
-        tileId,
-        nodesInTile,
-        arrowsInTile,
-      );
+      final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
       if (newTile != null) {
         await _restoreTile(tileId, newTile);
       } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
