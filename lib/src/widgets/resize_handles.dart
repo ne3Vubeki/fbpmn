@@ -9,12 +9,7 @@ class ResizeHandles extends StatefulWidget {
   final NodeManager nodeManager;
   final String? hoveredHandle;
 
-  const ResizeHandles({
-    super.key,
-    required this.state,
-    required this.nodeManager,
-    this.hoveredHandle,
-  });
+  const ResizeHandles({super.key, required this.state, required this.nodeManager, this.hoveredHandle});
 
   @override
   State<ResizeHandles> createState() => _ResizeHandlesState();
@@ -48,63 +43,79 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       nodeSize.height + offset * 2 + width * 4,
     );
 
-    return Positioned(
-      left: widget.state.selectedNodeOffset.dx - offset,
-      top: widget.state.selectedNodeOffset.dy - offset,
-      child: Container(
-        width: resizeBoxContainerSize.width,
-        height: resizeBoxContainerSize.height,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.blue.withValues(alpha: .5), width: .5),
-          color: Colors.blue.withValues(alpha: .03),
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Угловые маркеры
-            // Top-Left (угол в точке -offset, -offset, линии идут вправо и вниз)
-            _buildCornerHandle('tl', 0, 0, 0, length, width),
-            // Top-Right (угол в точке nodeSize.width + offset, -offset, линии идут влево и вниз)
-            _buildCornerHandle('tr', resizeBoxContainerSize.width - length - width / 4, 0, 90, length, width),
-            // Bottom-Left (угол в точке -offset, nodeSize.height + offset, линии идут вправо и вверх)
-            _buildCornerHandle('bl', 0, resizeBoxContainerSize.height - length - width / 2, 270, length, width),
-            // Bottom-Right (угол в точке nodeSize.width + offset, nodeSize.height + offset, линии идут влево и вверх)
-            _buildCornerHandle(
-              'br',
-              resizeBoxContainerSize.width - length - width / 4,
-              resizeBoxContainerSize.height - length - width / 4,
-              180,
-              length,
-              width,
-            ),
+    return node.qType != 'swimlane' || (node.qType == 'swimlane' && node.isCollapsed != null && node.isCollapsed!)
+        ? Positioned(
+            left: widget.state.selectedNodeOffset.dx - offset,
+            top: widget.state.selectedNodeOffset.dy - offset,
+            child: Container(
+              width: resizeBoxContainerSize.width,
+              height: resizeBoxContainerSize.height,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blue.withValues(alpha: .5), width: .5),
+                color: Colors.blue.withValues(alpha: .03),
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Угловые маркеры
+                  // Top-Left (угол в точке -offset, -offset, линии идут вправо и вниз)
+                  _buildCornerHandle('tl', 0, 0, 0, length, width),
+                  // Top-Right (угол в точке nodeSize.width + offset, -offset, линии идут влево и вниз)
+                  _buildCornerHandle('tr', resizeBoxContainerSize.width - length - width / 4, 0, 90, length, width),
+                  // Bottom-Left (угол в точке -offset, nodeSize.height + offset, линии идут вправо и вверх)
+                  _buildCornerHandle('bl', 0, resizeBoxContainerSize.height - length - width / 2, 270, length, width),
+                  // Bottom-Right (угол в точке nodeSize.width + offset, nodeSize.height + offset, линии идут влево и вверх)
+                  _buildCornerHandle(
+                    'br',
+                    resizeBoxContainerSize.width - length - width / 4,
+                    resizeBoxContainerSize.height - length - width / 4,
+                    180,
+                    length,
+                    width,
+                  ),
 
-            // Боковые маркеры
-            // Top (центр по горизонтали, на расстоянии offset от верха)
-            _buildSideHandle('t', resizeBoxContainerSize.width / 2 - length / 2, 0 - width / 2, true, length, width),
-            // Right (на расстоянии offset от правого края, центр по вертикали)
-            _buildSideHandle(
-              'r',
-              resizeBoxContainerSize.width - length - width / 4,
-              resizeBoxContainerSize.height / 2 - length / 2,
-              false,
-              length,
-              width,
+                  // Боковые маркеры
+                  // Top (центр по горизонтали, на расстоянии offset от верха)
+                  _buildSideHandle(
+                    't',
+                    resizeBoxContainerSize.width / 2 - length / 2,
+                    0 - width / 2,
+                    true,
+                    length,
+                    width,
+                  ),
+                  // Right (на расстоянии offset от правого края, центр по вертикали)
+                  _buildSideHandle(
+                    'r',
+                    resizeBoxContainerSize.width - length - width / 4,
+                    resizeBoxContainerSize.height / 2 - length / 2,
+                    false,
+                    length,
+                    width,
+                  ),
+                  // Bottom (центр по горизонтали, на расстоянии offset от низа)
+                  _buildSideHandle(
+                    'b',
+                    resizeBoxContainerSize.width / 2 - length / 2,
+                    resizeBoxContainerSize.height - length - width / 4,
+                    true,
+                    length,
+                    width,
+                  ),
+                  // Left (на расстоянии offset от левого края, центр по вертикали)
+                  _buildSideHandle(
+                    'l',
+                    0 - width / 2,
+                    resizeBoxContainerSize.height / 2 - length / 2,
+                    false,
+                    length,
+                    width,
+                  ),
+                ],
+              ),
             ),
-            // Bottom (центр по горизонтали, на расстоянии offset от низа)
-            _buildSideHandle(
-              'b',
-              resizeBoxContainerSize.width / 2 - length / 2,
-              resizeBoxContainerSize.height - length - width / 4,
-              true,
-              length,
-              width,
-            ),
-            // Left (на расстоянии offset от левого края, центр по вертикали)
-            _buildSideHandle('l', 0 - width / 2, resizeBoxContainerSize.height / 2 - length / 2, false, length, width),
-          ],
-        ),
-      ),
-    );
+          )
+        : Container();
   }
 
   /// Создаёт угловой маркер (две линии под углом 90 градусов)
@@ -158,7 +169,6 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       ),
     );
   }
-
 }
 
 /// Painter для углового маркера (две линии под углом 90 градусов)
