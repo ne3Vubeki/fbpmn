@@ -7,16 +7,20 @@ import 'state_widget.dart';
 class ResizeHandles extends StatefulWidget {
   final EditorState state;
   final NodeManager nodeManager;
+  final String? hoveredHandle;
 
-  const ResizeHandles({super.key, required this.state, required this.nodeManager});
+  const ResizeHandles({
+    super.key,
+    required this.state,
+    required this.nodeManager,
+    this.hoveredHandle,
+  });
 
   @override
   State<ResizeHandles> createState() => _ResizeHandlesState();
 }
 
 class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHandles> {
-  String? _hoveredHandle;
-
   @override
   void initState() {
     super.initState();
@@ -105,30 +109,20 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
   /// Создаёт угловой маркер (две линии под углом 90 градусов)
   Widget _buildCornerHandle(String handle, double left, double top, double rotation, double length, double width) {
-    final isHovered = _hoveredHandle == handle;
+    final isHovered = widget.hoveredHandle == handle;
 
     return Positioned(
       left: left,
       top: top,
-      child: GestureDetector(
-        onPanStart: (details) => widget.nodeManager.startResize(handle, details.globalPosition),
-        onPanUpdate: (details) => widget.nodeManager.updateResize(details.globalPosition),
-        onPanEnd: (details) => widget.nodeManager.endResize(),
-        child: MouseRegion(
-          cursor: _getCursor(handle),
-          onEnter: (_) => setState(() => _hoveredHandle = handle),
-          onExit: (_) => setState(() => _hoveredHandle = null),
-          child: Container(
-            width: length,
-            height: length,
-            color: isHovered ? Colors.red.withValues(alpha: .1) : Colors.transparent,
-            child: Transform.rotate(
-              angle: rotation * 3.14159 / 180,
-              child: CustomPaint(
-                size: Size(length, length),
-                painter: _CornerHandlePainter(width: width, isHovered: isHovered),
-              ),
-            ),
+      child: Container(
+        width: length,
+        height: length,
+        color: isHovered ? Colors.red.withValues(alpha: .1) : Colors.transparent,
+        child: Transform.rotate(
+          angle: rotation * 3.14159 / 180,
+          child: CustomPaint(
+            size: Size(length, length),
+            painter: _CornerHandlePainter(width: width, isHovered: isHovered),
           ),
         ),
       ),
@@ -137,63 +131,34 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
   /// Создаёт боковой маркер (одна линия)
   Widget _buildSideHandle(String handle, double left, double top, bool isHorizontal, double length, double width) {
-    final isHovered = _hoveredHandle == handle;
+    final isHovered = widget.hoveredHandle == handle;
 
     return Positioned(
       left: left,
       top: top,
-      child: GestureDetector(
-        onPanStart: (details) => widget.nodeManager.startResize(handle, details.globalPosition),
-        onPanUpdate: (details) => widget.nodeManager.updateResize(details.globalPosition),
-        onPanEnd: (details) => widget.nodeManager.endResize(),
-        child: MouseRegion(
-          cursor: _getCursor(handle),
-          onEnter: (_) => setState(() => _hoveredHandle = handle),
-          onExit: (_) => setState(() => _hoveredHandle = null),
-          child: Container(
-            padding: EdgeInsets.only(
-              left: handle == 'r' ? length - width / 2 : 0,
-              right: handle == 'l' ? length - width / 2 : 0,
-              top: handle == 'b' ? length - width / 2 : 0,
-              bottom: handle == 't' ? length - width / 2 : 0,
-            ),
-            width: length + width / 2,
-            height: length + width / 2,
-            alignment: Alignment.center,
-            color: isHovered ? Colors.red.withValues(alpha: .1) : const Color.fromRGBO(0, 0, 0, 0),
-            child: Container(
-              width: isHorizontal ? length : width,
-              height: isHorizontal ? width : length,
-              decoration: BoxDecoration(
-                color: isHovered ? Colors.red : Colors.blue,
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
+      child: Container(
+        padding: EdgeInsets.only(
+          left: handle == 'r' ? length - width / 2 : 0,
+          right: handle == 'l' ? length - width / 2 : 0,
+          top: handle == 'b' ? length - width / 2 : 0,
+          bottom: handle == 't' ? length - width / 2 : 0,
+        ),
+        width: length + width / 2,
+        height: length + width / 2,
+        alignment: Alignment.center,
+        color: isHovered ? Colors.red.withValues(alpha: .1) : const Color.fromRGBO(0, 0, 0, 0),
+        child: Container(
+          width: isHorizontal ? length : width,
+          height: isHorizontal ? width : length,
+          decoration: BoxDecoration(
+            color: isHovered ? Colors.red : Colors.blue,
+            borderRadius: BorderRadius.circular(1),
           ),
         ),
       ),
     );
   }
 
-  /// Возвращает курсор для маркера
-  MouseCursor _getCursor(String handle) {
-    switch (handle) {
-      case 'tl':
-      case 'br':
-        return SystemMouseCursors.resizeUpLeftDownRight;
-      case 'tr':
-      case 'bl':
-        return SystemMouseCursors.resizeUpRightDownLeft;
-      case 't':
-      case 'b':
-        return SystemMouseCursors.resizeUpDown;
-      case 'l':
-      case 'r':
-        return SystemMouseCursors.resizeLeftRight;
-      default:
-        return SystemMouseCursors.basic;
-    }
-  }
 }
 
 /// Painter для углового маркера (две линии под углом 90 градусов)

@@ -974,4 +974,86 @@ class NodeManager extends Manager {
 
   /// Проверяет, идёт ли сейчас изменение размера
   bool get isResizing => _isResizing;
+
+  /// Определяет, на каком маркере изменения размера находится курсор
+  String? getResizeHandleAtPosition(Offset screenPosition) {
+    if (state.nodesSelected.isEmpty) return null;
+
+    final node = state.nodesSelected.first!;
+    final scale = state.scale;
+    final offset = resizeHandleOffset * scale;
+    final length = resizeHandleLength * scale;
+    final width = resizeHandleWidth * scale;
+
+    final nodeSize = Size(node.size.width * scale, node.size.height * scale);
+    final resizeBoxContainerSize = Size(
+      nodeSize.width + offset * 2 + width * 4,
+      nodeSize.height + offset * 2 + width * 4,
+    );
+    
+    // Позиция resize box (совпадает с позиционированием в ResizeHandles)
+    final resizeBoxLeft = state.selectedNodeOffset.dx - offset;
+    final resizeBoxTop = state.selectedNodeOffset.dy - offset;
+
+    // Локальная позиция относительно resize box
+    final localX = screenPosition.dx - resizeBoxLeft;
+    final localY = screenPosition.dy - resizeBoxTop;
+
+    // Проверяем угловые маркеры (координаты совпадают с ResizeHandles)
+    final corners = {
+      'tl': Rect.fromLTWH(0, 0, length, length),
+      'tr': Rect.fromLTWH(resizeBoxContainerSize.width - length - width / 2, 0, length, length),
+      'bl': Rect.fromLTWH(0, resizeBoxContainerSize.height - length - width / 2, length, length),
+      'br': Rect.fromLTWH(
+        resizeBoxContainerSize.width - length - width / 2,
+        resizeBoxContainerSize.height - length - width / 2,
+        length,
+        length,
+      ),
+    };
+
+    for (final entry in corners.entries) {
+      if (entry.value.contains(Offset(localX, localY))) {
+        return entry.key;
+      }
+    }
+
+    // Проверяем боковые маркеры (координаты совпадают с ResizeHandles)
+    final sides = {
+      't': Rect.fromLTWH(resizeBoxContainerSize.width / 2 - length / 2, 0 - width / 2, length + width / 2, length + width / 2),
+      'r': Rect.fromLTWH(resizeBoxContainerSize.width - length - width / 4, resizeBoxContainerSize.height / 2 - length / 2, length + width / 2, length + width / 2),
+      'b': Rect.fromLTWH(resizeBoxContainerSize.width / 2 - length / 2, resizeBoxContainerSize.height - length - width / 4, length + width / 2, length + width / 2),
+      'l': Rect.fromLTWH(0 - width / 2, resizeBoxContainerSize.height / 2 - length / 2, length + width / 2, length + width / 2),
+    };
+
+    for (final entry in sides.entries) {
+      if (entry.value.contains(Offset(localX, localY))) {
+        return entry.key;
+      }
+    }
+
+    return null;
+  }
+
+  /// Возвращает курсор для маркера изменения размера
+  MouseCursor getResizeCursor(String? handle) {
+    if (handle == null) return SystemMouseCursors.basic;
+
+    switch (handle) {
+      case 'tl':
+      case 'br':
+        return SystemMouseCursors.resizeUpLeftDownRight;
+      case 'tr':
+      case 'bl':
+        return SystemMouseCursors.resizeUpRightDownLeft;
+      case 't':
+      case 'b':
+        return SystemMouseCursors.resizeUpDown;
+      case 'l':
+      case 'r':
+        return SystemMouseCursors.resizeLeftRight;
+      default:
+        return SystemMouseCursors.basic;
+    }
+  }
 }
