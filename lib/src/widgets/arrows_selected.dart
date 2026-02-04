@@ -50,7 +50,13 @@ class _ArrowsSelected extends State<ArrowsSelected>
   Widget build(BuildContext context) {
     if (widget.state.arrows.isEmpty) return Container();
 
+    final nodes = widget.state.nodesSelected.toList();
     final arrows = widget.state.arrowsSelected.toList();
+    double areaNodes = 0;
+
+    for(final node in nodes){
+      areaNodes += node!.size.width * node.size.height;
+    }
 
     // Если нет стрелок, возвращаем пустой контейнер
     if (arrows.isEmpty) return Container();
@@ -87,6 +93,7 @@ class _ArrowsSelected extends State<ArrowsSelected>
                   nodeOffset: widget.state.selectedNodeOffset,
                   arrowsSize: arrowsSize,
                   arrowsRect: boundingRect,
+                  areaNodes: areaNodes,
                   arrowManager: widget.arrowManager,
                 ),
               ),

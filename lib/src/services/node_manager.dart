@@ -36,7 +36,7 @@ class NodeManager extends Manager {
   double get framePadding => 2.0 * state.scale; // Отступ рамки от узла
   double get frameBorderWidth => 2.0 * state.scale; // Толщина рамки
   double get frameTotalOffset => framePadding + frameBorderWidth; // Общий отступ для рамки
-  
+
   // Константы для маркеров изменения размера
   static const double resizeHandleOffset = 8.0; // Отступ маркеров от узла
   static const double resizeHandleLength = 12.0; // Длина линий маркера
@@ -70,7 +70,6 @@ class NodeManager extends Manager {
   }
 
   double calculateGridAlphaForLevel(int level) {
-
     // Для каждого уровня идеальный масштаб = 1 / (4^level)
     // Например:
     // level = 0: idealScale = 1.0 (базовый масштаб)
@@ -98,9 +97,7 @@ class NodeManager extends Manager {
   }
 
   void updateNodeDrag(Offset screenPosition) {
-    if (state.isNodeDragging &&
-        state.isNodeOnTopLayer &&
-        state.nodesSelected.isNotEmpty) {
+    if (state.isNodeDragging && state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
       final screenDelta = screenPosition - _nodeDragStart;
       final worldDelta = screenDelta / state.scale;
 
@@ -387,20 +384,21 @@ class NodeManager extends Manager {
     }
 
     final node = state.nodesSelected.first!;
-    final newPositionDelta = node.aPosition! - state.originalNodePosition;
 
-    // Обновляем абсолютную позицию узла перед сохранением
-    node.aPosition = state.originalNodePosition;
+    // Используем текущую позицию узла (которая могла измениться при resize)
+    // вместо сброса к originalNodePosition
+    final currentNodePosition = node.aPosition ?? (state.delta + node.position);
+    final newPositionDelta = currentNodePosition - state.originalNodePosition;
 
     // Находим родительский swimlane, если он существует и развернут
     TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
     if (parentSwimlane != null) {
       // Если узел является дочерним для развернутого swimlane,
       // вычисляем его относительную позицию по отношению к родителю
-      node.position = node.aPosition! - state.delta - parentSwimlane.position;
+      node.position = currentNodePosition - state.delta - parentSwimlane.position;
     } else {
       // Для обычных узлов (не дочерних развернутого swimlane)
-      final newPosition = node.aPosition! - state.delta;
+      final newPosition = currentNodePosition - state.delta;
       node.position = newPosition;
 
       // Если это swimlane с детьми, обновляем относительные позиции детей
@@ -408,7 +406,7 @@ class NodeManager extends Manager {
         for (final child in node.children!) {
           if (child.aPosition != null) {
             // Рассчитываем новую авсолютную позицию, если изменилась позиция родителя
-            child.aPosition = child.aPosition! - newPositionDelta;
+            child.aPosition = child.aPosition! + newPositionDelta;
             // Рассчитываем относительные координаты ребенка из абсолютных,
             // вычитая delta и позицию родителя
             child.position = child.aPosition! - state.delta - node.position;
@@ -852,7 +850,7 @@ class NodeManager extends Manager {
     _resizeStartPosition = _screenToWorld(screenPosition);
     _resizeStartSize = node.size;
     _resizeStartNodePosition = node.aPosition ?? (state.delta + node.position);
-    
+
     onStateUpdate();
   }
 
@@ -913,34 +911,22 @@ class NodeManager extends Manager {
 
       // Боковые маркеры
       case 't': // Top
-        newSize = Size(
-          _resizeStartSize.width,
-          (_resizeStartSize.height - delta.dy).clamp(minHeight, double.infinity),
-        );
+        newSize = Size(_resizeStartSize.width, (_resizeStartSize.height - delta.dy).clamp(minHeight, double.infinity));
         newPosition = Offset(
           _resizeStartNodePosition.dx,
           _resizeStartNodePosition.dy + (_resizeStartSize.height - newSize.height),
         );
         break;
       case 'r': // Right
-        newSize = Size(
-          (_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity),
-          _resizeStartSize.height,
-        );
+        newSize = Size((_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity), _resizeStartSize.height);
         newPosition = _resizeStartNodePosition;
         break;
       case 'b': // Bottom
-        newSize = Size(
-          _resizeStartSize.width,
-          (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity),
-        );
+        newSize = Size(_resizeStartSize.width, (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity));
         newPosition = _resizeStartNodePosition;
         break;
       case 'l': // Left
-        newSize = Size(
-          (_resizeStartSize.width - delta.dx).clamp(minWidth, double.infinity),
-          _resizeStartSize.height,
-        );
+        newSize = Size((_resizeStartSize.width - delta.dx).clamp(minWidth, double.infinity), _resizeStartSize.height);
         newPosition = Offset(
           _resizeStartNodePosition.dx + (_resizeStartSize.width - newSize.width),
           _resizeStartNodePosition.dy,
@@ -952,11 +938,20 @@ class NodeManager extends Manager {
     node.size = newSize;
     node.aPosition = newPosition;
     node.position = newPosition - state.delta;
+    
+    // Обновляем originalNodePosition для корректного расчёта связей
+    state.originalNodePosition = newPosition;
 
     // Обновляем позицию выделенного узла на экране
-    state.selectedNodeOffset = _worldToScreen(newPosition);
+    final screenNodePosition = _worldToScreen(newPosition);
+    state.selectedNodeOffset = Offset(
+      screenNodePosition.dx - frameTotalOffset,
+      screenNodePosition.dy - frameTotalOffset,
+    );
 
+    // Обновляем состояние и связи
     onStateUpdate();
+    arrowManager.onStateUpdate();
   }
 
   /// Завершение изменения размера узла
@@ -965,9 +960,6 @@ class NodeManager extends Manager {
 
     _isResizing = false;
     _resizeHandle = null;
-
-    // Обновляем тайлы с новыми размерами узла
-    await tileManager.updateTilesAfterNodeChange();
 
     onStateUpdate();
   }
@@ -990,7 +982,7 @@ class NodeManager extends Manager {
       nodeSize.width + offset * 2 + width * 4,
       nodeSize.height + offset * 2 + width * 4,
     );
-    
+
     // Позиция resize box (совпадает с позиционированием в ResizeHandles)
     final resizeBoxLeft = state.selectedNodeOffset.dx - offset;
     final resizeBoxTop = state.selectedNodeOffset.dy - offset;
@@ -1020,10 +1012,30 @@ class NodeManager extends Manager {
 
     // Проверяем боковые маркеры (координаты совпадают с ResizeHandles)
     final sides = {
-      't': Rect.fromLTWH(resizeBoxContainerSize.width / 2 - length / 2, 0 - width / 2, length + width / 2, length + width / 2),
-      'r': Rect.fromLTWH(resizeBoxContainerSize.width - length - width / 4, resizeBoxContainerSize.height / 2 - length / 2, length + width / 2, length + width / 2),
-      'b': Rect.fromLTWH(resizeBoxContainerSize.width / 2 - length / 2, resizeBoxContainerSize.height - length - width / 4, length + width / 2, length + width / 2),
-      'l': Rect.fromLTWH(0 - width / 2, resizeBoxContainerSize.height / 2 - length / 2, length + width / 2, length + width / 2),
+      't': Rect.fromLTWH(
+        resizeBoxContainerSize.width / 2 - length / 2,
+        0 - width / 2,
+        length + width / 2,
+        length + width / 2,
+      ),
+      'r': Rect.fromLTWH(
+        resizeBoxContainerSize.width - length - width / 4,
+        resizeBoxContainerSize.height / 2 - length / 2,
+        length + width / 2,
+        length + width / 2,
+      ),
+      'b': Rect.fromLTWH(
+        resizeBoxContainerSize.width / 2 - length / 2,
+        resizeBoxContainerSize.height - length - width / 4,
+        length + width / 2,
+        length + width / 2,
+      ),
+      'l': Rect.fromLTWH(
+        0 - width / 2,
+        resizeBoxContainerSize.height / 2 - length / 2,
+        length + width / 2,
+        length + width / 2,
+      ),
     };
 
     for (final entry in sides.entries) {

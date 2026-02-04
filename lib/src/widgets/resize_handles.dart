@@ -65,14 +65,14 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             // Top-Left (угол в точке -offset, -offset, линии идут вправо и вниз)
             _buildCornerHandle('tl', 0, 0, 0, length, width),
             // Top-Right (угол в точке nodeSize.width + offset, -offset, линии идут влево и вниз)
-            _buildCornerHandle('tr', resizeBoxContainerSize.width - length - width / 2, 0, 90, length, width),
+            _buildCornerHandle('tr', resizeBoxContainerSize.width - length - width / 4, 0, 90, length, width),
             // Bottom-Left (угол в точке -offset, nodeSize.height + offset, линии идут вправо и вверх)
             _buildCornerHandle('bl', 0, resizeBoxContainerSize.height - length - width / 2, 270, length, width),
             // Bottom-Right (угол в точке nodeSize.width + offset, nodeSize.height + offset, линии идут влево и вверх)
             _buildCornerHandle(
               'br',
-              resizeBoxContainerSize.width - length - width / 2,
-              resizeBoxContainerSize.height - length - width / 2,
+              resizeBoxContainerSize.width - length - width / 4,
+              resizeBoxContainerSize.height - length - width / 4,
               180,
               length,
               width,
