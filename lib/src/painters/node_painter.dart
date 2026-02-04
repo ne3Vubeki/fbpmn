@@ -9,10 +9,7 @@ class NodePainter {
   final TableNode node;
   final bool isSelected;
 
-  NodePainter({
-    required this.node,
-    this.isSelected = false,
-  });
+  NodePainter({required this.node, this.isSelected = false});
 
   /// Отрисовка узла с учетом базового отступа (рекурсивно с детьми)
   void paintWithOffset({
@@ -40,29 +37,19 @@ class NodePainter {
     required bool forTile,
   }) {
     // Рассчитываем абсолютную позицию текущего узла
-    final nodeAbsolutePosition =
-        currentNode.aPosition ??
-        (currentNode.position + parentAbsolutePosition);
+    final nodeAbsolutePosition = currentNode.aPosition ?? (currentNode.position + parentAbsolutePosition);
 
     // Создаем Rect узла в мировых координатах
     final nodeWorldRect = Rect.fromPoints(
       nodeAbsolutePosition,
-      Offset(
-        nodeAbsolutePosition.dx + currentNode.size.width,
-        nodeAbsolutePosition.dy + currentNode.size.height,
-      ),
+      Offset(nodeAbsolutePosition.dx + currentNode.size.width, nodeAbsolutePosition.dy + currentNode.size.height),
     );
 
     canvas.save();
 
     if (forTile) {
       // Для тайла: рисуем в мировых координатах
-      _drawSingleNode(
-        canvas: canvas,
-        node: currentNode,
-        nodeRect: nodeWorldRect,
-        forTile: true,
-      );
+      _drawSingleNode(canvas: canvas, node: currentNode, nodeRect: nodeWorldRect, forTile: true);
     } else {
       // Для виджета: преобразуем координаты
       final scaleX = nodeWorldRect.width / currentNode.size.width;
@@ -70,20 +57,9 @@ class NodePainter {
 
       canvas.scale(scaleX, scaleY);
 
-      final nodeLocalRect = Rect.fromLTWH(
-        0,
-        0,
-        currentNode.size.width,
-        currentNode.size.height,
-      );
+      final nodeLocalRect = Rect.fromLTWH(0, 0, currentNode.size.width, currentNode.size.height);
 
-      _drawSingleNode(
-        canvas: canvas,
-        node: currentNode,
-        nodeRect: nodeLocalRect,
-        forTile: false,
-      );
-
+      _drawSingleNode(canvas: canvas, node: currentNode, nodeRect: nodeLocalRect, forTile: false);
     }
 
     canvas.restore();
@@ -107,14 +83,10 @@ class NodePainter {
     }
 
     // Оригинальная логика для остальных узлов...
-    final backgroundColor = node.groupId != null
-        ? node.backgroundColor
-        : Colors.white;
+    final backgroundColor = node.groupId != null ? node.backgroundColor : Colors.white;
     final headerBackgroundColor = node.backgroundColor;
     final borderColor = Colors.black;
-    final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5
-        ? Colors.black
-        : Colors.white;
+    final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
     // Рассчитываем толщину линии
     final scaleX = nodeRect.width / node.size.width;
@@ -188,12 +160,7 @@ class NodePainter {
     final actualRowHeight = math.max(rowHeight, minRowHeight);
 
     // Рисуем заголовок
-    final headerRect = Rect.fromLTWH(
-      nodeRect.left + 1,
-      nodeRect.top + 1,
-      nodeRect.width - 2,
-      headerHeight - 2,
-    );
+    final headerRect = Rect.fromLTWH(nodeRect.left + 1, nodeRect.top + 1, nodeRect.width - 2, headerHeight - 2);
 
     final headerPaint = Paint()
       ..color = headerBackgroundColor
@@ -230,11 +197,7 @@ class NodePainter {
     // Текст заголовка
     final headerTextSpan = TextSpan(
       text: node.text,
-      style: TextStyle(
-        color: textColorHeader,
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
-      ),
+      style: TextStyle(color: textColorHeader, fontSize: 12, fontWeight: FontWeight.bold),
     );
 
     final headerTextPainter = TextPainter(
@@ -248,10 +211,7 @@ class NodePainter {
     headerTextPainter.layout(maxWidth: nodeRect.width - 16);
     headerTextPainter.paint(
       canvas,
-      Offset(
-        nodeRect.left + 8,
-        nodeRect.top + (headerHeight - headerTextPainter.height) / 2,
-      ),
+      Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2),
     );
 
     // Рисуем строки таблицы
@@ -271,11 +231,7 @@ class NodePainter {
 
       // Горизонтальная граница
       if (i < attributes.length - 1) {
-        canvas.drawLine(
-          Offset(nodeRect.left, rowBottom),
-          Offset(nodeRect.right, rowBottom),
-          headerBorderPaint,
-        );
+        canvas.drawLine(Offset(nodeRect.left, rowBottom), Offset(nodeRect.right, rowBottom), headerBorderPaint);
       }
 
       // Текст в левой колонке
@@ -295,10 +251,7 @@ class NodePainter {
         leftTextPainter.layout(maxWidth: columnSplit - 16);
         leftTextPainter.paint(
           canvas,
-          Offset(
-            nodeRect.left + 8,
-            rowTop + (actualRowHeight - leftTextPainter.height) / 2,
-          ),
+          Offset(nodeRect.left + 8, rowTop + (actualRowHeight - leftTextPainter.height) / 2),
         );
       }
 
@@ -319,22 +272,14 @@ class NodePainter {
         rightTextPainter.layout(maxWidth: nodeRect.width - columnSplit - 16);
         rightTextPainter.paint(
           canvas,
-          Offset(
-            nodeRect.left + columnSplit + 8,
-            rowTop + (actualRowHeight - rightTextPainter.height) / 2,
-          ),
+          Offset(nodeRect.left + columnSplit + 8, rowTop + (actualRowHeight - rightTextPainter.height) / 2),
         );
       }
     }
   }
 
   /// Метод для отрисовки свернутого swimlane
-  void _drawSwimlane(
-    Canvas canvas,
-    TableNode node,
-    Rect nodeRect, {
-    required bool isCollapsed,
-  }) {
+  void _drawSwimlane(Canvas canvas, TableNode node, Rect nodeRect, {required bool isCollapsed}) {
     // Рассчитываем толщину линии
     final scaleX = nodeRect.width / node.size.width;
     final scaleY = nodeRect.height / node.size.height;
@@ -370,12 +315,7 @@ class NodePainter {
   }
 
   /// Метод для отрисовки заголовка swimlane с иконкой
-  void _drawSwimlaneHeader(
-    Canvas canvas,
-    TableNode node,
-    Rect nodeRect, {
-    required bool isCollapsed,
-  }) {
+  void _drawSwimlaneHeader(Canvas canvas, TableNode node, Rect nodeRect, {required bool isCollapsed}) {
     final headerHeight = EditorConfig.headerHeight;
     final iconSize = 16.0;
     final iconMargin = 8.0;
@@ -414,18 +354,10 @@ class NodePainter {
       final crossSize = iconSize / 3;
 
       // Горизонтальная линия
-      canvas.drawLine(
-        Offset(centerX - crossSize, centerY),
-        Offset(centerX + crossSize, centerY),
-        iconPaint,
-      );
+      canvas.drawLine(Offset(centerX - crossSize, centerY), Offset(centerX + crossSize, centerY), iconPaint);
 
       // Вертикальная линия
-      canvas.drawLine(
-        Offset(centerX, centerY - crossSize),
-        Offset(centerX, centerY + crossSize),
-        iconPaint,
-      );
+      canvas.drawLine(Offset(centerX, centerY - crossSize), Offset(centerX, centerY + crossSize), iconPaint);
     } else {
       // Минус
       final centerY = iconRect.top + iconSize / 2;
@@ -448,30 +380,17 @@ class NodePainter {
       ),
     );
 
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '...',
-    );
+    final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 1, ellipsis: '...');
 
     textPainter.layout(maxWidth: nodeRect.width - textLeftMargin - 8);
     textPainter.paint(
       canvas,
-      Offset(
-        nodeRect.left + textLeftMargin,
-        nodeRect.top + (actualHeaderHeight - textPainter.height) / 2,
-      ),
+      Offset(nodeRect.left + textLeftMargin, nodeRect.top + (actualHeaderHeight - textPainter.height) / 2),
     );
   }
 
   /// Простая отрисовка одного узла (без детей) - для обратной совместимости
   void paint(Canvas canvas, Rect targetRect, {bool forTile = false}) {
-    _drawSingleNode(
-      canvas: canvas,
-      node: node,
-      nodeRect: targetRect,
-      forTile: forTile,
-    );
+    _drawSingleNode(canvas: canvas, node: node, nodeRect: targetRect, forTile: forTile);
   }
 }

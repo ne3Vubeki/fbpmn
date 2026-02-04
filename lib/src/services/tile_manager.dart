@@ -44,7 +44,7 @@ class TileManager extends Manager {
       if (isUpdate) {
         // Собираем ID новых тайлов
         final newTileIds = tiles.map((t) => t.id).toSet();
-        
+
         // Удаляем старые тайлы, которых нет в новом списке
         final tilesToRemove = state.imageTiles.where((t) => !newTileIds.contains(t.id)).toList();
         for (final oldTile in tilesToRemove) {
@@ -55,7 +55,7 @@ class TileManager extends Manager {
           }
           state.imageTiles.removeWhere((t) => t.id == oldTile.id);
         }
-        
+
         // Обновляем существующие и добавляем новые тайлы
         for (final tile in tiles) {
           final existingIndex = state.imageTiles.indexWhere((t) => t.id == tile.id);
@@ -202,31 +202,59 @@ class TileManager extends Manager {
       final tileWorldSize = EditorConfig.tileSize.toDouble();
 
       if (coordinates.isNotEmpty) {
-        for (int ind = 0; ind < coordinates.length - 1; ind++) {
-          final coordStart = coordinates[ind];
-          final coordEnd = coordinates[ind + 1];
+        if (!state.useCurves) {
+          for (int ind = 0; ind < coordinates.length - 1; ind++) {
+            final coordStart = coordinates[ind];
+            final coordEnd = coordinates[ind + 1];
 
-          /// Вертикальный отрезок связи
-          if (coordStart.dx == coordEnd.dx) {
-            final gridYStart = (math.min(coordStart.dy, coordEnd.dy) / tileWorldSize).floor();
-            final gridYEnd = (math.max(coordStart.dy, coordEnd.dy) / tileWorldSize).ceil();
-            final gridX = (coordStart.dx / tileWorldSize).floor();
-            for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-              final left = gridX * tileWorldSize;
-              final top = gridY * tileWorldSize;
-              await createTiles(top: top, left: left, arrow: arrow);
+            /// Вертикальный отрезок связи
+            if (coordStart.dx == coordEnd.dx) {
+              final gridYStart = (math.min(coordStart.dy, coordEnd.dy) / tileWorldSize).floor();
+              final gridYEnd = (math.max(coordStart.dy, coordEnd.dy) / tileWorldSize).ceil();
+              final gridX = (coordStart.dx / tileWorldSize).floor();
+              for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+                final left = gridX * tileWorldSize;
+                final top = gridY * tileWorldSize;
+                await createTiles(top: top, left: left, arrow: arrow);
+              }
+            }
+            /// Горизонтальный отрезок связи
+            else {
+              final gridXStart = (math.min(coordStart.dx, coordEnd.dx) / tileWorldSize).floor();
+              final gridXEnd = (math.max(coordStart.dx, coordEnd.dx) / tileWorldSize).ceil();
+              final gridY = (coordStart.dy / tileWorldSize).floor();
+              for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+                final left = gridX * tileWorldSize;
+                final top = gridY * tileWorldSize;
+                await createTiles(top: top, left: left, arrow: arrow);
+              }
             }
           }
-          /// Горизонтальный отрезок связи
-          else {
-            final gridXStart = (math.min(coordStart.dx, coordEnd.dx) / tileWorldSize).floor();
-            final gridXEnd = (math.max(coordStart.dx, coordEnd.dx) / tileWorldSize).ceil();
-            final gridY = (coordStart.dy / tileWorldSize).floor();
-            for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-              final left = gridX * tileWorldSize;
-              final top = gridY * tileWorldSize;
-              await createTiles(top: top, left: left, arrow: arrow);
+        } else {
+          // Для кривых связей обрабатываем все координаты пути
+          // Создаём прямоугольник, охватывающий всю связь
+          if (coordinates.length >= 2) {
+            double minX = coordinates.first.dx;
+            double maxX = coordinates.first.dx;
+            double minY = coordinates.first.dy;
+            double maxY = coordinates.first.dy;
+            
+            // Находим границы всей связи
+            for (final coord in coordinates) {
+              if (coord.dx < minX) minX = coord.dx;
+              if (coord.dx > maxX) maxX = coord.dx;
+              if (coord.dy < minY) minY = coord.dy;
+              if (coord.dy > maxY) maxY = coord.dy;
             }
+            
+            // Создаём тайлы для прямоугольника, охватывающего связь
+            final arrowRect = Rect.fromLTRB(minX, minY, maxX, maxY);
+            await _tilesIntersectingRect(
+              arrowRect,
+              callback: ({required double left, required double top}) async {
+                await createTiles(top: top, left: left, arrow: arrow);
+              },
+            );
           }
         }
       }
@@ -569,16 +597,16 @@ class TileManager extends Manager {
 
   // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
   Future<void> updateTilesAfterNodeChange() async {
-    state.isLoading = true;
-    onStateUpdate();
-    await Future.delayed(const Duration(milliseconds: 100));
+    // state.isLoading = true;
+    // onStateUpdate();
+    // await Future.delayed(const Duration(milliseconds: 100));
 
     await createTiledImage(state.nodes, state.arrows, isUpdate: true);
 
     state.imageTilesChanged.clear();
 
     // Уведомляем об изменении
-    state.isLoading = false;
+    // state.isLoading = false;
     onStateUpdate();
   }
 
