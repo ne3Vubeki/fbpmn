@@ -12,6 +12,7 @@ import '../services/scroll_handler.dart';
 import 'arrows_selected.dart';
 import 'hierarchical_grid.dart';
 import 'node_selected.dart';
+import 'resize_handles.dart';
 import 'scroll_bar_horizontal.dart';
 import 'scroll_bar_vertical.dart';
 import 'snap_lines_overlay.dart';
@@ -174,6 +175,12 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           arrowManager: widget.arrowManager,
                           inputHandler: widget.inputHandler,
                           scrollHandler: widget.scrollHandler,
+                        ),
+
+                        // Маркеры изменения размера узла
+                        ResizeHandles(
+                          state: widget.state,
+                          nodeManager: widget.nodeManager,
                         ),
 
                         // Отображение snap-линий при перетаскивании узла

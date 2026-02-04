@@ -22,6 +22,13 @@ class NodeManager extends Manager {
   Rect? _initialSwimlaneBounds;
   EdgeInsets? _initialFramePadding;
 
+  // Переменные для изменения размеров узла
+  bool _isResizing = false;
+  String? _resizeHandle; // 'tl', 'tr', 'bl', 'br', 't', 'r', 'b', 'l'
+  Offset _resizeStartPosition = Offset.zero;
+  Size _resizeStartSize = Size.zero;
+  Offset _resizeStartNodePosition = Offset.zero;
+
   // Константы для snap-прилипания
   static const double snapThreshold = 15.0; // Порог прилипания в пикселях
 
@@ -29,6 +36,11 @@ class NodeManager extends Manager {
   double get framePadding => 2.0 * state.scale; // Отступ рамки от узла
   double get frameBorderWidth => 2.0 * state.scale; // Толщина рамки
   double get frameTotalOffset => framePadding + frameBorderWidth; // Общий отступ для рамки
+  
+  // Константы для маркеров изменения размера
+  static const double resizeHandleOffset = 8.0; // Отступ маркеров от узла
+  static const double resizeHandleLength = 20.0; // Длина линий маркера
+  static const double resizeHandleWidth = 2.0; // Толщина линий маркера
 
   NodeManager({required this.state, required this.tileManager, required this.arrowManager});
 
@@ -827,4 +839,139 @@ class NodeManager extends Manager {
   void clearSnapLines() {
     state.snapLines.clear();
   }
+
+  // ============ МЕТОДЫ ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРОВ УЗЛА ============
+
+  /// Начало изменения размера узла
+  void startResize(String handle, Offset screenPosition) {
+    if (state.nodesSelected.isEmpty) return;
+
+    final node = state.nodesSelected.first!;
+    _isResizing = true;
+    _resizeHandle = handle;
+    _resizeStartPosition = _screenToWorld(screenPosition);
+    _resizeStartSize = node.size;
+    _resizeStartNodePosition = node.aPosition ?? (state.delta + node.position);
+    
+    onStateUpdate();
+  }
+
+  /// Обновление размера узла при перемещении курсора
+  void updateResize(Offset screenPosition) {
+    if (!_isResizing || state.nodesSelected.isEmpty || _resizeHandle == null) return;
+
+    final node = state.nodesSelected.first!;
+    final currentWorldPos = _screenToWorld(screenPosition);
+    final delta = currentWorldPos - _resizeStartPosition;
+
+    Size newSize = _resizeStartSize;
+    Offset newPosition = _resizeStartNodePosition;
+
+    // Минимальные размеры узла
+    const double minWidth = 50.0;
+    const double minHeight = 30.0;
+
+    switch (_resizeHandle) {
+      // Угловые маркеры
+      case 'tl': // Top-Left
+        newSize = Size(
+          (_resizeStartSize.width - delta.dx).clamp(minWidth, double.infinity),
+          (_resizeStartSize.height - delta.dy).clamp(minHeight, double.infinity),
+        );
+        newPosition = Offset(
+          _resizeStartNodePosition.dx + (_resizeStartSize.width - newSize.width),
+          _resizeStartNodePosition.dy + (_resizeStartSize.height - newSize.height),
+        );
+        break;
+      case 'tr': // Top-Right
+        newSize = Size(
+          (_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity),
+          (_resizeStartSize.height - delta.dy).clamp(minHeight, double.infinity),
+        );
+        newPosition = Offset(
+          _resizeStartNodePosition.dx,
+          _resizeStartNodePosition.dy + (_resizeStartSize.height - newSize.height),
+        );
+        break;
+      case 'bl': // Bottom-Left
+        newSize = Size(
+          (_resizeStartSize.width - delta.dx).clamp(minWidth, double.infinity),
+          (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity),
+        );
+        newPosition = Offset(
+          _resizeStartNodePosition.dx + (_resizeStartSize.width - newSize.width),
+          _resizeStartNodePosition.dy,
+        );
+        break;
+      case 'br': // Bottom-Right
+        newSize = Size(
+          (_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity),
+          (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity),
+        );
+        newPosition = _resizeStartNodePosition;
+        break;
+
+      // Боковые маркеры
+      case 't': // Top
+        newSize = Size(
+          _resizeStartSize.width,
+          (_resizeStartSize.height - delta.dy).clamp(minHeight, double.infinity),
+        );
+        newPosition = Offset(
+          _resizeStartNodePosition.dx,
+          _resizeStartNodePosition.dy + (_resizeStartSize.height - newSize.height),
+        );
+        break;
+      case 'r': // Right
+        newSize = Size(
+          (_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity),
+          _resizeStartSize.height,
+        );
+        newPosition = _resizeStartNodePosition;
+        break;
+      case 'b': // Bottom
+        newSize = Size(
+          _resizeStartSize.width,
+          (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity),
+        );
+        newPosition = _resizeStartNodePosition;
+        break;
+      case 'l': // Left
+        newSize = Size(
+          (_resizeStartSize.width - delta.dx).clamp(minWidth, double.infinity),
+          _resizeStartSize.height,
+        );
+        newPosition = Offset(
+          _resizeStartNodePosition.dx + (_resizeStartSize.width - newSize.width),
+          _resizeStartNodePosition.dy,
+        );
+        break;
+    }
+
+    // Обновляем размер и позицию узла
+    node.size = newSize;
+    node.aPosition = newPosition;
+    node.position = newPosition - state.delta;
+
+    // Обновляем позицию выделенного узла на экране
+    state.selectedNodeOffset = _worldToScreen(newPosition);
+
+    onStateUpdate();
+  }
+
+  /// Завершение изменения размера узла
+  Future<void> endResize() async {
+    if (!_isResizing || state.nodesSelected.isEmpty) return;
+
+    _isResizing = false;
+    _resizeHandle = null;
+
+    // Обновляем тайлы с новыми размерами узла
+    await tileManager.updateTilesAfterNodeChange();
+
+    onStateUpdate();
+  }
+
+  /// Проверяет, идёт ли сейчас изменение размера
+  bool get isResizing => _isResizing;
 }
