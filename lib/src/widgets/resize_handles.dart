@@ -39,7 +39,10 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
     // Размер узла (масштабированный)
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
-    final resizeBoxContainerSize = Size(nodeSize.width + offset * 2 + width * 4, nodeSize.height + offset * 2 + width * 4);
+    final resizeBoxContainerSize = Size(
+      nodeSize.width + offset * 2 + width * 4,
+      nodeSize.height + offset * 2 + width * 4,
+    );
 
     return Positioned(
       left: widget.state.selectedNodeOffset.dx - offset,
@@ -49,7 +52,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         height: resizeBoxContainerSize.height,
         decoration: BoxDecoration(
           border: Border.all(color: Colors.blue.withValues(alpha: .5), width: .5),
-          color: Colors.blue.withValues(alpha: .05),
+          color: Colors.blue.withValues(alpha: .03),
         ),
         child: Stack(
           clipBehavior: Clip.none,
@@ -75,9 +78,23 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             // Top (центр по горизонтали, на расстоянии offset от верха)
             _buildSideHandle('t', resizeBoxContainerSize.width / 2 - length / 2, 0 - width / 2, true, length, width),
             // Right (на расстоянии offset от правого края, центр по вертикали)
-            _buildSideHandle('r', resizeBoxContainerSize.width - width / 2, resizeBoxContainerSize.height / 2 - length / 2, false, length, width),
+            _buildSideHandle(
+              'r',
+              resizeBoxContainerSize.width - width / 2,
+              resizeBoxContainerSize.height / 2 - length / 2,
+              false,
+              length,
+              width,
+            ),
             // Bottom (центр по горизонтали, на расстоянии offset от низа)
-            _buildSideHandle('b', resizeBoxContainerSize.width / 2 - length / 2, resizeBoxContainerSize.height - width / 2, true, length, width),
+            _buildSideHandle(
+              'b',
+              resizeBoxContainerSize.width / 2 - length / 2,
+              resizeBoxContainerSize.height - width / 2,
+              true,
+              length,
+              width,
+            ),
             // Left (на расстоянии offset от левого края, центр по вертикали)
             _buildSideHandle('l', 0 - width / 2, resizeBoxContainerSize.height / 2 - length / 2, false, length, width),
           ],
