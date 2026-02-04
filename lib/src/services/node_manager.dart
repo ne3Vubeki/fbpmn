@@ -39,7 +39,7 @@ class NodeManager extends Manager {
   
   // Константы для маркеров изменения размера
   static const double resizeHandleOffset = 8.0; // Отступ маркеров от узла
-  static const double resizeHandleLength = 20.0; // Длина линий маркера
+  static const double resizeHandleLength = 12.0; // Длина линий маркера
   static const double resizeHandleWidth = 2.0; // Толщина линий маркера
 
   NodeManager({required this.state, required this.tileManager, required this.arrowManager});

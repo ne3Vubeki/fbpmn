@@ -80,7 +80,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             // Right (на расстоянии offset от правого края, центр по вертикали)
             _buildSideHandle(
               'r',
-              resizeBoxContainerSize.width - width / 2,
+              resizeBoxContainerSize.width - length - width / 4,
               resizeBoxContainerSize.height / 2 - length / 2,
               false,
               length,
@@ -90,7 +90,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             _buildSideHandle(
               'b',
               resizeBoxContainerSize.width / 2 - length / 2,
-              resizeBoxContainerSize.height - width / 2,
+              resizeBoxContainerSize.height - length - width / 4,
               true,
               length,
               width,
@@ -121,7 +121,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           child: Container(
             width: length,
             height: length,
-            color: Colors.transparent,
+            color: isHovered ? Colors.red.withValues(alpha: .1) : Colors.transparent,
             child: Transform.rotate(
               angle: rotation * 3.14159 / 180,
               child: CustomPaint(
@@ -151,9 +151,16 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           onEnter: (_) => setState(() => _hoveredHandle = handle),
           onExit: (_) => setState(() => _hoveredHandle = null),
           child: Container(
-            width: isHorizontal ? length : width,
-            height: isHorizontal ? width : length,
+            padding: EdgeInsets.only(
+              left: handle == 'r' ? length - width / 2 : 0,
+              right: handle == 'l' ? length - width / 2 : 0,
+              top: handle == 'b' ? length - width / 2 : 0,
+              bottom: handle == 't' ? length - width / 2 : 0,
+            ),
+            width: length + width / 2,
+            height: length + width / 2,
             alignment: Alignment.center,
+            color: isHovered ? Colors.red.withValues(alpha: .1) : const Color.fromRGBO(0, 0, 0, 0),
             child: Container(
               width: isHorizontal ? length : width,
               height: isHorizontal ? width : length,
