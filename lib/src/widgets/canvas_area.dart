@@ -86,11 +86,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
       return widget.nodeManager.getResizeCursor(_currentResizeHandle);
     }
     
-    // Если наведён на resize handle, показываем соответствующий курсор
-    if (widget.nodeManager.hoveredResizeHandle != null) {
-      return widget.nodeManager.getResizeCursor(widget.nodeManager.hoveredResizeHandle);
-    }
-    
     // Стандартные курсоры для панорамирования
     if (widget.state.isShiftPressed && widget.state.isPanning) {
       return SystemMouseCursors.grabbing;
