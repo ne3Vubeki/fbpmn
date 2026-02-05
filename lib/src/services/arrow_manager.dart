@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
+import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../models/table.node.dart';
@@ -1009,19 +1010,32 @@ class ArrowManager extends Manager {
     double maxY = double.negativeInfinity;
 
     for (final arrow in arrows) {
-      // Проверяем source позицию
-      minX = arrow!.aPositionSource.dx < minX ? arrow.aPositionSource.dx : minX;
-      minY = arrow.aPositionSource.dy < minY ? arrow.aPositionSource.dy : minY;
-      maxX = arrow.aPositionSource.dx > maxX ? arrow.aPositionSource.dx : maxX;
-      maxY = arrow.aPositionSource.dy > maxY ? arrow.aPositionSource.dy : maxY;
+      if (arrow == null) continue;
 
-      // Проверяем target позицию
-      minX = arrow.aPositionTarget.dx < minX ? arrow.aPositionTarget.dx : minX;
-      minY = arrow.aPositionTarget.dy < minY ? arrow.aPositionTarget.dy : minY;
-      maxX = arrow.aPositionTarget.dx > maxX ? arrow.aPositionTarget.dx : maxX;
-      maxY = arrow.aPositionTarget.dy > maxY ? arrow.aPositionTarget.dy : maxY;
+      // Проверяем все координаты из arrow.coordinates (экранные) и преобразуем в мировые
+      if (arrow.coordinates != null && arrow.coordinates!.isNotEmpty) {
+        for (final screenCoordinate in arrow.coordinates!) {
+          final worldCoordinate = Utils.screenToWorld(screenCoordinate, state);
+          minX = worldCoordinate.dx < minX ? worldCoordinate.dx : minX;
+          minY = worldCoordinate.dy < minY ? worldCoordinate.dy : minY;
+          maxX = worldCoordinate.dx > maxX ? worldCoordinate.dx : maxX;
+          maxY = worldCoordinate.dy > maxY ? worldCoordinate.dy : maxY;
+        }
+      } else {
+        // Если coordinates отсутствуют, используем source и target позиции
+        minX = arrow.aPositionSource.dx < minX ? arrow.aPositionSource.dx : minX;
+        minY = arrow.aPositionSource.dy < minY ? arrow.aPositionSource.dy : minY;
+        maxX = arrow.aPositionSource.dx > maxX ? arrow.aPositionSource.dx : maxX;
+        maxY = arrow.aPositionSource.dy > maxY ? arrow.aPositionSource.dy : maxY;
+
+        minX = arrow.aPositionTarget.dx < minX ? arrow.aPositionTarget.dx : minX;
+        minY = arrow.aPositionTarget.dy < minY ? arrow.aPositionTarget.dy : minY;
+        maxX = arrow.aPositionTarget.dx > maxX ? arrow.aPositionTarget.dx : maxX;
+        maxY = arrow.aPositionTarget.dy > maxY ? arrow.aPositionTarget.dy : maxY;
+      }
     }
 
     return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
+
 }

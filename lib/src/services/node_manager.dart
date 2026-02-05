@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:fbpmn/src/models/snap_line.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/manager.dart';
+import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -123,16 +124,6 @@ class NodeManager extends Manager {
     }
   }
 
-  // Метод для получения экранных координат из мировых
-  Offset _worldToScreen(Offset worldPosition) {
-    return worldPosition * state.scale + state.offset;
-  }
-
-  // Метод для получения мировых координат из экранных
-  Offset _screenToWorld(Offset screenPosition) {
-    return (screenPosition - state.offset) / state.scale;
-  }
-
   // Корректировка позиции при изменении масштаба
   void onScaleChanged() {
     if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
@@ -163,7 +154,7 @@ class NodeManager extends Manager {
 
     // Для обычных узлов и свернутых swimlane
     final worldNodePosition = state.originalNodePosition;
-    final screenNodePosition = _worldToScreen(worldNodePosition);
+    final screenNodePosition = Utils.worldToScreen(worldNodePosition, state);
 
     state.selectedNodeOffset = Offset(
       screenNodePosition.dx - frameTotalOffset,
@@ -191,7 +182,7 @@ class NodeManager extends Manager {
 
       // Вычисляем новую позицию рамки
       final newFrameScreenPos =
-          _worldToScreen(_initialSwimlaneBounds!.topLeft) +
+          Utils.worldToScreen(_initialSwimlaneBounds!.topLeft, state) +
           Offset(positionDelta.dx * state.scale, positionDelta.dy * state.scale);
 
       state.selectedNodeOffset = Offset(
@@ -232,8 +223,8 @@ class NodeManager extends Manager {
       maxX = math.max(maxX, parentRect.right);
       maxY = math.max(maxY, parentRect.bottom);
 
-      final screenLeftTop = _worldToScreen(Offset(minX, minY));
-      final screenRightBottom = _worldToScreen(Offset(maxX, maxY));
+      final screenLeftTop = Utils.worldToScreen(Offset(minX, minY), state);
+      final screenRightBottom = Utils.worldToScreen(Offset(maxX, maxY), state);
 
       // Добавляем детей
       if (swimlaneNode.children != null) {
@@ -250,8 +241,8 @@ class NodeManager extends Manager {
       }
 
       // Экранные координаты
-      final screenMin = _worldToScreen(Offset(minX, minY));
-      final screenMax = _worldToScreen(Offset(maxX, maxY));
+      final screenMin = Utils.worldToScreen(Offset(minX, minY), state);
+      final screenMax = Utils.worldToScreen(Offset(maxX, maxY), state);
 
       // Позиция рамки с отступом
       state.selectedNodeOffset = Offset(screenMin.dx - frameTotalOffset, screenMin.dy - frameTotalOffset);
@@ -466,7 +457,7 @@ class NodeManager extends Manager {
   }
 
   Future<void> selectNodeAtPosition(Offset screenPosition, {bool immediateDrag = false}) async {
-    final worldPos = _screenToWorld(screenPosition);
+    final worldPos = Utils.screenToWorld(screenPosition, state);
 
     TableNode? foundNode;
     Offset? foundNodeWorldPosition;
@@ -630,10 +621,10 @@ class NodeManager extends Manager {
     final iconMargin = 8.0 * state.scale;
 
     // Преобразуем мировые координаты узла в экранные
-    final screenNodePosition = _worldToScreen(nodeWorldPosition);
+    final screenNodePosition = Utils.worldToScreen(nodeWorldPosition, state);
 
     // Преобразуем мировые координаты клика в экранные
-    final screenClickPosition = _worldToScreen(worldPosition);
+    final screenClickPosition = Utils.worldToScreen(worldPosition, state);
 
     // Рассчитываем область иконки в экранных координатах
     // Иконка всегда имеет фиксированный размер в пикселях экрана
@@ -986,7 +977,7 @@ class NodeManager extends Manager {
     final node = state.nodesSelected.first!;
     _isResizing = true;
     _resizeHandle = handle;
-    _resizeStartPosition = _screenToWorld(screenPosition);
+    _resizeStartPosition = Utils.screenToWorld(screenPosition, state);
     _resizeStartSize = node.size;
     _resizeStartNodePosition = node.aPosition ?? (state.delta + node.position);
 
@@ -998,7 +989,7 @@ class NodeManager extends Manager {
     if (!_isResizing || state.nodesSelected.isEmpty || _resizeHandle == null) return;
 
     final node = state.nodesSelected.first!;
-    final currentWorldPos = _screenToWorld(screenPosition);
+    final currentWorldPos = Utils.screenToWorld(screenPosition, state);
     final delta = currentWorldPos - _resizeStartPosition;
 
     Size newSize = _resizeStartSize;
@@ -1099,7 +1090,7 @@ class NodeManager extends Manager {
     state.originalNodePosition = newPosition;
 
     // Обновляем позицию выделенного узла на экране
-    final screenNodePosition = _worldToScreen(newPosition);
+    final screenNodePosition = Utils.worldToScreen(newPosition, state);
     state.selectedNodeOffset = Offset(
       screenNodePosition.dx - frameTotalOffset,
       screenNodePosition.dy - frameTotalOffset,
