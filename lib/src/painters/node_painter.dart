@@ -28,6 +28,24 @@ class NodePainter {
     );
   }
 
+  /// Проверяет, находится ли точка в пределах узла с учетом отступов
+  bool _isPointInsideNode(Offset point, Rect nodeRect, {double padding = 0}) {
+    return point.dx >= nodeRect.left - padding &&
+        point.dx <= nodeRect.right + padding &&
+        point.dy >= nodeRect.top - padding &&
+        point.dy <= nodeRect.bottom + padding;
+  }
+
+  /// Проверяет, пересекается ли линия с видимой областью узла
+  bool _isLineVisibleInNode(Offset start, Offset end, Rect nodeRect) {
+    // Проверяем оба конца линии и середину
+    final midPoint = Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
+    
+    return _isPointInsideNode(start, nodeRect) ||
+           _isPointInsideNode(end, nodeRect) ||
+           _isPointInsideNode(midPoint, nodeRect);
+  }
+
   /// Рекурсивная отрисовка узла и его детей
   void _drawNodeRecursive({
     required Canvas canvas,
@@ -159,7 +177,7 @@ class NodePainter {
     final minRowHeight = EditorConfig.minRowHeight;
     final actualRowHeight = math.max(rowHeight, minRowHeight);
 
-    // Рисуем заголовок
+    // Рисуем заголовок (всегда видимый)
     final headerRect = Rect.fromLTWH(nodeRect.left + 1, nodeRect.top + 1, nodeRect.width - 2, headerHeight - 2);
 
     final headerPaint = Paint()
@@ -186,12 +204,14 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
+    // Рисуем горизонтальную линию под заголовком, только если она в пределах узла
     if (!isNotGroup && hasAttributes) {
-      canvas.drawLine(
-        Offset(nodeRect.left, nodeRect.top + headerHeight),
-        Offset(nodeRect.right, nodeRect.top + headerHeight),
-        headerBorderPaint,
-      );
+      final lineStart = Offset(nodeRect.left, nodeRect.top + headerHeight);
+      final lineEnd = Offset(nodeRect.right, nodeRect.top + headerHeight);
+      
+      if (_isPointInsideNode(lineStart, nodeRect) || _isPointInsideNode(lineEnd, nodeRect)) {
+        canvas.drawLine(lineStart, lineEnd, headerBorderPaint);
+      }
     }
 
     // Текст заголовка
@@ -209,34 +229,61 @@ class NodePainter {
     )..textWidthBasis = TextWidthBasis.longestLine;
 
     headerTextPainter.layout(maxWidth: nodeRect.width - 16);
-    headerTextPainter.paint(
-      canvas,
-      Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2),
-    );
+    
+    // Проверяем, находится ли текст заголовка в пределах узла
+    final headerTextPosition = Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2);
+    final headerTextBottom = headerTextPosition.dy + headerTextPainter.height;
+    
+    if (headerTextPosition.dy >= nodeRect.top && headerTextBottom <= nodeRect.bottom) {
+      headerTextPainter.paint(canvas, headerTextPosition);
+    }
 
-    // Рисуем строки таблицы
+    // Рисуем строки таблицы только если они видны
     for (int i = 0; i < attributes.length; i++) {
       final attribute = attributes[i];
       final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
       final rowBottom = rowTop + actualRowHeight;
 
-      final columnSplit = isEnum ? 20 : nodeRect.width - 20;
-
-      // Вертикальная граница
-      canvas.drawLine(
-        Offset(nodeRect.left + columnSplit, rowTop),
-        Offset(nodeRect.left + columnSplit, rowBottom),
-        headerBorderPaint,
-      );
-
-      // Горизонтальная граница
-      if (i < attributes.length - 1) {
-        canvas.drawLine(Offset(nodeRect.left, rowBottom), Offset(nodeRect.right, rowBottom), headerBorderPaint);
+      // Если строка полностью выше или ниже видимой области - пропускаем
+      if (rowBottom <= nodeRect.top || rowTop >= nodeRect.bottom) {
+        continue;
       }
 
-      // Текст в левой колонке
+      // Ограничиваем вертикальные координаты для частично видимых строк
+      final visibleRowTop = math.max(rowTop, nodeRect.top);
+      final visibleRowBottom = math.min(rowBottom, nodeRect.bottom);
+
+      final columnSplit = isEnum ? 20 : nodeRect.width - 20;
+
+      // Вертикальная граница - рисуем только видимую часть
+      if (columnSplit >= nodeRect.left && columnSplit <= nodeRect.right) {
+        final verticalLineStart = Offset(columnSplit.toDouble(), visibleRowTop);
+        final verticalLineEnd = Offset(columnSplit.toDouble(), visibleRowBottom);
+        
+        if (_isLineVisibleInNode(verticalLineStart, verticalLineEnd, nodeRect)) {
+          canvas.drawLine(verticalLineStart, verticalLineEnd, headerBorderPaint);
+        }
+      }
+
+      // Горизонтальная граница между строками - рисуем только если она видна
+      if (i < attributes.length - 1) {
+        final horizontalLineY = rowBottom;
+        
+        // Проверяем, находится ли горизонтальная линия в пределах видимой области
+        if (horizontalLineY >= nodeRect.top && horizontalLineY <= nodeRect.bottom) {
+          // Для частично видимых строк рисуем только видимую часть горизонтальной линии
+          final horizontalLineStart = Offset(nodeRect.left, horizontalLineY);
+          final horizontalLineEnd = Offset(nodeRect.right, horizontalLineY);
+          
+          if (_isLineVisibleInNode(horizontalLineStart, horizontalLineEnd, nodeRect)) {
+            canvas.drawLine(horizontalLineStart, horizontalLineEnd, headerBorderPaint);
+          }
+        }
+      }
+
+      // Текст в левой колонке - рисуем только если виден
       final leftText = isEnum ? attribute['position'] : attribute['label'];
-      if (leftText.isNotEmpty) {
+      if (leftText.isNotEmpty && rowTop < nodeRect.bottom && rowBottom > nodeRect.top) {
         final leftTextPainter = TextPainter(
           text: TextSpan(
             text: leftText,
@@ -249,15 +296,19 @@ class NodePainter {
         )..textWidthBasis = TextWidthBasis.parent;
 
         leftTextPainter.layout(maxWidth: columnSplit - 16);
-        leftTextPainter.paint(
-          canvas,
-          Offset(nodeRect.left + 8, rowTop + (actualRowHeight - leftTextPainter.height) / 2),
-        );
+        
+        final leftTextPosition = Offset(nodeRect.left + 8, rowTop + (actualRowHeight - leftTextPainter.height) / 2);
+        final leftTextBottom = leftTextPosition.dy + leftTextPainter.height;
+        
+        // Проверяем, находится ли текст в видимой области
+        if (leftTextPosition.dy >= nodeRect.top && leftTextBottom <= nodeRect.bottom) {
+          leftTextPainter.paint(canvas, leftTextPosition);
+        }
       }
 
-      // Текст в правой колонке
+      // Текст в правой колонке - рисуем только если виден
       final rightText = isEnum ? attribute['label'] : '';
-      if (rightText.isNotEmpty) {
+      if (rightText.isNotEmpty && rowTop < nodeRect.bottom && rowBottom > nodeRect.top) {
         final rightTextPainter = TextPainter(
           text: TextSpan(
             text: rightText,
@@ -270,10 +321,14 @@ class NodePainter {
         )..textWidthBasis = TextWidthBasis.parent;
 
         rightTextPainter.layout(maxWidth: nodeRect.width - columnSplit - 16);
-        rightTextPainter.paint(
-          canvas,
-          Offset(nodeRect.left + columnSplit + 8, rowTop + (actualRowHeight - rightTextPainter.height) / 2),
-        );
+        
+        final rightTextPosition = Offset(nodeRect.left + columnSplit + 8, rowTop + (actualRowHeight - rightTextPainter.height) / 2);
+        final rightTextBottom = rightTextPosition.dy + rightTextPainter.height;
+        
+        // Проверяем, находится ли текст в видимой области
+        if (rightTextPosition.dy >= nodeRect.top && rightTextBottom <= nodeRect.bottom) {
+          rightTextPainter.paint(canvas, rightTextPosition);
+        }
       }
     }
   }
@@ -333,41 +388,46 @@ class NodePainter {
       iconSize,
     );
 
-    // Черный квадрат
-    final iconBackgroundPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.fill;
+    // Проверяем, видна ли иконка
+    if (_isPointInsideNode(iconRect.topLeft, nodeRect) && 
+        _isPointInsideNode(iconRect.bottomRight, nodeRect)) {
+      
+      // Черный квадрат
+      final iconBackgroundPaint = Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.fill;
 
-    canvas.drawRect(iconRect, iconBackgroundPaint);
+      canvas.drawRect(iconRect, iconBackgroundPaint);
 
-    // Белый крест или минус
-    final iconPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round;
+      // Белый крест или минус
+      final iconPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..strokeCap = StrokeCap.round;
 
-    if (isCollapsed) {
-      // Крест (плюс)
-      final centerX = iconRect.left + iconSize / 2;
-      final centerY = iconRect.top + iconSize / 2;
-      final crossSize = iconSize / 3;
+      if (isCollapsed) {
+        // Крест (плюс)
+        final centerX = iconRect.left + iconSize / 2;
+        final centerY = iconRect.top + iconSize / 2;
+        final crossSize = iconSize / 3;
 
-      // Горизонтальная линия
-      canvas.drawLine(Offset(centerX - crossSize, centerY), Offset(centerX + crossSize, centerY), iconPaint);
+        // Горизонтальная линия
+        canvas.drawLine(Offset(centerX - crossSize, centerY), Offset(centerX + crossSize, centerY), iconPaint);
 
-      // Вертикальная линия
-      canvas.drawLine(Offset(centerX, centerY - crossSize), Offset(centerX, centerY + crossSize), iconPaint);
-    } else {
-      // Минус
-      final centerY = iconRect.top + iconSize / 2;
-      final minusSize = iconSize / 3;
+        // Вертикальная линия
+        canvas.drawLine(Offset(centerX, centerY - crossSize), Offset(centerX, centerY + crossSize), iconPaint);
+      } else {
+        // Минус
+        final centerY = iconRect.top + iconSize / 2;
+        final minusSize = iconSize / 3;
 
-      canvas.drawLine(
-        Offset(iconRect.left + iconSize / 2 - minusSize, centerY),
-        Offset(iconRect.left + iconSize / 2 + minusSize, centerY),
-        iconPaint,
-      );
+        canvas.drawLine(
+          Offset(iconRect.left + iconSize / 2 - minusSize, centerY),
+          Offset(iconRect.left + iconSize / 2 + minusSize, centerY),
+          iconPaint,
+        );
+      }
     }
 
     // Текст заголовка
@@ -383,10 +443,14 @@ class NodePainter {
     final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 1, ellipsis: '...');
 
     textPainter.layout(maxWidth: nodeRect.width - textLeftMargin - 8);
-    textPainter.paint(
-      canvas,
-      Offset(nodeRect.left + textLeftMargin, nodeRect.top + (actualHeaderHeight - textPainter.height) / 2),
-    );
+    
+    final textPosition = Offset(nodeRect.left + textLeftMargin, nodeRect.top + (actualHeaderHeight - textPainter.height) / 2);
+    final textBottom = textPosition.dy + textPainter.height;
+    
+    // Проверяем, находится ли текст в видимой области
+    if (textPosition.dy >= nodeRect.top && textBottom <= nodeRect.bottom) {
+      textPainter.paint(canvas, textPosition);
+    }
   }
 
   /// Простая отрисовка одного узла (без детей) - для обратной совместимости

@@ -38,9 +38,9 @@ class NodeManager extends Manager {
   double get frameTotalOffset => framePadding + frameBorderWidth; // Общий отступ для рамки
 
   // Константы для маркеров изменения размера
-  static const double resizeHandleOffset = 8.0; // Отступ маркеров от узла
+  static const double resizeHandleOffset = 12.0; // Отступ маркеров от узла
   static const double resizeHandleLength = 12.0; // Длина линий маркера
-  static const double resizeHandleWidth = 4.0; // Толщина линий маркера
+  static const double resizeHandleWidth = 2.0; // Толщина линий маркера
 
   NodeManager({required this.state, required this.tileManager, required this.arrowManager});
 
@@ -938,6 +938,13 @@ class NodeManager extends Manager {
     node.size = newSize;
     node.aPosition = newPosition;
     node.position = newPosition - state.delta;
+
+    if(node.qType == 'group' && node.children != null && node.children!.isNotEmpty){
+      for(final child in node.children!){
+        child.size = Size(node.size.width - 50, node.size.height - 50);
+        child.aPosition = Offset(node.aPosition!.dx + 25, node.aPosition!.dy + 25);
+      }
+    }
     
     // Обновляем originalNodePosition для корректного расчёта связей
     state.originalNodePosition = newPosition;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../editor_state.dart';
+import '../painters/resize_painter.dart';
 import '../services/node_manager.dart';
 import 'state_widget.dart';
 
@@ -35,18 +36,19 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     final offset = NodeManager.resizeHandleOffset * scale;
     final length = NodeManager.resizeHandleLength * scale;
     final width = NodeManager.resizeHandleWidth * scale;
+    final frame = widget.nodeManager.frameTotalOffset;
 
     // Размер узла (масштабированный)
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
     final resizeBoxContainerSize = Size(
-      nodeSize.width + offset * 2 + width * 4,
-      nodeSize.height + offset * 2 + width * 4,
+      nodeSize.width + offset * 2,
+      nodeSize.height + offset * 2,
     );
 
     return node.qType != 'swimlane' || (node.qType == 'swimlane' && node.isCollapsed != null && node.isCollapsed!)
         ? Positioned(
-            left: widget.state.selectedNodeOffset.dx - offset,
-            top: widget.state.selectedNodeOffset.dy - offset,
+            left: widget.state.selectedNodeOffset.dx + frame - offset,
+            top: widget.state.selectedNodeOffset.dy + frame - offset,
             child: Container(
               width: resizeBoxContainerSize.width,
               height: resizeBoxContainerSize.height,
@@ -133,7 +135,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           angle: rotation * 3.14159 / 180,
           child: CustomPaint(
             size: Size(length, length),
-            painter: _CornerHandlePainter(width: width, isHovered: isHovered),
+            painter: ResizePainter(width: width, isHovered: isHovered),
           ),
         ),
       ),
@@ -169,29 +171,4 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       ),
     );
   }
-}
-
-/// Painter для углового маркера (две линии под углом 90 градусов)
-class _CornerHandlePainter extends CustomPainter {
-  final double width;
-  final bool isHovered;
-
-  _CornerHandlePainter({required this.width, this.isHovered = false});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = isHovered ? Colors.red : Colors.blue
-      ..strokeWidth = width
-      ..strokeCap = StrokeCap.round;
-
-    // Горизонтальная линия
-    canvas.drawLine(Offset(0, 0), Offset(size.width, 0), paint);
-
-    // Вертикальная линия
-    canvas.drawLine(Offset(0, 0), Offset(0, size.height), paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
