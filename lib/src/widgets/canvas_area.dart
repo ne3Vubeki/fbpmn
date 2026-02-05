@@ -48,7 +48,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
   
   // Для отслеживания resize handles
   String? _currentResizeHandle;
-  String? _hoveredResizeHandle;
 
   @override
   void initState() {
@@ -80,18 +79,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
     }
   }
 
-  /// Обновляет состояние наведённого resize handle
-  void _updateHoveredResizeHandle(Offset position) {
-    if (widget.nodeManager.isResizing) return;
-    
-    final handle = widget.nodeManager.getResizeHandleAtPosition(position);
-    if (_hoveredResizeHandle != handle) {
-      setState(() {
-        _hoveredResizeHandle = handle;
-      });
-    }
-  }
-
   /// Возвращает курсор в зависимости от состояния
   MouseCursor _getCursor() {
     // Если идёт resize, показываем курсор для текущего handle
@@ -100,8 +87,8 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
     }
     
     // Если наведён на resize handle, показываем соответствующий курсор
-    if (_hoveredResizeHandle != null) {
-      return widget.nodeManager.getResizeCursor(_hoveredResizeHandle);
+    if (widget.nodeManager.hoveredResizeHandle != null) {
+      return widget.nodeManager.getResizeCursor(widget.nodeManager.hoveredResizeHandle);
     }
     
     // Стандартные курсоры для панорамирования
@@ -144,7 +131,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                 cursor: _getCursor(),
                 onHover: (PointerHoverEvent event) {
                   widget.state.mousePosition = event.localPosition;
-                  _updateHoveredResizeHandle(event.localPosition);
+                  widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
                 },
                 child: Listener(
                   onPointerSignal: (pointerSignal) {
@@ -158,7 +145,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   },
                   onPointerMove: (PointerMoveEvent event) {
                     widget.state.mousePosition = event.localPosition;
-                    _updateHoveredResizeHandle(event.localPosition);
+                    widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
 
                     if (widget.state.isPanning && widget.state.isShiftPressed) {
                       widget.inputHandler.handlePanUpdate(
@@ -237,7 +224,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         ResizeHandles(
                           state: widget.state,
                           nodeManager: widget.nodeManager,
-                          hoveredHandle: _hoveredResizeHandle,
                         ),
 
                         // Отображение snap-линий при перетаскивании узла

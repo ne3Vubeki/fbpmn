@@ -41,7 +41,7 @@ class _AppState extends State<App> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Zoomable Canvas with Stable Grid',
+      title: 'WASM редактор BPMN',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: Scaffold(
         body: _isLoading 

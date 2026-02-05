@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
+import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -472,6 +473,8 @@ class ArrowManager extends Manager {
     arrow.paths = basePath.paths;
     arrow.coordinates = basePath.coordinates;
     arrow.sides = baseConnectionPoints.sides;
+    
+    print('ArrowManager: arrow.coordinates: ${arrow.coordinates}');
 
     return basePath;
   }
@@ -1033,6 +1036,21 @@ class ArrowManager extends Manager {
         maxX = arrow.aPositionTarget.dx > maxX ? arrow.aPositionTarget.dx : maxX;
         maxY = arrow.aPositionTarget.dy > maxY ? arrow.aPositionTarget.dy : maxY;
       }
+    }
+
+    // Добавляем толщину связи, если ширина или высота равна 0
+    const arrowThickness = EditorConfig.arrowSelectedWidth;
+    final width = maxX - minX;
+    final height = maxY - minY;
+
+    if (width == 0) {
+      minX -= arrowThickness / 2;
+      maxX += arrowThickness / 2;
+    }
+
+    if (height == 0) {
+      minY -= arrowThickness / 2;
+      maxY += arrowThickness / 2;
     }
 
     return Rect.fromLTRB(minX, minY, maxX, maxY);

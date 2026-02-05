@@ -27,8 +27,6 @@ class ArrowsCustomPainter extends CustomPainter {
     final scaleX = arrowsSize.width / size.width;
     final scaleY = arrowsSize.height / size.height;
 
-
-
     // Сохраняем состояние canvas
     canvas.save();
 
@@ -38,6 +36,8 @@ class ArrowsCustomPainter extends CustomPainter {
     // Рисуем основной узел
     final painter = ArrowsPainter(arrows: arrows, arrowManager: arrowManager);
     painter.paint(canvas, scale, arrowsRect);
+
+    print('Paint arrow');
 
     canvas.restore();
   }

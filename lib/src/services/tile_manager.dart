@@ -53,25 +53,27 @@ class TileManager extends Manager {
           } catch (e) {
             print('Warning: Error disposing removed tile: $e');
           }
-          state.imageTiles.removeWhere((t) => t.id == oldTile.id);
         }
 
+        // Создаем новый список тайлов
+        final updatedTiles = <ImageTile>[];
+        
         // Обновляем существующие и добавляем новые тайлы
         for (final tile in tiles) {
           final existingIndex = state.imageTiles.indexWhere((t) => t.id == tile.id);
           if (existingIndex >= 0) {
-            // Тайл существует - заменяем его, dispose старого
+            // Тайл существует - dispose старого и добавляем новый
             try {
               state.imageTiles[existingIndex].image.dispose();
             } catch (e) {
               print('Warning: Error disposing old tile in update: $e');
             }
-            state.imageTiles[existingIndex] = tile;
-          } else {
-            // Новый тайл - просто добавляем
-            state.imageTiles.add(tile);
           }
+          updatedTiles.add(tile);
         }
+        
+        // Заменяем список целиком для корректного отслеживания изменений
+        state.imageTiles = updatedTiles;
       } else {
         state.imageTiles = tiles;
       }

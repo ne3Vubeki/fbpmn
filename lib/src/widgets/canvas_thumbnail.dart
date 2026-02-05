@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 
 import '../models/image_tile.dart';
+import '../utils/canvas_icons.dart';
 
 class CanvasThumbnail extends StatefulWidget {
   final double canvasWidth;
@@ -56,18 +57,25 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   void didUpdateWidget(CanvasThumbnail oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Проверяем, изменились ли тайлы (по содержимому, а не по ссылке)
+    // Проверяем, изменились ли тайлы
     bool tilesChanged = false;
-    if (widget.imageTiles.length != oldWidget.imageTiles.length) {
+    
+    // Если это разные списки по ссылке - точно изменились
+    if (!identical(widget.imageTiles, oldWidget.imageTiles)) {
+      tilesChanged = true;
+    } else if (widget.imageTiles.length != oldWidget.imageTiles.length) {
+      // Если длина изменилась - точно изменились
       tilesChanged = true;
     } else {
-      // Проверяем, изменились ли позиции или содержимое тайлов
+      // Проверяем содержимое тайлов (id, bounds, image, scale)
       for (int i = 0; i < widget.imageTiles.length; i++) {
         final newTile = widget.imageTiles[i];
         final oldTile = oldWidget.imageTiles[i];
 
-        if (newTile.bounds != oldTile.bounds ||
-            newTile.image != oldTile.image ||
+        // Сравниваем по id, bounds, image и scale
+        if (newTile.id != oldTile.id ||
+            newTile.bounds != oldTile.bounds ||
+            !identical(newTile.image, oldTile.image) ||
             newTile.scale != oldTile.scale) {
           tilesChanged = true;
           break;
@@ -385,7 +393,11 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Center(
-                    child: Icon(Icons.open_with, color: Colors.blue, size: 24),
+                    child: CanvasIcon(
+                      painter: CanvasIcons.paintOpenWith,
+                      size: 24,
+                      color: Colors.blue,
+                    ),
                   ),
                 ),
               ),

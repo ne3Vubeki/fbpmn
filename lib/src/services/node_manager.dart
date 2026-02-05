@@ -26,6 +26,7 @@ class NodeManager extends Manager {
   // Переменные для изменения размеров узла
   bool _isResizing = false;
   String? _resizeHandle; // 'tl', 'tr', 'bl', 'br', 't', 'r', 'b', 'l'
+  String? _hoveredResizeHandle;
   Offset _resizeStartPosition = Offset.zero;
   Size _resizeStartSize = Size.zero;
   Offset _resizeStartNodePosition = Offset.zero;
@@ -1074,6 +1075,28 @@ class NodeManager extends Manager {
       state.snapLines = [];
     }
 
+    // Проверяем минимальные размеры после snap-прилипания
+    if (newSize.width < minWidth) {
+      newSize = Size(minWidth, newSize.height);
+      // Корректируем позицию для маркеров, изменяющих левую границу
+      if (_resizeHandle!.contains('l')) {
+        newPosition = Offset(
+          _resizeStartNodePosition.dx + (_resizeStartSize.width - minWidth),
+          newPosition.dy,
+        );
+      }
+    }
+    if (newSize.height < minHeight) {
+      newSize = Size(newSize.width, minHeight);
+      // Корректируем позицию для маркеров, изменяющих верхнюю границу
+      if (_resizeHandle!.contains('t')) {
+        newPosition = Offset(
+          newPosition.dx,
+          _resizeStartNodePosition.dy + (_resizeStartSize.height - minHeight),
+        );
+      }
+    }
+
     // Обновляем размер и позицию узла
     node.size = newSize;
     node.aPosition = newPosition;
@@ -1114,6 +1137,23 @@ class NodeManager extends Manager {
 
   /// Проверяет, идёт ли сейчас изменение размера
   bool get isResizing => _isResizing;
+
+  /// Возвращает текущий наведенный resize handle
+  String? get hoveredResizeHandle => _hoveredResizeHandle;
+
+  /// Обновляет состояние наведённого resize handle
+  void updateHoveredResizeHandle(Offset position) {
+    if (_isResizing) {
+      _hoveredResizeHandle = null;
+      return;
+    }
+    
+    final handle = getResizeHandleAtPosition(position);
+    if (_hoveredResizeHandle != handle) {
+      _hoveredResizeHandle = handle;
+      onStateUpdate();
+    }
+  }
 
   /// Определяет, на каком маркере изменения размера находится курсор
   String? getResizeHandleAtPosition(Offset screenPosition) {

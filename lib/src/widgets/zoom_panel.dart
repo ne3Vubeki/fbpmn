@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/canvas_icons.dart';
 
 class ZoomPanel extends StatelessWidget {
   final double scale;
@@ -57,8 +58,8 @@ class ZoomPanel extends StatelessWidget {
               children: [
                 // Кнопка скрытия/показа миниатюры
                 IconButton(
-                  icon: Icon(
-                    showThumbnail ? Icons.picture_in_picture_alt : Icons.picture_in_picture,
+                  icon: CanvasIcon(
+                    painter: (canvas, size, color) => CanvasIcons.paintThumbnail(canvas, size, color, filled: showThumbnail),
                     size: 18,
                     color: showThumbnail ? Colors.blue : Colors.grey,
                   ),
@@ -107,8 +108,8 @@ class ZoomPanel extends StatelessWidget {
             children: [
               // Кнопка переключения snap-прилипания
               IconButton(
-                icon: Icon(
-                  snapEnabled ? Icons.grid_on : Icons.grid_off,
+                icon: CanvasIcon(
+                  painter: snapEnabled ? CanvasIcons.paintGridOn : CanvasIcons.paintGridOff,
                   size: 18,
                   color: snapEnabled ? Colors.green : Colors.grey,
                 ),
@@ -122,8 +123,8 @@ class ZoomPanel extends StatelessWidget {
 
               // Кнопка переключения кривые/ортогональные связи
               IconButton(
-                icon: Icon(
-                  showCurves ? Icons.timeline : Icons.show_chart,
+                icon: CanvasIcon(
+                  painter: showCurves ? CanvasIcons.paintCurves : CanvasIcons.paintOrthogonal,
                   size: 18,
                   color: showCurves ? Colors.purple : Colors.grey,
                 ),
@@ -137,7 +138,11 @@ class ZoomPanel extends StatelessWidget {
 
               // Кнопка сброса масштаба
               IconButton(
-                icon: const Icon(Icons.zoom_out_map, size: 18),
+                icon: const CanvasIcon(
+                  painter: CanvasIcons.paintZoomOutMap,
+                  size: 18,
+                  color: Colors.black87,
+                ),
                 onPressed: onResetZoom,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -148,8 +153,8 @@ class ZoomPanel extends StatelessWidget {
 
               // Кнопка отображения границ тайлов
               IconButton(
-                icon: Icon(
-                  showTileBorders ? Icons.border_outer : Icons.border_clear,
+                icon: CanvasIcon(
+                  painter: showTileBorders ? CanvasIcons.paintBorderOuter : CanvasIcons.paintBorderClear,
                   size: 18,
                   color: showTileBorders ? Colors.red : Colors.grey,
                 ),

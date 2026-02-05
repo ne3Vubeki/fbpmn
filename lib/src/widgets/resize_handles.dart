@@ -8,9 +8,8 @@ import 'state_widget.dart';
 class ResizeHandles extends StatefulWidget {
   final EditorState state;
   final NodeManager nodeManager;
-  final String? hoveredHandle;
 
-  const ResizeHandles({super.key, required this.state, required this.nodeManager, this.hoveredHandle});
+  const ResizeHandles({super.key, required this.state, required this.nodeManager});
 
   @override
   State<ResizeHandles> createState() => _ResizeHandlesState();
@@ -122,7 +121,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
   /// Создаёт угловой маркер (две линии под углом 90 градусов)
   Widget _buildCornerHandle(String handle, double left, double top, double rotation, double length, double width) {
-    final isHovered = widget.hoveredHandle == handle;
+    final isHovered = widget.nodeManager.hoveredResizeHandle == handle;
 
     return Positioned(
       left: left,
@@ -144,7 +143,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
   /// Создаёт боковой маркер (одна линия)
   Widget _buildSideHandle(String handle, double left, double top, bool isHorizontal, double length, double width) {
-    final isHovered = widget.hoveredHandle == handle;
+    final isHovered = widget.nodeManager.hoveredResizeHandle == handle;
 
     return Positioned(
       left: left,

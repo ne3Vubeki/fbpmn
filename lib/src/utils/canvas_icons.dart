@@ -1,0 +1,405 @@
+import 'package:flutter/material.dart';
+
+/// Класс для отрисовки иконок с помощью Canvas
+class CanvasIcons {
+  /// Иконка миниатюры (picture_in_picture)
+  static void paintThumbnail(Canvas canvas, Size size, Color color, {bool filled = false}) {
+    final paint = Paint()
+      ..color = color
+      ..style = filled ? PaintingStyle.fill : PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    // Внешний прямоугольник
+    final outerRect = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
+    canvas.drawRect(outerRect, paint);
+
+    // Внутренний прямоугольник (миниатюра)
+    if (filled) {
+      final innerPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill;
+      final innerRect = Rect.fromLTWH(
+        size.width * 0.5,
+        size.height * 0.5,
+        size.width * 0.4,
+        size.height * 0.4,
+      );
+      canvas.drawRect(innerRect, innerPaint);
+    } else {
+      final innerRect = Rect.fromLTWH(
+        size.width * 0.5,
+        size.height * 0.5,
+        size.width * 0.4,
+        size.height * 0.4,
+      );
+      canvas.drawRect(innerRect, paint);
+    }
+  }
+
+  /// Иконка сетки включена (grid_on)
+  static void paintGridOn(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final cellWidth = size.width / 3;
+    final cellHeight = size.height / 3;
+
+    // Вертикальные линии
+    for (int i = 1; i < 3; i++) {
+      canvas.drawLine(
+        Offset(cellWidth * i, 2),
+        Offset(cellWidth * i, size.height - 2),
+        paint,
+      );
+    }
+
+    // Горизонтальные линии
+    for (int i = 1; i < 3; i++) {
+      canvas.drawLine(
+        Offset(2, cellHeight * i),
+        Offset(size.width - 2, cellHeight * i),
+        paint,
+      );
+    }
+
+    // Рамка
+    final rect = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
+    canvas.drawRect(rect, paint);
+  }
+
+  /// Иконка сетки выключена (grid_off)
+  static void paintGridOff(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final cellWidth = size.width / 3;
+    final cellHeight = size.height / 3;
+
+    // Вертикальные линии (пунктирные)
+    for (int i = 1; i < 3; i++) {
+      _drawDashedLine(
+        canvas,
+        Offset(cellWidth * i, 2),
+        Offset(cellWidth * i, size.height - 2),
+        paint,
+        dashWidth: 2,
+        dashSpace: 2,
+      );
+    }
+
+    // Горизонтальные линии (пунктирные)
+    for (int i = 1; i < 3; i++) {
+      _drawDashedLine(
+        canvas,
+        Offset(2, cellHeight * i),
+        Offset(size.width - 2, cellHeight * i),
+        paint,
+        dashWidth: 2,
+        dashSpace: 2,
+      );
+    }
+
+    // Рамка (пунктирная)
+    final rect = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
+    _drawDashedRect(canvas, rect, paint);
+  }
+
+  /// Иконка кривых (timeline)
+  static void paintCurves(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+    path.moveTo(2, size.height - 2);
+    
+    // Кривая линия
+    path.quadraticBezierTo(
+      size.width * 0.25,
+      size.height * 0.5,
+      size.width * 0.5,
+      size.height * 0.5,
+    );
+    path.quadraticBezierTo(
+      size.width * 0.75,
+      size.height * 0.5,
+      size.width - 2,
+      2,
+    );
+
+    canvas.drawPath(path, paint);
+
+    // Точки на кривой
+    final pointPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(Offset(2, size.height - 2), 2, pointPaint);
+    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.5), 2, pointPaint);
+    canvas.drawCircle(Offset(size.width - 2, 2), 2, pointPaint);
+  }
+
+  /// Иконка ортогональных линий (show_chart)
+  static void paintOrthogonal(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+    path.moveTo(2, size.height - 2);
+    path.lineTo(size.width * 0.3, size.height - 2);
+    path.lineTo(size.width * 0.3, size.height * 0.5);
+    path.lineTo(size.width * 0.7, size.height * 0.5);
+    path.lineTo(size.width * 0.7, 2);
+    path.lineTo(size.width - 2, 2);
+
+    canvas.drawPath(path, paint);
+
+    // Точки на линии
+    final pointPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(Offset(2, size.height - 2), 2, pointPaint);
+    canvas.drawCircle(Offset(size.width * 0.3, size.height * 0.5), 2, pointPaint);
+    canvas.drawCircle(Offset(size.width * 0.7, 2), 2, pointPaint);
+    canvas.drawCircle(Offset(size.width - 2, 2), 2, pointPaint);
+  }
+
+  /// Иконка фокусировки (zoom_out_map)
+  static void paintZoomOutMap(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final arrowSize = size.width * 0.25;
+
+    // Стрелки в углах
+    // Верхний левый
+    canvas.drawLine(Offset(2, 2), Offset(2 + arrowSize, 2), paint);
+    canvas.drawLine(Offset(2, 2), Offset(2, 2 + arrowSize), paint);
+
+    // Верхний правый
+    canvas.drawLine(Offset(size.width - 2, 2), Offset(size.width - 2 - arrowSize, 2), paint);
+    canvas.drawLine(Offset(size.width - 2, 2), Offset(size.width - 2, 2 + arrowSize), paint);
+
+    // Нижний левый
+    canvas.drawLine(Offset(2, size.height - 2), Offset(2 + arrowSize, size.height - 2), paint);
+    canvas.drawLine(Offset(2, size.height - 2), Offset(2, size.height - 2 - arrowSize), paint);
+
+    // Нижний правый
+    canvas.drawLine(Offset(size.width - 2, size.height - 2), Offset(size.width - 2 - arrowSize, size.height - 2), paint);
+    canvas.drawLine(Offset(size.width - 2, size.height - 2), Offset(size.width - 2, size.height - 2 - arrowSize), paint);
+  }
+
+  /// Иконка границ включена (border_outer)
+  static void paintBorderOuter(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final rect = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
+    canvas.drawRect(rect, paint);
+
+    // Внутренний крест
+    final thinPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    canvas.drawLine(
+      Offset(size.width / 2, 4),
+      Offset(size.width / 2, size.height - 4),
+      thinPaint,
+    );
+    canvas.drawLine(
+      Offset(4, size.height / 2),
+      Offset(size.width - 4, size.height / 2),
+      thinPaint,
+    );
+  }
+
+  /// Иконка границ выключена (border_clear)
+  static void paintBorderClear(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final rect = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
+    _drawDashedRect(canvas, rect, paint);
+
+    // Внутренний крест (пунктирный)
+    _drawDashedLine(
+      canvas,
+      Offset(size.width / 2, 4),
+      Offset(size.width / 2, size.height - 4),
+      paint,
+      dashWidth: 2,
+      dashSpace: 2,
+    );
+    _drawDashedLine(
+      canvas,
+      Offset(4, size.height / 2),
+      Offset(size.width - 4, size.height / 2),
+      paint,
+      dashWidth: 2,
+      dashSpace: 2,
+    );
+  }
+
+  /// Иконка перемещения (open_with)
+  static void paintOpenWith(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.miter;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final lineLength = size.width * 0.3;
+    final arrowSize = size.width * 0.12;
+
+    // Рисуем 4 стрелки от центра в разные стороны
+    // Стрелка вверх
+    final topEnd = Offset(center.dx, center.dy - lineLength);
+    canvas.drawLine(center, topEnd, paint);
+    final topPath = Path()
+      ..moveTo(topEnd.dx - arrowSize, topEnd.dy + arrowSize)
+      ..lineTo(topEnd.dx, topEnd.dy)
+      ..lineTo(topEnd.dx + arrowSize, topEnd.dy + arrowSize);
+    canvas.drawPath(topPath, paint);
+
+    // Стрелка вниз
+    final bottomEnd = Offset(center.dx, center.dy + lineLength);
+    canvas.drawLine(center, bottomEnd, paint);
+    final bottomPath = Path()
+      ..moveTo(bottomEnd.dx - arrowSize, bottomEnd.dy - arrowSize)
+      ..lineTo(bottomEnd.dx, bottomEnd.dy)
+      ..lineTo(bottomEnd.dx + arrowSize, bottomEnd.dy - arrowSize);
+    canvas.drawPath(bottomPath, paint);
+
+    // Стрелка влево
+    final leftEnd = Offset(center.dx - lineLength, center.dy);
+    canvas.drawLine(center, leftEnd, paint);
+    final leftPath = Path()
+      ..moveTo(leftEnd.dx + arrowSize, leftEnd.dy - arrowSize)
+      ..lineTo(leftEnd.dx, leftEnd.dy)
+      ..lineTo(leftEnd.dx + arrowSize, leftEnd.dy + arrowSize);
+    canvas.drawPath(leftPath, paint);
+
+    // Стрелка вправо
+    final rightEnd = Offset(center.dx + lineLength, center.dy);
+    canvas.drawLine(center, rightEnd, paint);
+    final rightPath = Path()
+      ..moveTo(rightEnd.dx - arrowSize, rightEnd.dy - arrowSize)
+      ..lineTo(rightEnd.dx, rightEnd.dy)
+      ..lineTo(rightEnd.dx - arrowSize, rightEnd.dy + arrowSize);
+    canvas.drawPath(rightPath, paint);
+
+    // Центральный круг
+    final circlePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 2.0, circlePaint);
+  }
+
+  /// Вспомогательный метод для рисования пунктирной линии
+  static void _drawDashedLine(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    Paint paint, {
+    double dashWidth = 3,
+    double dashSpace = 3,
+  }) {
+    final distance = (end - start).distance;
+    final normalizedVector = Offset(
+      (end.dx - start.dx) / distance,
+      (end.dy - start.dy) / distance,
+    );
+
+    double currentDistance = 0;
+    bool isDash = true;
+
+    while (currentDistance < distance) {
+      final segmentLength = isDash ? dashWidth : dashSpace;
+      final nextDistance = (currentDistance + segmentLength).clamp(0.0, distance);
+
+      if (isDash) {
+        final startPoint = Offset(
+          start.dx + normalizedVector.dx * currentDistance,
+          start.dy + normalizedVector.dy * currentDistance,
+        );
+        final endPoint = Offset(
+          start.dx + normalizedVector.dx * nextDistance,
+          start.dy + normalizedVector.dy * nextDistance,
+        );
+        canvas.drawLine(startPoint, endPoint, paint);
+      }
+
+      currentDistance = nextDistance;
+      isDash = !isDash;
+    }
+  }
+
+  /// Вспомогательный метод для рисования пунктирного прямоугольника
+  static void _drawDashedRect(Canvas canvas, Rect rect, Paint paint) {
+    _drawDashedLine(canvas, rect.topLeft, rect.topRight, paint);
+    _drawDashedLine(canvas, rect.topRight, rect.bottomRight, paint);
+    _drawDashedLine(canvas, rect.bottomRight, rect.bottomLeft, paint);
+    _drawDashedLine(canvas, rect.bottomLeft, rect.topLeft, paint);
+  }
+}
+
+/// Виджет для отображения canvas-иконки
+class CanvasIcon extends StatelessWidget {
+  final void Function(Canvas, Size, Color) painter;
+  final double size;
+  final Color color;
+
+  const CanvasIcon({
+    super.key,
+    required this.painter,
+    this.size = 18,
+    this.color = Colors.black,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _CanvasIconPainter(painter: painter, color: color),
+    );
+  }
+}
+
+/// CustomPainter для отрисовки иконки
+class _CanvasIconPainter extends CustomPainter {
+  final void Function(Canvas, Size, Color) painter;
+  final Color color;
+
+  _CanvasIconPainter({required this.painter, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    painter(canvas, size, color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CanvasIconPainter oldDelegate) {
+    return oldDelegate.color != color;
+  }
+}

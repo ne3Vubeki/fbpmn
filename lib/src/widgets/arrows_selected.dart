@@ -80,6 +80,8 @@ class _ArrowsSelected extends State<ArrowsSelected>
       boundingRect.size.height * widget.state.scale,
     );
 
+    print('boundingRect: $boundingRect');
+
     return widget.state.arrowsSelected.isNotEmpty
         ? Positioned(
             left: screenPositionRect.dx,

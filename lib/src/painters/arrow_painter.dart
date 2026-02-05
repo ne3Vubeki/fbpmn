@@ -33,7 +33,7 @@ class ArrowsPainter {
       // Получаем полный путь стрелки
       final paths = arrow.paths ?? ArrowPaths(path: Path());
 
-      _drawPaths(canvas, arrow, scale, paths, linePaint, fillPaint, strokePaint, Colors.black, isTiles: true);
+      _drawPaths(canvas, arrow, scale, paths, arrow.coordinates!, linePaint, fillPaint, strokePaint, Colors.black, isTiles: true);
     }
   }
 
@@ -71,9 +71,11 @@ class ArrowsPainter {
       final paths = pathResult.paths;
 
       // Обновляем координаты для отрисовки powers
-      arrow.coordinates = pathResult.coordinates;
+      // arrow.coordinates = pathResult.coordinates;
 
-      _drawPaths(canvas, arrow, scale,paths, linePaint, fillPaint, strokePaint, Colors.blue);
+      print('ArrowPainter: arrow.coordinates: ${arrow.coordinates}');
+
+      _drawPaths(canvas, arrow, scale, paths, pathResult.coordinates, linePaint, fillPaint, strokePaint, Colors.blue);
     }
   }
 
@@ -82,6 +84,7 @@ class ArrowsPainter {
     Arrow arrow,
     double scale,
     ArrowPaths paths,
+    List<Offset> coordinates,
     Paint linePaint,
     Paint fillPaint,
     Paint strokePaint,
@@ -114,15 +117,14 @@ class ArrowsPainter {
     }
 
     // 4. Рисуем значения powers
-    _drawPowers(canvas, arrow, scale, color, isTiles: isTiles);
+    _drawPowers(canvas, arrow, coordinates, scale, color, isTiles: isTiles);
   }
 
-  void _drawPowers(Canvas canvas, Arrow arrow, double scale, Color color, {bool isTiles = false}) {
+  void _drawPowers(Canvas canvas, Arrow arrow, List<Offset> coordinates, double scale, Color color, {bool isTiles = false}) {
     final powers = arrow.powers;
     if (powers == null || powers.isEmpty) return;
 
-    final coordinates = arrow.coordinates;
-    if (coordinates == null || coordinates.length < 2) return;
+    if (coordinates.length < 2) return;
 
     final sides = arrow.sides;
     final sidesParts = sides?.split(':') ?? ['', ''];
@@ -160,38 +162,23 @@ class ArrowsPainter {
       switch (currentSide) {
         case 'left':
           // Связь выходит/входит слева - текст слева от точки
-          textPosition = Offset(
-            position.dx + padding,
-            position.dy - textPainter.height / 2,
-          );
+          textPosition = Offset(position.dx + padding, position.dy - textPainter.height / 2);
           break;
         case 'right':
           // Связь выходит/входит справа - текст справа от точки
-          textPosition = Offset(
-            position.dx - padding - textPainter.width,
-            position.dy - textPainter.height / 2,
-          );
+          textPosition = Offset(position.dx - padding - textPainter.width, position.dy - textPainter.height / 2);
           break;
         case 'top':
           // Связь выходит/входит сверху - текст над точкой
-          textPosition = Offset(
-            position.dx - textPainter.width / 2,
-            position.dy - padding,
-          );
+          textPosition = Offset(position.dx - textPainter.width / 2, position.dy - padding);
           break;
         case 'bottom':
           // Связь выходит/входит снизу - текст под точкой
-          textPosition = Offset(
-            position.dx - textPainter.width / 2,
-            position.dy - textPainter.height,
-          );
+          textPosition = Offset(position.dx - textPainter.width / 2, position.dy - textPainter.height);
           break;
         default:
           // Fallback: центрируем по вертикали
-          textPosition = Offset(
-            position.dx,
-            position.dy - textPainter.height / 2,
-          );
+          textPosition = Offset(position.dx, position.dy - textPainter.height / 2);
       }
 
       textPainter.paint(canvas, textPosition);
