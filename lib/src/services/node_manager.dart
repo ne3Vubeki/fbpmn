@@ -838,6 +838,145 @@ class NodeManager extends Manager {
     state.snapLines.clear();
   }
 
+  // Применяет snap-прилипание при изменении размера узла
+  ({Offset position, Size size, List<SnapLine> snapLines}) _applySnapForResize(
+    Offset worldPosition,
+    Size nodeSize,
+    String handle,
+  ) {
+    if (state.nodesSelected.isEmpty || state.nodesSelected.first == null) {
+      return (position: worldPosition, size: nodeSize, snapLines: []);
+    }
+
+    final selectedNode = state.nodesSelected.first!;
+
+    // Границы изменяемого узла
+    final nodeLeft = worldPosition.dx;
+    final nodeRight = worldPosition.dx + nodeSize.width;
+    final nodeTop = worldPosition.dy;
+    final nodeBottom = worldPosition.dy + nodeSize.height;
+
+    // Получаем видимые узлы в viewport
+    final visibleNodes = _getVisibleNodes();
+
+    // Собираем все snap-точки от видимых узлов
+    final snapPointsX = <double>[];
+    final snapPointsY = <double>[];
+
+    for (final node in visibleNodes) {
+      if (node.id == selectedNode.id) continue;
+
+      final nodeWorldPos = node.aPosition ?? (state.delta + node.position);
+      final left = nodeWorldPos.dx;
+      final right = nodeWorldPos.dx + node.size.width;
+      final top = nodeWorldPos.dy;
+      final bottom = nodeWorldPos.dy + node.size.height;
+
+      snapPointsX.addAll([left, right]);
+      snapPointsY.addAll([top, bottom]);
+    }
+
+    // Результирующие значения
+    double newX = worldPosition.dx;
+    double newY = worldPosition.dy;
+    double newWidth = nodeSize.width;
+    double newHeight = nodeSize.height;
+    final snapLines = <SnapLine>[];
+
+    final threshold = snapThreshold / state.scale;
+
+    // Применяем snap в зависимости от того, какой маркер используется
+    // Для маркеров, изменяющих левую границу (tl, l, bl)
+    if (handle.contains('l')) {
+      double? bestSnapX;
+      double bestSnapDistX = threshold;
+
+      for (final snapX in snapPointsX) {
+        final dist = (nodeLeft - snapX).abs();
+        if (dist < bestSnapDistX) {
+          bestSnapDistX = dist;
+          bestSnapX = snapX;
+        }
+      }
+
+      if (bestSnapX != null) {
+        final widthDiff = nodeLeft - bestSnapX;
+        newWidth = nodeSize.width + widthDiff;
+        newX = bestSnapX;
+        final screenX = bestSnapX * state.scale + state.offset.dx;
+        snapLines.add(SnapLine(type: SnapLineType.vertical, position: screenX));
+      }
+    }
+
+    // Для маркеров, изменяющих правую границу (tr, r, br)
+    if (handle.contains('r')) {
+      double? bestSnapX;
+      double bestSnapDistX = threshold;
+
+      for (final snapX in snapPointsX) {
+        final dist = (nodeRight - snapX).abs();
+        if (dist < bestSnapDistX) {
+          bestSnapDistX = dist;
+          bestSnapX = snapX;
+        }
+      }
+
+      if (bestSnapX != null) {
+        newWidth = bestSnapX - worldPosition.dx;
+        final screenX = bestSnapX * state.scale + state.offset.dx;
+        snapLines.add(SnapLine(type: SnapLineType.vertical, position: screenX));
+      }
+    }
+
+    // Для маркеров, изменяющих верхнюю границу (tl, t, tr)
+    if (handle.contains('t')) {
+      double? bestSnapY;
+      double bestSnapDistY = threshold;
+
+      for (final snapY in snapPointsY) {
+        final dist = (nodeTop - snapY).abs();
+        if (dist < bestSnapDistY) {
+          bestSnapDistY = dist;
+          bestSnapY = snapY;
+        }
+      }
+
+      if (bestSnapY != null) {
+        final heightDiff = nodeTop - bestSnapY;
+        newHeight = nodeSize.height + heightDiff;
+        newY = bestSnapY;
+        final screenY = bestSnapY * state.scale + state.offset.dy;
+        snapLines.add(SnapLine(type: SnapLineType.horizontal, position: screenY));
+      }
+    }
+
+    // Для маркеров, изменяющих нижнюю границу (bl, b, br)
+    if (handle.contains('b')) {
+      double? bestSnapY;
+      double bestSnapDistY = threshold;
+
+      for (final snapY in snapPointsY) {
+        final dist = (nodeBottom - snapY).abs();
+        if (dist < bestSnapDistY) {
+          bestSnapDistY = dist;
+          bestSnapY = snapY;
+        }
+      }
+
+      if (bestSnapY != null) {
+        newHeight = bestSnapY - worldPosition.dy;
+        final screenY = bestSnapY * state.scale + state.offset.dy;
+        snapLines.add(SnapLine(type: SnapLineType.horizontal, position: screenY));
+      }
+    }
+
+    return (
+      position: Offset(newX, newY),
+      size: Size(newWidth, newHeight),
+      snapLines: snapLines,
+    );
+  }
+
   // ============ МЕТОДЫ ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРОВ УЗЛА ============
 
   /// Начало изменения размера узла
@@ -867,7 +1006,7 @@ class NodeManager extends Manager {
 
     // Минимальные размеры узла
     const double minWidth = 50.0;
-    const double minHeight = 30.0;
+    final double minHeight = node.qType == 'group' ? 80.0 : 30.0;
 
     switch (_resizeHandle) {
       // Угловые маркеры
@@ -934,6 +1073,16 @@ class NodeManager extends Manager {
         break;
     }
 
+    // Применяем snap-прилипание, если включено
+    if (state.snapEnabled) {
+      final snapResult = _applySnapForResize(newPosition, newSize, _resizeHandle!);
+      newPosition = snapResult.position;
+      newSize = snapResult.size;
+      state.snapLines = snapResult.snapLines;
+    } else {
+      state.snapLines = [];
+    }
+
     // Обновляем размер и позицию узла
     node.size = newSize;
     node.aPosition = newPosition;
@@ -967,6 +1116,7 @@ class NodeManager extends Manager {
 
     _isResizing = false;
     _resizeHandle = null;
+    clearSnapLines();
 
     onStateUpdate();
   }
