@@ -28,6 +28,36 @@ class NodePainter {
     );
   }
 
+  /// Проверяет, выходит ли содержимое узла за его нижнюю границу
+  bool _isContentOverflowing({
+    required TableNode node,
+    required Rect nodeRect,
+  }) {
+    if (node.qType == 'swimlane') {
+      // Для swimlane проверяем состояние свернутости
+      final isCollapsed = node.isCollapsed ?? false;
+      if (isCollapsed) {
+        return false; // Свернутый swimlane не имеет переполнения
+      }
+      // Для раскрытого swimlane может быть переполнение детей
+      return false; // Пока просто возвращаем false
+    }
+
+    final attributes = node.attributes;
+    if (attributes.isEmpty) return false; // Нет атрибутов - нет переполнения
+
+    final headerHeight = EditorConfig.headerHeight;
+    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
+    final minRowHeight = EditorConfig.minRowHeight;
+    final actualRowHeight = math.max(rowHeight, minRowHeight);
+
+    // Вычисляем высоту всего содержимого
+    final contentHeight = headerHeight + actualRowHeight * attributes.length;
+    
+    // Если высота содержимого больше высоты узла - есть переполнение
+    return contentHeight > nodeRect.height;
+  }
+
   /// Создает маску для обрезки содержимого (аналог overflow: hidden)
   /// Маска обрезает только внутреннее содержимое, не затрагивая границу
   void _applyClipMask({
@@ -77,6 +107,7 @@ class NodePainter {
     required Rect nodeRect,
     double lineWidth = 1.0,
     bool forTile = false,
+    bool isContentOverflowing = false,
   }) {
     final isSwimlane = node.qType == 'swimlane';
     final attributes = node.attributes;
@@ -84,26 +115,101 @@ class NodePainter {
     final isEnum = node.qType == 'enum';
     final isNotGroup = node.groupId != null;
     
-    // Для swimlane рисуем отдельно
-    if (isSwimlane) {
-      final borderPaint = Paint()
-        ..color = Colors.black
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = lineWidth
-        ..isAntiAlias = true;
+    // Основной цвет границы (черный по умолчанию)
+    Color borderColor = Colors.black;
+    
+    // Если есть переполнение содержимого, используем красный цвет для нижней границы
+    if (isContentOverflowing) {
+      // Для узлов со скругленными углами рисуем специальным способом
+      if (!isSwimlane && !isNotGroup && !isEnum && hasAttributes) {
+        // Сначала рисуем всю границу черным
+        final blackBorderPaint = Paint()
+          ..color = Colors.black
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..isAntiAlias = true
+          ..filterQuality = FilterQuality.high;
 
-      canvas.drawRect(nodeRect, borderPaint);
-      return;
+        final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+        canvas.drawRRect(roundedRect, blackBorderPaint);
+
+        // Затем поверх рисуем нижнюю часть красным
+        final redBorderPaint = Paint()
+          ..color = Colors.red
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..isAntiAlias = true
+          ..filterQuality = FilterQuality.high;
+
+        // Вычисляем точки для нижней границы со скруглениями
+        final bottomLeft = Offset(nodeRect.left + 8, nodeRect.bottom);
+        final bottomRight = Offset(nodeRect.right - 8, nodeRect.bottom);
+        
+        // Левая скругленная часть
+        canvas.drawArc(
+          Rect.fromCircle(center: Offset(nodeRect.left + 8, nodeRect.bottom - 8), radius: 8),
+          math.pi * 0.5,
+          math.pi * 0.5,
+          false,
+          redBorderPaint,
+        );
+        
+        // Прямая часть нижней границы
+        canvas.drawLine(bottomLeft, bottomRight, redBorderPaint);
+        
+        // Правая скругленная часть
+        canvas.drawArc(
+          Rect.fromCircle(center: Offset(nodeRect.right - 8, nodeRect.bottom - 8), radius: 8),
+          math.pi * 2,
+          math.pi * 0.5,
+          false,
+          redBorderPaint,
+        );
+        
+        return;
+      } else {
+        // Для прямоугольных узлов рисуем черную границу, затем красную снизу
+        final blackBorderPaint = Paint()
+          ..color = Colors.black
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..isAntiAlias = true
+          ..filterQuality = FilterQuality.high;
+
+        if (isSwimlane || isNotGroup || isEnum || !hasAttributes) {
+          canvas.drawRect(nodeRect, blackBorderPaint);
+        } else {
+          final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+          canvas.drawRRect(roundedRect, blackBorderPaint);
+        }
+
+        // Рисуем красную нижнюю границу
+        final redBorderPaint = Paint()
+          ..color = Colors.red
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..isAntiAlias = true
+          ..filterQuality = FilterQuality.high;
+
+        final bottomLeft = Offset(nodeRect.left, nodeRect.bottom);
+        final bottomRight = Offset(nodeRect.right, nodeRect.bottom);
+        canvas.drawLine(bottomLeft, bottomRight, redBorderPaint);
+        
+        return;
+      }
     }
-
+    
+    // Если нет переполнения, рисуем обычную границу
     final borderPaint = Paint()
-      ..color = Colors.black
+      ..color = borderColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = lineWidth
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (isNotGroup || isEnum || !hasAttributes) {
+    if (isSwimlane) {
+      canvas.drawRect(nodeRect, borderPaint);
+    } else if (isNotGroup || isEnum || !hasAttributes) {
       canvas.drawRect(nodeRect, borderPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -176,6 +282,12 @@ class NodePainter {
       final scaleY = 1.0;
       final lineWidth = 1.0 / math.min(scaleX, scaleY);
       
+      // Проверяем переполнение содержимого
+      final isContentOverflowing = _isContentOverflowing(
+        node: currentNode,
+        nodeRect: nodeWorldRect,
+      );
+      
       // 1. Сначала рисуем фон и границу (без маски)
       _drawNodeBackground(
         canvas: canvas,
@@ -190,6 +302,7 @@ class NodePainter {
         nodeRect: nodeWorldRect,
         lineWidth: lineWidth,
         forTile: true,
+        isContentOverflowing: isContentOverflowing,
       );
       
       // 2. Теперь применяем маску для внутреннего содержимого
@@ -212,6 +325,12 @@ class NodePainter {
       final nodeLocalRect = Rect.fromLTWH(0, 0, currentNode.size.width, currentNode.size.height);
       final lineWidth = 1.0 / math.min(scaleX, scaleY);
       
+      // Проверяем переполнение содержимого
+      final isContentOverflowing = _isContentOverflowing(
+        node: currentNode,
+        nodeRect: nodeLocalRect,
+      );
+      
       // 1. Сначала рисуем фон и границу (без маски)
       _drawNodeBackground(
         canvas: canvas,
@@ -226,6 +345,7 @@ class NodePainter {
         nodeRect: nodeLocalRect,
         lineWidth: lineWidth,
         forTile: false,
+        isContentOverflowing: isContentOverflowing,
       );
       
       // 2. Теперь применяем маску для внутреннего содержимого
@@ -501,6 +621,12 @@ class NodePainter {
     final scaleY = targetRect.height / node.size.height;
     final lineWidth = 1.0 / math.min(scaleX, scaleY);
     
+    // Проверяем переполнение содержимого
+    final isContentOverflowing = _isContentOverflowing(
+      node: node,
+      nodeRect: targetRect,
+    );
+    
     canvas.save();
     
     // 1. Сначала рисуем фон и границу (без маски)
@@ -517,6 +643,7 @@ class NodePainter {
       nodeRect: targetRect,
       lineWidth: lineWidth,
       forTile: forTile,
+      isContentOverflowing: isContentOverflowing,
     );
     
     // 2. Теперь применяем маску для внутреннего содержимого
