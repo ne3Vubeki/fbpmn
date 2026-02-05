@@ -1,4 +1,3 @@
-import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -45,7 +44,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
 
   onResetZoom() async {
     if (widget.state.nodesSelected.isNotEmpty) {
-      widget.nodeManager.handleEmptyAreaClick();
+      await widget.nodeManager.handleEmptyAreaClick();
     }
     widget.scrollHandler.autoFitAndCenterNodes();
   }
@@ -88,11 +87,17 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
   void _toggleCurves() async {
     widget.state.useCurves = !widget.state.useCurves;
     if (widget.state.nodesSelected.isNotEmpty) {
-      widget.nodeManager.handleEmptyAreaClick();
+      await widget.nodeManager.handleEmptyAreaClick();
     }
     await widget.tileManager.updateTilesAfterNodeChange();
     // Перерисовываем
     setState(() {});
+  }
+
+  void _toggleSnap() {
+    setState(() {
+      widget.state.snapEnabled = !widget.state.snapEnabled;
+    });
   }
 
   @override
@@ -129,6 +134,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
             showTileBorders: showTileBorders,
             showThumbnail: _showThumbnail,
             showCurves: widget.state.useCurves,
+            snapEnabled: widget.state.snapEnabled,
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
             panelWidth: containerWidth,
@@ -136,6 +142,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
             onToggleTileBorders: onToggleTileBorders,
             onToggleThumbnail: _toggleThumbnail,
             onToggleCurves: _toggleCurves,
+            onToggleSnap: _toggleSnap,
           ),
         ],
       ),

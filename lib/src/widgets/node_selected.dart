@@ -25,8 +25,7 @@ class NodeSelected extends StatefulWidget {
   State<NodeSelected> createState() => _NodeSelectedState();
 }
 
-class _NodeSelectedState extends State<NodeSelected>
-    with StateWidget<NodeSelected> {
+class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelected> {
   // Используем константы из NodeManager
   double get framePadding => widget.nodeManager.framePadding;
   double get frameBorderWidth => widget.nodeManager.frameBorderWidth;
@@ -59,10 +58,7 @@ class _NodeSelectedState extends State<NodeSelected>
     final scale = widget.state.scale;
 
     // Размер узла (масштабированный)
-    final nodeSize = Size(
-      node.size.width * widget.state.scale,
-      node.size.height * widget.state.scale,
-    );
+    final nodeSize = Size(node.size.width * widget.state.scale, node.size.height * widget.state.scale);
 
     return widget.state.nodesSelected.isNotEmpty
         ? Positioned(
@@ -71,7 +67,12 @@ class _NodeSelectedState extends State<NodeSelected>
             child: Container(
               padding: widget.state.framePadding,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue, width: frameBorderWidth ),
+                border: Border.all(
+                  color: node.qType == 'swimlane' && node.isCollapsed != null && !node.isCollapsed!
+                      ? Colors.blue
+                      : Colors.transparent,
+                  width: frameBorderWidth,
+                ),
                 borderRadius: isNotGroup || isEnum || !hasAttributes
                     ? BorderRadius.zero
                     : BorderRadius.circular(12 * scale),
@@ -79,10 +80,7 @@ class _NodeSelectedState extends State<NodeSelected>
               child: RepaintBoundary(
                 child: CustomPaint(
                   size: nodeSize,
-                  painter: NodeCustomPainter(
-                    node: node,
-                    targetSize: nodeSize,
-                  ),
+                  painter: NodeCustomPainter(node: node, targetSize: nodeSize),
                 ),
               ),
             ),

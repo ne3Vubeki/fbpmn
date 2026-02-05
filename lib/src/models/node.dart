@@ -3,6 +3,8 @@ import 'dart:ui';
 
 import 'package:fbpmn/src/models/connections.dart';
 
+import '../utils/editor_config.dart';
+
 class Node {
   final String id;
   String? parent;
@@ -17,7 +19,7 @@ class Node {
     required this.id,
     required this.position,
     this.parent,
-    this.size = const Size(100, 60),
+    this.size = const Size(100, EditorConfig.headerHeight),
     this.text = 'Node',
     this.isSelected = false,
     this.aPosition,

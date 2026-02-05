@@ -1,6 +1,7 @@
 // Модель табличного узла
 import 'package:flutter/material.dart';
 
+import '../utils/editor_config.dart';
 import 'node.dart';
 
 class TableNode extends Node {
@@ -50,7 +51,11 @@ class TableNode extends Node {
     final x = (geometry['x'] as num).toDouble();
     final y = (geometry['y'] as num).toDouble();
     final width = (geometry['width'] as num).toDouble();
-    final height = (geometry['height'] as num).toDouble();
+    double height = (geometry['height'] as num).toDouble();
+
+    if(height < EditorConfig.headerHeight) {
+      height = EditorConfig.headerHeight;
+    }
 
     // Функция parseColor остается без изменений
     Color parseColor(String styleStr, String property) {

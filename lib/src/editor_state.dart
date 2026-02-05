@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'models/image_tile.dart';
+import 'models/snap_line.dart';
 import 'models/table.node.dart';
 import 'models/arrow.dart';
 
@@ -27,6 +28,10 @@ class EditorState {
   bool isNodeDragging = false;
   Offset selectedNodeOffset = Offset.zero;
   EdgeInsets framePadding = EdgeInsets.all(0);
+
+  // Snap-линии для прилипания узлов
+  List<SnapLine> snapLines = [];
+  bool snapEnabled = false; // Включение/выключение snap-прилипания
 
   // Связи/стрелки
   final List<Arrow> arrows = [];

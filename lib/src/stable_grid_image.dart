@@ -36,17 +36,11 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _arrowManager = ArrowManager(state: _editorState);
 
-    _tileManager = TileManager(
-      state: _editorState,
-      arrowManager: _arrowManager,
-    );
+    _tileManager = TileManager(state: _editorState, arrowManager: _arrowManager);
 
     _nodeManager = NodeManager(state: _editorState, tileManager: _tileManager, arrowManager: _arrowManager);
 
-    _scrollHandler = ScrollHandler(
-      state: _editorState,
-      nodeManager: _nodeManager,
-    );
+    _scrollHandler = ScrollHandler(state: _editorState, nodeManager: _nodeManager);
 
     _inputHandler = InputHandler(
       state: _editorState,
@@ -67,6 +61,10 @@ class _StableGridImageState extends State<StableGridImage> {
     final double dy = (metadata['dy'] as num).toDouble();
 
     _editorState.delta = Offset(dx, dy);
+
+    _editorState.isLoading = true;
+    _tileManager.onStateUpdate();
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (objects != null && objects.isNotEmpty) {
       for (final object in objects) {
@@ -91,13 +89,13 @@ class _StableGridImageState extends State<StableGridImage> {
         }
       }
 
-      await _tileManager.createTiledImage(
-        _editorState.nodes,
-        _editorState.arrows,
-      );
+      await _tileManager.createTiledImage(_editorState.nodes, _editorState.arrows);
     } else {
       await _tileManager.createFallbackTiles();
     }
+
+    _editorState.isLoading = false;
+    _tileManager.onStateUpdate();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollHandler.autoFitAndCenterNodes();

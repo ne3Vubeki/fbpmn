@@ -10,6 +10,7 @@ class ArrowsCustomPainter extends CustomPainter {
   final Rect arrowsRect;
   final Offset nodeOffset;
   final ArrowManager arrowManager;
+  final double areaNodes;
 
   ArrowsCustomPainter({
     required this.arrows,
@@ -18,6 +19,7 @@ class ArrowsCustomPainter extends CustomPainter {
     required this.arrowsRect,
     required this.nodeOffset,
     required this.arrowManager,
+    required this.areaNodes,
   });
 
   @override
@@ -45,6 +47,7 @@ class ArrowsCustomPainter extends CustomPainter {
     return oldDelegate.arrows.length != arrows.length ||
         oldDelegate.arrowsSize != arrowsSize ||
         oldDelegate.nodeOffset != nodeOffset ||
-        oldDelegate.scale != scale;
+        oldDelegate.scale != scale ||
+        oldDelegate.areaNodes != areaNodes;
   }
 }

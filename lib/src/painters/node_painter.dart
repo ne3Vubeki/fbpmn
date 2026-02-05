@@ -9,10 +9,7 @@ class NodePainter {
   final TableNode node;
   final bool isSelected;
 
-  NodePainter({
-    required this.node,
-    this.isSelected = false,
-  });
+  NodePainter({required this.node, this.isSelected = false});
 
   /// Отрисовка узла с учетом базового отступа (рекурсивно с детьми)
   void paintWithOffset({
@@ -31,6 +28,235 @@ class NodePainter {
     );
   }
 
+  /// Проверяет, выходит ли содержимое узла за его нижнюю границу
+  bool _isContentOverflowing({
+    required TableNode node,
+    required Rect nodeRect,
+  }) {
+    if (node.qType == 'swimlane') {
+      // Для swimlane проверяем состояние свернутости
+      final isCollapsed = node.isCollapsed ?? false;
+      if (isCollapsed) {
+        return false; // Свернутый swimlane не имеет переполнения
+      }
+      // Для раскрытого swimlane может быть переполнение детей
+      return false; // Пока просто возвращаем false
+    }
+
+    final attributes = node.attributes;
+    if (attributes.isEmpty) return false; // Нет атрибутов - нет переполнения
+
+    final headerHeight = EditorConfig.headerHeight;
+    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
+    final minRowHeight = EditorConfig.minRowHeight;
+    final actualRowHeight = math.max(rowHeight, minRowHeight);
+
+    // Вычисляем высоту всего содержимого
+    final contentHeight = headerHeight + actualRowHeight * attributes.length;
+    
+    // Если высота содержимого больше высоты узла - есть переполнение
+    return contentHeight > nodeRect.height;
+  }
+
+  /// Создает маску для обрезки содержимого (аналог overflow: hidden)
+  /// Маска обрезает только внутреннее содержимое, не затрагивая границу
+  void _applyClipMask({
+    required Canvas canvas,
+    required Rect nodeRect,
+    required TableNode node,
+    double lineWidth = 1.0,
+  }) {
+    final attributes = node.attributes;
+    final hasAttributes = attributes.isNotEmpty;
+    final isEnum = node.qType == 'enum';
+    final isNotGroup = node.groupId != null;
+    final isSwimlane = node.qType == 'swimlane';
+
+    // Уменьшаем область обрезки на половину толщины линии, чтобы оставить место для границы
+    final clipInset = lineWidth;
+
+    if (isSwimlane || isNotGroup || isEnum || !hasAttributes) {
+      // Прямоугольная маска без скруглений
+      final clipRect = Rect.fromLTWH(
+        nodeRect.left + clipInset,
+        nodeRect.top + clipInset,
+        nodeRect.width - clipInset * 2,
+        nodeRect.height - clipInset * 2,
+      );
+      canvas.clipRect(clipRect);
+    } else {
+      // Маска со скругленными углами, но с меньшим радиусом для внутреннего содержимого
+      final innerRadius = math.max(0, 8 - clipInset);
+      final roundedRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          nodeRect.left + clipInset,
+          nodeRect.top + clipInset,
+          nodeRect.width - clipInset * 2,
+          nodeRect.height - clipInset * 2,
+        ),
+        Radius.circular(innerRadius.toDouble()),
+      );
+      canvas.clipRRect(roundedRect);
+    }
+  }
+
+  /// Рисует границу узла (без маски)
+  void _drawNodeBorder({
+    required Canvas canvas,
+    required TableNode node,
+    required Rect nodeRect,
+    double lineWidth = 1.0,
+    bool forTile = false,
+    bool isContentOverflowing = false,
+  }) {
+    final isSwimlane = node.qType == 'swimlane';
+    final attributes = node.attributes;
+    final hasAttributes = attributes.isNotEmpty;
+    final isEnum = node.qType == 'enum';
+    final isNotGroup = node.groupId != null;
+    
+    // Основной цвет границы (черный по умолчанию)
+    Color borderColor = Colors.black;
+    
+    // Если есть переполнение содержимого, используем красный цвет для нижней границы
+    if (isContentOverflowing) {
+      // Для узлов со скругленными углами рисуем специальным способом
+      if (!isSwimlane && !isNotGroup && !isEnum && hasAttributes) {
+        // Сначала рисуем всю границу черным
+        final blackBorderPaint = Paint()
+          ..color = Colors.black
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..isAntiAlias = true
+          ..filterQuality = FilterQuality.high;
+
+        final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+        canvas.drawRRect(roundedRect, blackBorderPaint);
+
+        // Затем поверх рисуем нижнюю часть красным
+        final redBorderPaint = Paint()
+          ..color = Colors.red
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..isAntiAlias = true
+          ..filterQuality = FilterQuality.high;
+
+        // Вычисляем точки для нижней границы со скруглениями
+        final bottomLeft = Offset(nodeRect.left + 8, nodeRect.bottom);
+        final bottomRight = Offset(nodeRect.right - 8, nodeRect.bottom);
+        
+        // Левая скругленная часть
+        canvas.drawArc(
+          Rect.fromCircle(center: Offset(nodeRect.left + 8, nodeRect.bottom - 8), radius: 8),
+          math.pi * 0.5,
+          math.pi * 0.5,
+          false,
+          redBorderPaint,
+        );
+        
+        // Прямая часть нижней границы
+        canvas.drawLine(bottomLeft, bottomRight, redBorderPaint);
+        
+        // Правая скругленная часть
+        canvas.drawArc(
+          Rect.fromCircle(center: Offset(nodeRect.right - 8, nodeRect.bottom - 8), radius: 8),
+          math.pi * 2,
+          math.pi * 0.5,
+          false,
+          redBorderPaint,
+        );
+        
+        return;
+      } else {
+        // Для прямоугольных узлов рисуем черную границу, затем красную снизу
+        final blackBorderPaint = Paint()
+          ..color = Colors.black
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..isAntiAlias = true
+          ..filterQuality = FilterQuality.high;
+
+        if (isSwimlane || isNotGroup || isEnum || !hasAttributes) {
+          canvas.drawRect(nodeRect, blackBorderPaint);
+        } else {
+          final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+          canvas.drawRRect(roundedRect, blackBorderPaint);
+        }
+
+        // Рисуем красную нижнюю границу
+        final redBorderPaint = Paint()
+          ..color = Colors.red
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lineWidth
+          ..isAntiAlias = true
+          ..filterQuality = FilterQuality.high;
+
+        final bottomLeft = Offset(nodeRect.left, nodeRect.bottom);
+        final bottomRight = Offset(nodeRect.right, nodeRect.bottom);
+        canvas.drawLine(bottomLeft, bottomRight, redBorderPaint);
+        
+        return;
+      }
+    }
+    
+    // Если нет переполнения, рисуем обычную границу
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = lineWidth
+      ..isAntiAlias = true
+      ..filterQuality = FilterQuality.high;
+
+    if (isSwimlane) {
+      canvas.drawRect(nodeRect, borderPaint);
+    } else if (isNotGroup || isEnum || !hasAttributes) {
+      canvas.drawRect(nodeRect, borderPaint);
+    } else {
+      final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+      canvas.drawRRect(roundedRect, borderPaint);
+    }
+  }
+
+  /// Рисует фон узла (без маски)
+  void _drawNodeBackground({
+    required Canvas canvas,
+    required TableNode node,
+    required Rect nodeRect,
+    bool forTile = false,
+  }) {
+    final isSwimlane = node.qType == 'swimlane';
+    final attributes = node.attributes;
+    final hasAttributes = attributes.isNotEmpty;
+    final isEnum = node.qType == 'enum';
+    final isNotGroup = node.groupId != null;
+    
+    // Для swimlane рисуем белый фон
+    if (isSwimlane) {
+      final backgroundPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true;
+
+      canvas.drawRect(nodeRect, backgroundPaint);
+      return;
+    }
+
+    final backgroundColor = node.groupId != null ? node.backgroundColor : Colors.white;
+    
+    final backgroundPaint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true
+      ..filterQuality = FilterQuality.high;
+
+    if (isNotGroup || isEnum || !hasAttributes) {
+      canvas.drawRect(nodeRect, backgroundPaint);
+    } else {
+      final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+      canvas.drawRRect(roundedRect, backgroundPaint);
+    }
+  }
+
   /// Рекурсивная отрисовка узла и его детей
   void _drawNodeRecursive({
     required Canvas canvas,
@@ -40,29 +266,55 @@ class NodePainter {
     required bool forTile,
   }) {
     // Рассчитываем абсолютную позицию текущего узла
-    final nodeAbsolutePosition =
-        currentNode.aPosition ??
-        (currentNode.position + parentAbsolutePosition);
+    final nodeAbsolutePosition = currentNode.aPosition ?? (currentNode.position + parentAbsolutePosition);
 
     // Создаем Rect узла в мировых координатах
     final nodeWorldRect = Rect.fromPoints(
       nodeAbsolutePosition,
-      Offset(
-        nodeAbsolutePosition.dx + currentNode.size.width,
-        nodeAbsolutePosition.dy + currentNode.size.height,
-      ),
+      Offset(nodeAbsolutePosition.dx + currentNode.size.width, nodeAbsolutePosition.dy + currentNode.size.height),
     );
 
     canvas.save();
 
     if (forTile) {
       // Для тайла: рисуем в мировых координатах
-      _drawSingleNode(
+      final scaleX = 1.0;
+      final scaleY = 1.0;
+      final lineWidth = 1.0 / math.min(scaleX, scaleY);
+      
+      // Проверяем переполнение содержимого
+      final isContentOverflowing = _isContentOverflowing(
+        node: currentNode,
+        nodeRect: nodeWorldRect,
+      );
+      
+      // 1. Сначала рисуем фон и границу (без маски)
+      _drawNodeBackground(
         canvas: canvas,
         node: currentNode,
         nodeRect: nodeWorldRect,
         forTile: true,
       );
+      
+      _drawNodeBorder(
+        canvas: canvas,
+        node: currentNode,
+        nodeRect: nodeWorldRect,
+        lineWidth: lineWidth,
+        forTile: true,
+        isContentOverflowing: isContentOverflowing,
+      );
+      
+      // 2. Теперь применяем маску для внутреннего содержимого
+      _applyClipMask(
+        canvas: canvas,
+        nodeRect: nodeWorldRect,
+        node: currentNode,
+        lineWidth: lineWidth,
+      );
+      
+      // 3. Рисуем внутреннее содержимое (с маской)
+      _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeWorldRect, forTile: true);
     } else {
       // Для виджета: преобразуем координаты
       final scaleX = nodeWorldRect.width / currentNode.size.width;
@@ -70,27 +322,49 @@ class NodePainter {
 
       canvas.scale(scaleX, scaleY);
 
-      final nodeLocalRect = Rect.fromLTWH(
-        0,
-        0,
-        currentNode.size.width,
-        currentNode.size.height,
+      final nodeLocalRect = Rect.fromLTWH(0, 0, currentNode.size.width, currentNode.size.height);
+      final lineWidth = 1.0 / math.min(scaleX, scaleY);
+      
+      // Проверяем переполнение содержимого
+      final isContentOverflowing = _isContentOverflowing(
+        node: currentNode,
+        nodeRect: nodeLocalRect,
       );
-
-      _drawSingleNode(
+      
+      // 1. Сначала рисуем фон и границу (без маски)
+      _drawNodeBackground(
         canvas: canvas,
         node: currentNode,
         nodeRect: nodeLocalRect,
         forTile: false,
       );
-
+      
+      _drawNodeBorder(
+        canvas: canvas,
+        node: currentNode,
+        nodeRect: nodeLocalRect,
+        lineWidth: lineWidth,
+        forTile: false,
+        isContentOverflowing: isContentOverflowing,
+      );
+      
+      // 2. Теперь применяем маску для внутреннего содержимого
+      _applyClipMask(
+        canvas: canvas,
+        nodeRect: nodeLocalRect,
+        node: currentNode,
+        lineWidth: lineWidth,
+      );
+      
+      // 3. Рисуем внутреннее содержимое (с маской)
+      _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeLocalRect, forTile: false);
     }
 
     canvas.restore();
   }
 
-  /// Отрисовка одного узла (без детей)
-  void _drawSingleNode({
+  /// Отрисовка внутреннего содержимого узла (с примененной маской)
+  void _drawNodeContent({
     required Canvas canvas,
     required TableNode node,
     required Rect nodeRect,
@@ -102,24 +376,9 @@ class NodePainter {
 
     // Для swimlane
     if (node.qType == 'swimlane') {
-      _drawSwimlane(canvas, node, nodeRect, isCollapsed: isCollapsed);
+      _drawSwimlaneContent(canvas, node, nodeRect, isCollapsed: isCollapsed);
       return;
     }
-
-    // Оригинальная логика для остальных узлов...
-    final backgroundColor = node.groupId != null
-        ? node.backgroundColor
-        : Colors.white;
-    final headerBackgroundColor = node.backgroundColor;
-    final borderColor = Colors.black;
-    final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5
-        ? Colors.black
-        : Colors.white;
-
-    // Рассчитываем толщину линии
-    final scaleX = nodeRect.width / node.size.width;
-    final scaleY = nodeRect.height / node.size.height;
-    final lineWidth = 1.0 / math.min(scaleX, scaleY);
 
     final attributes = node.attributes;
     final hasAttributes = attributes.isNotEmpty;
@@ -128,72 +387,15 @@ class NodePainter {
 
     // Для swimlane в раскрытом состоянии
     if (isSwimlane && !isCollapsed) {
-      // Прозрачный заголовок
-      final headerPaint = Paint()
-        ..color = Colors.transparent
-        ..style = PaintingStyle.fill
-        ..isAntiAlias = true
-        ..filterQuality = FilterQuality.high;
-
-      final headerRect = Rect.fromLTWH(
-        nodeRect.left + 1,
-        nodeRect.top + 1,
-        nodeRect.width - 2,
-        EditorConfig.headerHeight - 2,
-      );
-
-      canvas.drawRect(headerRect, headerPaint);
-
-      // Черная рамка без радиусов
-      final borderPaint = Paint()
-        ..color = Colors.black
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = lineWidth
-        ..isAntiAlias = true;
-
-      canvas.drawRect(nodeRect, borderPaint);
-
       // Рисуем иконку и текст заголовка
       _drawSwimlaneHeader(canvas, node, nodeRect, isCollapsed: false);
       return;
     }
 
-    // Рисуем закругленный прямоугольник для всей таблицы
-    final tablePaint = Paint()
-      ..color = backgroundColor
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true
-      ..filterQuality = FilterQuality.high;
-
-    final tableBorderPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = lineWidth
-      ..isAntiAlias = true
-      ..filterQuality = FilterQuality.high;
-
-    if (isNotGroup || isEnum || !hasAttributes) {
-      canvas.drawRect(nodeRect, tablePaint);
-      canvas.drawRect(nodeRect, tableBorderPaint);
-    } else {
-      final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
-      canvas.drawRRect(roundedRect, tablePaint);
-      canvas.drawRRect(roundedRect, tableBorderPaint);
-    }
-
-    // Вычисляем размеры
-    final headerHeight = EditorConfig.headerHeight;
-    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
-    final minRowHeight = EditorConfig.minRowHeight;
-    final actualRowHeight = math.max(rowHeight, minRowHeight);
-
     // Рисуем заголовок
-    final headerRect = Rect.fromLTWH(
-      nodeRect.left + 1,
-      nodeRect.top + 1,
-      nodeRect.width - 2,
-      headerHeight - 2,
-    );
+    final headerBackgroundColor = node.backgroundColor;
+    final headerHeight = EditorConfig.headerHeight;
+    final headerRect = Rect.fromLTWH(nodeRect.left + 1, nodeRect.top + 1, nodeRect.width - 2, headerHeight - 2);
 
     final headerPaint = Paint()
       ..color = headerBackgroundColor
@@ -212,8 +414,13 @@ class NodePainter {
       canvas.drawRRect(headerRoundedRect, headerPaint);
     }
 
+    // Рассчитываем толщину линии для внутренних границ
+    final scaleX = nodeRect.width / node.size.width;
+    final scaleY = nodeRect.height / node.size.height;
+    final lineWidth = 1.0 / math.min(scaleX, scaleY);
+
     final headerBorderPaint = Paint()
-      ..color = borderColor
+      ..color = Colors.black
       ..style = PaintingStyle.stroke
       ..strokeWidth = lineWidth
       ..isAntiAlias = true
@@ -228,13 +435,10 @@ class NodePainter {
     }
 
     // Текст заголовка
+    final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
     final headerTextSpan = TextSpan(
       text: node.text,
-      style: TextStyle(
-        color: textColorHeader,
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
-      ),
+      style: TextStyle(color: textColorHeader, fontSize: 12, fontWeight: FontWeight.bold),
     );
 
     final headerTextPainter = TextPainter(
@@ -246,15 +450,18 @@ class NodePainter {
     )..textWidthBasis = TextWidthBasis.longestLine;
 
     headerTextPainter.layout(maxWidth: nodeRect.width - 16);
+    
+    // Если текст заголовка выходит за границы, он будет автоматически обрезан маской
     headerTextPainter.paint(
       canvas,
-      Offset(
-        nodeRect.left + 8,
-        nodeRect.top + (headerHeight - headerTextPainter.height) / 2,
-      ),
+      Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2),
     );
 
     // Рисуем строки таблицы
+    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
+    final minRowHeight = EditorConfig.minRowHeight;
+    final actualRowHeight = math.max(rowHeight, minRowHeight);
+
     for (int i = 0; i < attributes.length; i++) {
       final attribute = attributes[i];
       final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
@@ -262,23 +469,19 @@ class NodePainter {
 
       final columnSplit = isEnum ? 20 : nodeRect.width - 20;
 
-      // Вертикальная граница
+      // Вертикальная граница - будет обрезана маской если выходит за границы
       canvas.drawLine(
         Offset(nodeRect.left + columnSplit, rowTop),
         Offset(nodeRect.left + columnSplit, rowBottom),
         headerBorderPaint,
       );
 
-      // Горизонтальная граница
+      // Горизонтальная граница - будет обрезана маской если выходит за границы
       if (i < attributes.length - 1) {
-        canvas.drawLine(
-          Offset(nodeRect.left, rowBottom),
-          Offset(nodeRect.right, rowBottom),
-          headerBorderPaint,
-        );
+        canvas.drawLine(Offset(nodeRect.left, rowBottom), Offset(nodeRect.right, rowBottom), headerBorderPaint);
       }
 
-      // Текст в левой колонке
+      // Текст в левой колонке - будет обрезан маской если выходит за границы
       final leftText = isEnum ? attribute['position'] : attribute['label'];
       if (leftText.isNotEmpty) {
         final leftTextPainter = TextPainter(
@@ -295,14 +498,11 @@ class NodePainter {
         leftTextPainter.layout(maxWidth: columnSplit - 16);
         leftTextPainter.paint(
           canvas,
-          Offset(
-            nodeRect.left + 8,
-            rowTop + (actualRowHeight - leftTextPainter.height) / 2,
-          ),
+          Offset(nodeRect.left + 8, rowTop + (actualRowHeight - leftTextPainter.height) / 2),
         );
       }
 
-      // Текст в правой колонке
+      // Текст в правой колонке - будет обрезан маской если выходит за границы
       final rightText = isEnum ? attribute['label'] : '';
       if (rightText.isNotEmpty) {
         final rightTextPainter = TextPainter(
@@ -319,45 +519,15 @@ class NodePainter {
         rightTextPainter.layout(maxWidth: nodeRect.width - columnSplit - 16);
         rightTextPainter.paint(
           canvas,
-          Offset(
-            nodeRect.left + columnSplit + 8,
-            rowTop + (actualRowHeight - rightTextPainter.height) / 2,
-          ),
+          Offset(nodeRect.left + columnSplit + 8, rowTop + (actualRowHeight - rightTextPainter.height) / 2),
         );
       }
     }
   }
 
-  /// Метод для отрисовки свернутого swimlane
-  void _drawSwimlane(
-    Canvas canvas,
-    TableNode node,
-    Rect nodeRect, {
-    required bool isCollapsed,
-  }) {
-    // Рассчитываем толщину линии
-    final scaleX = nodeRect.width / node.size.width;
-    final scaleY = nodeRect.height / node.size.height;
-    final lineWidth = 1.0 / math.min(scaleX, scaleY);
-
-    // Белый фон для всего узла
-    final backgroundPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-
-    canvas.drawRect(nodeRect, backgroundPaint);
-
-    // Черная рамка без радиусов
-    final borderPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = lineWidth
-      ..isAntiAlias = true;
-
-    canvas.drawRect(nodeRect, borderPaint);
-
-    // Белый фон для заголовка (в свернутом состоянии весь узел - это заголовок)
+  /// Метод для отрисовки содержимого свернутого swimlane
+  void _drawSwimlaneContent(Canvas canvas, TableNode node, Rect nodeRect, {required bool isCollapsed}) {
+    // Рисуем заголовок swimlane
     final headerPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill
@@ -370,12 +540,7 @@ class NodePainter {
   }
 
   /// Метод для отрисовки заголовка swimlane с иконкой
-  void _drawSwimlaneHeader(
-    Canvas canvas,
-    TableNode node,
-    Rect nodeRect, {
-    required bool isCollapsed,
-  }) {
+  void _drawSwimlaneHeader(Canvas canvas, TableNode node, Rect nodeRect, {required bool isCollapsed}) {
     final headerHeight = EditorConfig.headerHeight;
     final iconSize = 16.0;
     final iconMargin = 8.0;
@@ -414,18 +579,10 @@ class NodePainter {
       final crossSize = iconSize / 3;
 
       // Горизонтальная линия
-      canvas.drawLine(
-        Offset(centerX - crossSize, centerY),
-        Offset(centerX + crossSize, centerY),
-        iconPaint,
-      );
+      canvas.drawLine(Offset(centerX - crossSize, centerY), Offset(centerX + crossSize, centerY), iconPaint);
 
       // Вертикальная линия
-      canvas.drawLine(
-        Offset(centerX, centerY - crossSize),
-        Offset(centerX, centerY + crossSize),
-        iconPaint,
-      );
+      canvas.drawLine(Offset(centerX, centerY - crossSize), Offset(centerX, centerY + crossSize), iconPaint);
     } else {
       // Минус
       final centerY = iconRect.top + iconSize / 2;
@@ -448,30 +605,58 @@ class NodePainter {
       ),
     );
 
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '...',
-    );
+    final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 1, ellipsis: '...');
 
     textPainter.layout(maxWidth: nodeRect.width - textLeftMargin - 8);
     textPainter.paint(
       canvas,
-      Offset(
-        nodeRect.left + textLeftMargin,
-        nodeRect.top + (actualHeaderHeight - textPainter.height) / 2,
-      ),
+      Offset(nodeRect.left + textLeftMargin, nodeRect.top + (actualHeaderHeight - textPainter.height) / 2),
     );
   }
 
   /// Простая отрисовка одного узла (без детей) - для обратной совместимости
   void paint(Canvas canvas, Rect targetRect, {bool forTile = false}) {
-    _drawSingleNode(
+    // Рассчитываем толщину линии
+    final scaleX = targetRect.width / node.size.width;
+    final scaleY = targetRect.height / node.size.height;
+    final lineWidth = 1.0 / math.min(scaleX, scaleY);
+    
+    // Проверяем переполнение содержимого
+    final isContentOverflowing = _isContentOverflowing(
+      node: node,
+      nodeRect: targetRect,
+    );
+    
+    canvas.save();
+    
+    // 1. Сначала рисуем фон и границу (без маски)
+    _drawNodeBackground(
       canvas: canvas,
       node: node,
       nodeRect: targetRect,
       forTile: forTile,
     );
+    
+    _drawNodeBorder(
+      canvas: canvas,
+      node: node,
+      nodeRect: targetRect,
+      lineWidth: lineWidth,
+      forTile: forTile,
+      isContentOverflowing: isContentOverflowing,
+    );
+    
+    // 2. Теперь применяем маску для внутреннего содержимого
+    _applyClipMask(
+      canvas: canvas,
+      nodeRect: targetRect,
+      node: node,
+      lineWidth: lineWidth,
+    );
+    
+    // 3. Рисуем внутреннее содержимое (с маской)
+    _drawNodeContent(canvas: canvas, node: node, nodeRect: targetRect, forTile: forTile);
+    
+    canvas.restore();
   }
 }

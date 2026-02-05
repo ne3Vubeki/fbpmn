@@ -39,7 +39,6 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   double _thumbnailHeight = 0;
   bool _isDragging = false;
   Offset _dragStartPosition = Offset.zero;
-  Offset _dragStartCanvasOffset = Offset.zero;
   Offset _dragStartRectPosition = Offset.zero;
 
   double _clampedVisibleLeft = 0;
@@ -133,7 +132,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
             tile.image.height.toDouble(),
           ),
           tileRect,
-          Paint()..filterQuality = FilterQuality.medium,
+          Paint()..filterQuality = FilterQuality.high,
         );
       }
 
@@ -172,7 +171,6 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
 
     _isDragging = true;
     _dragStartPosition = localPosition;
-    _dragStartCanvasOffset = widget.canvasOffset;
 
     // Сохраняем начальную позицию прямоугольника в миниатюре
     _dragStartRectPosition = Offset(_clampedVisibleLeft, _clampedVisibleTop);

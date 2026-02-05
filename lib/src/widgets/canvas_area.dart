@@ -12,8 +12,10 @@ import '../services/scroll_handler.dart';
 import 'arrows_selected.dart';
 import 'hierarchical_grid.dart';
 import 'node_selected.dart';
+import 'resize_handles.dart';
 import 'scroll_bar_horizontal.dart';
 import 'scroll_bar_vertical.dart';
+import 'snap_lines_overlay.dart';
 import 'tile_border.dart';
 
 class CanvasArea extends StatefulWidget {
@@ -43,6 +45,10 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
   // GlobalKey для получения реального размера
   final GlobalKey _containerKey = GlobalKey();
   Size _actualSize = Size.zero;
+  
+  // Для отслеживания resize handles
+  String? _currentResizeHandle;
+  String? _hoveredResizeHandle;
 
   @override
   void initState() {
@@ -74,6 +80,41 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
     }
   }
 
+  /// Обновляет состояние наведённого resize handle
+  void _updateHoveredResizeHandle(Offset position) {
+    if (widget.nodeManager.isResizing) return;
+    
+    final handle = widget.nodeManager.getResizeHandleAtPosition(position);
+    if (_hoveredResizeHandle != handle) {
+      setState(() {
+        _hoveredResizeHandle = handle;
+      });
+    }
+  }
+
+  /// Возвращает курсор в зависимости от состояния
+  MouseCursor _getCursor() {
+    // Если идёт resize, показываем курсор для текущего handle
+    if (widget.nodeManager.isResizing && _currentResizeHandle != null) {
+      return widget.nodeManager.getResizeCursor(_currentResizeHandle);
+    }
+    
+    // Если наведён на resize handle, показываем соответствующий курсор
+    if (_hoveredResizeHandle != null) {
+      return widget.nodeManager.getResizeCursor(_hoveredResizeHandle);
+    }
+    
+    // Стандартные курсоры для панорамирования
+    if (widget.state.isShiftPressed && widget.state.isPanning) {
+      return SystemMouseCursors.grabbing;
+    }
+    if (widget.state.isShiftPressed) {
+      return SystemMouseCursors.grab;
+    }
+    
+    return SystemMouseCursors.basic;
+  }
+
   @override
   void didUpdateWidget(covariant CanvasArea oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -100,13 +141,10 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
               autofocus: true,
               onKeyEvent: widget.inputHandler.handleKeyEvent,
               child: MouseRegion(
-                cursor: widget.state.isShiftPressed && widget.state.isPanning
-                    ? SystemMouseCursors.grabbing
-                    : widget.state.isShiftPressed
-                    ? SystemMouseCursors.grab
-                    : SystemMouseCursors.basic,
+                cursor: _getCursor(),
                 onHover: (PointerHoverEvent event) {
                   widget.state.mousePosition = event.localPosition;
+                  _updateHoveredResizeHandle(event.localPosition);
                 },
                 child: Listener(
                   onPointerSignal: (pointerSignal) {
@@ -120,24 +158,44 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   },
                   onPointerMove: (PointerMoveEvent event) {
                     widget.state.mousePosition = event.localPosition;
+                    _updateHoveredResizeHandle(event.localPosition);
 
                     if (widget.state.isPanning && widget.state.isShiftPressed) {
                       widget.inputHandler.handlePanUpdate(
                         event.localPosition,
                         event.delta,
                       );
+                    } else if (widget.nodeManager.isResizing) {
+                      widget.nodeManager.updateResize(event.localPosition);
                     } else if (widget.state.isNodeDragging) {
                       widget.nodeManager.updateNodeDrag(event.localPosition);
                     }
                   },
                   onPointerDown: (PointerDownEvent event) {
-                    widget.inputHandler.handlePanStart(event.localPosition);
+                    // Проверяем, нажали ли на resize handle
+                    final resizeHandle = widget.nodeManager.getResizeHandleAtPosition(event.localPosition);
+                    if (resizeHandle != null) {
+                      _currentResizeHandle = resizeHandle;
+                      widget.nodeManager.startResize(resizeHandle, event.localPosition);
+                    } else {
+                      widget.inputHandler.handlePanStart(event.localPosition);
+                    }
                   },
                   onPointerUp: (PointerUpEvent event) {
-                    widget.inputHandler.handlePanEnd();
+                    if (widget.nodeManager.isResizing) {
+                      widget.nodeManager.endResize();
+                      _currentResizeHandle = null;
+                    } else {
+                      widget.inputHandler.handlePanEnd();
+                    }
                   },
                   onPointerCancel: (PointerCancelEvent event) {
-                    widget.inputHandler.handlePanCancel();
+                    if (widget.nodeManager.isResizing) {
+                      widget.nodeManager.endResize();
+                      _currentResizeHandle = null;
+                    } else {
+                      widget.inputHandler.handlePanCancel();
+                    }
                   },
                   child: ClipRect(
                     child: Stack(
@@ -173,6 +231,19 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           arrowManager: widget.arrowManager,
                           inputHandler: widget.inputHandler,
                           scrollHandler: widget.scrollHandler,
+                        ),
+
+                        // Маркеры изменения размера узла
+                        ResizeHandles(
+                          state: widget.state,
+                          nodeManager: widget.nodeManager,
+                          hoveredHandle: _hoveredResizeHandle,
+                        ),
+
+                        // Отображение snap-линий при перетаскивании узла
+                        SnapLinesOverlay(
+                          state: widget.state,
+                          nodeManager: widget.nodeManager,
                         ),
                       ],
                     ),
