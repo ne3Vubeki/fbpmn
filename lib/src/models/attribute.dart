@@ -12,6 +12,7 @@ class Attribute {
   final String? qAttributeType;
   final String? qCompStatus;
   final String? originalId;
+  final String? index;
   final UserObject? userObject;
   final Offset position;
   final Size size;
@@ -28,6 +29,7 @@ class Attribute {
     this.qAttributeType,
     this.qCompStatus,
     this.originalId,
+    this.index,
     this.userObject,
   });
 
@@ -63,6 +65,7 @@ class Attribute {
       qAttributeType: json['qAttributeType'] as String?,
       qCompStatus: json['qCompStatus'] as String?,
       originalId: json['originalId'] as String?,
+      index: json['position'] as String?,
       userObject: userObject,
       position: position,
       size: size,
@@ -96,6 +99,10 @@ class Attribute {
     if (originalId != null) {
       json['originalId'] = originalId;
     }
+    
+    if (index != null) {
+      json['position'] = index;
+    }
 
     if (userObject != null) {
       json['user_object'] = userObject!.toJson();
@@ -125,6 +132,7 @@ class Attribute {
     String? qAttributeType,
     String? qCompStatus,
     String? originalId,
+    String? index,
     UserObject? userObject,
     Offset? position,
     Size? size,
@@ -139,6 +147,7 @@ class Attribute {
       qAttributeType: qAttributeType ?? this.qAttributeType,
       qCompStatus: qCompStatus ?? this.qCompStatus,
       originalId: originalId ?? this.originalId,
+      index: index ?? this.index,
       userObject: userObject ?? this.userObject,
       position: position ?? this.position,
       size: size ?? this.size,
@@ -162,6 +171,7 @@ class Attribute {
         other.qAttributeType == qAttributeType &&
         other.qCompStatus == qCompStatus &&
         other.originalId == originalId &&
+        other.index == index &&
         other.userObject == userObject &&
         other.position == position &&
         other.size == size;
@@ -178,6 +188,7 @@ class Attribute {
       qAttributeType,
       qCompStatus,
       originalId,
+      index,
       userObject,
       position,
       size,

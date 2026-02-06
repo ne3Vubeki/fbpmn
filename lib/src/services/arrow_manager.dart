@@ -473,8 +473,6 @@ class ArrowManager extends Manager {
     arrow.paths = basePath.paths;
     arrow.coordinates = basePath.coordinates;
     arrow.sides = baseConnectionPoints.sides;
-    
-    print('ArrowManager: arrow.coordinates: ${arrow.coordinates}');
 
     return basePath;
   }

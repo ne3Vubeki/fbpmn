@@ -2,18 +2,20 @@
 import 'package:flutter/material.dart';
 
 import '../utils/editor_config.dart';
+import 'attribute.dart';
 import 'node.dart';
 
 class TableNode extends Node {
-  final String? groupId;
   final Map<String, dynamic> objectData;
-  final List<Map<String, dynamic>> attributes;
+  final List<Attribute> attributes;
   final List<TableNode>? children;
   final String qType;
   final String style;
   final Color borderColor;
   final Color backgroundColor;
   final bool? isCollapsed;
+
+  String? tooltip;
 
   TableNode({
     required super.id,
@@ -30,7 +32,6 @@ class TableNode extends Node {
     super.aPosition,
     super.parent,
     super.connections,
-    this.groupId,
     this.children,
     this.isCollapsed,
   });
@@ -40,10 +41,12 @@ class TableNode extends Node {
     final geometry = object['geometry'] as Map<String, dynamic>;
     final style = object['style'] as String? ?? '';
     final attributes = (object['attributes'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
+        .map<Attribute>((attr) => Attribute.fromJson(attr as Map<String, dynamic>))
+        .toList();
     final children = (object['children'] as List<dynamic>? ?? [])
         .map<TableNode>((object) => TableNode.fromJson(object, id))
         .toList();
+    final tooltip = object['tooltip'] as String?;
 
     // Извлекаем свойство collapsed
     final isCollapsed = object['collapsed'] == '1';
@@ -53,7 +56,7 @@ class TableNode extends Node {
     final width = (geometry['width'] as num).toDouble();
     double height = (geometry['height'] as num).toDouble();
 
-    if(height < EditorConfig.headerHeight) {
+    if (height < EditorConfig.headerHeight) {
       height = EditorConfig.headerHeight;
     }
 
@@ -68,9 +71,7 @@ class TableNode extends Node {
             return Colors.transparent;
           }
           if (colorStr!.startsWith('#')) {
-            return Color(
-              int.parse(colorStr.substring(1), radix: 16) + 0xFF000000,
-            );
+            return Color(int.parse(colorStr.substring(1), radix: 16) + 0xFF000000);
           }
         }
       } catch (e) {}
@@ -79,7 +80,6 @@ class TableNode extends Node {
 
     final node = TableNode(
       id: id,
-      groupId: object['groupId'] as String?,
       position: Offset(x, y),
       size: Size(width, height),
       text: object['label'] as String? ?? '',
@@ -92,9 +92,13 @@ class TableNode extends Node {
       backgroundColor: parseColor(style, 'fillColor'),
       isCollapsed: isCollapsed,
     );
-    
+
+    if (tooltip != null) {
+      node.tooltip = tooltip;
+    }
+
     // Если это вложенный узел, добавляем parent родителя
-    if(parent != null) {
+    if (parent != null) {
       node.parent = parent;
     }
     return node;
@@ -114,7 +118,6 @@ class TableNode extends Node {
   }) {
     return TableNode(
       id: id,
-      groupId: groupId,
       position: position ?? this.position,
       size: size,
       text: text ?? this.text,
@@ -140,7 +143,7 @@ class TableNode extends Node {
   void calculateAbsolutePositions([Offset parentPosition = Offset.zero]) {
     // Абсолютная позиция текущего узла - это позиция родителя + собственная позиция
     aPosition = parentPosition + position;
-    
+
     // Если есть дети, вычисляем их абсолютные позиции
     if (children != null) {
       for (final child in children!) {

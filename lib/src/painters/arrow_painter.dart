@@ -70,11 +70,6 @@ class ArrowsPainter {
       final pathResult = arrowManager.getArrowPathWithSelectedNodes(arrow, arrowsRect);
       final paths = pathResult.paths;
 
-      // Обновляем координаты для отрисовки powers
-      // arrow.coordinates = pathResult.coordinates;
-
-      print('ArrowPainter: arrow.coordinates: ${arrow.coordinates}');
-
       _drawPaths(canvas, arrow, scale, paths, pathResult.coordinates, linePaint, fillPaint, strokePaint, Colors.blue);
     }
   }

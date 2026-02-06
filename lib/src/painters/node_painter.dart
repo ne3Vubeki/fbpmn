@@ -69,13 +69,13 @@ class NodePainter {
     final attributes = node.attributes;
     final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
-    final isNotGroup = node.groupId != null;
+    final isGroup = node.qType == 'group';
     final isSwimlane = node.qType == 'swimlane';
 
     // Уменьшаем область обрезки на половину толщины линии, чтобы оставить место для границы
     final clipInset = lineWidth;
 
-    if (isSwimlane || isNotGroup || isEnum || !hasAttributes) {
+    if (isSwimlane || !isGroup || isEnum || !hasAttributes) {
       // Прямоугольная маска без скруглений
       final clipRect = Rect.fromLTWH(
         nodeRect.left + clipInset,
@@ -113,7 +113,7 @@ class NodePainter {
     final attributes = node.attributes;
     final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
-    final isNotGroup = node.groupId != null;
+    final isGroup = node.qType == 'group';
     
     // Основной цвет границы (черный по умолчанию)
     Color borderColor = Colors.black;
@@ -121,7 +121,7 @@ class NodePainter {
     // Если есть переполнение содержимого, используем красный цвет для нижней границы
     if (isContentOverflowing) {
       // Для узлов со скругленными углами рисуем специальным способом
-      if (!isSwimlane && !isNotGroup && !isEnum && hasAttributes) {
+      if (!isSwimlane && isGroup && !isEnum && hasAttributes) {
         // Сначала рисуем всю границу черным
         final blackBorderPaint = Paint()
           ..color = Colors.black
@@ -176,7 +176,7 @@ class NodePainter {
           ..isAntiAlias = true
           ..filterQuality = FilterQuality.high;
 
-        if (isSwimlane || isNotGroup || isEnum || !hasAttributes) {
+        if (isSwimlane || !isGroup || isEnum || !hasAttributes) {
           canvas.drawRect(nodeRect, blackBorderPaint);
         } else {
           final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -209,7 +209,7 @@ class NodePainter {
 
     if (isSwimlane) {
       canvas.drawRect(nodeRect, borderPaint);
-    } else if (isNotGroup || isEnum || !hasAttributes) {
+    } else if (!isGroup || isEnum || !hasAttributes) {
       canvas.drawRect(nodeRect, borderPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -228,7 +228,7 @@ class NodePainter {
     final attributes = node.attributes;
     final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
-    final isNotGroup = node.groupId != null;
+    final isGroup = node.qType == 'group';
     
     // Для swimlane рисуем белый фон
     if (isSwimlane) {
@@ -241,7 +241,7 @@ class NodePainter {
       return;
     }
 
-    final backgroundColor = node.groupId != null ? node.backgroundColor : Colors.white;
+    final backgroundColor = isGroup ? node.backgroundColor : Colors.white;
     
     final backgroundPaint = Paint()
       ..color = backgroundColor
@@ -249,7 +249,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (isNotGroup || isEnum || !hasAttributes) {
+    if (!isGroup || isEnum || !hasAttributes) {
       canvas.drawRect(nodeRect, backgroundPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -383,7 +383,7 @@ class NodePainter {
     final attributes = node.attributes;
     final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
-    final isNotGroup = node.groupId != null;
+    final isGroup = node.qType == 'group';
 
     // Для swimlane в раскрытом состоянии
     if (isSwimlane && !isCollapsed) {
@@ -403,7 +403,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (isNotGroup || isEnum || !hasAttributes) {
+    if (!isGroup || isEnum || !hasAttributes) {
       canvas.drawRect(headerRect, headerPaint);
     } else {
       final headerRoundedRect = RRect.fromRectAndCorners(
@@ -426,7 +426,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (!isNotGroup && hasAttributes) {
+    if (!isGroup && hasAttributes) {
       canvas.drawLine(
         Offset(nodeRect.left, nodeRect.top + headerHeight),
         Offset(nodeRect.right, nodeRect.top + headerHeight),
@@ -482,7 +482,7 @@ class NodePainter {
       }
 
       // Текст в левой колонке - будет обрезан маской если выходит за границы
-      final leftText = isEnum ? attribute['position'] : attribute['label'];
+      final leftText = isEnum ? (attribute.index ?? '') : attribute.text;
       if (leftText.isNotEmpty) {
         final leftTextPainter = TextPainter(
           text: TextSpan(
@@ -503,7 +503,7 @@ class NodePainter {
       }
 
       // Текст в правой колонке - будет обрезан маской если выходит за границы
-      final rightText = isEnum ? attribute['label'] : '';
+      final rightText = isEnum ? attribute.text : '';
       if (rightText.isNotEmpty) {
         final rightTextPainter = TextPainter(
           text: TextSpan(

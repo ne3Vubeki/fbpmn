@@ -54,7 +54,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
     final node = widget.state.nodesSelected.first!;
     final hasAttributes = node.attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
-    final isNotGroup = node.groupId != null;
+    final isGroup = node.qType == 'group';
     final scale = widget.state.scale;
 
     // Размер узла (масштабированный)
@@ -73,7 +73,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
                       : Colors.transparent,
                   width: frameBorderWidth,
                 ),
-                borderRadius: isNotGroup || isEnum || !hasAttributes
+                borderRadius: !isGroup || isEnum || !hasAttributes
                     ? BorderRadius.zero
                     : BorderRadius.circular(12 * scale),
               ),
