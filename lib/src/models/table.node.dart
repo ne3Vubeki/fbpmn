@@ -10,6 +10,7 @@ class TableNode extends Node {
   final List<Attribute> attributes;
   final List<TableNode>? children;
   final String qType;
+  final String? qCompStatus;
   final String style;
   final Color borderColor;
   final Color backgroundColor;
@@ -28,6 +29,7 @@ class TableNode extends Node {
     required this.style,
     required this.borderColor,
     required this.backgroundColor,
+    this.qCompStatus,
     super.isSelected,
     super.aPosition,
     super.parent,
@@ -87,6 +89,7 @@ class TableNode extends Node {
       attributes: attributes,
       children: children,
       qType: object['qType'] ?? 'None',
+      qCompStatus: object['qCompStatus'] as String?,
       style: style,
       borderColor: parseColor(style, 'fillColor'),
       backgroundColor: parseColor(style, 'fillColor'),

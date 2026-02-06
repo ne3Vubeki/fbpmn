@@ -259,6 +259,94 @@ class CanvasIcons {
     );
   }
 
+  /// Иконка закрытого замка (lock)
+  static void paintLock(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Размеры замка
+    final lockWidth = size.width * 0.5;
+    final lockHeight = size.height * 0.4;
+    final lockLeft = (size.width - lockWidth) / 2;
+    final lockTop = size.height * 0.45;
+
+    // Дужка замка (полукруг сверху)
+    final shackleWidth = lockWidth * 0.6;
+    final shackleHeight = size.height * 0.3;
+    final shackleLeft = lockLeft + (lockWidth - shackleWidth) / 2;
+    final shackleTop = lockTop - shackleHeight;
+
+    final shackleRect = Rect.fromLTWH(
+      shackleLeft,
+      shackleTop,
+      shackleWidth,
+      shackleHeight * 2,
+    );
+
+    canvas.drawArc(
+      shackleRect,
+      3.14159, // π (180 градусов)
+      3.14159, // π (180 градусов)
+      false,
+      paint,
+    );
+
+    // Вертикальные линии дужки
+    canvas.drawLine(
+      Offset(shackleLeft, shackleTop + shackleHeight),
+      Offset(shackleLeft, lockTop),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(shackleLeft + shackleWidth, shackleTop + shackleHeight),
+      Offset(shackleLeft + shackleWidth, lockTop),
+      paint,
+    );
+
+    // Тело замка (прямоугольник со скругленными углами)
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(lockLeft, lockTop, lockWidth, lockHeight),
+      Radius.circular(2),
+    );
+    canvas.drawRRect(bodyRect, paint);
+    canvas.drawRRect(bodyRect, fillPaint);
+
+    // Замочная скважина
+    final keyholeRadius = lockWidth * 0.12;
+    final keyholeCenterX = lockLeft + lockWidth / 2;
+    final keyholeCenterY = lockTop + lockHeight * 0.35;
+
+    // Круглая часть замочной скважины
+    final keyholePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(
+      Offset(keyholeCenterX, keyholeCenterY),
+      keyholeRadius,
+      keyholePaint,
+    );
+
+    // Прямоугольная часть замочной скважины (внизу)
+    final keyholeSlotWidth = keyholeRadius * 0.6;
+    final keyholeSlotHeight = lockHeight * 0.35;
+    final keyholeSlotRect = Rect.fromLTWH(
+      keyholeCenterX - keyholeSlotWidth / 2,
+      keyholeCenterY,
+      keyholeSlotWidth,
+      keyholeSlotHeight,
+    );
+    canvas.drawRect(keyholeSlotRect, keyholePaint);
+  }
+
   /// Иконка перемещения (open_with)
   static void paintOpenWith(Canvas canvas, Size size, Color color) {
     final paint = Paint()

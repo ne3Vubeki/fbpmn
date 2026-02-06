@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/table.node.dart';
+import '../utils/canvas_icons.dart';
 import '../utils/editor_config.dart';
 
 /// Универсальный класс для отрисовки TableNode в любом контексте
@@ -276,6 +277,11 @@ class NodePainter {
 
     canvas.save();
 
+    // Применяем полупрозрачность для узла, если qCompStatus == '6'
+    if (currentNode.qCompStatus == '6') {
+      canvas.saveLayer(nodeWorldRect, Paint()..color = Colors.white.withOpacity(0.5));
+    }
+
     if (forTile) {
       // Для тайла: рисуем в мировых координатах
       final scaleX = 1.0;
@@ -358,6 +364,11 @@ class NodePainter {
       
       // 3. Рисуем внутреннее содержимое (с маской)
       _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeLocalRect, forTile: false);
+    }
+
+    // Восстанавливаем слой полупрозрачности, если был применен
+    if (currentNode.qCompStatus == '6') {
+      canvas.restore();
     }
 
     canvas.restore();
@@ -457,6 +468,18 @@ class NodePainter {
       Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2),
     );
 
+    // Рисуем иконку замка в заголовке, если qCompStatus == '6'
+    if (node.qCompStatus == '6') {
+      final lockSize = 16.0;
+      final lockX = nodeRect.right - lockSize - 2;
+      final lockY = nodeRect.top + (headerHeight - lockSize) / 2;
+      
+      canvas.save();
+      canvas.translate(lockX, lockY);
+      CanvasIcons.paintLock(canvas, Size(lockSize, lockSize), Colors.grey.shade600);
+      canvas.restore();
+    }
+
     // Рисуем строки таблицы
     final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
     final minRowHeight = EditorConfig.minRowHeight;
@@ -467,7 +490,7 @@ class NodePainter {
       final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
       final rowBottom = rowTop + actualRowHeight;
 
-      final columnSplit = isEnum ? 20 : nodeRect.width - 20;
+      final columnSplit = isEnum ? 20 : nodeRect.width - 40;
 
       // Вертикальная граница - будет обрезана маской если выходит за границы
       canvas.drawLine(
@@ -484,10 +507,12 @@ class NodePainter {
       // Текст в левой колонке - будет обрезан маской если выходит за границы
       final leftText = isEnum ? (attribute.index ?? '') : attribute.text;
       if (leftText.isNotEmpty) {
+        // Применяем полупрозрачность к тексту атрибута, если qCompStatus == '6'
+        final textOpacity = attribute.qCompStatus == '6' ? 0.5 : 1.0;
         final leftTextPainter = TextPainter(
           text: TextSpan(
             text: leftText,
-            style: TextStyle(color: Colors.black, fontSize: 10),
+            style: TextStyle(color: Colors.black.withOpacity(textOpacity), fontSize: 10),
           ),
           textDirection: TextDirection.ltr,
           textAlign: TextAlign.center,
@@ -505,10 +530,12 @@ class NodePainter {
       // Текст в правой колонке - будет обрезан маской если выходит за границы
       final rightText = isEnum ? attribute.text : '';
       if (rightText.isNotEmpty) {
+        // Применяем полупрозрачность к тексту атрибута, если qCompStatus == '6'
+        final textOpacity = attribute.qCompStatus == '6' ? 0.5 : 1.0;
         final rightTextPainter = TextPainter(
           text: TextSpan(
             text: rightText,
-            style: TextStyle(color: Colors.black, fontSize: 10),
+            style: TextStyle(color: Colors.black.withOpacity(textOpacity), fontSize: 10),
           ),
           textDirection: TextDirection.ltr,
           textAlign: TextAlign.center,
@@ -521,6 +548,18 @@ class NodePainter {
           canvas,
           Offset(nodeRect.left + columnSplit + 8, rowTop + (actualRowHeight - rightTextPainter.height) / 2),
         );
+      }
+
+      // Рисуем иконку замка во второй ячейке, если qCompStatus == '6'
+      if (attribute.qCompStatus == '6') {
+        final lockSize = 16.0;
+        final lockX = nodeRect.right - lockSize - 2;
+        final lockY = rowTop + (actualRowHeight - lockSize) / 2;
+        
+        canvas.save();
+        canvas.translate(lockX, lockY);
+        CanvasIcons.paintLock(canvas, Size(lockSize, lockSize), Colors.grey.shade600);
+        canvas.restore();
       }
     }
   }
