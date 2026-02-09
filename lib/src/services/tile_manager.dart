@@ -198,9 +198,10 @@ class TileManager extends Manager {
       }
 
       // Получаем полный путь стрелки
-      final coordinates = arrowManager
-          .getArrowPathInTile(arrowCopy, state.delta, isTiles: true, isNotCalculate: true)
-          .coordinates;
+      final arrowPathResult = arrowManager
+          .getArrowPathInTile(arrowCopy, state.delta, isTiles: true, isNotCalculate: true);
+      final coordinates = arrowPathResult.coordinates;
+      final arrowPaths = arrowPathResult.paths;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
 
       if (coordinates.isNotEmpty) {
@@ -233,30 +234,34 @@ class TileManager extends Manager {
             }
           }
         } else {
-          // Для кривых связей обрабатываем все координаты пути
-          // Создаём прямоугольник, охватывающий всю связь
-          if (coordinates.length >= 2) {
-            double minX = coordinates.first.dx;
-            double maxX = coordinates.first.dx;
-            double minY = coordinates.first.dy;
-            double maxY = coordinates.first.dy;
-            
-            // Находим границы всей связи
-            for (final coord in coordinates) {
-              if (coord.dx < minX) minX = coord.dx;
-              if (coord.dx > maxX) maxX = coord.dx;
-              if (coord.dy < minY) minY = coord.dy;
-              if (coord.dy > maxY) maxY = coord.dy;
+          // Для кривых связей используем Path.getBounds() + проверку пересечения
+          final path = arrowPaths.path;
+          
+          // Получаем bounding box пути
+          final pathBounds = path.getBounds();
+          
+          // Определяем диапазон тайлов, которые могут пересекаться с путём
+          final gridXStart = (pathBounds.left / tileWorldSize).floor();
+          final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
+          final gridYStart = (pathBounds.top / tileWorldSize).floor();
+          final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
+          
+          // Для каждого тайла в bounding box проверяем пересечение с путём
+          for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+            for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+              final tileLeft = gridX * tileWorldSize;
+              final tileTop = gridY * tileWorldSize;
+              final tileRect = Rect.fromLTWH(tileLeft, tileTop, tileWorldSize, tileWorldSize);
+              
+              // Проверяем пересечение пути с тайлом через Path.combine
+              final tilePath = Path()..addRect(tileRect);
+              final intersection = Path.combine(PathOperation.intersect, path, tilePath);
+              
+              // Если пересечение не пустое, добавляем тайл
+              if (intersection.getBounds().width > 0 && intersection.getBounds().height > 0) {
+                await createTiles(top: tileTop, left: tileLeft, arrow: arrow);
+              }
             }
-            
-            // Создаём тайлы для прямоугольника, охватывающего связь
-            final arrowRect = Rect.fromLTRB(minX, minY, maxX, maxY);
-            await _tilesIntersectingRect(
-              arrowRect,
-              callback: ({required double left, required double top}) async {
-                await createTiles(top: top, left: left, arrow: arrow);
-              },
-            );
           }
         }
       }
