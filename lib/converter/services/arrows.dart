@@ -82,6 +82,7 @@ class Arrows {
     XmlElement root,
   ) {
     final arrow = <String, dynamic>{};
+
     final List<String> notIncludeAttrs = [
       'parent',
       'qType',
@@ -253,14 +254,12 @@ class Arrows {
     XmlElement parent,
   ) {
     final powers = <Map<String, dynamic>>[];
-    final List<String> notIncludeAttrs = ['parent', 'qType', 'vertex'];
+    final List<String> notIncludeAttrs = ['parent', 'vertex'];
 
     final powerElements = root
         .findAllElements('mxCell')
         .where(
-          (element) =>
-              element.getAttribute('parent') == parent.getAttribute('id') &&
-              element.getAttribute('qType') == 'arrowPower',
+          (element) => element.getAttribute('parent') == parent.getAttribute('id')
         );
 
     try {
@@ -273,14 +272,10 @@ class Arrows {
           }
         }
 
-        // Извлекаем geometry для координат
-        // final geometry = powerElement.findElements('mxGeometry').firstOrNull;
-        // if (geometry != null) {
-        //   final x = double.tryParse(geometry.getAttribute('x') ?? '0') ?? 0.0;
-        //   final y = double.tryParse(geometry.getAttribute('y') ?? '0') ?? 0.0;
-        //   power['x'] = x;
-        //   power['y'] = y;
-        // }
+        final geometry = powerElement.findElements('mxGeometry').firstOrNull;
+        if (geometry != null) {
+          power['side'] = geometry.getAttribute('x');
+        }
 
         if (power.isNotEmpty) {
           powers.add(power);

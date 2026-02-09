@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:xml/xml.dart';
 
-import 'models/arrows.dart';
-import 'models/objects.dart';
+import 'services/arrows.dart';
+import 'services/objects.dart';
 
 class DiagramCompiler {
   static String compileXmlToJson(String xmlContent) {

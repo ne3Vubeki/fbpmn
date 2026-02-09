@@ -24,7 +24,10 @@ class BObjects {
 
     // Собираем данные из mxCell для дальнейшей обработки
     for (final element in allMxCells) {
-      if (element.getAttribute('style') == 'group') {
+      if (element.getAttribute('style') == 'group' ||
+          allGroups.any((group) {
+            return group?.getAttribute('id') == element.getAttribute('parent');
+          })) {
         allGroups.add(element);
       } else if (element.getAttribute('qType') == 'enumRow') {
         allRowEnums.add(element);
@@ -55,8 +58,7 @@ class BObjects {
           }
 
           // Ищем вложенный mxCell для geometry и style
-          final mxCell = element.findElements('mxCell').firstOrNull;
-          final geometry = mxCell?.findElements('mxGeometry').firstOrNull;
+          XmlElement? mxCell = element.findElements('mxCell').firstOrNull;
 
           // Проверяем, что qType корректный
           if (mxCell?.getAttribute('qType') == 'arrow') {
@@ -81,13 +83,25 @@ class BObjects {
           }
 
           // Определяем принадлежность к группе
-          final isGroup = allGroups.any(
-            (group) => group!.getAttribute('id') == object['parent'],
-          );
+          final isGroup = allGroups.any((group) {
+            final String? id = group!.getAttribute('id');
+            return id != null
+                ? id == object['parent']
+                : group.parentElement?.getAttribute('id') == object['parent'];
+          });
           final isGroupChild = isGroup && object['originalId'] != null;
           if (isGroup && !isGroupChild) {
-            object['groupId'] = object['parent'];
+              object['groupId'] = object['parent'];
+              object.remove('parent');
           }
+
+          // Определяем принадлежность к swimlane группе
+          final isSwimlane = object['style'] == 'swimlane;';
+          final isSwimlaneChild = objects.any(
+            (group) =>
+                group['style'] == 'swimlane;' &&
+                group['id'] == object['parent'],
+          );
 
           if (object['qType'] != 'enum') {
             // Добавляем attributes в объект
@@ -105,6 +119,18 @@ class BObjects {
             );
           }
 
+          // Находим mxCell группы
+          if (isGroup && !isGroupChild) {
+            object['qType'] = 'group';
+            mxCell = allMxCells.firstWhere(
+              (cell) => cell.getAttribute('id') == object['groupId'],
+            );
+          } else if (isSwimlane && !isSwimlaneChild) {
+            object['qType'] = 'swimlane';
+          }
+
+          final geometry = mxCell?.findElements('mxGeometry').firstOrNull;
+
           // Добавляем geometry из вложенного mxCell
           if (geometry != null) {
             object['geometry'] = {
@@ -119,17 +145,26 @@ class BObjects {
           }
 
           // Добавляем user_object из UserObject
-          final userObject = UserObjects.extract(allUserObjects, objectId);
+          final userObject = UserObjects.extract(allUserObjects, object['groupId'] ?? objectId);
           if (userObject != null) {
+            userObject['parent'] = object['id'];
             object['user_object'] = userObject;
           }
 
           if (isGroupChild) {
             Map<String, dynamic> group = objects.firstWhere(
-              (obj) => obj['groupId'] == object['parent'],
+              (obj) =>
+                  obj['groupId'] == object['parent'] ||
+                  obj['id'] == object['parent'],
             );
             group['children'] = group['children'] ?? [];
             group['children'].add(object);
+          } else if (isSwimlaneChild) {
+            Map<String, dynamic> swimlane = objects.firstWhere(
+              (obj) => obj['id'] == object['parent'],
+            );
+            swimlane['children'] = swimlane['children'] ?? [];
+            swimlane['children'].add(object);
           } else {
             objects.add(object);
           }
@@ -283,5 +318,4 @@ class BObjects {
 
     return jsonContainers;
   }
-
 }
