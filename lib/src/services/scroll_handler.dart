@@ -62,9 +62,9 @@ class ScrollHandler extends Manager {
     double maxX = -double.infinity;
     double maxY = -double.infinity;
 
-    // Сначала рассчитываем границы узлов с текущим delta
-    for (final node in nodes) {
-      final nodePosition = state.delta + node.position;
+    // Рекурсивная функция для обхода всех узлов включая дочерние
+    void collectNodeBounds(TableNode node, Offset parentPosition) {
+      final nodePosition = parentPosition + node.position;
       final nodeRect = _boundsCalculator.calculateNodeRect(
         node: node,
         position: nodePosition,
@@ -74,6 +74,18 @@ class ScrollHandler extends Manager {
       minY = math.min(minY, nodeRect.top);
       maxX = math.max(maxX, nodeRect.right);
       maxY = math.max(maxY, nodeRect.bottom);
+
+      // Рекурсивно обходим дочерние узлы
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          collectNodeBounds(child, nodePosition);
+        }
+      }
+    }
+
+    // Сначала рассчитываем границы узлов с текущим delta
+    for (final node in nodes) {
+      collectNodeBounds(node, state.delta);
     }
 
     const double padding = 1000;
@@ -99,16 +111,7 @@ class ScrollHandler extends Manager {
     maxY = -double.infinity;
 
     for (final node in nodes) {
-      final nodePosition = state.delta + node.position;
-      final nodeRect = _boundsCalculator.calculateNodeRect(
-        node: node,
-        position: nodePosition,
-      );
-
-      minX = math.min(minX, nodeRect.left);
-      minY = math.min(minY, nodeRect.top);
-      maxX = math.max(maxX, nodeRect.right);
-      maxY = math.max(maxY, nodeRect.bottom);
+      collectNodeBounds(node, state.delta);
     }
 
     // Рассчитываем окончательный размер холста
