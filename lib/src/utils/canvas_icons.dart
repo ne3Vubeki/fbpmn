@@ -347,6 +347,88 @@ class CanvasIcons {
     canvas.drawRect(keyholeSlotRect, keyholePaint);
   }
 
+  /// Иконка предупреждения (красный треугольник с буквой i)
+  static void paintWarningTriangle(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    
+    // Вычисляем точки треугольника
+    final triangleHeight = size.height * 0.85;
+    final triangleWidth = size.width * 0.85;
+    
+    final topPoint = Offset(center.dx, center.dy - triangleHeight / 2);
+    final bottomLeft = Offset(center.dx - triangleWidth / 2, center.dy + triangleHeight / 2);
+    final bottomRight = Offset(center.dx + triangleWidth / 2, center.dy + triangleHeight / 2);
+    
+    // Создаем путь треугольника с закругленными углами
+    final path = Path();
+    final cornerRadius = size.width * 0.1;
+    
+    // Начинаем от верхней точки (с небольшим смещением для закругления)
+    path.moveTo(topPoint.dx, topPoint.dy + cornerRadius);
+    
+    // Линия к нижнему левому углу
+    path.lineTo(bottomLeft.dx + cornerRadius * 0.866, bottomLeft.dy - cornerRadius * 0.5);
+    
+    // Закругление в нижнем левом углу
+    path.arcToPoint(
+      Offset(bottomLeft.dx + cornerRadius, bottomLeft.dy),
+      radius: Radius.circular(cornerRadius),
+      clockwise: false,
+    );
+    
+    // Нижняя линия
+    path.lineTo(bottomRight.dx - cornerRadius, bottomRight.dy);
+    
+    // Закругление в нижнем правом углу
+    path.arcToPoint(
+      Offset(bottomRight.dx - cornerRadius * 0.866, bottomRight.dy - cornerRadius * 0.5),
+      radius: Radius.circular(cornerRadius),
+      clockwise: false,
+    );
+    
+    // Линия к верхней точке
+    path.lineTo(topPoint.dx, topPoint.dy + cornerRadius);
+    
+    path.close();
+    
+    // Рисуем красный треугольник
+    final trianglePaint = Paint()
+      ..color = Colors.red
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    
+    canvas.drawPath(path, trianglePaint);
+    
+    // Рисуем белую букву "i"
+    final textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: size.height * 0.5,
+      fontWeight: FontWeight.bold,
+      fontFamily: 'Arial',
+    );
+    
+    final textSpan = TextSpan(
+      text: 'i',
+      style: textStyle,
+    );
+    
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    
+    textPainter.layout();
+    
+    // Позиционируем букву "i" в центре треугольника
+    final textOffset = Offset(
+      center.dx - textPainter.width / 2,
+      center.dy - textPainter.height / 4,
+    );
+    
+    textPainter.paint(canvas, textOffset);
+  }
+
   /// Иконка перемещения (open_with)
   static void paintOpenWith(Canvas canvas, Size size, Color color) {
     final paint = Paint()

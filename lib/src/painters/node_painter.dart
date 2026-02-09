@@ -30,10 +30,7 @@ class NodePainter {
   }
 
   /// Проверяет, выходит ли содержимое узла за его нижнюю границу
-  bool _isContentOverflowing({
-    required TableNode node,
-    required Rect nodeRect,
-  }) {
+  bool _isContentOverflowing({required TableNode node, required Rect nodeRect}) {
     if (node.qType == 'swimlane') {
       // Для swimlane проверяем состояние свернутости
       final isCollapsed = node.isCollapsed ?? false;
@@ -54,7 +51,7 @@ class NodePainter {
 
     // Вычисляем высоту всего содержимого
     final contentHeight = headerHeight + actualRowHeight * attributes.length;
-    
+
     // Если высота содержимого больше высоты узла - есть переполнение
     return contentHeight > nodeRect.height;
   }
@@ -76,7 +73,7 @@ class NodePainter {
     // Уменьшаем область обрезки на половину толщины линии, чтобы оставить место для границы
     final clipInset = lineWidth;
 
-    if (isSwimlane || !isGroup || isEnum || !hasAttributes) {
+    if (isSwimlane || isGroup || isEnum || !hasAttributes) {
       // Прямоугольная маска без скруглений
       final clipRect = Rect.fromLTWH(
         nodeRect.left + clipInset,
@@ -115,14 +112,14 @@ class NodePainter {
     final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isGroup = node.qType == 'group';
-    
+
     // Основной цвет границы (черный по умолчанию)
     Color borderColor = Colors.black;
-    
+
     // Если есть переполнение содержимого, используем красный цвет для нижней границы
     if (isContentOverflowing) {
       // Для узлов со скругленными углами рисуем специальным способом
-      if (!isSwimlane && isGroup && !isEnum && hasAttributes) {
+      if (!isSwimlane && !isGroup && !isEnum && hasAttributes) {
         // Сначала рисуем всю границу черным
         final blackBorderPaint = Paint()
           ..color = Colors.black
@@ -145,7 +142,7 @@ class NodePainter {
         // Вычисляем точки для нижней границы со скруглениями
         final bottomLeft = Offset(nodeRect.left + 8, nodeRect.bottom);
         final bottomRight = Offset(nodeRect.right - 8, nodeRect.bottom);
-        
+
         // Левая скругленная часть
         canvas.drawArc(
           Rect.fromCircle(center: Offset(nodeRect.left + 8, nodeRect.bottom - 8), radius: 8),
@@ -154,10 +151,10 @@ class NodePainter {
           false,
           redBorderPaint,
         );
-        
+
         // Прямая часть нижней границы
         canvas.drawLine(bottomLeft, bottomRight, redBorderPaint);
-        
+
         // Правая скругленная часть
         canvas.drawArc(
           Rect.fromCircle(center: Offset(nodeRect.right - 8, nodeRect.bottom - 8), radius: 8),
@@ -166,7 +163,7 @@ class NodePainter {
           false,
           redBorderPaint,
         );
-        
+
         return;
       } else {
         // Для прямоугольных узлов рисуем черную границу, затем красную снизу
@@ -177,7 +174,7 @@ class NodePainter {
           ..isAntiAlias = true
           ..filterQuality = FilterQuality.high;
 
-        if (isSwimlane || !isGroup || isEnum || !hasAttributes) {
+        if (isSwimlane || isGroup || isEnum || !hasAttributes) {
           canvas.drawRect(nodeRect, blackBorderPaint);
         } else {
           final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -195,11 +192,11 @@ class NodePainter {
         final bottomLeft = Offset(nodeRect.left, nodeRect.bottom);
         final bottomRight = Offset(nodeRect.right, nodeRect.bottom);
         canvas.drawLine(bottomLeft, bottomRight, redBorderPaint);
-        
+
         return;
       }
     }
-    
+
     // Если нет переполнения, рисуем обычную границу
     final borderPaint = Paint()
       ..color = borderColor
@@ -210,7 +207,7 @@ class NodePainter {
 
     if (isSwimlane) {
       canvas.drawRect(nodeRect, borderPaint);
-    } else if (!isGroup || isEnum || !hasAttributes) {
+    } else if (isGroup || isEnum || !hasAttributes) {
       canvas.drawRect(nodeRect, borderPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -230,7 +227,7 @@ class NodePainter {
     final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isGroup = node.qType == 'group';
-    
+
     // Для swimlane рисуем белый фон
     if (isSwimlane) {
       final backgroundPaint = Paint()
@@ -243,14 +240,14 @@ class NodePainter {
     }
 
     final backgroundColor = isGroup ? node.backgroundColor : Colors.white;
-    
+
     final backgroundPaint = Paint()
       ..color = backgroundColor
       ..style = PaintingStyle.fill
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (!isGroup || isEnum || !hasAttributes) {
+    if (isGroup || isEnum || !hasAttributes) {
       canvas.drawRect(nodeRect, backgroundPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -287,21 +284,13 @@ class NodePainter {
       final scaleX = 1.0;
       final scaleY = 1.0;
       final lineWidth = 1.0 / math.min(scaleX, scaleY);
-      
+
       // Проверяем переполнение содержимого
-      final isContentOverflowing = _isContentOverflowing(
-        node: currentNode,
-        nodeRect: nodeWorldRect,
-      );
-      
+      final isContentOverflowing = _isContentOverflowing(node: currentNode, nodeRect: nodeWorldRect);
+
       // 1. Сначала рисуем фон и границу (без маски)
-      _drawNodeBackground(
-        canvas: canvas,
-        node: currentNode,
-        nodeRect: nodeWorldRect,
-        forTile: true,
-      );
-      
+      _drawNodeBackground(canvas: canvas, node: currentNode, nodeRect: nodeWorldRect, forTile: true);
+
       _drawNodeBorder(
         canvas: canvas,
         node: currentNode,
@@ -310,17 +299,27 @@ class NodePainter {
         forTile: true,
         isContentOverflowing: isContentOverflowing,
       );
-      
+
       // 2. Теперь применяем маску для внутреннего содержимого
-      _applyClipMask(
-        canvas: canvas,
-        nodeRect: nodeWorldRect,
-        node: currentNode,
-        lineWidth: lineWidth,
-      );
-      
+      _applyClipMask(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode, lineWidth: lineWidth);
+
       // 3. Рисуем внутреннее содержимое (с маской)
       _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeWorldRect, forTile: true);
+
+      // 4. Рисуем иконку треугольника поверх всего (вне маски)
+      if (isContentOverflowing) {
+        canvas.restore(); // Снимаем маску
+        canvas.save(); // Сохраняем для последующего restore
+
+        final iconSize = 20.0;
+        final iconX = nodeWorldRect.left + nodeWorldRect.width / 2 - iconSize / 2;
+        final iconY = nodeWorldRect.bottom - iconSize / 2 - 4;
+
+        canvas.save();
+        canvas.translate(iconX, iconY);
+        CanvasIcons.paintWarningTriangle(canvas, Size(iconSize, iconSize));
+        canvas.restore();
+      }
     } else {
       // Для виджета: преобразуем координаты
       final scaleX = nodeWorldRect.width / currentNode.size.width;
@@ -330,21 +329,13 @@ class NodePainter {
 
       final nodeLocalRect = Rect.fromLTWH(0, 0, currentNode.size.width, currentNode.size.height);
       final lineWidth = 1.0 / math.min(scaleX, scaleY);
-      
+
       // Проверяем переполнение содержимого
-      final isContentOverflowing = _isContentOverflowing(
-        node: currentNode,
-        nodeRect: nodeLocalRect,
-      );
-      
+      final isContentOverflowing = _isContentOverflowing(node: currentNode, nodeRect: nodeLocalRect);
+
       // 1. Сначала рисуем фон и границу (без маски)
-      _drawNodeBackground(
-        canvas: canvas,
-        node: currentNode,
-        nodeRect: nodeLocalRect,
-        forTile: false,
-      );
-      
+      _drawNodeBackground(canvas: canvas, node: currentNode, nodeRect: nodeLocalRect, forTile: false);
+
       _drawNodeBorder(
         canvas: canvas,
         node: currentNode,
@@ -353,17 +344,27 @@ class NodePainter {
         forTile: false,
         isContentOverflowing: isContentOverflowing,
       );
-      
+
       // 2. Теперь применяем маску для внутреннего содержимого
-      _applyClipMask(
-        canvas: canvas,
-        nodeRect: nodeLocalRect,
-        node: currentNode,
-        lineWidth: lineWidth,
-      );
-      
+      _applyClipMask(canvas: canvas, nodeRect: nodeLocalRect, node: currentNode, lineWidth: lineWidth);
+
       // 3. Рисуем внутреннее содержимое (с маской)
       _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeLocalRect, forTile: false);
+
+      // 4. Рисуем иконку треугольника поверх всего (вне маски)
+      if (isContentOverflowing) {
+        canvas.restore(); // Снимаем маску
+        canvas.save(); // Сохраняем для последующего restore
+
+        final iconSize = 20.0;
+        final iconX = nodeLocalRect.left + nodeLocalRect.width / 2 - iconSize / 2;
+        final iconY = nodeLocalRect.bottom - iconSize / 2 - 4;
+
+        canvas.save();
+        canvas.translate(iconX, iconY);
+        CanvasIcons.paintWarningTriangle(canvas, Size(iconSize, iconSize));
+        canvas.restore();
+      }
     }
 
     // Восстанавливаем слой полупрозрачности, если был применен
@@ -414,7 +415,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (!isGroup || isEnum || !hasAttributes) {
+    if (isGroup || isEnum || !hasAttributes) {
       canvas.drawRect(headerRect, headerPaint);
     } else {
       final headerRoundedRect = RRect.fromRectAndCorners(
@@ -461,7 +462,7 @@ class NodePainter {
     )..textWidthBasis = TextWidthBasis.longestLine;
 
     headerTextPainter.layout(maxWidth: nodeRect.width - 16);
-    
+
     // Если текст заголовка выходит за границы, он будет автоматически обрезан маской
     headerTextPainter.paint(
       canvas,
@@ -473,7 +474,7 @@ class NodePainter {
       final lockSize = 16.0;
       final lockX = nodeRect.right - lockSize - 2;
       final lockY = nodeRect.top + (headerHeight - lockSize) / 2;
-      
+
       canvas.save();
       canvas.translate(lockX, lockY);
       CanvasIcons.paintLock(canvas, Size(lockSize, lockSize), Colors.grey.shade600);
@@ -555,7 +556,7 @@ class NodePainter {
         final lockSize = 16.0;
         final lockX = nodeRect.right - lockSize - 2;
         final lockY = rowTop + (actualRowHeight - lockSize) / 2;
-        
+
         canvas.save();
         canvas.translate(lockX, lockY);
         CanvasIcons.paintLock(canvas, Size(lockSize, lockSize), Colors.grey.shade600);
@@ -659,23 +660,15 @@ class NodePainter {
     final scaleX = targetRect.width / node.size.width;
     final scaleY = targetRect.height / node.size.height;
     final lineWidth = 1.0 / math.min(scaleX, scaleY);
-    
+
     // Проверяем переполнение содержимого
-    final isContentOverflowing = _isContentOverflowing(
-      node: node,
-      nodeRect: targetRect,
-    );
-    
+    final isContentOverflowing = _isContentOverflowing(node: node, nodeRect: targetRect);
+
     canvas.save();
-    
+
     // 1. Сначала рисуем фон и границу (без маски)
-    _drawNodeBackground(
-      canvas: canvas,
-      node: node,
-      nodeRect: targetRect,
-      forTile: forTile,
-    );
-    
+    _drawNodeBackground(canvas: canvas, node: node, nodeRect: targetRect, forTile: forTile);
+
     _drawNodeBorder(
       canvas: canvas,
       node: node,
@@ -684,18 +677,28 @@ class NodePainter {
       forTile: forTile,
       isContentOverflowing: isContentOverflowing,
     );
-    
+
     // 2. Теперь применяем маску для внутреннего содержимого
-    _applyClipMask(
-      canvas: canvas,
-      nodeRect: targetRect,
-      node: node,
-      lineWidth: lineWidth,
-    );
-    
+    _applyClipMask(canvas: canvas, nodeRect: targetRect, node: node, lineWidth: lineWidth);
+
     // 3. Рисуем внутреннее содержимое (с маской)
     _drawNodeContent(canvas: canvas, node: node, nodeRect: targetRect, forTile: forTile);
-    
+
+    // 4. Рисуем иконку треугольника поверх всего (вне маски)
+    if (isContentOverflowing) {
+      canvas.restore(); // Снимаем маску
+      canvas.save(); // Сохраняем для последующего restore
+
+      final iconSize = 20.0;
+      final iconX = targetRect.left + targetRect.width / 2 - iconSize / 2;
+      final iconY = targetRect.bottom - iconSize / 2 - 4;
+
+      canvas.save();
+      canvas.translate(iconX, iconY);
+      CanvasIcons.paintWarningTriangle(canvas, Size(iconSize, iconSize));
+      canvas.restore();
+    }
+
     canvas.restore();
   }
 }
