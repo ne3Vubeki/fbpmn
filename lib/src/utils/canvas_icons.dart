@@ -532,6 +532,51 @@ class CanvasIcons {
     _drawDashedLine(canvas, rect.bottomRight, rect.bottomLeft, paint);
     _drawDashedLine(canvas, rect.bottomLeft, rect.topLeft, paint);
   }
+
+  /// Иконка метрик производительности (speedometer)
+  static void paintPerformance(Canvas canvas, Size size, Color color, {bool filled = false}) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final center = Offset(size.width / 2, size.height * 0.55);
+    final radius = size.width * 0.4;
+
+    // Полукруг (спидометр)
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      3.14159, // π
+      3.14159, // π
+      false,
+      paint,
+    );
+
+    // Стрелка спидометра
+    final needlePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    // Угол стрелки (примерно 45 градусов от вертикали)
+    final needleAngle = filled ? -0.5 : -1.0; // Разные позиции для filled/unfilled
+    final needleLength = radius * 0.7;
+    final needleEnd = Offset(
+      center.dx + needleLength * (needleAngle > 0 ? 0.7 : -0.3),
+      center.dy - needleLength * 0.7,
+    );
+
+    canvas.drawLine(center, needleEnd, needlePaint);
+
+    // Центральная точка
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 2, dotPaint);
+
+  }
 }
 
 /// Виджет для отображения canvas-иконки

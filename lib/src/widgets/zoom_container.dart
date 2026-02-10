@@ -7,6 +7,7 @@ import '../services/input_handler.dart';
 import '../services/scroll_handler.dart';
 import '../services/tile_manager.dart';
 import 'canvas_thumbnail.dart';
+import 'performance_metrics.dart';
 import 'state_widget.dart';
 import 'zoom_panel.dart';
 
@@ -32,6 +33,7 @@ class ZoomContainer extends StatefulWidget {
 
 class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomContainer> {
   bool _showThumbnail = true;
+  bool _showPerformance = false;
 
   double get scale => widget.state.scale;
   bool get showTileBorders => widget.state.showTileBorders;
@@ -100,6 +102,12 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
     });
   }
 
+  void _togglePerformance() {
+    setState(() {
+      _showPerformance = !_showPerformance;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Ширина контейнера (равна ширине миниатюры или минимальная ширина панели)
@@ -112,6 +120,12 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // Метрики производительности (отображаются над миниатюрой)
+          if (_showPerformance) ...[
+            PerformanceMetrics(panelWidth: containerWidth),
+            const SizedBox(height: 8),
+          ],
+
           // Миниатюра холста (отображается если включена)
           if (_showThumbnail) ...[
             CanvasThumbnail(
@@ -135,6 +149,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
             showThumbnail: _showThumbnail,
             showCurves: widget.state.useCurves,
             snapEnabled: widget.state.snapEnabled,
+            showPerformance: _showPerformance,
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
             panelWidth: containerWidth,
@@ -143,6 +158,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
             onToggleThumbnail: _toggleThumbnail,
             onToggleCurves: _toggleCurves,
             onToggleSnap: _toggleSnap,
+            onTogglePerformance: _togglePerformance,
           ),
         ],
       ),

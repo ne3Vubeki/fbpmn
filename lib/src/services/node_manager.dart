@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:fbpmn/src/models/snap_line.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/manager.dart';
+import 'package:fbpmn/src/services/performance_tracker.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -266,6 +267,9 @@ class NodeManager extends Manager {
   }
 
   Future<void> _selectNodeImmediate(TableNode node, Offset screenPosition) async {
+    final tracker = PerformanceTracker();
+    tracker.startSelect();
+
     _deselectAllNodes();
 
     node.isSelected = true;
@@ -286,10 +290,15 @@ class NodeManager extends Manager {
 
     startNodeDrag(screenPosition);
 
+    tracker.endSelect();
+
     onStateUpdate();
   }
 
   Future<void> _selectNode(TableNode node) async {
+    final tracker = PerformanceTracker();
+    tracker.startSelect();
+
     _deselectAllNodes();
 
     node.isSelected = true;
@@ -306,6 +315,8 @@ class NodeManager extends Manager {
     _updateNodePosition();
 
     arrowManager.selectAllArrows();
+
+    tracker.endSelect();
 
     onStateUpdate();
   }
@@ -375,6 +386,9 @@ class NodeManager extends Manager {
       return;
     }
 
+    final tracker = PerformanceTracker();
+    tracker.startDeselect();
+
     final node = state.nodesSelected.first!;
 
     // Используем текущую позицию узла (которая могла измениться при resize)
@@ -432,6 +446,8 @@ class NodeManager extends Manager {
     state.arrowsSelected.clear();
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
+
+    tracker.endDeselect();
 
     onStateUpdate();
     arrowManager.onStateUpdate();

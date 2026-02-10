@@ -7,6 +7,7 @@ class ZoomPanel extends StatelessWidget {
   final bool showThumbnail;
   final bool showCurves;
   final bool snapEnabled;
+  final bool showPerformance;
   final double canvasWidth;
   final double canvasHeight;
   final double panelWidth;
@@ -15,6 +16,7 @@ class ZoomPanel extends StatelessWidget {
   final VoidCallback onToggleThumbnail;
   final VoidCallback onToggleCurves;
   final VoidCallback onToggleSnap;
+  final VoidCallback onTogglePerformance;
 
   const ZoomPanel({
     super.key,
@@ -23,6 +25,7 @@ class ZoomPanel extends StatelessWidget {
     required this.showThumbnail,
     required this.showCurves,
     required this.snapEnabled,
+    required this.showPerformance,
     required this.canvasWidth,
     required this.canvasHeight,
     required this.panelWidth,
@@ -31,6 +34,7 @@ class ZoomPanel extends StatelessWidget {
     required this.onToggleThumbnail,
     required this.onToggleCurves,
     required this.onToggleSnap,
+    required this.onTogglePerformance,
   });
 
   @override
@@ -162,6 +166,21 @@ class ZoomPanel extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                 tooltip: showTileBorders ? 'Скрыть границы тайлов' : 'Показать границы тайлов',
+              ),
+
+              const SizedBox(width: 4),
+
+              // Кнопка отображения метрик производительности
+              IconButton(
+                icon: CanvasIcon(
+                  painter: (canvas, size, color) => CanvasIcons.paintPerformance(canvas, size, color, filled: showPerformance),
+                  size: 18,
+                  color: showPerformance ? Colors.orange : Colors.grey,
+                ),
+                onPressed: onTogglePerformance,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                tooltip: showPerformance ? 'Скрыть метрики' : 'Показать метрики',
               ),
             ],
           ),
