@@ -120,7 +120,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
   @override
   Widget build(BuildContext context) {
     // Ширина контейнера (равна ширине миниатюры или минимальная ширина панели)
-    final double containerWidth = 320;
+    final double containerWidth = 340;
 
     return Container(
       margin: const EdgeInsets.only(right: 20, bottom: 20),

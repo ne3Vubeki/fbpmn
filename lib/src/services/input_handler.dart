@@ -1,4 +1,5 @@
 import 'package:fbpmn/src/services/arrow_manager.dart';
+import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
@@ -27,14 +28,23 @@ class InputHandler extends Manager {
   });
 
   void handleKeyEvent(KeyEvent event) {
-    bool shiftStateChanged = false;
+    bool stateChanged = false;
 
     if (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
         event.logicalKey == LogicalKeyboardKey.shiftRight) {
       final bool newShiftState = event is KeyDownEvent || event is KeyRepeatEvent;
       if (state.isShiftPressed != newShiftState) {
         state.isShiftPressed = newShiftState;
-        shiftStateChanged = true;
+        stateChanged = true;
+      }
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.controlLeft ||
+        event.logicalKey == LogicalKeyboardKey.controlRight) {
+      final bool newCtrlState = event is KeyDownEvent || event is KeyRepeatEvent;
+      if (state.isCtrlPressed != newCtrlState) {
+        state.isCtrlPressed = newCtrlState;
+        stateChanged = true;
       }
     }
 
@@ -49,8 +59,8 @@ class InputHandler extends Manager {
       }
     }
 
-    // Вызываем onStateUpdate только если состояние shift изменилось
-    if (shiftStateChanged) {
+    // Вызываем onStateUpdate только если состояние модификаторов изменилось
+    if (stateChanged) {
       onStateUpdate();
     }
   }
@@ -99,34 +109,47 @@ class InputHandler extends Manager {
       bool clickedOnSelectedNode = false;
 
       if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
-        final node = state.nodesSelected.first!;
-        final scaledWidth = node.size.width * state.scale;
-        final scaledHeight = node.size.height * state.scale;
-
-        // Для раскрытого swimlane используем фактические границы рамки выделения,
-        // которые включают в себя детей
-        if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-          // Используем текущие границы рамки выделения
-          final nodeScreenRect = Rect.fromLTWH(
-            state.selectedNodeOffset.dx,
-            state.selectedNodeOffset.dy,
-            scaledWidth + state.framePadding.left + state.framePadding.right,
-            scaledHeight + state.framePadding.top + state.framePadding.bottom,
-          );
-
-          clickedOnSelectedNode = nodeScreenRect.contains(position);
+        if (state.nodesSelected.length > 1) {
+          // Мультивыделение — проверяем клик по общему bounding box
+          final result = Utils.getNodesWorldBounds(state.nodesSelected.toList(), state.delta);
+          if (result != null) {
+            final screenTopLeft = Utils.worldToScreen(result.worldBounds.topLeft, state);
+            final screenBottomRight = Utils.worldToScreen(result.worldBounds.bottomRight, state);
+            final frameOffset = nodeManager.frameTotalOffset;
+            final multiRect = Rect.fromLTRB(
+              screenTopLeft.dx - frameOffset,
+              screenTopLeft.dy - frameOffset,
+              screenBottomRight.dx + frameOffset,
+              screenBottomRight.dy + frameOffset,
+            );
+            clickedOnSelectedNode = multiRect.contains(position);
+          }
         } else {
-          // Для обычных узлов и свернутых swimlane используем стандартную логику
-          // Рамка окружает узел с фиксированным отступом
-          final double frameOffset = nodeManager.frameTotalOffset;
-          final nodeScreenRect = Rect.fromLTWH(
-            state.selectedNodeOffset.dx,
-            state.selectedNodeOffset.dy,
-            scaledWidth + frameOffset * 2,
-            scaledHeight + frameOffset * 2,
-          );
+          // Единичное выделение
+          final node = state.nodesSelected.first!;
+          final scaledWidth = node.size.width * state.scale;
+          final scaledHeight = node.size.height * state.scale;
 
-          clickedOnSelectedNode = nodeScreenRect.contains(position);
+          // Для раскрытого swimlane используем фактические границы рамки выделения,
+          // которые включают в себя детей
+          if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+            final nodeScreenRect = Rect.fromLTWH(
+              state.selectedNodeOffset.dx,
+              state.selectedNodeOffset.dy,
+              scaledWidth + state.framePadding.left + state.framePadding.right,
+              scaledHeight + state.framePadding.top + state.framePadding.bottom,
+            );
+            clickedOnSelectedNode = nodeScreenRect.contains(position);
+          } else {
+            final double frameOffset = nodeManager.frameTotalOffset;
+            final nodeScreenRect = Rect.fromLTWH(
+              state.selectedNodeOffset.dx,
+              state.selectedNodeOffset.dy,
+              scaledWidth + frameOffset * 2,
+              scaledHeight + frameOffset * 2,
+            );
+            clickedOnSelectedNode = nodeScreenRect.contains(position);
+          }
         }
       }
 

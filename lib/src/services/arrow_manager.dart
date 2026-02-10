@@ -928,7 +928,27 @@ class ArrowManager extends Manager {
       return null;
     }
 
-    final node = findNodeRecursive(state.nodes);
+    // Ищем в основном списке узлов
+    TableNode? node = findNodeRecursive(state.nodes);
+
+    // Если не найден — ищем среди выделенных узлов (они удалены из state.nodes)
+    if (node == null && state.nodesSelected.isNotEmpty) {
+      for (final selected in state.nodesSelected) {
+        if (selected == null) continue;
+        if (selected.id == nodeId) {
+          node = selected;
+          break;
+        }
+        if (selected.children != null) {
+          final found = findNodeRecursive(selected.children!);
+          if (found != null) {
+            node = found;
+            break;
+          }
+        }
+      }
+    }
+
     if (node == null) return null;
 
     // Проверка на свернутые swimlane

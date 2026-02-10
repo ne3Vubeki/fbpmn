@@ -19,6 +19,8 @@ class NodeManager extends Manager {
 
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
+  // Начальные мировые позиции всех выделенных узлов (для группового перемещения)
+  final Map<String, Offset> _multiDragStartPositions = {};
 
   // Переменные для хранения начальных параметров рамки swimlane
   Rect? _initialSwimlaneBounds;
@@ -104,7 +106,7 @@ class NodeManager extends Manager {
       final screenDelta = screenPosition - _nodeDragStart;
       final worldDelta = screenDelta / state.scale;
 
-      // Обновляем мировые координаты УЗЛА
+      // Обновляем мировые координаты первого УЗЛА
       var newWorldPosition = _nodeStartWorldPosition + worldDelta;
 
       // Применяем snap-прилипание (если включено)
@@ -117,6 +119,20 @@ class NodeManager extends Manager {
       }
 
       state.originalNodePosition = newWorldPosition;
+
+      // При мультивыделении перемещаем все узлы на тот же worldDelta
+      if (state.nodesSelected.length > 1) {
+        final actualDelta = newWorldPosition - _nodeStartWorldPosition;
+        for (final node in state.nodesSelected) {
+          if (node == null) continue;
+          final startPos = _multiDragStartPositions[node.id];
+          if (startPos != null) {
+            node.aPosition = startPos + actualDelta;
+            // Обновляем позиции детей для group/swimlane
+            _updateChildrenPositions(node);
+          }
+        }
+      }
 
       // Обновляем позицию рамки на основе новой позиции узла
       _updateNodePosition();
@@ -321,6 +337,22 @@ class NodeManager extends Manager {
     onStateUpdate();
   }
 
+  /// Добавление узла в существующее выделение (Ctrl+клик)
+  Future<void> _addNodeToSelection(TableNode node) async {
+    // Проверяем, не выделен ли уже этот узел
+    if (state.nodesSelected.any((n) => n?.id == node.id)) return;
+
+    node.isSelected = true;
+    state.nodesSelected.add(node);
+    state.isNodeOnTopLayer = true;
+
+    await _prepareNodeForTopLayer(node);
+
+    arrowManager.selectAllArrows();
+
+    onStateUpdate();
+  }
+
   /// Подготовка узла для перемещения на верхний слой
   Future<void> _prepareNodeForTopLayer(TableNode node) async {
     // Удаляем узел из state.nodes
@@ -389,51 +421,14 @@ class NodeManager extends Manager {
     final tracker = PerformanceTracker();
     tracker.startDeselect();
 
-    final node = state.nodesSelected.first!;
+    // Обрабатываем все выделенные узлы
+    for (final node in state.nodesSelected) {
+      if (node == null) continue;
 
-    // Используем текущую позицию узла (которая могла измениться при resize)
-    // вместо сброса к originalNodePosition
-    final currentNodePosition = node.aPosition ?? (state.delta + node.position);
-    final newPositionDelta = currentNodePosition - state.originalNodePosition;
-
-    // Находим родительский swimlane, если он существует и развернут
-    TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
-    if (parentSwimlane != null) {
-      // Если узел является дочерним для развернутого swimlane,
-      // вычисляем его относительную позицию по отношению к родителю
-      node.position = currentNodePosition - state.delta - parentSwimlane.position;
-    } else {
-      // Для обычных узлов (не дочерних развернутого swimlane)
-      final newPosition = currentNodePosition - state.delta;
-      node.position = newPosition;
-
-      // Если это swimlane с детьми, обновляем относительные позиции детей
-      if (node.children != null) {
-        for (final child in node.children!) {
-          if (child.aPosition != null) {
-            // Рассчитываем новую авсолютную позицию, если изменилась позиция родителя
-            child.aPosition = child.aPosition! + newPositionDelta;
-            // Рассчитываем относительные координаты ребенка из абсолютных,
-            // вычитая delta и позицию родителя
-            child.position = child.aPosition! - state.delta - node.position;
-          }
-        }
-      }
+      _saveOneNodeBack(node);
     }
-
-    // Добавляем узел обратно в основной список узлов
-    _addNodeBackToNodesList(node);
 
     await tileManager.updateTilesAfterNodeChange();
-
-    node.isSelected = false;
-
-    // Снимаем выделение с детей swimlane
-    if (node.qType == 'swimlane' && node.children != null) {
-      for (final child in node.children!) {
-        child.isSelected = false;
-      }
-    }
 
     // Пересчитываем абсолютные позиции для всех узлов
     for (final node in state.nodes) {
@@ -451,6 +446,46 @@ class NodeManager extends Manager {
 
     onStateUpdate();
     arrowManager.onStateUpdate();
+  }
+
+  /// Возвращает один узел обратно в state.nodes и тайлы
+  void _saveOneNodeBack(TableNode node) {
+    final currentNodePosition = node.aPosition ?? (state.delta + node.position);
+
+    // Находим родительский swimlane, если он существует и развернут
+    TableNode? parentSwimlane = _findParentExpandedSwimlaneNode(node);
+    if (parentSwimlane != null) {
+      // Если узел является дочерним для развернутого swimlane,
+      // вычисляем его относительную позицию по отношению к родителю
+      node.position = currentNodePosition - state.delta - parentSwimlane.position;
+    } else {
+      // Для обычных узлов (не дочерних развернутого swimlane)
+      final newPosition = currentNodePosition - state.delta;
+      node.position = newPosition;
+
+      // Если это swimlane с детьми, обновляем относительные позиции детей
+      if (node.children != null) {
+        for (final child in node.children!) {
+          if (child.aPosition != null) {
+            // Рассчитываем относительные координаты ребенка из абсолютных,
+            // вычитая delta и позицию родителя
+            child.position = child.aPosition! - state.delta - node.position;
+          }
+        }
+      }
+    }
+
+    // Добавляем узел обратно в основной список узлов
+    _addNodeBackToNodesList(node);
+
+    node.isSelected = false;
+
+    // Снимаем выделение с детей swimlane
+    if (node.qType == 'swimlane' && node.children != null) {
+      for (final child in node.children!) {
+        child.isSelected = false;
+      }
+    }
   }
 
   // Метод для поиска родителя swimlane
@@ -532,8 +567,14 @@ class NodeManager extends Manager {
         return;
       }
 
+      // Ctrl+клик — добавляем узел в существующее выделение
+      if (state.isCtrlPressed && state.nodesSelected.isNotEmpty) {
+        await _addNodeToSelection(foundNode);
+        return;
+      }
+
       if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
-        if (state.nodesSelected.first!.id == foundNode.id) {
+        if (state.nodesSelected.any((n) => n?.id == foundNode!.id)) {
           if (immediateDrag) {
             startNodeDrag(screenPosition);
           }
@@ -666,6 +707,13 @@ class NodeManager extends Manager {
       _nodeDragStart = screenPosition;
       _nodeStartWorldPosition = state.originalNodePosition;
 
+      // Сохраняем начальные мировые позиции всех выделенных узлов
+      _multiDragStartPositions.clear();
+      for (final node in state.nodesSelected) {
+        if (node == null) continue;
+        _multiDragStartPositions[node.id] = node.aPosition ?? (state.delta + node.position);
+      }
+
       // Очищаем начальные параметры рамки при начале перетаскивания
       _initialSwimlaneBounds = null;
       _initialFramePadding = null;
@@ -684,6 +732,18 @@ class NodeManager extends Manager {
       // Очищаем snap-линии
       clearSnapLines();
       onStateUpdate();
+    }
+  }
+
+  /// Обновляет aPosition детей узла на основе его текущей aPosition
+  void _updateChildrenPositions(TableNode node) {
+    if (node.children == null || node.children!.isEmpty) return;
+    final parentPos = node.aPosition;
+    if (parentPos == null) return;
+
+    for (final child in node.children!) {
+      // child.position — относительная позиция внутри родителя
+      child.aPosition = parentPos + child.position;
     }
   }
 
@@ -706,26 +766,21 @@ class NodeManager extends Manager {
       return (position: worldPosition, snapLines: []);
     }
 
-    final selectedNode = state.nodesSelected.first!;
-    final nodeSize = selectedNode.size;
+    // ID всех выделенных узлов — исключаем из snap-точек
+    final selectedIds = <String>{};
+    for (final n in state.nodesSelected) {
+      if (n != null) selectedIds.add(n.id);
+    }
 
-    // Границы и центр перемещаемого узла
-    final nodeLeft = worldPosition.dx;
-    final nodeRight = worldPosition.dx + nodeSize.width;
-    final nodeCenterX = worldPosition.dx + nodeSize.width / 2;
-    final nodeTop = worldPosition.dy;
-    final nodeBottom = worldPosition.dy + nodeSize.height;
-    final nodeCenterY = worldPosition.dy + nodeSize.height / 2;
-
-    // Получаем видимые узлы в viewport
+    // Получаем видимые узлы в viewport (исключая все выделенные)
     final visibleNodes = _getVisibleNodes();
 
-    // Собираем все snap-точки от видимых узлов
-    final snapPointsX = <double>[]; // Вертикальные линии (X координаты)
-    final snapPointsY = <double>[]; // Горизонтальные линии (Y координаты)
+    // Собираем все snap-точки от видимых невыделенных узлов
+    final snapPointsX = <double>[];
+    final snapPointsY = <double>[];
 
     for (final node in visibleNodes) {
-      if (node.id == selectedNode.id) continue;
+      if (selectedIds.contains(node.id)) continue;
 
       final nodeWorldPos = node.aPosition ?? (state.delta + node.position);
       final left = nodeWorldPos.dx;
@@ -739,76 +794,96 @@ class NodeManager extends Manager {
       snapPointsY.addAll([top, bottom, centerY]);
     }
 
-    // Ищем ближайшие snap-точки
-    double newX = worldPosition.dx;
-    double newY = worldPosition.dy;
-    final snapLines = <SnapLine>[];
+    // Вычисляем worldDelta из позиции первого узла
+    final firstStartPos = _multiDragStartPositions[state.nodesSelected.first!.id];
+    final worldDelta = (firstStartPos != null)
+        ? worldPosition - firstStartPos
+        : Offset.zero;
 
-    // Проверяем snap по X (вертикальные линии)
+    // Ищем ближайшие snap-точки среди ВСЕХ выделенных узлов
+    double correctionX = 0;
+    double correctionY = 0;
     double? bestSnapX;
     double bestSnapDistX = snapThreshold / state.scale;
+    double? bestSnapY;
+    double bestSnapDistY = snapThreshold / state.scale;
 
-    for (final snapX in snapPointsX) {
-      // Проверяем левую границу
-      final distLeft = (nodeLeft - snapX).abs();
-      if (distLeft < bestSnapDistX) {
-        bestSnapDistX = distLeft;
-        bestSnapX = snapX;
-        newX = snapX;
+    for (final selected in state.nodesSelected) {
+      if (selected == null) continue;
+
+      // Предполагаемая позиция этого узла после перемещения
+      final startPos = _multiDragStartPositions[selected.id];
+      if (startPos == null) continue;
+      final movedPos = startPos + worldDelta;
+      final nodeSize = selected.size;
+
+      final nodeLeft = movedPos.dx;
+      final nodeRight = movedPos.dx + nodeSize.width;
+      final nodeCenterX = movedPos.dx + nodeSize.width / 2;
+      final nodeTop = movedPos.dy;
+      final nodeBottom = movedPos.dy + nodeSize.height;
+      final nodeCenterY = movedPos.dy + nodeSize.height / 2;
+
+      // Проверяем snap по X
+      for (final snapX in snapPointsX) {
+        final distLeft = (nodeLeft - snapX).abs();
+        if (distLeft < bestSnapDistX) {
+          bestSnapDistX = distLeft;
+          bestSnapX = snapX;
+          correctionX = snapX - nodeLeft;
+        }
+        final distRight = (nodeRight - snapX).abs();
+        if (distRight < bestSnapDistX) {
+          bestSnapDistX = distRight;
+          bestSnapX = snapX;
+          correctionX = snapX - nodeRight;
+        }
+        final distCenter = (nodeCenterX - snapX).abs();
+        if (distCenter < bestSnapDistX) {
+          bestSnapDistX = distCenter;
+          bestSnapX = snapX;
+          correctionX = snapX - nodeCenterX;
+        }
       }
-      // Проверяем правую границу
-      final distRight = (nodeRight - snapX).abs();
-      if (distRight < bestSnapDistX) {
-        bestSnapDistX = distRight;
-        bestSnapX = snapX;
-        newX = snapX - nodeSize.width;
-      }
-      // Проверяем центр
-      final distCenter = (nodeCenterX - snapX).abs();
-      if (distCenter < bestSnapDistX) {
-        bestSnapDistX = distCenter;
-        bestSnapX = snapX;
-        newX = snapX - nodeSize.width / 2;
+
+      // Проверяем snap по Y
+      for (final snapY in snapPointsY) {
+        final distTop = (nodeTop - snapY).abs();
+        if (distTop < bestSnapDistY) {
+          bestSnapDistY = distTop;
+          bestSnapY = snapY;
+          correctionY = snapY - nodeTop;
+        }
+        final distBottom = (nodeBottom - snapY).abs();
+        if (distBottom < bestSnapDistY) {
+          bestSnapDistY = distBottom;
+          bestSnapY = snapY;
+          correctionY = snapY - nodeBottom;
+        }
+        final distCenter = (nodeCenterY - snapY).abs();
+        if (distCenter < bestSnapDistY) {
+          bestSnapDistY = distCenter;
+          bestSnapY = snapY;
+          correctionY = snapY - nodeCenterY;
+        }
       }
     }
+
+    final snapLines = <SnapLine>[];
 
     if (bestSnapX != null) {
       final screenX = bestSnapX * state.scale + state.offset.dx;
       snapLines.add(SnapLine(type: SnapLineType.vertical, position: screenX));
     }
 
-    // Проверяем snap по Y (горизонтальные линии)
-    double? bestSnapY;
-    double bestSnapDistY = snapThreshold / state.scale;
-
-    for (final snapY in snapPointsY) {
-      // Проверяем верхнюю границу
-      final distTop = (nodeTop - snapY).abs();
-      if (distTop < bestSnapDistY) {
-        bestSnapDistY = distTop;
-        bestSnapY = snapY;
-        newY = snapY;
-      }
-      // Проверяем нижнюю границу
-      final distBottom = (nodeBottom - snapY).abs();
-      if (distBottom < bestSnapDistY) {
-        bestSnapDistY = distBottom;
-        bestSnapY = snapY;
-        newY = snapY - nodeSize.height;
-      }
-      // Проверяем центр
-      final distCenter = (nodeCenterY - snapY).abs();
-      if (distCenter < bestSnapDistY) {
-        bestSnapDistY = distCenter;
-        bestSnapY = snapY;
-        newY = snapY - nodeSize.height / 2;
-      }
-    }
-
     if (bestSnapY != null) {
       final screenY = bestSnapY * state.scale + state.offset.dy;
       snapLines.add(SnapLine(type: SnapLineType.horizontal, position: screenY));
     }
+
+    // Корректируем позицию первого узла
+    final newX = worldPosition.dx + correctionX;
+    final newY = worldPosition.dy + correctionY;
 
     return (position: Offset(newX, newY), snapLines: snapLines);
   }

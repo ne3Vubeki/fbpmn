@@ -93,6 +93,11 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
     if (widget.state.isShiftPressed) {
       return SystemMouseCursors.grab;
     }
+
+    // Курсор с плюсом при зажатом Ctrl (добавление к выделению)
+    if (widget.state.isCtrlPressed) {
+      return SystemMouseCursors.cell;
+    }
     
     return SystemMouseCursors.basic;
   }

@@ -13,6 +13,7 @@ class EditorState {
 
   // Состояние ввода
   bool isShiftPressed = false;
+  bool isCtrlPressed = false;
   bool isPanning = false;
   Offset mousePosition = Offset.zero;
 
