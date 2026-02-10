@@ -8,7 +8,7 @@ class Connections {
   Set<Connection?>? bottom;
   Set<Connection?>? left;
 
-  static double discreteness = 8.0;
+  static double discreteness = 12.0;
 
   Connections({this.top, this.right, this.bottom, this.left}) {
     top = {};

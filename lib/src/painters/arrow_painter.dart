@@ -126,13 +126,14 @@ class ArrowsPainter {
     final sourceSide = sidesParts.isNotEmpty ? sidesParts[0] : '';
     final targetSide = sidesParts.length > 1 ? sidesParts[1] : '';
 
-    final double padding = 1.0 * scale;
-    final double fontSize = 10.0 * scale;
+    final double padding = 14.0 * scale;
+    final double fontSize = 8.0 * scale;
+    final double circlePadding = 1.0 * scale;
 
     for (final power in powers) {
       if (power.value.isEmpty) continue;
 
-      final textStyle = TextStyle(color: color, fontSize: fontSize);
+      final textStyle = TextStyle(color: color, fontSize: fontSize, fontWeight: FontWeight.w500);
 
       final textSpan = TextSpan(text: power.value, style: textStyle);
       final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
@@ -151,30 +152,54 @@ class ArrowsPainter {
         currentSide = targetSide;
       }
 
-      // Вычисляем позицию текста в зависимости от стороны
-      Offset textPosition;
+      // Вычисляем размер кружка (радиус = половина максимального размера текста + отступ)
+      final circleRadius = (textPainter.width > textPainter.height 
+          ? textPainter.width / 2 
+          : textPainter.height / 2) + circlePadding;
+
+      // Вычисляем позицию центра кружка в зависимости от стороны
+      Offset circleCenter;
 
       switch (currentSide) {
         case 'left':
-          // Связь выходит/входит слева - текст слева от точки
-          textPosition = Offset(position.dx + padding, position.dy - textPainter.height / 2);
+          // Связь выходит/входит слева - кружок слева от точки
+          circleCenter = Offset(position.dx - padding - circleRadius, position.dy);
           break;
         case 'right':
-          // Связь выходит/входит справа - текст справа от точки
-          textPosition = Offset(position.dx - padding - textPainter.width, position.dy - textPainter.height / 2);
+          // Связь выходит/входит справа - кружок справа от точки
+          circleCenter = Offset(position.dx + padding + circleRadius, position.dy);
           break;
         case 'top':
-          // Связь выходит/входит сверху - текст над точкой
-          textPosition = Offset(position.dx - textPainter.width / 2, position.dy - padding);
+          // Связь выходит/входит сверху - кружок над точкой
+          circleCenter = Offset(position.dx, position.dy - padding - circleRadius);
           break;
         case 'bottom':
-          // Связь выходит/входит снизу - текст под точкой
-          textPosition = Offset(position.dx - textPainter.width / 2, position.dy - textPainter.height);
+          // Связь выходит/входит снизу - кружок под точкой
+          circleCenter = Offset(position.dx, position.dy + padding + circleRadius);
           break;
         default:
           // Fallback: центрируем по вертикали
-          textPosition = Offset(position.dx, position.dy - textPainter.height / 2);
+          circleCenter = Offset(position.dx + padding + circleRadius, position.dy);
       }
+
+      // Рисуем белый кружок с границей
+      final circleFillPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+      
+      final circleStrokePaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0 * scale;
+
+      canvas.drawCircle(circleCenter, circleRadius, circleFillPaint);
+      canvas.drawCircle(circleCenter, circleRadius, circleStrokePaint);
+
+      // Позиция текста - центрируем в кружке
+      final textPosition = Offset(
+        circleCenter.dx - textPainter.width / 2,
+        circleCenter.dy - textPainter.height / 2,
+      );
 
       textPainter.paint(canvas, textPosition);
     }

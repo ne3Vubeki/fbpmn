@@ -18,6 +18,7 @@ class ArrowManager extends Manager {
   double get arrowIndent => 12;
   double get sizeLimit => 60;
   double get halfSizeLimit => 30;
+  double get defaultArrowRadius => 10;
 
   ArrowManager({required this.state});
 
@@ -303,19 +304,6 @@ class ArrowManager extends Manager {
       final startConnections = sourceNode.connections;
       final endConnections = targetNode.connections;
 
-      // final startConnectionsCount = startConnections?.length(sidesNodesList[0]) ?? 0;
-      // final endConnectionsCount = endConnections?.length(sidesNodesList[1]) ?? 0;
-
-      // if (endConnectionsCount * Connections.discreteness >= targetRect.height) {
-      //   if (sidesNodes == 'bottom:right') {
-      //     sidesNodes = 'bottom:top';
-      //     sides = '$sidesNodes:4';
-      //   } else if(sidesNodes == 'right:bottom') {
-      //     sidesNodes = 'top:bottom';
-      //     sides = '$sidesNodes:4';
-      //   }
-      // }
-
       final startConnection = startConnections?.add(sidesNodesList[0], arrow.id, startConnectionPoint);
       final endConnection = endConnections?.add(sidesNodesList[1], arrow.id, endConnectionPoint);
 
@@ -406,10 +394,6 @@ class ArrowManager extends Manager {
     bool isNotCalculate = false,
     bool isTiles = false,
   }) {
-    // Для рассчитанных путей не считаем - отдаем сразу
-    // if (isNotCalculate && arrow.path != null && arrow.coordinates != null) {
-    //   return (path: arrow.path!, coordinates: arrow.coordinates!);
-    // }
 
     // Находим эффективные узлы
     final effectiveSourceNode = _getEffectiveNode(arrow.source);
@@ -701,7 +685,7 @@ class ArrowManager extends Manager {
     bool isCurves = false,
   }) {
     final path = Path();
-    final baseRadius = 10.0 * (scale ?? 1);
+    final baseRadius = defaultArrowRadius * (scale ?? 1);
 
     if (coordinates.isEmpty) return ArrowPaths(path: path);
 
