@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/table.node.dart';
-import '../services/performance_tracker.dart';
 import 'node_painter.dart';
 
 /// Адаптер для использования NodePainter как CustomPainter (простая версия)
@@ -15,8 +14,6 @@ class NodeCustomPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stopwatch = Stopwatch()..start();
-
     // Масштаб для перевода из размеров узла в размеры виджета
     final scaleX = targetSize.width / node.size.width;
     final scaleY = targetSize.height / node.size.height;
@@ -78,9 +75,6 @@ class NodeCustomPainter extends CustomPainter {
     }
 
     canvas.restore();
-
-    stopwatch.stop();
-    PerformanceTracker().recordSelectedNodeRender(stopwatch.elapsedMicroseconds / 1000.0);
   }
 
   @override

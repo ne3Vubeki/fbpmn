@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-import 'performance_tracker.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -549,9 +548,6 @@ class TileManager extends Manager {
     List<Arrow?> arrowsInTile,
   ) async {
     try {
-      final tracker = PerformanceTracker();
-      tracker.startTileRender();
-
       // Фиксированный размер изображения
       final int tileImageSize = EditorConfig.tileSize;
       final double scale = 1.0;
@@ -590,8 +586,6 @@ class TileManager extends Manager {
       final picture = recorder.endRecording();
       final image = await picture.toImage(tileImageSize, tileImageSize);
       picture.dispose();
-
-      tracker.endTileRender();
 
       // Возвращаем тайл вместе с данными для последующего обновления маппингов
       return ImageTile(

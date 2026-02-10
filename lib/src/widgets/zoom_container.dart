@@ -1,4 +1,6 @@
 import 'package:fbpmn/src/services/node_manager.dart';
+// TODO: УДАЛИТЬ после отладки производительности
+import 'package:fbpmn/src/services/performance_tracker.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
@@ -86,12 +88,19 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
     onThumbnailClick(newCanvasOffset);
   }
 
+  // TODO: УДАЛИТЬ замер времени после отладки производительности
   void _toggleCurves() async {
+    final tracker = PerformanceTracker();
+    tracker.startArrowStyleChange();
+
     widget.state.useCurves = !widget.state.useCurves;
     if (widget.state.nodesSelected.isNotEmpty) {
       await widget.nodeManager.handleEmptyAreaClick();
     }
     await widget.tileManager.updateTilesAfterNodeChange();
+
+    tracker.endArrowStyleChange();
+
     // Перерисовываем
     setState(() {});
   }
@@ -111,7 +120,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
   @override
   Widget build(BuildContext context) {
     // Ширина контейнера (равна ширине миниатюры или минимальная ширина панели)
-    final double containerWidth = 300;
+    final double containerWidth = 320;
 
     return Container(
       margin: const EdgeInsets.only(right: 20, bottom: 20),

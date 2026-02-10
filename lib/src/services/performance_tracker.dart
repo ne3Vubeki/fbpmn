@@ -1,66 +1,104 @@
+// =============================================================================
+// TODO: УДАЛИТЬ ЭТОТ ФАЙЛ после завершения отладки производительности
+// Этот класс используется для временного замера производительности операций.
+// После анализа и оптимизации производительности этот функционал должен быть удален.
+// 
+// Файлы, которые нужно будет очистить от использования PerformanceTracker:
+// - lib/src/services/node_manager.dart (startSelect, endSelect, startDeselect, endDeselect)
+// - lib/src/services/tile_manager.dart (startArrowStyleChange, endArrowStyleChange)
+// - lib/src/widgets/performance_metrics.dart (весь виджет)
+// - lib/src/widgets/zoom_container.dart (отображение PerformanceMetrics)
+// - lib/src/widgets/zoom_panel.dart (кнопка переключения метрик)
+// - lib/src/utils/canvas_icons.dart (иконка paintPerformance)
+// =============================================================================
+
 /// Глобальный трекер производительности для замера времени операций
+/// TODO: УДАЛИТЬ после завершения отладки производительности
 class PerformanceTracker {
   static final PerformanceTracker _instance = PerformanceTracker._internal();
   factory PerformanceTracker() => _instance;
   PerformanceTracker._internal();
 
-  // Время рисования тайлов (узлы + связи)
-  double _tileRenderTimeMs = 0;
-  double _tileRenderTimeMin = double.infinity;
-  double _tileRenderTimeMax = 0;
-  int _tileRenderCount = 0;
-
-  // Время рисования выделенного узла
-  double _selectedNodeRenderTimeMs = 0;
-  double _selectedNodeRenderTimeMin = double.infinity;
-  double _selectedNodeRenderTimeMax = 0;
-
-  // Время рисования выделенных связей
-  double _selectedArrowsRenderTimeMs = 0;
-  double _selectedArrowsRenderTimeMin = double.infinity;
-  double _selectedArrowsRenderTimeMax = 0;
-
-  // Время от клика до снятия выделения (сохранение в тайлы)
+  // ---------------------------------------------------------------------------
+  // Время от клика до снятия выделения (сохранение узла в тайлы)
+  // Замеряется в node_manager.dart: _saveNodeToTiles()
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
   double _deselectTimeMs = 0;
   double _deselectTimeMin = double.infinity;
   double _deselectTimeMax = 0;
 
-  // Время от клика до появления выделенного узла
+  // ---------------------------------------------------------------------------
+  // Время от клика до появления выделенного узла с рамкой
+  // Замеряется в node_manager.dart: _selectNode(), _selectNodeImmediate()
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
   double _selectTimeMs = 0;
   double _selectTimeMin = double.infinity;
   double _selectTimeMax = 0;
 
+  // ---------------------------------------------------------------------------
+  // Время изменения стиля связей при переключении в зумпанели
+  // Замеряется в zoom_container.dart или arrow_manager.dart
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
+  double _arrowStyleChangeTimeMs = 0;
+  double _arrowStyleChangeTimeMin = double.infinity;
+  double _arrowStyleChangeTimeMax = 0;
+
+  // ---------------------------------------------------------------------------
+  // Время открытия/закрытия swimlane (рисование узлов)
+  // Замеряется в node_manager.dart: _toggleSwimlaneCollapsed()
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
+  double _swimlaneToggleTimeMs = 0;
+  double _swimlaneToggleTimeMin = double.infinity;
+  double _swimlaneToggleTimeMax = 0;
+
   // Stopwatch для замеров
-  final Stopwatch _stopwatch = Stopwatch();
+  // TODO: УДАЛИТЬ после отладки
   final Stopwatch _deselectStopwatch = Stopwatch();
   final Stopwatch _selectStopwatch = Stopwatch();
+  final Stopwatch _arrowStyleStopwatch = Stopwatch();
+  final Stopwatch _swimlaneStopwatch = Stopwatch();
 
-  // Геттеры для метрик тайлов
-  double get tileRenderTimeMs => _tileRenderTimeMs;
-  double get tileRenderTimeMin => _tileRenderTimeMin == double.infinity ? 0 : _tileRenderTimeMin;
-  double get tileRenderTimeMax => _tileRenderTimeMax;
-  int get tileRenderCount => _tileRenderCount;
-
-  // Геттеры для метрик выделенного узла
-  double get selectedNodeRenderTimeMs => _selectedNodeRenderTimeMs;
-  double get selectedNodeRenderTimeMin => _selectedNodeRenderTimeMin == double.infinity ? 0 : _selectedNodeRenderTimeMin;
-  double get selectedNodeRenderTimeMax => _selectedNodeRenderTimeMax;
-
-  // Геттеры для метрик выделенных связей
-  double get selectedArrowsRenderTimeMs => _selectedArrowsRenderTimeMs;
-  double get selectedArrowsRenderTimeMin => _selectedArrowsRenderTimeMin == double.infinity ? 0 : _selectedArrowsRenderTimeMin;
-  double get selectedArrowsRenderTimeMax => _selectedArrowsRenderTimeMax;
-
-  // Геттеры для метрик снятия выделения (сохранение в тайлы)
+  // ---------------------------------------------------------------------------
+  // Геттеры для метрик снятия выделения
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
   double get deselectTimeMs => _deselectTimeMs;
   double get deselectTimeMin => _deselectTimeMin == double.infinity ? 0 : _deselectTimeMin;
   double get deselectTimeMax => _deselectTimeMax;
 
+  // ---------------------------------------------------------------------------
   // Геттеры для метрик выделения узла
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
   double get selectTimeMs => _selectTimeMs;
   double get selectTimeMin => _selectTimeMin == double.infinity ? 0 : _selectTimeMin;
   double get selectTimeMax => _selectTimeMax;
 
+  // ---------------------------------------------------------------------------
+  // Геттеры для метрик изменения стиля связей
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
+  double get arrowStyleChangeTimeMs => _arrowStyleChangeTimeMs;
+  double get arrowStyleChangeTimeMin => _arrowStyleChangeTimeMin == double.infinity ? 0 : _arrowStyleChangeTimeMin;
+  double get arrowStyleChangeTimeMax => _arrowStyleChangeTimeMax;
+
+  // ---------------------------------------------------------------------------
+  // Геттеры для метрик открытия/закрытия swimlane
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
+  double get swimlaneToggleTimeMs => _swimlaneToggleTimeMs;
+  double get swimlaneToggleTimeMin => _swimlaneToggleTimeMin == double.infinity ? 0 : _swimlaneToggleTimeMin;
+  double get swimlaneToggleTimeMax => _swimlaneToggleTimeMax;
+
+  // ---------------------------------------------------------------------------
+  // Методы замера времени снятия выделения
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
+  
   /// Начать замер времени снятия выделения (от клика до сохранения в тайлы)
   void startDeselect() {
     _deselectStopwatch.reset();
@@ -79,6 +117,11 @@ class PerformanceTracker {
       _deselectTimeMax = _deselectTimeMs;
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Методы замера времени выделения узла
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
 
   /// Начать замер времени выделения узла (от клика до появления)
   void startSelect() {
@@ -99,62 +142,68 @@ class PerformanceTracker {
     }
   }
 
-  /// Начать замер времени рендеринга тайла
-  void startTileRender() {
-    _stopwatch.reset();
-    _stopwatch.start();
+  // ---------------------------------------------------------------------------
+  // Методы замера времени изменения стиля связей
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
+
+  /// Начать замер времени изменения стиля связей
+  void startArrowStyleChange() {
+    _arrowStyleStopwatch.reset();
+    _arrowStyleStopwatch.start();
   }
 
-  /// Завершить замер времени рендеринга тайла
-  void endTileRender() {
-    _stopwatch.stop();
-    _tileRenderTimeMs = _stopwatch.elapsedMicroseconds / 1000.0;
-    _tileRenderCount++;
+  /// Завершить замер времени изменения стиля связей
+  void endArrowStyleChange() {
+    _arrowStyleStopwatch.stop();
+    _arrowStyleChangeTimeMs = _arrowStyleStopwatch.elapsedMicroseconds / 1000.0;
     
-    if (_tileRenderTimeMs < _tileRenderTimeMin) {
-      _tileRenderTimeMin = _tileRenderTimeMs;
+    if (_arrowStyleChangeTimeMs < _arrowStyleChangeTimeMin) {
+      _arrowStyleChangeTimeMin = _arrowStyleChangeTimeMs;
     }
-    if (_tileRenderTimeMs > _tileRenderTimeMax) {
-      _tileRenderTimeMax = _tileRenderTimeMs;
+    if (_arrowStyleChangeTimeMs > _arrowStyleChangeTimeMax) {
+      _arrowStyleChangeTimeMax = _arrowStyleChangeTimeMs;
     }
   }
 
-  /// Записать время рендеринга выделенного узла
-  void recordSelectedNodeRender(double timeMs) {
-    _selectedNodeRenderTimeMs = timeMs;
+  // ---------------------------------------------------------------------------
+  // Методы замера времени открытия/закрытия swimlane
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
+
+  /// Начать замер времени открытия/закрытия swimlane
+  void startSwimlaneToggle() {
+    _swimlaneStopwatch.reset();
+    _swimlaneStopwatch.start();
+  }
+
+  /// Завершить замер времени открытия/закрытия swimlane
+  void endSwimlaneToggle() {
+    _swimlaneStopwatch.stop();
+    _swimlaneToggleTimeMs = _swimlaneStopwatch.elapsedMicroseconds / 1000.0;
     
-    if (timeMs < _selectedNodeRenderTimeMin) {
-      _selectedNodeRenderTimeMin = timeMs;
+    if (_swimlaneToggleTimeMs < _swimlaneToggleTimeMin) {
+      _swimlaneToggleTimeMin = _swimlaneToggleTimeMs;
     }
-    if (timeMs > _selectedNodeRenderTimeMax) {
-      _selectedNodeRenderTimeMax = timeMs;
-    }
-  }
-
-  /// Записать время рендеринга выделенных связей
-  void recordSelectedArrowsRender(double timeMs) {
-    _selectedArrowsRenderTimeMs = timeMs;
-    
-    if (timeMs < _selectedArrowsRenderTimeMin) {
-      _selectedArrowsRenderTimeMin = timeMs;
-    }
-    if (timeMs > _selectedArrowsRenderTimeMax) {
-      _selectedArrowsRenderTimeMax = timeMs;
+    if (_swimlaneToggleTimeMs > _swimlaneToggleTimeMax) {
+      _swimlaneToggleTimeMax = _swimlaneToggleTimeMs;
     }
   }
 
-  /// Сбросить min/max значения (вызывается периодически)
+  // ---------------------------------------------------------------------------
+  // Сброс min/max значений
+  // TODO: УДАЛИТЬ после отладки
+  // ---------------------------------------------------------------------------
+
+  /// Сбросить min/max значения (вызывается по кнопке в UI)
   void resetMinMax() {
-    _tileRenderTimeMin = double.infinity;
-    _tileRenderTimeMax = 0;
-    _tileRenderCount = 0;
-    _selectedNodeRenderTimeMin = double.infinity;
-    _selectedNodeRenderTimeMax = 0;
-    _selectedArrowsRenderTimeMin = double.infinity;
-    _selectedArrowsRenderTimeMax = 0;
     _deselectTimeMin = double.infinity;
     _deselectTimeMax = 0;
     _selectTimeMin = double.infinity;
     _selectTimeMax = 0;
+    _arrowStyleChangeTimeMin = double.infinity;
+    _arrowStyleChangeTimeMax = 0;
+    _swimlaneToggleTimeMin = double.infinity;
+    _swimlaneToggleTimeMax = 0;
   }
 }

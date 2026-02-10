@@ -1,5 +1,4 @@
 import 'package:fbpmn/src/services/arrow_manager.dart';
-import 'package:fbpmn/src/services/performance_tracker.dart';
 import 'package:flutter/material.dart';
 import '../models/arrow.dart';
 import 'arrow_painter.dart';
@@ -25,8 +24,6 @@ class ArrowsCustomPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stopwatch = Stopwatch()..start();
-
     final scaleX = arrowsSize.width / size.width;
     final scaleY = arrowsSize.height / size.height;
 
@@ -41,9 +38,6 @@ class ArrowsCustomPainter extends CustomPainter {
     painter.paint(canvas, scale, arrowsRect);
 
     canvas.restore();
-
-    stopwatch.stop();
-    PerformanceTracker().recordSelectedArrowsRender(stopwatch.elapsedMicroseconds / 1000.0);
   }
 
   @override

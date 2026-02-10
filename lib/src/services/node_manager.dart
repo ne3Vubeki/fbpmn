@@ -570,7 +570,11 @@ class NodeManager extends Manager {
   }
 
   // Метод для переключения состояния swimlane
+  // TODO: УДАЛИТЬ замер времени после отладки производительности
   Future<void> _toggleSwimlaneCollapsed(TableNode swimlaneNode) async {
+    final tracker = PerformanceTracker();
+    tracker.startSwimlaneToggle();
+
     // Создаем копию узла с переключенным состоянием
     final toggledNode = swimlaneNode.toggleCollapsed();
 
@@ -616,6 +620,8 @@ class NodeManager extends Manager {
     for (final node in state.nodes) {
       node.initializeAbsolutePositions(state.delta);
     }
+
+    tracker.endSwimlaneToggle();
 
     onStateUpdate();
   }

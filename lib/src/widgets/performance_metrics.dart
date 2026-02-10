@@ -229,45 +229,15 @@ class _PerformanceMetricsState extends State<PerformanceMetrics>
             color: _getFrameTimeColor(_renderTimeMs),
           ),
           
-          // Divider
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Divider(height: 1, color: Colors.grey[700]),
-          ),
-          
-          // Tile render time
-          _MetricRowWithMinMax(
-            label: 'Tile',
-            value: '${_tracker.tileRenderTimeMs.toStringAsFixed(1)}ms',
-            minMax: _formatMinMax(_tracker.tileRenderTimeMin, _tracker.tileRenderTimeMax),
-            color: _getFrameTimeColor(_tracker.tileRenderTimeMs),
-          ),
-          const SizedBox(height: 3),
-          
-          // Selected node render time
-          _MetricRowWithMinMax(
-            label: 'Node',
-            value: '${_tracker.selectedNodeRenderTimeMs.toStringAsFixed(2)}ms',
-            minMax: _formatMinMax(_tracker.selectedNodeRenderTimeMin, _tracker.selectedNodeRenderTimeMax),
-            color: _getFrameTimeColor(_tracker.selectedNodeRenderTimeMs * 10),
-          ),
-          const SizedBox(height: 3),
-          
-          // Selected arrows render time
-          _MetricRowWithMinMax(
-            label: 'Arrows',
-            value: '${_tracker.selectedArrowsRenderTimeMs.toStringAsFixed(2)}ms',
-            minMax: _formatMinMax(_tracker.selectedArrowsRenderTimeMin, _tracker.selectedArrowsRenderTimeMax),
-            color: _getFrameTimeColor(_tracker.selectedArrowsRenderTimeMs * 10),
-          ),
-          
           // Divider for click-to-action metrics
+          // TODO: УДАЛИТЬ после отладки производительности
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Divider(height: 1, color: Colors.grey[700]),
           ),
           
           // Select time (click to node selection)
+          // TODO: УДАЛИТЬ после отладки производительности
           _MetricRowWithMinMax(
             label: 'Select',
             value: '${_tracker.selectTimeMs.toStringAsFixed(1)}ms',
@@ -277,11 +247,32 @@ class _PerformanceMetricsState extends State<PerformanceMetrics>
           const SizedBox(height: 3),
           
           // Deselect time (click to save to tiles)
+          // TODO: УДАЛИТЬ после отладки производительности
           _MetricRowWithMinMax(
             label: 'Deselect',
             value: '${_tracker.deselectTimeMs.toStringAsFixed(1)}ms',
             minMax: _formatMinMax(_tracker.deselectTimeMin, _tracker.deselectTimeMax),
             color: _getFrameTimeColor(_tracker.deselectTimeMs / 10),
+          ),
+          const SizedBox(height: 3),
+          
+          // Arrow style change time
+          // TODO: УДАЛИТЬ после отладки производительности
+          _MetricRowWithMinMax(
+            label: 'ArrowStyle',
+            value: '${_tracker.arrowStyleChangeTimeMs.toStringAsFixed(1)}ms',
+            minMax: _formatMinMax(_tracker.arrowStyleChangeTimeMin, _tracker.arrowStyleChangeTimeMax),
+            color: _getFrameTimeColor(_tracker.arrowStyleChangeTimeMs / 10),
+          ),
+          const SizedBox(height: 3),
+          
+          // Swimlane toggle time
+          // TODO: УДАЛИТЬ после отладки производительности
+          _MetricRowWithMinMax(
+            label: 'Swimlane',
+            value: '${_tracker.swimlaneToggleTimeMs.toStringAsFixed(1)}ms',
+            minMax: _formatMinMax(_tracker.swimlaneToggleTimeMin, _tracker.swimlaneToggleTimeMax),
+            color: _getFrameTimeColor(_tracker.swimlaneToggleTimeMs / 10),
           ),
           
           // Memory section
@@ -349,7 +340,7 @@ class _MetricRowWithMinMax extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 45,
+              width: 65,
               child: Text(
                 label,
                 style: TextStyle(fontSize: 10, color: Colors.grey[500]),
