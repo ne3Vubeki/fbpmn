@@ -1,11 +1,11 @@
 import 'package:fbpmn/src/services/arrow_manager.dart';
+import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
 import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../services/node_manager.dart';
-import '../utils/bounds_calculator.dart';
 import '../utils/editor_config.dart';
 import 'manager.dart';
 
@@ -14,7 +14,6 @@ class ScrollHandler extends Manager {
   final NodeManager? nodeManager;
   final ArrowManager? arrowManager;
 
-  final BoundsCalculator _boundsCalculator = BoundsCalculator();
   static const double tileSize = 1024.0; // Размер тайла
 
   final ScrollController horizontalScrollController = ScrollController();
@@ -65,7 +64,7 @@ class ScrollHandler extends Manager {
     // Рекурсивная функция для обхода всех узлов включая дочерние
     void collectNodeBounds(TableNode node, Offset parentPosition) {
       final nodePosition = parentPosition + node.position;
-      final nodeRect = _boundsCalculator.calculateNodeRect(
+      final nodeRect = Utils.calculateNodeRect(
         node: node,
         position: nodePosition,
       );
@@ -152,11 +151,12 @@ class ScrollHandler extends Manager {
     }
 
     // Рассчитываем границы всех узлов
-    final bounds = _calculateNodesBounds(state.nodes);
-    if (bounds == null) {
+    final result = Utils.getNodesWorldBounds(state.nodes, state.delta);
+    if (result == null) {
       centerCanvas();
       return;
     }
+    final bounds = result.worldBounds;
 
     // Получаем размеры видимой области
     final viewportWidth = state.viewportSize.width;
@@ -210,38 +210,6 @@ class ScrollHandler extends Manager {
     updateScrollControllers();
     state.isInitialized = true;
     onStateUpdate();
-  }
-
-  /// Рассчитывает границы всех узлов
-  Rect? _calculateNodesBounds(List<TableNode> nodes) {
-    if (nodes.isEmpty) return null;
-
-    double minX = double.infinity;
-    double minY = double.infinity;
-    double maxX = -double.infinity;
-    double maxY = -double.infinity;
-
-    for (final node in nodes) {
-      final nodePosition = state.delta + node.position;
-      final nodeRect = _boundsCalculator.calculateNodeRect(
-        node: node,
-        position: nodePosition,
-      );
-
-      minX = math.min(minX, nodeRect.left);
-      minY = math.min(minY, nodeRect.top);
-      maxX = math.max(maxX, nodeRect.right);
-      maxY = math.max(maxY, nodeRect.bottom);
-    }
-
-    if (minX == double.infinity ||
-        minY == double.infinity ||
-        maxX == -double.infinity ||
-        maxY == -double.infinity) {
-      return null;
-    }
-
-    return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
 
   void centerCanvas() {

@@ -1,6 +1,7 @@
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/input_handler.dart';
 import 'package:fbpmn/src/services/scroll_handler.dart';
+import 'package:fbpmn/src/utils/utils.dart';
 import 'package:fbpmn/src/widgets/state_widget.dart';
 import 'package:flutter/material.dart';
 
@@ -62,7 +63,7 @@ class _ArrowsSelected extends State<ArrowsSelected>
     if (arrows.isEmpty) return Container();
 
     // Рассчитываем размер прямоугольника, который вмещает все стрелки
-    final boundingRect = widget.arrowManager.calculateBoundingRect(arrows);
+    final boundingRect = Utils.calculateBoundingRect(arrows, widget.state);
 
     // Проверяем, что прямоугольник имеет ненулевой размер
     if (boundingRect.width <= 0 || boundingRect.height <= 0) {

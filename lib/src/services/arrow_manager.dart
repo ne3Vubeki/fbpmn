@@ -3,8 +3,6 @@ import 'dart:ui';
 
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
-import 'package:fbpmn/src/utils/editor_config.dart';
-import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../models/table.node.dart';
@@ -983,59 +981,6 @@ class ArrowManager extends Manager {
 
     // Преобразуем Set в List и возвращаем
     return arrowsSet.toList();
-  }
-
-  /// Рассчитывает прямоугольник, который вмещает все стрелки
-  Rect calculateBoundingRect(List<Arrow?> arrows) {
-    if (arrows.isEmpty) return Rect.zero;
-
-    double minX = double.infinity;
-    double minY = double.infinity;
-    double maxX = double.negativeInfinity;
-    double maxY = double.negativeInfinity;
-
-    for (final arrow in arrows) {
-      if (arrow == null) continue;
-
-      // Проверяем все координаты из arrow.coordinates (экранные) и преобразуем в мировые
-      if (arrow.coordinates != null && arrow.coordinates!.isNotEmpty) {
-        for (final screenCoordinate in arrow.coordinates!) {
-          final worldCoordinate = Utils.screenToWorld(screenCoordinate, state);
-          minX = worldCoordinate.dx < minX ? worldCoordinate.dx : minX;
-          minY = worldCoordinate.dy < minY ? worldCoordinate.dy : minY;
-          maxX = worldCoordinate.dx > maxX ? worldCoordinate.dx : maxX;
-          maxY = worldCoordinate.dy > maxY ? worldCoordinate.dy : maxY;
-        }
-      } else {
-        // Если coordinates отсутствуют, используем source и target позиции
-        minX = arrow.aPositionSource.dx < minX ? arrow.aPositionSource.dx : minX;
-        minY = arrow.aPositionSource.dy < minY ? arrow.aPositionSource.dy : minY;
-        maxX = arrow.aPositionSource.dx > maxX ? arrow.aPositionSource.dx : maxX;
-        maxY = arrow.aPositionSource.dy > maxY ? arrow.aPositionSource.dy : maxY;
-
-        minX = arrow.aPositionTarget.dx < minX ? arrow.aPositionTarget.dx : minX;
-        minY = arrow.aPositionTarget.dy < minY ? arrow.aPositionTarget.dy : minY;
-        maxX = arrow.aPositionTarget.dx > maxX ? arrow.aPositionTarget.dx : maxX;
-        maxY = arrow.aPositionTarget.dy > maxY ? arrow.aPositionTarget.dy : maxY;
-      }
-    }
-
-    // Добавляем толщину связи, если ширина или высота равна 0
-    const arrowThickness = EditorConfig.arrowSelectedWidth;
-    final width = maxX - minX;
-    final height = maxY - minY;
-
-    if (width == 0) {
-      minX -= arrowThickness / 2;
-      maxX += arrowThickness / 2;
-    }
-
-    if (height == 0) {
-      minY -= arrowThickness / 2;
-      maxY += arrowThickness / 2;
-    }
-
-    return Rect.fromLTRB(minX, minY, maxX, maxY);
   }
 
 }

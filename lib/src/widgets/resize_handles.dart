@@ -27,7 +27,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   @override
   Widget build(BuildContext context) {
     // Проверяем, есть ли выделенный узел
-    if (widget.state.nodesSelected.isEmpty) return Container();
+    if (widget.state.nodesSelected.isEmpty || widget.state.nodesSelected.length > 1) return Container();
 
     final node = widget.state.nodesSelected.first!;
     final scale = widget.state.scale;

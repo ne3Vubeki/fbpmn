@@ -10,9 +10,9 @@ import '../models/table.node.dart';
 import '../models/arrow.dart';
 import '../editor_state.dart';
 import '../painters/arrow_painter.dart';
-import '../utils/bounds_calculator.dart';
 import '../utils/node_renderer.dart';
 import '../utils/editor_config.dart';
+import '../utils/utils.dart';
 import 'arrow_manager.dart';
 import 'manager.dart';
 
@@ -20,7 +20,6 @@ class TileManager extends Manager {
   final EditorState state;
   final ArrowManager arrowManager;
 
-  final BoundsCalculator _boundsCalculator = BoundsCalculator();
   final NodeRenderer _nodeRenderer = NodeRenderer();
 
   TileManager({required this.state, required this.arrowManager});
@@ -147,7 +146,7 @@ class TileManager extends Manager {
     for (final node in allNodesIncludingChildren) {
       // Получаем абсолютную позицию узла
       final nodePosition = node.aPosition ?? (state.delta + node.position);
-      final nodeRect = _boundsCalculator.calculateNodeRect(node: node, position: nodePosition);
+      final nodeRect = Utils.calculateNodeRect(node: node, position: nodePosition);
 
       await _tilesIntersectingRect(
         nodeRect,
@@ -443,7 +442,7 @@ class TileManager extends Manager {
 
       // Проверяем, пересекается ли узел с тайлом
       final nodePosition = _findNodeAbsolutePosition(node);
-      final nodeRect = _boundsCalculator.calculateNodeRect(node: node, position: nodePosition);
+      final nodeRect = Utils.calculateNodeRect(node: node, position: nodePosition);
 
       if (nodeRect.overlaps(tile.bounds)) {
         tileIndices.add(i);
