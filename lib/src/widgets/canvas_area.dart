@@ -135,6 +135,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                 onHover: (PointerHoverEvent event) {
                   widget.state.mousePosition = event.localPosition;
                   widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
+                  widget.nodeManager.updateHoveredAttributeRow(event.localPosition);
                 },
                 child: Listener(
                   onPointerSignal: (pointerSignal) {
@@ -149,6 +150,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   onPointerMove: (PointerMoveEvent event) {
                     widget.state.mousePosition = event.localPosition;
                     widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
+                    widget.nodeManager.updateHoveredAttributeRow(event.localPosition);
 
                     if (widget.state.isPanning && widget.state.isShiftPressed) {
                       widget.inputHandler.handlePanUpdate(

@@ -10,7 +10,10 @@ class NodePainter {
   final TableNode node;
   final bool isSelected;
 
-  NodePainter({required this.node, this.isSelected = false});
+  NodePainter({
+    required this.node,
+    this.isSelected = false,
+  });
 
   /// Отрисовка узла с учетом базового отступа (рекурсивно с детьми)
   void paintWithOffset({

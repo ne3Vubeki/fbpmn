@@ -1353,4 +1353,110 @@ class NodeManager extends Manager {
         return SystemMouseCursors.basic;
     }
   }
+
+  /// Определяет строку атрибута под курсором для выделенного узла
+  void updateHoveredAttributeRow(Offset screenPosition) {
+    // Проверяем, есть ли выделенный узел
+    if (state.nodesSelected.isEmpty) {
+      if (state.hoveredAttributeRowIndex != null) {
+        state.hoveredAttributeRowIndex = null;
+        state.hoveredAttributeNodeId = null;
+        onStateUpdate();
+      }
+      return;
+    }
+
+    // Работаем только с единичным выделением
+    final selectedNode = state.nodesSelected.first;
+    if (selectedNode == null || state.nodesSelected.length > 1) {
+      if (state.hoveredAttributeRowIndex != null) {
+        state.hoveredAttributeRowIndex = null;
+        state.hoveredAttributeNodeId = null;
+        onStateUpdate();
+      }
+      return;
+    }
+
+    // Проверяем, есть ли атрибуты
+    if (selectedNode.attributes.isEmpty) {
+      if (state.hoveredAttributeRowIndex != null) {
+        state.hoveredAttributeRowIndex = null;
+        state.hoveredAttributeNodeId = null;
+        onStateUpdate();
+      }
+      return;
+    }
+
+    // Вычисляем позицию узла на экране
+    final nodeScreenPos = state.selectedNodeOffset;
+    final scale = state.scale;
+
+    // Размер кружков с учётом масштаба (для расширения области проверки)
+    final circleRadius = 5.0 * scale;
+
+    // Проверяем, находится ли курсор внутри области узла (с учётом кружков за границами)
+    final nodeLeft = nodeScreenPos.dx + framePadding + frameBorderWidth;
+    final nodeTop = nodeScreenPos.dy + framePadding + frameBorderWidth;
+    final nodeWidth = selectedNode.size.width * scale;
+    final nodeHeight = selectedNode.size.height * scale;
+
+    // Расширяем область проверки на радиус кружков слева и справа
+    if (screenPosition.dx < nodeLeft - circleRadius || 
+        screenPosition.dx > nodeLeft + nodeWidth + circleRadius ||
+        screenPosition.dy < nodeTop ||
+        screenPosition.dy > nodeTop + nodeHeight) {
+      if (state.hoveredAttributeRowIndex != null) {
+        state.hoveredAttributeRowIndex = null;
+        state.hoveredAttributeNodeId = null;
+        onStateUpdate();
+      }
+      return;
+    }
+
+    // Вычисляем индекс строки атрибута
+    final headerHeight = 30.0; // EditorConfig.headerHeight
+    final localY = screenPosition.dy - nodeTop;
+
+    if (localY < headerHeight * scale) {
+      // Курсор над заголовком
+      if (state.hoveredAttributeRowIndex != null) {
+        state.hoveredAttributeRowIndex = null;
+        state.hoveredAttributeNodeId = null;
+        onStateUpdate();
+      }
+      return;
+    }
+
+    final rowHeight = (selectedNode.size.height - headerHeight) / selectedNode.attributes.length;
+    final minRowHeight = 20.0; // EditorConfig.minRowHeight
+    final actualRowHeight = rowHeight > minRowHeight ? rowHeight : minRowHeight;
+    
+    final rowIndex = ((localY / scale - headerHeight) / actualRowHeight).floor();
+
+    if (rowIndex >= 0 && rowIndex < selectedNode.attributes.length) {
+      // Проверяем, что атрибут имеет qType='attribute'
+      final attribute = selectedNode.attributes[rowIndex];
+      if (attribute.qType == 'attribute') {
+        if (state.hoveredAttributeRowIndex != rowIndex ||
+            state.hoveredAttributeNodeId != selectedNode.id) {
+          state.hoveredAttributeRowIndex = rowIndex;
+          state.hoveredAttributeNodeId = selectedNode.id;
+          onStateUpdate();
+        }
+      } else {
+        // Если qType не 'attribute', сбрасываем подсветку
+        if (state.hoveredAttributeRowIndex != null) {
+          state.hoveredAttributeRowIndex = null;
+          state.hoveredAttributeNodeId = null;
+          onStateUpdate();
+        }
+      }
+    } else {
+      if (state.hoveredAttributeRowIndex != null) {
+        state.hoveredAttributeRowIndex = null;
+        state.hoveredAttributeNodeId = null;
+        onStateUpdate();
+      }
+    }
+  }
 }

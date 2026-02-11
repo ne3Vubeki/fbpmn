@@ -29,6 +29,10 @@ class EditorState {
   bool isNodeDragging = false;
   Offset selectedNodeOffset = Offset.zero;
   EdgeInsets framePadding = EdgeInsets.all(0);
+  
+  // Наведение на строку атрибута
+  String? hoveredAttributeNodeId;
+  int? hoveredAttributeRowIndex;
 
   // Snap-линии для прилипания узлов
   List<SnapLine> snapLines = [];

@@ -92,7 +92,10 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
         child: RepaintBoundary(
           child: CustomPaint(
             size: nodeSize,
-            painter: NodeCustomPainter(node: node, targetSize: nodeSize),
+            painter: NodeCustomPainter(
+              node: node,
+              targetSize: nodeSize,
+            ),
           ),
         ),
       ),
