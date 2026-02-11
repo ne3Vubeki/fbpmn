@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../editor_state.dart';
+import '../models/app.model.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
@@ -25,6 +26,7 @@ class CanvasArea extends StatefulWidget {
   final ArrowManager arrowManager;
   final TileManager tileManager;
   final ScrollHandler scrollHandler;
+  final EventApp? appEvent;
 
   const CanvasArea({
     super.key,
@@ -34,6 +36,7 @@ class CanvasArea extends StatefulWidget {
     required this.arrowManager,
     required this.tileManager,
     required this.scrollHandler,
+    required this.appEvent,
   });
 
   @override

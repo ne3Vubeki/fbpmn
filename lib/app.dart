@@ -3,11 +3,17 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'src/models/app.model.dart';
+import 'src/services/broadcast.service.dart';
 import 'src/stable_grid_image.dart';
 
-
 class App extends StatefulWidget {
-  const App({super.key});
+  final Map? properties;
+
+  final String app = 'fbpmn';
+  final String view = 'fbpmn';
+
+  const App({super.key, this.properties});
 
   @override
   State<App> createState() => _AppState();
@@ -16,6 +22,8 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   Map _diagram = {};
   bool _isLoading = true;
+  late Broadcast _broadcastManager;
+  late EventApp? _appEvent;
 
   @override
   void initState() {
@@ -39,14 +47,21 @@ class _AppState extends State<App> {
   }
 
   @override
+  void didChangeDependencies() async {
+    super.didChangeDependencies();
+    _broadcastManager = Broadcast(app: widget.app, source: widget.view);
+    _appEvent = _broadcastManager.register();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'WASM редактор BPMN',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: Scaffold(
-        body: _isLoading 
+        body: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : StableGridImage(diagram: _diagram),
+            : StableGridImage(diagram: _diagram, appEvent: _appEvent),
       ),
     );
   }

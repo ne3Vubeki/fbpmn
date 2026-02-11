@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/models/app.model.dart';
 import 'package:flutter/material.dart';
 
 import 'models/table.node.dart';
@@ -14,7 +15,9 @@ import 'widgets/canvas_area.dart';
 
 class StableGridImage extends StatefulWidget {
   final Map diagram;
-  const StableGridImage({super.key, required this.diagram});
+  final EventApp? appEvent;
+
+  const StableGridImage({super.key, required this.diagram, this.appEvent});
 
   @override
   State<StableGridImage> createState() => _StableGridImageState();
@@ -125,6 +128,7 @@ class _StableGridImageState extends State<StableGridImage> {
               scrollHandler: _scrollHandler,
               tileManager: _tileManager,
               arrowManager: _arrowManager,
+              appEvent: widget.appEvent,
             ),
 
             // Контейнер с миниатюрой и панелью зума
@@ -137,6 +141,7 @@ class _StableGridImageState extends State<StableGridImage> {
                 inputHandler: _inputHandler,
                 tileManager: _tileManager,
                 nodeManager: _nodeManager,
+                appEvent: widget.appEvent,
               ),
             ),
 

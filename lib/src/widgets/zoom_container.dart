@@ -4,6 +4,7 @@ import 'package:fbpmn/src/services/performance_tracker.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
+import '../models/app.model.dart';
 import '../models/image_tile.dart';
 import '../services/input_handler.dart';
 import '../services/scroll_handler.dart';
@@ -19,6 +20,7 @@ class ZoomContainer extends StatefulWidget {
   final ScrollHandler scrollHandler;
   final TileManager tileManager;
   final NodeManager nodeManager;
+  final EventApp? appEvent;
 
   const ZoomContainer({
     super.key,
@@ -27,6 +29,7 @@ class ZoomContainer extends StatefulWidget {
     required this.inputHandler,
     required this.tileManager,
     required this.nodeManager,
+    required this.appEvent,
   });
 
   @override
@@ -114,6 +117,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
   void _togglePerformance() {
     setState(() {
       _showPerformance = !_showPerformance;
+      // widget.appEvent?.emitToJs(action: 'relay', targets: ['fbpmn.fbpmn'], data: {'isShowPerformance': _showPerformance});
     });
   }
 
@@ -130,10 +134,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Метрики производительности (отображаются над миниатюрой)
-          if (_showPerformance) ...[
-            PerformanceMetrics(panelWidth: containerWidth),
-            const SizedBox(height: 8),
-          ],
+          if (_showPerformance) ...[PerformanceMetrics(panelWidth: containerWidth), const SizedBox(height: 8)],
 
           // Миниатюра холста (отображается если включена)
           if (_showThumbnail) ...[
