@@ -73,6 +73,10 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
     // Размер узла (масштабированный)
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
 
+    final borderColor = node.qType == 'swimlane' && node.isCollapsed != null && !node.isCollapsed!
+        ? Colors.blue
+        : Colors.transparent;
+
     return Positioned(
       left: widget.state.selectedNodeOffset.dx,
       top: widget.state.selectedNodeOffset.dy,
@@ -80,9 +84,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
         padding: widget.state.framePadding,
         decoration: BoxDecoration(
           border: Border.all(
-            color: node.qType == 'swimlane' && node.isCollapsed != null && !node.isCollapsed!
-                ? Colors.blue
-                : Colors.transparent,
+            color: borderColor,
             width: frameBorderWidth,
           ),
           borderRadius: !isGroup || isEnum || !hasAttributes
@@ -121,17 +123,22 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
       screenBottomRight.dy - screenTopLeft.dy,
     );
 
+    // В режиме автораскладки скрываем рамку
+    final showBorder = !widget.state.isAutoLayoutMode;
+
     return Positioned(
       left: screenTopLeft.dx - frameTotalOffset,
       top: screenTopLeft.dy - frameTotalOffset,
       child: Container(
         padding: EdgeInsets.all(framePadding),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Colors.blue,
-            width: frameBorderWidth,
-          ),
-        ),
+        decoration: showBorder
+            ? BoxDecoration(
+                border: Border.all(
+                  color: Colors.blue,
+                  width: frameBorderWidth,
+                ),
+              )
+            : null,
         child: RepaintBoundary(
           child: CustomPaint(
             size: nodeSize,

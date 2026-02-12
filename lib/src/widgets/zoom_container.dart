@@ -1,3 +1,4 @@
+import 'package:fbpmn/src/services/cola_layout_service.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 // TODO: УДАЛИТЬ после отладки производительности
 import 'package:fbpmn/src/services/performance_tracker.dart';
@@ -20,6 +21,7 @@ class ZoomContainer extends StatefulWidget {
   final ScrollHandler scrollHandler;
   final TileManager tileManager;
   final NodeManager nodeManager;
+  final ColaLayoutService? colaLayoutService;
   final EventApp? appEvent;
 
   const ZoomContainer({
@@ -29,6 +31,7 @@ class ZoomContainer extends StatefulWidget {
     required this.inputHandler,
     required this.tileManager,
     required this.nodeManager,
+    this.colaLayoutService,
     required this.appEvent,
   });
 
@@ -39,6 +42,7 @@ class ZoomContainer extends StatefulWidget {
 class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomContainer> {
   bool _showThumbnail = true;
   bool _showPerformance = false;
+  bool _isLayoutRunning = false;
 
   double get scale => widget.state.scale;
   bool get showTileBorders => widget.state.showTileBorders;
@@ -121,10 +125,30 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
     });
   }
 
+  void _onAutoLayout() async {
+    if (widget.colaLayoutService == null) return;
+    if (_isLayoutRunning) return;
+
+    setState(() {
+      _isLayoutRunning = true;
+    });
+
+    // Подписываемся на обновления от ColaLayoutService
+    widget.colaLayoutService!.setOnStateUpdate('ZoomContainer_Cola', () {
+      if (mounted) {
+        setState(() {
+          _isLayoutRunning = widget.colaLayoutService!.isRunning;
+        });
+      }
+    });
+
+    await widget.colaLayoutService!.runAutoLayout();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Ширина контейнера (равна ширине миниатюры или минимальная ширина панели)
-    final double containerWidth = 340;
+    final double containerWidth = 360;
 
     return Container(
       margin: const EdgeInsets.only(right: 20, bottom: 20),
@@ -160,6 +184,8 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
             showCurves: widget.state.useCurves,
             snapEnabled: widget.state.snapEnabled,
             showPerformance: _showPerformance,
+            onAutoLayout: widget.colaLayoutService != null ? _onAutoLayout : null,
+            isLayoutRunning: _isLayoutRunning,
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
             panelWidth: containerWidth,

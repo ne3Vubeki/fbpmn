@@ -327,14 +327,17 @@ class AnimatedLayout {
   final ColaLayout layout;
   final void Function(List<NodePosition> positions) onTick;
   final void Function()? onComplete;
+  final int maxIterations;
   
   bool _running = false;
   bool _cancelled = false;
+  int _iterationCount = 0;
   
   AnimatedLayout({
     required this.layout,
     required this.onTick,
     this.onComplete,
+    this.maxIterations = 100,
   });
   
   /// Start the animation
@@ -342,6 +345,7 @@ class AnimatedLayout {
     if (_running) return;
     _running = true;
     _cancelled = false;
+    _iterationCount = 0;
     _tick();
   }
   
@@ -354,10 +358,12 @@ class AnimatedLayout {
   void _tick() {
     if (_cancelled) return;
     
+    _iterationCount++;
     final converged = layout.tick();
     onTick(layout.getPositions());
     
-    if (converged) {
+    // Завершаем если сошлось или достигнут лимит итераций
+    if (converged || _iterationCount >= maxIterations) {
       _running = false;
       onComplete?.call();
     } else {

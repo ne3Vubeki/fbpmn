@@ -760,6 +760,71 @@ class NodeManager extends Manager {
     deselectRecursive(state.nodes);
   }
 
+  /// Выделяет все узлы для автораскладки Cola
+  /// Возвращает список только родительских узлов (из state.nodes)
+  /// Вложенные узлы добавляются в nodesSelected для отображения, но не возвращаются
+  Future<List<TableNode>> selectAllNodesForLayout() async {
+    // Снимаем текущее выделение если есть
+    if (state.nodesSelected.isNotEmpty) {
+      await handleEmptyAreaClick();
+    }
+
+    final parentNodes = <TableNode>[];
+
+    // Собираем только родительские узлы для Cola
+    // Вложенные узлы добавляем в nodesSelected для отображения
+    for (final node in state.nodes) {
+      parentNodes.add(node);
+      node.isSelected = true;
+      state.nodesSelected.add(node);
+    }
+
+    state.isNodeOnTopLayer = true;
+    onStateUpdate();
+
+    return parentNodes;
+  }
+
+  /// Обновляет позицию узла программно (для Cola layout)
+  /// Принимает мировые координаты нового положения узла
+  void updateNodePositionForLayout(TableNode node, Offset newWorldPosition) {
+    node.aPosition = newWorldPosition;
+    node.position = newWorldPosition - state.delta;
+    
+    // Обновляем позиции детей для group/swimlane
+    _updateChildrenPositions(node);
+  }
+
+  /// Сохраняет все узлы обратно в тайлы после автораскладки
+  Future<void> saveAllNodesAfterLayout() async {
+    // Обновляем относительные позиции узлов
+    for (final node in state.nodesSelected) {
+      if (node == null) continue;
+      if (node.aPosition != null) {
+        node.position = node.aPosition! - state.delta;
+      }
+      node.isSelected = false;
+    }
+
+    // Очищаем выделение
+    state.nodesSelected.clear();
+    state.arrowsSelected.clear();
+    state.isNodeOnTopLayer = false;
+    state.selectedNodeOffset = Offset.zero;
+    state.originalNodePosition = Offset.zero;
+
+    // Пересоздаем тайлы
+    await tileManager.createTiledImage(state.nodes, state.arrows);
+
+    // Пересчитываем абсолютные позиции для всех узлов
+    for (final node in state.nodes) {
+      node.initializeAbsolutePositions(state.delta);
+    }
+
+    onStateUpdate();
+    arrowManager.onStateUpdate();
+  }
+
   // Применяет snap-прилипание к позиции узла
   ({Offset position, List<SnapLine> snapLines}) _applySnap(Offset worldPosition) {
     if (state.nodesSelected.isEmpty || state.nodesSelected.first == null) {

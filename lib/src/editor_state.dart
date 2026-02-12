@@ -50,5 +50,8 @@ class EditorState {
   // Загрузка
   bool isLoading = false;
 
+  // Режим автораскладки (скрывает рамки выделения)
+  bool isAutoLayoutMode = false;
+
   bool useCurves = false;
 }

@@ -17,6 +17,8 @@ class ZoomPanel extends StatelessWidget {
   final VoidCallback onToggleCurves;
   final VoidCallback onToggleSnap;
   final VoidCallback onTogglePerformance;
+  final VoidCallback? onAutoLayout;
+  final bool isLayoutRunning;
 
   const ZoomPanel({
     super.key,
@@ -26,6 +28,8 @@ class ZoomPanel extends StatelessWidget {
     required this.showCurves,
     required this.snapEnabled,
     required this.showPerformance,
+    this.onAutoLayout,
+    this.isLayoutRunning = false,
     required this.canvasWidth,
     required this.canvasHeight,
     required this.panelWidth,
@@ -110,6 +114,22 @@ class ZoomPanel extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Кнопка автораскладки
+              if (onAutoLayout != null)
+                IconButton(
+                  icon: CanvasIcon(
+                    painter: (canvas, size, color) => CanvasIcons.paintAutoLayout(canvas, size, color, active: isLayoutRunning),
+                    size: 18,
+                    color: isLayoutRunning ? Colors.blue : Colors.grey[700]!,
+                  ),
+                  onPressed: isLayoutRunning ? null : onAutoLayout,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  tooltip: isLayoutRunning ? 'Раскладка выполняется...' : 'Автораскладка узлов',
+                ),
+
+              if (onAutoLayout != null) const SizedBox(width: 4),
+
               // Кнопка переключения snap-прилипания
               IconButton(
                 icon: CanvasIcon(

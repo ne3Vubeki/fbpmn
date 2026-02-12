@@ -1,4 +1,5 @@
 import 'package:fbpmn/src/models/app.model.dart';
+import 'package:fbpmn/src/services/cola_layout_service.dart';
 import 'package:flutter/material.dart';
 
 import 'models/table.node.dart';
@@ -30,6 +31,7 @@ class _StableGridImageState extends State<StableGridImage> {
   late TileManager _tileManager;
   late NodeManager _nodeManager;
   late ArrowManager _arrowManager;
+  late ColaLayoutService _colaLayoutService;
 
   @override
   void initState() {
@@ -50,6 +52,13 @@ class _StableGridImageState extends State<StableGridImage> {
       nodeManager: _nodeManager,
       scrollHandler: _scrollHandler,
       arrowManager: _arrowManager,
+    );
+
+    _colaLayoutService = ColaLayoutService(
+      state: _editorState,
+      tileManager: _tileManager,
+      arrowManager: _arrowManager,
+      nodeManager: _nodeManager,
     );
 
     // Инициализация
@@ -107,6 +116,7 @@ class _StableGridImageState extends State<StableGridImage> {
 
   @override
   void dispose() {
+    _colaLayoutService.dispose();
     _inputHandler.dispose();
     _scrollHandler.dispose();
     _tileManager.dispose();
@@ -141,6 +151,7 @@ class _StableGridImageState extends State<StableGridImage> {
                 inputHandler: _inputHandler,
                 tileManager: _tileManager,
                 nodeManager: _nodeManager,
+                colaLayoutService: _colaLayoutService,
                 appEvent: widget.appEvent,
               ),
             ),

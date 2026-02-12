@@ -533,6 +533,63 @@ class CanvasIcons {
     _drawDashedLine(canvas, rect.bottomLeft, rect.topLeft, paint);
   }
 
+  /// Иконка автораскладки (auto_layout / scatter_plot)
+  static void paintAutoLayout(Canvas canvas, Size size, Color color, {bool active = false}) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Рисуем 4 узла в виде прямоугольников
+    final nodeSize = size.width * 0.2;
+    final nodes = [
+      Offset(size.width * 0.2, size.height * 0.25),
+      Offset(size.width * 0.65, size.height * 0.15),
+      Offset(size.width * 0.15, size.height * 0.65),
+      Offset(size.width * 0.6, size.height * 0.6),
+    ];
+
+    // Рисуем связи между узлами
+    canvas.drawLine(
+      Offset(nodes[0].dx + nodeSize / 2, nodes[0].dy + nodeSize / 2),
+      Offset(nodes[1].dx + nodeSize / 2, nodes[1].dy + nodeSize / 2),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(nodes[0].dx + nodeSize / 2, nodes[0].dy + nodeSize / 2),
+      Offset(nodes[2].dx + nodeSize / 2, nodes[2].dy + nodeSize / 2),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(nodes[1].dx + nodeSize / 2, nodes[1].dy + nodeSize / 2),
+      Offset(nodes[3].dx + nodeSize / 2, nodes[3].dy + nodeSize / 2),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(nodes[2].dx + nodeSize / 2, nodes[2].dy + nodeSize / 2),
+      Offset(nodes[3].dx + nodeSize / 2, nodes[3].dy + nodeSize / 2),
+      paint,
+    );
+
+    // Рисуем узлы поверх связей
+    for (final node in nodes) {
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(node.dx, node.dy, nodeSize, nodeSize),
+        Radius.circular(2),
+      );
+      if (active) {
+        canvas.drawRRect(rect, fillPaint);
+      } else {
+        canvas.drawRRect(rect, paint);
+      }
+    }
+  }
+
   /// Иконка метрик производительности (speedometer)
   static void paintPerformance(Canvas canvas, Size size, Color color, {bool filled = false}) {
     final paint = Paint()

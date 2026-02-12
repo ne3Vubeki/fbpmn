@@ -724,15 +724,21 @@ class TileManager extends Manager {
     }
   }
 
+  /// Публичный метод для очистки всех тайлов
+  void disposeTiles() {
+    _disposeTiles();
+  }
+
   void _disposeTiles() {
     for (final tile in state.imageTiles) {
       try {
         tile.image.dispose();
       } catch (e) {
         // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
-        print('Warning: Error disposing tile image: $e');
+        // (например, если изображение уже было освобождено)
       }
     }
+    state.imageTiles.clear();
   }
 
   @override

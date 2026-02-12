@@ -26,6 +26,16 @@ class ArrowManager extends Manager {
     onStateUpdate();
   }
 
+  /// Пересчитывает координаты всех выбранных стрелок
+  /// Используется при динамическом изменении позиций узлов (например, Cola layout)
+  void recalculateSelectedArrows() {
+    for (final arrow in state.arrowsSelected) {
+      if (arrow == null) continue;
+      // Пересчитываем путь стрелки с текущими позициями узлов
+      getArrowPathInTile(arrow, state.delta);
+    }
+  }
+
   /// Расчет точек соединения для определения стороны
   /// по расположению узлов относительно друг друга
   ({Offset? end, Offset? start, String? sides}) calculateConnectionPoints(

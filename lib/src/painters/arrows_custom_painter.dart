@@ -42,8 +42,26 @@ class ArrowsCustomPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant ArrowsCustomPainter oldDelegate) {
-    return oldDelegate.arrows.length != arrows.length ||
+    // Всегда перерисовываем если изменились координаты стрелок
+    // (например, при Cola layout)
+    bool arrowsChanged = false;
+    if (oldDelegate.arrows.length == arrows.length) {
+      for (int i = 0; i < arrows.length; i++) {
+        final oldArrow = oldDelegate.arrows[i];
+        final newArrow = arrows[i];
+        if (oldArrow?.aPositionSource != newArrow?.aPositionSource ||
+            oldArrow?.aPositionTarget != newArrow?.aPositionTarget) {
+          arrowsChanged = true;
+          break;
+        }
+      }
+    } else {
+      arrowsChanged = true;
+    }
+    
+    return arrowsChanged ||
         oldDelegate.arrowsSize != arrowsSize ||
+        oldDelegate.arrowsRect != arrowsRect ||
         oldDelegate.nodeOffset != nodeOffset ||
         oldDelegate.scale != scale ||
         oldDelegate.areaNodes != areaNodes;
