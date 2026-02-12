@@ -39,11 +39,12 @@ class ArrowsPainter {
 
   void paint(Canvas canvas, double scale, Rect arrowsRect) {
     // Рассчитываем толщину линии
+    final pathWidth = EditorConfig.arrowSelectedPathWidth * scale;
     final lineWidth = EditorConfig.arrowSelectedWidth * scale;
 
     final linePaint = Paint()
       ..color = Colors.blue
-      ..strokeWidth = lineWidth
+      ..strokeWidth = pathWidth
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
 

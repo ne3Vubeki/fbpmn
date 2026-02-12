@@ -11,6 +11,9 @@ window.addEventListener('qp_register_app_channel', function (event) {
 window.addEventListener('load', async function (ev) {
     _flutter.loader.load({
         onEntrypointLoaded: async function onEntrypointLoaded(engineInitializer) {
+            // Инициализировать Cola перед Flutter
+            await initCola();
+            
             let engine = await engineInitializer.initializeEngine({
                 multiViewEnabled: true,
             });

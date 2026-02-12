@@ -5,5 +5,6 @@ class EditorConfig {
   static const double minRowHeight = 18.0;
   static const double headerHeight = 30.0;
   static const arrowTileWidth = 1.0;
-  static const arrowSelectedWidth = 2.0;
+  static const arrowSelectedPathWidth = 4.0;
+  static const arrowSelectedWidth = 1.0;
 }
