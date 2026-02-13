@@ -68,10 +68,9 @@ class Utils {
     for (final arrow in arrows) {
       if (arrow == null) continue;
 
-      // Проверяем все координаты из arrow.coordinates (экранные) и преобразуем в мировые
+      // Координаты в arrow.coordinates — мировые координаты
       if (arrow.coordinates != null && arrow.coordinates!.isNotEmpty) {
-        for (final screenCoordinate in arrow.coordinates!) {
-          final worldCoordinate = Utils.screenToWorld(screenCoordinate, state);
+        for (final worldCoordinate in arrow.coordinates!) {
           minX = worldCoordinate.dx < minX ? worldCoordinate.dx : minX;
           minY = worldCoordinate.dy < minY ? worldCoordinate.dy : minY;
           maxX = worldCoordinate.dx > maxX ? worldCoordinate.dx : maxX;

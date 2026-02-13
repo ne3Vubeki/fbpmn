@@ -49,9 +49,23 @@ extension type _JSColaLayout._(JSObject _) implements JSObject {
   external void setNode(int nodeId, double x, double y, double width, double height);
   external void addEdge(int source, int target);
   external void addSeparationConstraint(int dim, int leftNode, int rightNode, double gap, [bool isEquality]);
-  external void addAlignmentConstraint(int dim, JSArray<JSNumber> nodeIds);
+  external int addAlignmentConstraint(int dim, JSArray<JSNumber> nodeIds);
+  external void addDistributionConstraint(int dim, JSArray<JSNumber> alignmentIds, [double separation]);
+  external void addPageBoundary(double xMin, double xMax, double yMin, double yMax, [double weight]);
+  external int addBoundaryConstraint(int dim, JSArray<JSNumber> nodeIds, JSArray<JSNumber> offsets);
+  external void addFixedRelativeConstraint(JSArray<JSNumber> nodeIds, [bool fixedPosition]);
+  external void addOrthogonalEdgeConstraint(int dim, int leftNode, int rightNode);
+  external int createCluster(JSArray<JSNumber> nodeIds, [double padding, double margin]);
+  external void addChildCluster(int parentId, int childId);
+  external void setClusterBounds(int clusterId, double xMin, double xMax, double yMin, double yMax);
+  external void setDesiredPosition(int nodeId, double x, double y, [double weight]);
+  external void clearDesiredPositions();
   external void setAvoidOverlaps(bool enable);
   external void setConvergence([double tolerance, int maxIterations]);
+  external void setNeighbourStress(bool enable);
+  external void lockNode(int nodeId, double x, double y);
+  external void unlockNode(int nodeId);
+  external void clearLocks();
   external void run();
   external bool tick();
   external void makeFeasible();
@@ -229,13 +243,134 @@ class ColaLayout {
   /// Add an alignment constraint
   /// 
   /// Aligns all specified nodes on a line in the given dimension
-  void addAlignmentConstraint({
+  /// Returns alignment ID for use with distribution constraints
+  int addAlignmentConstraint({
     required ConstraintDimension dimension,
     required List<int> nodeIds,
   }) {
     _checkDisposed();
     final jsArray = nodeIds.map((id) => id.toJS).toList().toJS;
-    _js.addAlignmentConstraint(dimension.value, jsArray);
+    return _js.addAlignmentConstraint(dimension.value, jsArray);
+  }
+  
+  /// Add a distribution constraint (evenly distribute aligned nodes)
+  /// 
+  /// [alignmentIds] - IDs returned from addAlignmentConstraint
+  /// [separation] - Fixed separation (0 = auto-calculate)
+  void addDistributionConstraint({
+    required ConstraintDimension dimension,
+    required List<int> alignmentIds,
+    double separation = 0,
+  }) {
+    _checkDisposed();
+    final jsArray = alignmentIds.map((id) => id.toJS).toList().toJS;
+    _js.addDistributionConstraint(dimension.value, jsArray, separation);
+  }
+  
+  /// Add page boundary constraint (keep nodes within rectangle)
+  void addPageBoundary({
+    required double xMin,
+    required double xMax,
+    required double yMin,
+    required double yMax,
+    double weight = 100,
+  }) {
+    _checkDisposed();
+    _js.addPageBoundary(xMin, xMax, yMin, yMax, weight);
+  }
+  
+  /// Add boundary constraint (nodes on one side of a line)
+  /// Returns boundary ID
+  int addBoundaryConstraint({
+    required ConstraintDimension dimension,
+    required List<int> nodeIds,
+    required List<double> offsets,
+  }) {
+    _checkDisposed();
+    final nodeJsArray = nodeIds.map((id) => id.toJS).toList().toJS;
+    final offsetJsArray = offsets.map((o) => o.toJS).toList().toJS;
+    return _js.addBoundaryConstraint(dimension.value, nodeJsArray, offsetJsArray);
+  }
+  
+  /// Add fixed-relative constraint (nodes maintain relative positions)
+  void addFixedRelativeConstraint({
+    required List<int> nodeIds,
+    bool fixedPosition = false,
+  }) {
+    _checkDisposed();
+    final jsArray = nodeIds.map((id) => id.toJS).toList().toJS;
+    _js.addFixedRelativeConstraint(jsArray, fixedPosition);
+  }
+  
+  /// Add orthogonal edge constraint (edge endpoints aligned horizontally or vertically)
+  /// 
+  /// This ensures that the edge between two nodes is either horizontal or vertical.
+  /// Use this for orthogonal/rectilinear edge routing where edges should only
+  /// have horizontal or vertical segments.
+  /// 
+  /// [dimension] - The alignment dimension:
+  ///   - `horizontal`: nodes will have the same Y coordinate (horizontal edge)
+  ///   - `vertical`: nodes will have the same X coordinate (vertical edge)
+  /// [leftNode] - Source/left node index
+  /// [rightNode] - Target/right node index
+  void addOrthogonalEdgeConstraint({
+    required ConstraintDimension dimension,
+    required int leftNode,
+    required int rightNode,
+  }) {
+    _checkDisposed();
+    _js.addOrthogonalEdgeConstraint(dimension.value, leftNode, rightNode);
+  }
+  
+  /// Create a rectangular cluster
+  /// 
+  /// Returns cluster ID (1-based, 0 = root)
+  int createCluster({
+    required List<int> nodeIds,
+    double padding = 10,
+    double margin = 10,
+  }) {
+    _checkDisposed();
+    final jsArray = nodeIds.map((id) => id.toJS).toList().toJS;
+    return _js.createCluster(jsArray, padding, margin);
+  }
+  
+  /// Add a cluster as child of another cluster
+  /// 
+  /// [parentId] - Parent cluster ID (0 = root)
+  /// [childId] - Child cluster ID
+  void addChildCluster(int parentId, int childId) {
+    _checkDisposed();
+    _js.addChildCluster(parentId, childId);
+  }
+  
+  /// Set desired bounds for a cluster
+  void setClusterBounds({
+    required int clusterId,
+    required double xMin,
+    required double xMax,
+    required double yMin,
+    required double yMax,
+  }) {
+    _checkDisposed();
+    _js.setClusterBounds(clusterId, xMin, xMax, yMin, yMax);
+  }
+  
+  /// Set desired position for a node (attraction point)
+  void setDesiredPosition({
+    required int nodeId,
+    required double x,
+    required double y,
+    double weight = 1,
+  }) {
+    _checkDisposed();
+    _js.setDesiredPosition(nodeId, x, y, weight);
+  }
+  
+  /// Clear all desired positions
+  void clearDesiredPositions() {
+    _checkDisposed();
+    _js.clearDesiredPositions();
   }
   
   /// Enable/disable automatic overlap avoidance
@@ -251,6 +386,30 @@ class ColaLayout {
   }) {
     _checkDisposed();
     _js.setConvergence(tolerance, maxIterations);
+  }
+  
+  /// Enable/disable neighbour stress mode (better for large graphs)
+  void setNeighbourStress(bool enable) {
+    _checkDisposed();
+    _js.setNeighbourStress(enable);
+  }
+  
+  /// Lock a node at a specific position
+  void lockNode(int nodeId, {required double x, required double y}) {
+    _checkDisposed();
+    _js.lockNode(nodeId, x, y);
+  }
+  
+  /// Unlock a previously locked node
+  void unlockNode(int nodeId) {
+    _checkDisposed();
+    _js.unlockNode(nodeId);
+  }
+  
+  /// Clear all node locks
+  void clearLocks() {
+    _checkDisposed();
+    _js.clearLocks();
   }
   
   /// Run the full layout algorithm until convergence
