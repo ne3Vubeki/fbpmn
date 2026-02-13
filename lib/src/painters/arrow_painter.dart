@@ -75,6 +75,34 @@ class ArrowsPainter {
     }
   }
 
+  /// Упрощённая отрисовка стрелок (только линии без начальных/конечных объектов)
+  void paintSimplified(Canvas canvas, double scale, Rect arrowsRect) {
+    final pathWidth = 2.0 * scale;
+
+    final linePaint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = pathWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    // Удаляем все коннекты из выбранных узлов для повторного расчета
+    for (var node in arrowManager.state.nodesSelected) {
+      node?.connections?.removeAll();
+    }
+
+    // Рисуем только линии стрелок
+    for (final arrow in arrows) {
+      if (arrow == null || arrow.source == arrow.target) continue;
+
+      // Получаем полный путь стрелки
+      final pathResult = arrowManager.getArrowPathWithSelectedNodes(arrow, arrowsRect);
+      final paths = pathResult.paths;
+
+      // Рисуем только линию без начальных/конечных объектов
+      canvas.drawPath(paths.path, linePaint);
+    }
+  }
+
   _drawPaths(
     Canvas canvas,
     Arrow arrow,

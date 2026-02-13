@@ -11,6 +11,8 @@ class ArrowsCustomPainter extends CustomPainter {
   final Offset nodeOffset;
   final ArrowManager arrowManager;
   final double areaNodes;
+  /// Упрощённый режим отрисовки (только линии без начальных/конечных объектов) для Cola анимации
+  final bool simplifiedMode;
 
   ArrowsCustomPainter({
     required this.arrows,
@@ -20,6 +22,7 @@ class ArrowsCustomPainter extends CustomPainter {
     required this.nodeOffset,
     required this.arrowManager,
     required this.areaNodes,
+    this.simplifiedMode = false,
   });
 
   @override
@@ -33,9 +36,13 @@ class ArrowsCustomPainter extends CustomPainter {
     // Применяем масштаб ко всему (узлу и детям)
     canvas.scale(scaleX, scaleY);
 
-    // Рисуем основной узел
+    // Рисуем стрелки
     final painter = ArrowsPainter(arrows: arrows, arrowManager: arrowManager);
-    painter.paint(canvas, scale, arrowsRect);
+    if (simplifiedMode) {
+      painter.paintSimplified(canvas, scale, arrowsRect);
+    } else {
+      painter.paint(canvas, scale, arrowsRect);
+    }
 
     canvas.restore();
   }

@@ -878,10 +878,8 @@ class NodeManager extends Manager {
     // Пересоздаем тайлы
     await tileManager.createTiledImage(state.nodes, state.arrows);
 
-    // Пересчитываем абсолютные позиции для всех узлов
-    for (final node in state.nodes) {
-      node.initializeAbsolutePositions(state.delta);
-    }
+    // НЕ пересчитываем абсолютные позиции здесь, так как
+    // calculateCanvasSizeFromNodes уже это сделал (и мог изменить delta)
 
     onStateUpdate();
     arrowManager.onStateUpdate();

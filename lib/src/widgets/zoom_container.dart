@@ -142,7 +142,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
       }
     });
 
-    widget.colaLayoutService!.skipAnimation = true; 
+    widget.colaLayoutService!.skipAnimation = false; 
     await widget.colaLayoutService!.runAutoLayout();
   }
 

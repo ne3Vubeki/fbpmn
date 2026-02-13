@@ -97,6 +97,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
             painter: NodeCustomPainter(
               node: node,
               targetSize: nodeSize,
+              simplifiedMode: widget.state.isAutoLayoutMode,
             ),
           ),
         ),
@@ -146,6 +147,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
               nodes: validNodes,
               targetSize: nodeSize,
               worldBounds: worldBounds,
+              simplifiedMode: widget.state.isAutoLayoutMode,
             ),
           ),
         ),

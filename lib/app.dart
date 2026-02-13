@@ -33,7 +33,7 @@ class _AppState extends State<App> {
 
   Future<void> _loadXmlFile() async {
     try {
-      final diagram = await rootBundle.loadString('diagram_2.json');
+      final diagram = await rootBundle.loadString('diagram_7.json');
       setState(() {
         _diagram = jsonDecode(diagram);
         _isLoading = false;

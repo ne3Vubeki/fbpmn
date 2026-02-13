@@ -96,6 +96,7 @@ class _ArrowsSelected extends State<ArrowsSelected>
                   arrowsRect: boundingRect,
                   areaNodes: areaNodes,
                   arrowManager: widget.arrowManager,
+                  simplifiedMode: widget.state.isAutoLayoutMode,
                 ),
               ),
             ),

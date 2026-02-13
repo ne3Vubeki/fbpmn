@@ -6,6 +6,7 @@ import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/manager.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
+import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +15,7 @@ class ColaLayoutService extends Manager {
   final TileManager tileManager;
   final ArrowManager arrowManager;
   final NodeManager nodeManager;
+  final ScrollHandler scrollHandler;
 
   bool _isRunning = false;
   bool get isRunning => _isRunning;
@@ -57,6 +59,7 @@ class ColaLayoutService extends Manager {
     required this.tileManager,
     required this.arrowManager,
     required this.nodeManager,
+    required this.scrollHandler,
   });
 
   Future<void> runAutoLayout() async {
@@ -801,6 +804,11 @@ class ColaLayoutService extends Manager {
       print('  Узел $i: target=$targetPos, aPosition=$aPos');
     }
 
+    // Пересчитываем размер холста на основе новых позиций узлов
+    // ВАЖНО: делаем это ДО saveAllNodesAfterLayout, так как этот метод
+    // изменяет state.delta и пересчитывает aPosition
+    // scrollHandler.calculateCanvasSizeFromNodes(state.nodes);
+
     // Сохраняем узлы обратно в тайлы (используем метод NodeManager)
     await nodeManager.saveAllNodesAfterLayout();
 
@@ -814,6 +822,12 @@ class ColaLayoutService extends Manager {
     _nodeIndexMap.clear();
     _animatedPositions.clear();
     _targetPositions.clear();
+    
+    // Обновляем скролбары
+    // scrollHandler.updateScrollControllers();
+    
+    // Фокусируемся на новом центре (автоподгонка и центрирование)
+    // scrollHandler.autoFitAndCenterNodes();
 
     tileManager.onStateUpdate();
     onStateUpdate();

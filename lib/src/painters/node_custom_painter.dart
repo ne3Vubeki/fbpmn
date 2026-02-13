@@ -12,20 +12,132 @@ class NodeCustomPainter extends CustomPainter {
   final List<TableNode>? nodes;
   final Size targetSize;
   final Rect? worldBounds;
+  /// Упрощённый режим отрисовки (только цветные прямоугольники) для Cola анимации
+  final bool simplifiedMode;
 
   NodeCustomPainter({
     this.node,
     this.nodes,
     required this.targetSize,
     this.worldBounds,
+    this.simplifiedMode = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (nodes != null && nodes!.isNotEmpty && worldBounds != null) {
-      _paintMultiSelect(canvas, size);
-    } else if (node != null) {
-      _paintSingleNode(canvas, size);
+    if (simplifiedMode) {
+      // Упрощённый режим: рисуем только цветные прямоугольники
+      if (nodes != null && nodes!.isNotEmpty && worldBounds != null) {
+        _paintMultiSelectSimplified(canvas, size);
+      } else if (node != null) {
+        _paintSingleNodeSimplified(canvas, size);
+      }
+    } else {
+      if (nodes != null && nodes!.isNotEmpty && worldBounds != null) {
+        _paintMultiSelect(canvas, size);
+      } else if (node != null) {
+        _paintSingleNode(canvas, size);
+      }
+    }
+  }
+
+  /// Упрощённая отрисовка одного узла (только цветной прямоугольник)
+  void _paintSingleNodeSimplified(Canvas canvas, Size size) {
+    final n = node!;
+    final scaleX = targetSize.width / n.size.width;
+    final scaleY = targetSize.height / n.size.height;
+
+    canvas.save();
+    canvas.scale(scaleX, scaleY);
+
+    _paintNodeSimplified(canvas, n, Offset.zero);
+
+    canvas.restore();
+  }
+
+  /// Упрощённая отрисовка множественного выделения
+  void _paintMultiSelectSimplified(Canvas canvas, Size size) {
+    final bounds = worldBounds!;
+    final scaleX = targetSize.width / bounds.width;
+    final scaleY = targetSize.height / bounds.height;
+
+    canvas.save();
+    canvas.scale(scaleX, scaleY);
+    canvas.translate(-bounds.left, -bounds.top);
+
+    for (final n in nodes!) {
+      final nodeWorldPos = n.aPosition ?? Offset.zero;
+
+      canvas.save();
+      canvas.translate(nodeWorldPos.dx, nodeWorldPos.dy);
+
+      _paintNodeSimplified(canvas, n, nodeWorldPos);
+
+      canvas.restore();
+    }
+
+    canvas.restore();
+  }
+
+  /// Рисует упрощённый узел (цветной прямоугольник с границей)
+  void _paintNodeSimplified(Canvas canvas, TableNode n, Offset nodeWorldPos) {
+    final rect = Rect.fromLTWH(0, 0, n.size.width, n.size.height);
+    final isSwimlane = n.qType == 'swimlane';
+    final isGroup = n.qType == 'group';
+    final isEnum = n.qType == 'enum';
+    final hasAttributes = n.attributes.isNotEmpty;
+
+    // Определяем цвет фона на основе типа узла
+    Color fillColor;
+    if (isSwimlane) {
+      fillColor = Colors.blue.withValues(alpha: 0.3);
+    } else if (isGroup) {
+      fillColor = Colors.blue.withValues(alpha: 0.3);
+    } else if (isEnum) {
+      fillColor = Colors.blue.withValues(alpha: 0.3);
+    } else {
+      fillColor = Colors.blue.withValues(alpha: 0.3);
+    }
+
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = Colors.blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    // Рисуем прямоугольник
+    if (isSwimlane || isGroup || isEnum || !hasAttributes) {
+      canvas.drawRect(rect, fillPaint);
+      canvas.drawRect(rect, borderPaint);
+    } else {
+      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+      canvas.drawRRect(rrect, fillPaint);
+      canvas.drawRRect(rrect, borderPaint);
+    }
+
+    // Рисуем детей (упрощённо)
+    if (n.children != null &&
+        n.children!.isNotEmpty &&
+        (n.isCollapsed == null || !n.isCollapsed!)) {
+      for (final child in n.children!) {
+        canvas.save();
+
+        final relativePosition = child.aPosition != null
+            ? Offset(
+                (child.aPosition!.dx - (n.aPosition?.dx ?? nodeWorldPos.dx)),
+                (child.aPosition!.dy - (n.aPosition?.dy ?? nodeWorldPos.dy)),
+              )
+            : child.position;
+
+        canvas.translate(relativePosition.dx, relativePosition.dy);
+
+        _paintNodeSimplified(canvas, child, child.aPosition ?? Offset.zero);
+
+        canvas.restore();
+      }
     }
   }
 
