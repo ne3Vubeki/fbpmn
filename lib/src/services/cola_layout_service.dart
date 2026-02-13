@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:fbpmn/src/cola/cola_interop.dart';
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/table.node.dart';
@@ -6,6 +8,14 @@ import 'package:fbpmn/src/services/manager.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:flutter/material.dart';
+
+/// Представляет цепочку узлов для flowLayout
+class _FlowChain {
+  final List<int> nodeIds;
+  final bool isHorizontal;
+  
+  _FlowChain(this.nodeIds, this.isHorizontal);
+}
 
 class ColaLayoutService extends Manager {
   final EditorState state;
@@ -25,13 +35,13 @@ class ColaLayoutService extends Manager {
   final Map<String, int> _nodeIndexMap = {};
   // Начальные позиции узлов (сохраняются при первом запуске)
   final Map<int, Offset> _initialPositions = {};
+  // Виртуальный список связей (дети заменены на родителей)
+  final List<({String source, String target})> _virtualEdges = [];
 
-  // Адаптивные параметры раскладки
+  // Параметры раскладки
   double _currentIdealEdgeLength = 300;
-  static const double _maxIdealEdgeLength = 1000;
-  static const double _edgeLengthIncrement = 50;
-  int _restartCount = 0;
-  // Убрано ограничение на количество перезапусков — цикл продолжается до устранения пересечений
+  // Текущий минимальный зазор между узлами (увеличивается при пересечениях)
+  double _currentMinGap = 80.0;
 
   // Параметры анимации перемещения узлов
   /// Скорость анимации (0.0 - 1.0). 1.0 = мгновенное перемещение, 0.1 = медленная анимация
@@ -42,6 +52,8 @@ class ColaLayoutService extends Manager {
   final Map<int, Offset> _targetPositions = {};
   /// Флаг активной анимации
   bool _isAnimating = false;
+  /// Флаг завершения расчёта Cola (анимация может продолжаться)
+  bool _colaCompleted = false;
 
   ColaLayoutService({
     required this.state,
@@ -56,15 +68,19 @@ class ColaLayoutService extends Manager {
 
     _isRunning = true;
     state.isAutoLayoutMode = true;
-    _currentIdealEdgeLength = 150;
-    _restartCount = 0;
+    _currentIdealEdgeLength = 300; // Уменьшаем для более компактной раскладки
+    _currentMinGap = 80.0; // Сбрасываем минимальный зазор
     _initialPositions.clear(); // Очищаем начальные позиции
     _animatedPositions.clear(); // Очищаем анимированные позиции
     _targetPositions.clear(); // Очищаем целевые позиции
     _isAnimating = false;
+    _colaCompleted = false; // Сбрасываем флаг завершения Cola
     onStateUpdate();
 
     try {
+      // 0. Сворачиваем все развернутые swimlane узлы перед запуском Cola
+      await _collapseExpandedSwimlanes();
+      
       // 1. Инициализируем Cola если нужно
       if (!ColaInterop.isReady) {
         await ColaInterop.init();
@@ -85,16 +101,19 @@ class ColaLayoutService extends Manager {
         return;
       }
 
-      // 4. Строим индексную карту узлов
+      // 4. Строим маппинг индексов
       _buildNodeIndexMap();
+      
+      // 5. Строим виртуальный список связей (дети заменены на родителей)
+      _buildVirtualEdges();
 
-      // 5. Удаляем все тайлы (используем метод TileManager)
+      // 6. Удаляем все тайлы (используем метод TileManager)
       tileManager.disposeTiles();
 
-      // 6. Переносим все связи в arrowsSelected (используем метод ArrowManager)
+      // 7. Переносим все связи в arrowsSelected (используем метод ArrowManager)
       arrowManager.selectAllArrows();
 
-      // 7. Создаем Cola layout
+      // 8. Создаем Cola layout
       _createColaLayout();
 
       // 8. Запускаем анимированную раскладку
@@ -105,40 +124,97 @@ class ColaLayoutService extends Manager {
     }
   }
 
+  /// Сворачивает все развернутые swimlane узлы перед запуском Cola
+  Future<void> _collapseExpandedSwimlanes() async {
+    // Находим все развернутые swimlane узлы
+    final expandedSwimlanes = state.nodes.where(
+      (node) => node.qType == 'swimlane' && !(node.isCollapsed ?? false)
+    ).toList();
+    
+    if (expandedSwimlanes.isEmpty) return;
+    
+    print('Cola: сворачиваем ${expandedSwimlanes.length} развернутых swimlane узлов');
+    
+    // Сворачиваем каждый swimlane через NodeManager
+    for (final swimlane in expandedSwimlanes) {
+      await nodeManager.collapseSwimlane(swimlane);
+    }
+  }
+  
   void _buildNodeIndexMap() {
     _nodeIndexMap.clear();
     for (int i = 0; i < _nodesList.length; i++) {
       _nodeIndexMap[_nodesList[i].id] = i;
     }
   }
+  
+  /// Создаёт виртуальный список связей, заменяя ссылки на детей на ссылки на родителей
+  /// Это нужно для того, чтобы связи между детьми group/swimlane узлов
+  /// притягивали родительские узлы в Cola
+  void _buildVirtualEdges() {
+    _virtualEdges.clear();
+    
+    // Строим маппинг: id ребёнка -> id родителя
+    final Map<String, String> childToParent = {};
+    for (final node in _nodesList) {
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          childToParent[child.id] = node.id;
+        }
+      }
+    }
+    
+    // Создаём виртуальные связи
+    for (final arrow in state.arrows) {
+      // Заменяем source на родителя, если это ребёнок
+      final virtualSource = childToParent[arrow.source] ?? arrow.source;
+      // Заменяем target на родителя, если это ребёнок
+      final virtualTarget = childToParent[arrow.target] ?? arrow.target;
+      
+      // Добавляем только если оба узла есть в _nodeIndexMap
+      if (_nodeIndexMap.containsKey(virtualSource) && _nodeIndexMap.containsKey(virtualTarget)) {
+        // Избегаем дублирования связей
+        final exists = _virtualEdges.any((e) => 
+          (e.source == virtualSource && e.target == virtualTarget) ||
+          (e.source == virtualTarget && e.target == virtualSource)
+        );
+        if (!exists && virtualSource != virtualTarget) {
+          _virtualEdges.add((source: virtualSource, target: virtualTarget));
+        }
+      }
+    }
+    
+    print('Cola: создано ${_virtualEdges.length} виртуальных связей из ${state.arrows.length} оригинальных');
+  }
 
   void _createColaLayout() {
     final nodeCount = _nodesList.length;
+    
+    // idealEdgeLength определяет длину связей — это баланс между притяжением и отталкиванием
+    // Связи притягивают узлы к этой длине, а setAvoidOverlaps отталкивает при перекрытии
     _layout = ColaLayout(nodeCount: nodeCount, idealEdgeLength: _currentIdealEdgeLength);
  
-    // Включаем предотвращение перекрытий
+    // Включаем предотвращение перекрытий — это создаёт силу отталкивания
     _layout!.setAvoidOverlaps(true);
-
-    // Вычисляем центр масс всех узлов (используем начальные позиции для стабильности)
-    double initialSumX = 0;
-    double initialSumY = 0;
+    
+    // Настраиваем параметры сходимости
+    _layout!.setConvergence(tolerance: 0.001, maxIterations: 300);
 
     // Устанавливаем позиции и размеры узлов
-    // При первом запуске сохраняем начальные позиции
-    // При перезапуске используем ТЕКУЩИЕ позиции (результат предыдущей итерации)
+    // Добавляем сильные случайные толчки в РАЗНЫЕ стороны для разрушения симметрии
+    final rng = Random(DateTime.now().millisecondsSinceEpoch);
+    
     for (int i = 0; i < _nodesList.length; i++) {
       final node = _nodesList[i];
+      final originalPos = state.delta + node.position;
+      _initialPositions[i] = originalPos;
       
-      // При первом запуске сохраняем начальную позицию
-      if (!_initialPositions.containsKey(i)) {
-        final initialPos = node.aPosition ?? (state.delta + node.position);
-        _initialPositions[i] = initialPos;
-      }
+      // Сильные случайные толчки в ОБОИХ направлениях (±100px)
+      final jitterX = (rng.nextDouble() - 0.5) * 200; // -100 to +100
+      final jitterY = (rng.nextDouble() - 0.5) * 200; // -100 to +100
       
-      // Для Cola используем ТЕКУЩУЮ позицию (чтобы продолжить с того места, где остановились)
-      final pos = node.aPosition ?? _initialPositions[i]!;
-      final centerX = pos.dx + node.size.width / 2;
-      final centerY = pos.dy + node.size.height / 2;
+      final centerX = originalPos.dx + node.size.width / 2 + jitterX;
+      final centerY = originalPos.dy + node.size.height / 2 + jitterY;
       
       _layout!.setNode(
         i,
@@ -147,200 +223,302 @@ class ColaLayoutService extends Manager {
         width: node.size.width,
         height: node.size.height,
       );
-
-      // Суммируем начальные позиции для вычисления центра масс
-      final initialPos = _initialPositions[i]!;
-      initialSumX += initialPos.dx + node.size.width / 2;
-      initialSumY += initialPos.dy + node.size.height / 2;
     }
 
-    // Вычисляем центр масс на основе НАЧАЛЬНЫХ позиций (для стабильности)
-    final centerOfMassX = initialSumX / _nodesList.length;
-    final centerOfMassY = initialSumY / _nodesList.length;
-
-    // Добавляем page boundary симметрично вокруг центра масс
-    // Размер увеличивается с idealEdgeLength чтобы дать место для расхождения
-    final boundaryPadding = _currentIdealEdgeLength * 3;
-    _layout!.addPageBoundary(
-      xMin: centerOfMassX - boundaryPadding,
-      xMax: centerOfMassX + boundaryPadding,
-      yMin: centerOfMassY - boundaryPadding,
-      yMax: centerOfMassY + boundaryPadding,
-      weight: 20, // Уменьшаем вес чтобы не мешать расхождению
-    );
-
-    // Добавляем рёбра
-    for (final arrow in state.arrows) {
-      final sourceIndex = _nodeIndexMap[arrow.source];
-      final targetIndex = _nodeIndexMap[arrow.target];
+    // Добавляем рёбра из ВИРТУАЛЬНОГО списка — они создают силу притяжения к idealEdgeLength
+    // Виртуальные связи заменяют ссылки на детей на ссылки на родителей
+    for (final edge in _virtualEdges) {
+      final sourceIndex = _nodeIndexMap[edge.source];
+      final targetIndex = _nodeIndexMap[edge.target];
       if (sourceIndex != null && targetIndex != null) {
         _layout!.addEdge(sourceIndex, targetIndex);
       }
     }
-
-    // Добавляем ограничения разделения между узлами
-    _addSeparationConstraints();
-
-    // Добавляем ограничения для ортогональных связей
-    _addOrthogonalConstraints();
-
-    // Настраиваем параметры сходимости
-    // _layout!.setConvergence(tolerance: 0.01, maxIterations: 200);
   }
 
-  /// Добавляет ограничения разделения между узлами
-  /// Гарантирует минимальный зазор между соседними узлами
-  void _addSeparationConstraints() {
-    const double minGap = 20.0; // Минимальный зазор между узлами
-
-    // Добавляем ограничения для каждой пары связанных узлов
-    for (final arrow in state.arrows) {
-      final sourceIndex = _nodeIndexMap[arrow.source];
-      final targetIndex = _nodeIndexMap[arrow.target];
-
-      if (sourceIndex == null || targetIndex == null) continue;
-
-      final sourceNode = _nodesList[sourceIndex];
-      final targetNode = _nodesList[targetIndex];
-
-      // Вычисляем минимальный зазор на основе размеров узлов
-      final horizontalGap = (sourceNode.size.width + targetNode.size.width) / 2 + minGap;
-      final verticalGap = (sourceNode.size.height + targetNode.size.height) / 2 + minGap;
-
-      // Добавляем горизонтальное ограничение (source слева от target)
-      _layout!.addSeparationConstraint(
-        dimension: ConstraintDimension.horizontal,
-        leftNode: sourceIndex,
-        rightNode: targetIndex,
-        gap: horizontalGap,
-      );
-
-      // Добавляем вертикальное ограничение (source выше target)
-      _layout!.addSeparationConstraint(
-        dimension: ConstraintDimension.vertical,
-        leftNode: sourceIndex,
-        rightNode: targetIndex,
-        gap: verticalGap,
-      );
-    }
-  }
-
-  /// Добавляет ограничения для иерархической раскладки
-  /// Направление связи определяется на основе connections узла (какая сторона используется)
+  /// Реализует flowLayout алгоритм с использованием нового метода applyFlowLayout
+  /// Находит цепочки узлов и применяет flow constraints
   void _addOrthogonalConstraints() {
-    // 1. Вычисляем уровни узлов (BFS от корней)
-    final Map<int, int> nodeLevels = _computeNodeLevels();
+    // 1. Находим центральный узел (с максимальным количеством связей)
+    final centralNodeIndex = _findCentralNode();
     
-    // 2. Группируем узлы по уровням
-    final Map<int, List<int>> nodesByLevel = {};
-    for (final entry in nodeLevels.entries) {
-      nodesByLevel.putIfAbsent(entry.value, () => []);
-      nodesByLevel[entry.value]!.add(entry.key);
+    // 2. Вычисляем уровни узлов (BFS от центрального узла)
+    final Map<int, int> nodeLevels = _computeNodeLevelsFromCenter(centralNodeIndex);
+    
+    // 3. Находим цепочки узлов (потоки) и применяем flowLayout
+    final flowChains = _findFlowChains();
+    
+    for (final chain in flowChains) {
+      if (chain.nodeIds.length < 2) continue;
+      
+      _layout!.applyFlowLayout(
+        nodeIds: chain.nodeIds,
+        flowDirection: chain.isHorizontal 
+            ? ConstraintDimension.horizontal 
+            : ConstraintDimension.vertical,
+        separation: _currentIdealEdgeLength,
+        orthogonal: false, // Отключаем ортогональность — она конфликтует с separation constraints
+      );
     }
 
-    // 3. Для каждой связи определяем направление на основе connections
+    // 4. Добавляем ограничения отталкивания между узлами на одном уровне
+    _addRepulsionConstraints(centralNodeIndex, nodeLevels);
+  }
+
+  /// Находит цепочки узлов (потоки) на основе связей
+  /// Возвращает список цепочек с направлением
+  List<_FlowChain> _findFlowChains() {
+    final List<_FlowChain> chains = [];
+    final Set<String> processedArrows = {};
+    
+    // Строим граф исходящих связей
+    final Map<int, List<(int targetIndex, String arrowId, bool isHorizontal)>> outgoing = {};
+    for (int i = 0; i < _nodesList.length; i++) {
+      outgoing[i] = [];
+    }
+    
     for (final arrow in state.arrows) {
       final sourceIndex = _nodeIndexMap[arrow.source];
       final targetIndex = _nodeIndexMap[arrow.target];
-
       if (sourceIndex == null || targetIndex == null) continue;
-
+      
       final sourceNode = _nodesList[sourceIndex];
-      final targetNode = _nodesList[targetIndex];
-
-      // Определяем направление связи на основе connections source узла
-      final connectionDirection = _getConnectionDirection(sourceNode, arrow.id);
-
-      if (connectionDirection == 'right' || connectionDirection == 'left') {
-        // Горизонтальная связь: source и target на одной высоте
-        _layout!.addOrthogonalEdgeConstraint(
-          dimension: ConstraintDimension.horizontal,
-          leftNode: sourceIndex,
-          rightNode: targetIndex,
-        );
-
-        final minGap = (sourceNode.size.width + targetNode.size.width) / 2 + 50;
+      final direction = _getConnectionDirection(sourceNode, arrow.id);
+      final isHorizontal = direction == 'right' || direction == 'left';
+      
+      outgoing[sourceIndex]!.add((targetIndex, arrow.id, isHorizontal));
+    }
+    
+    // Находим начальные узлы (без входящих связей или с несколькими исходящими)
+    final Set<int> startNodes = {};
+    final Map<int, int> incomingCount = {};
+    
+    for (int i = 0; i < _nodesList.length; i++) {
+      incomingCount[i] = 0;
+    }
+    
+    for (final arrow in state.arrows) {
+      final targetIndex = _nodeIndexMap[arrow.target];
+      if (targetIndex != null) {
+        incomingCount[targetIndex] = incomingCount[targetIndex]! + 1;
+      }
+    }
+    
+    for (int i = 0; i < _nodesList.length; i++) {
+      if (incomingCount[i] == 0 || outgoing[i]!.length > 1) {
+        startNodes.add(i);
+      }
+    }
+    
+    // Если нет явных начальных узлов, берём центральный
+    if (startNodes.isEmpty && _nodesList.isNotEmpty) {
+      startNodes.add(_findCentralNode());
+    }
+    
+    // Строим цепочки от каждого начального узла
+    for (final startNode in startNodes) {
+      for (final (targetIndex, arrowId, isHorizontal) in outgoing[startNode]!) {
+        if (processedArrows.contains(arrowId)) continue;
         
-        if (connectionDirection == 'right') {
-          // Target справа от source
-          _layout!.addSeparationConstraint(
-            dimension: ConstraintDimension.horizontal,
-            leftNode: sourceIndex,
-            rightNode: targetIndex,
-            gap: minGap,
-          );
-        } else {
-          // Target слева от source
-          _layout!.addSeparationConstraint(
-            dimension: ConstraintDimension.horizontal,
-            leftNode: targetIndex,
-            rightNode: sourceIndex,
-            gap: minGap,
-          );
+        // Строим цепочку
+        final chainNodes = <int>[startNode];
+        var currentNode = targetIndex;
+        var currentDirection = isHorizontal;
+        processedArrows.add(arrowId);
+        
+        while (true) {
+          chainNodes.add(currentNode);
+          
+          // Ищем следующий узел в том же направлении
+          final nextEdges = outgoing[currentNode]!
+              .where((e) => !processedArrows.contains(e.$2) && e.$3 == currentDirection)
+              .toList();
+          
+          if (nextEdges.isEmpty) break;
+          
+          // Берём первую связь в том же направлении
+          final nextEdge = nextEdges.first;
+          processedArrows.add(nextEdge.$2);
+          currentNode = nextEdge.$1;
         }
-      } else {
-        // Вертикальная связь: source и target на одной вертикали
-        _layout!.addOrthogonalEdgeConstraint(
-          dimension: ConstraintDimension.vertical,
-          leftNode: sourceIndex,
-          rightNode: targetIndex,
-        );
-
-        final minGap = (sourceNode.size.height + targetNode.size.height) / 2 + 50;
         
-        if (connectionDirection == 'bottom') {
-          // Target ниже source
-          _layout!.addSeparationConstraint(
-            dimension: ConstraintDimension.vertical,
-            leftNode: sourceIndex,
-            rightNode: targetIndex,
-            gap: minGap,
-          );
-        } else {
-          // Target выше source
-          _layout!.addSeparationConstraint(
-            dimension: ConstraintDimension.vertical,
-            leftNode: targetIndex,
-            rightNode: sourceIndex,
-            gap: minGap,
-          );
+        if (chainNodes.length >= 2) {
+          chains.add(_FlowChain(chainNodes, currentDirection));
         }
       }
     }
+    
+    // Обрабатываем оставшиеся связи как отдельные пары
+    for (final arrow in state.arrows) {
+      if (processedArrows.contains(arrow.id)) continue;
+      
+      final sourceIndex = _nodeIndexMap[arrow.source];
+      final targetIndex = _nodeIndexMap[arrow.target];
+      if (sourceIndex == null || targetIndex == null) continue;
+      
+      final sourceNode = _nodesList[sourceIndex];
+      final direction = _getConnectionDirection(sourceNode, arrow.id);
+      final isHorizontal = direction == 'right' || direction == 'left';
+      
+      chains.add(_FlowChain([sourceIndex, targetIndex], isHorizontal));
+      processedArrows.add(arrow.id);
+    }
+    
+    return chains;
+  }
 
-    // 4. Узлы одного уровня выравниваем по вертикали (колонки)
-    for (final entry in nodesByLevel.entries) {
-      final nodesAtLevel = entry.value;
-      if (nodesAtLevel.length >= 2) {
-        // Сортируем по начальной Y позиции для стабильного порядка
-        nodesAtLevel.sort((a, b) {
-          final posA = _initialPositions[a]!;
-          final posB = _initialPositions[b]!;
-          return posA.dy.compareTo(posB.dy);
-        });
+  /// Находит центральный узел (с максимальным количеством связей)
+  int _findCentralNode() {
+    final Map<int, int> connectionCount = {};
+    
+    for (int i = 0; i < _nodesList.length; i++) {
+      connectionCount[i] = 0;
+    }
+    
+    for (final arrow in state.arrows) {
+      final sourceIndex = _nodeIndexMap[arrow.source];
+      final targetIndex = _nodeIndexMap[arrow.target];
+      if (sourceIndex != null) connectionCount[sourceIndex] = connectionCount[sourceIndex]! + 1;
+      if (targetIndex != null) connectionCount[targetIndex] = connectionCount[targetIndex]! + 1;
+    }
+    
+    int maxCount = 0;
+    int centralIndex = 0;
+    
+    for (final entry in connectionCount.entries) {
+      if (entry.value > maxCount) {
+        maxCount = entry.value;
+        centralIndex = entry.key;
+      }
+    }
+    
+    return centralIndex;
+  }
 
-        // Выравниваем по вертикали (одинаковый X)
-        for (int i = 0; i < nodesAtLevel.length - 1; i++) {
-          final nodeA = nodesAtLevel[i];
-          final nodeB = nodesAtLevel[i + 1];
+  /// Вычисляет уровни узлов (BFS от центрального узла)
+  Map<int, int> _computeNodeLevelsFromCenter(int centerIndex) {
+    final Map<int, int> levels = {};
+    final Set<int> visited = {};
+    
+    // Строим граф связей (без направления)
+    final Map<int, List<int>> neighbors = {};
+    for (int i = 0; i < _nodesList.length; i++) {
+      neighbors[i] = [];
+    }
+    
+    for (final arrow in state.arrows) {
+      final sourceIndex = _nodeIndexMap[arrow.source];
+      final targetIndex = _nodeIndexMap[arrow.target];
+      if (sourceIndex != null && targetIndex != null) {
+        neighbors[sourceIndex]!.add(targetIndex);
+        neighbors[targetIndex]!.add(sourceIndex);
+      }
+    }
+    
+    // BFS от центрального узла
+    levels[centerIndex] = 0;
+    visited.add(centerIndex);
+    final queue = [centerIndex];
+    
+    while (queue.isNotEmpty) {
+      final current = queue.removeAt(0);
+      final currentLevel = levels[current]!;
+      
+      for (final neighbor in neighbors[current]!) {
+        if (!visited.contains(neighbor)) {
+          visited.add(neighbor);
+          levels[neighbor] = currentLevel + 1;
+          queue.add(neighbor);
+        }
+      }
+    }
+    
+    // Узлы без уровня получают уровень 0
+    for (int i = 0; i < _nodesList.length; i++) {
+      levels.putIfAbsent(i, () => 0);
+    }
+    
+    return levels;
+  }
 
-          _layout!.addOrthogonalEdgeConstraint(
-            dimension: ConstraintDimension.vertical,
-            leftNode: nodeA,
-            rightNode: nodeB,
-          );
-
-          // Вертикальный зазор между узлами
-          final node1 = _nodesList[nodeA];
-          final node2 = _nodesList[nodeB];
-          final verticalGap = (node1.size.height + node2.size.height) / 2 + 30;
-
+  /// Добавляет ограничения отталкивания между ВСЕМИ парами узлов
+  /// Добавляет constraints в ОБОИХ направлениях для гарантии разделения
+  void _addRepulsionConstraints(int centralNodeIndex, Map<int, int> nodeLevels) {
+    // Используем текущий минимальный зазор (увеличивается при пересечениях)
+    final double minGap = _currentMinGap;
+    
+    print('Cola: _addRepulsionConstraints с minGap=$minGap');
+    
+    // Добавляем constraints между всеми парами узлов
+    for (int i = 0; i < _nodesList.length; i++) {
+      for (int j = i + 1; j < _nodesList.length; j++) {
+        final node1 = _nodesList[i];
+        final node2 = _nodesList[j];
+        
+        final posA = _initialPositions[i]!;
+        final posB = _initialPositions[j]!;
+        
+        // Определяем направление отталкивания по начальным позициям
+        final dx = posB.dx - posA.dx;
+        final dy = posB.dy - posA.dy;
+        
+        // Горизонтальный gap
+        final hGap = (node1.size.width + node2.size.width) / 2 + minGap;
+        // Вертикальный gap
+        final vGap = (node1.size.height + node2.size.height) / 2 + minGap;
+        
+        // Если узлы очень близко друг к другу, добавляем constraints в обоих направлениях
+        // Это гарантирует, что Cola разделит их хотя бы в одном направлении
+        final isVeryClose = dx.abs() < 10 && dy.abs() < 10;
+        
+        if (isVeryClose) {
+          // Узлы почти в одной точке — добавляем оба constraint
+          // Горизонтальный: i слева от j
           _layout!.addSeparationConstraint(
-            dimension: ConstraintDimension.vertical,
-            leftNode: nodeA,
-            rightNode: nodeB,
-            gap: verticalGap,
+            dimension: ConstraintDimension.horizontal,
+            leftNode: i,
+            rightNode: j,
+            gap: hGap,
           );
+          print('Cola: constraint H $i->$j gap=$hGap (close)');
+        } else if (dx.abs() >= dy.abs()) {
+          // Горизонтальное отталкивание
+          if (dx >= 0) {
+            // node2 справа от node1
+            _layout!.addSeparationConstraint(
+              dimension: ConstraintDimension.horizontal,
+              leftNode: i,
+              rightNode: j,
+              gap: hGap,
+            );
+          } else {
+            // node2 слева от node1
+            _layout!.addSeparationConstraint(
+              dimension: ConstraintDimension.horizontal,
+              leftNode: j,
+              rightNode: i,
+              gap: hGap,
+            );
+          }
+        } else {
+          // Вертикальное отталкивание
+          if (dy >= 0) {
+            // node2 ниже node1
+            _layout!.addSeparationConstraint(
+              dimension: ConstraintDimension.vertical,
+              leftNode: i,
+              rightNode: j,
+              gap: vGap,
+            );
+          } else {
+            // node2 выше node1
+            _layout!.addSeparationConstraint(
+              dimension: ConstraintDimension.vertical,
+              leftNode: j,
+              rightNode: i,
+              gap: vGap,
+            );
+          }
         }
       }
     }
@@ -383,79 +561,11 @@ class ColaLayoutService extends Manager {
     }
   }
 
-  /// Вычисляет уровни узлов (BFS от корней)
-  /// Корни — узлы без входящих связей
-  Map<int, int> _computeNodeLevels() {
-    final Map<int, int> levels = {};
-    final Set<int> visited = {};
-    
-    // Находим входящие связи для каждого узла
-    final Map<int, List<int>> incomingEdges = {};
-    final Map<int, List<int>> outgoingEdges = {};
-    
-    for (int i = 0; i < _nodesList.length; i++) {
-      incomingEdges[i] = [];
-      outgoingEdges[i] = [];
-    }
-    
-    for (final arrow in state.arrows) {
-      final sourceIndex = _nodeIndexMap[arrow.source];
-      final targetIndex = _nodeIndexMap[arrow.target];
-      if (sourceIndex != null && targetIndex != null) {
-        outgoingEdges[sourceIndex]!.add(targetIndex);
-        incomingEdges[targetIndex]!.add(sourceIndex);
-      }
-    }
-    
-    // Находим корни (узлы без входящих связей)
-    final List<int> roots = [];
-    for (int i = 0; i < _nodesList.length; i++) {
-      if (incomingEdges[i]!.isEmpty) {
-        roots.add(i);
-        levels[i] = 0;
-      }
-    }
-    
-    // Если нет корней, берём первый узел
-    if (roots.isEmpty && _nodesList.isNotEmpty) {
-      roots.add(0);
-      levels[0] = 0;
-    }
-    
-    // BFS для вычисления уровней
-    final queue = List<int>.from(roots);
-    visited.addAll(roots);
-    
-    while (queue.isNotEmpty) {
-      final current = queue.removeAt(0);
-      final currentLevel = levels[current]!;
-      
-      for (final target in outgoingEdges[current]!) {
-        if (!visited.contains(target)) {
-          visited.add(target);
-          levels[target] = currentLevel + 1;
-          queue.add(target);
-        } else if (levels[target]! < currentLevel + 1) {
-          // Обновляем уровень если нашли более длинный путь
-          levels[target] = currentLevel + 1;
-        }
-      }
-    }
-    
-    // Узлы без уровня получают уровень 0
-    for (int i = 0; i < _nodesList.length; i++) {
-      levels.putIfAbsent(i, () => 0);
-    }
-    
-    return levels;
-  }
-
   void _runAnimatedLayout() {
     _animator = AnimatedLayout(
       layout: _layout!,
       onTick: _onLayoutTick,
       onComplete: _onLayoutComplete,
-      maxIterations: 50,
     );
     _animator!.start();
   }
@@ -565,45 +675,262 @@ class ColaLayoutService extends Manager {
       Future.delayed(const Duration(milliseconds: 16), _animatePositions);
     } else {
       _isAnimating = false;
+      
+      // Если Cola уже завершила расчёт, завершаем раскладку
+      if (_colaCompleted) {
+        print('Cola: анимация завершена, завершаем раскладку');
+        _finishLayout();
+      }
     }
   }
 
   void _onLayoutComplete() {
-    // Проверяем перекрытия после завершения
-    final hasOverlaps = _checkForOverlaps();
-
-    if (hasOverlaps && _currentIdealEdgeLength < _maxIdealEdgeLength) {
+    // Пересчитываем пути связей
+    arrowManager.recalculateSelectedArrows();
+    
+    // Проверяем, пересекают ли связи узлы
+    final hasEdgeIntersections = _checkEdgeNodeIntersections();
+    
+    // Проверяем, пересекаются ли узлы друг с другом (минимальный зазор 20px)
+    final hasNodeOverlaps = _checkNodeOverlaps(minGap: 20.0);
+    
+    if ((hasEdgeIntersections || hasNodeOverlaps) && _currentIdealEdgeLength < 600) {
       // Увеличиваем idealEdgeLength и перезапускаем
-      _restartCount++;
-      _currentIdealEdgeLength += _edgeLengthIncrement;
-      print(
-        'Cola: обнаружены перекрытия, перезапуск с idealEdgeLength=$_currentIdealEdgeLength (попытка $_restartCount)',
-      );
-
+      _currentIdealEdgeLength += 50;
+      print('Cola: пересечения (связи=$hasEdgeIntersections, узлы=$hasNodeOverlaps), увеличиваем idealEdgeLength до $_currentIdealEdgeLength');
+      
       // Освобождаем текущий layout
       _layout?.dispose();
       _layout = null;
       _animator = null;
-
-      // Пересоздаём и перезапускаем
+      
+      // Обновляем начальные позиции на текущие целевые С НОВЫМИ ТОЛЧКАМИ
+      // Это помогает выйти из локального минимума
+      final rng = Random(DateTime.now().millisecondsSinceEpoch);
+      for (int i = 0; i < _nodesList.length; i++) {
+        if (_targetPositions.containsKey(i)) {
+          final targetPos = _targetPositions[i]!;
+          // Добавляем случайные толчки (±50px) для выхода из локального минимума
+          final jitterX = (rng.nextDouble() - 0.5) * 100;
+          final jitterY = (rng.nextDouble() - 0.5) * 100;
+          _initialPositions[i] = Offset(targetPos.dx + jitterX, targetPos.dy + jitterY);
+        }
+      }
+      
+      // Перезапускаем с новыми параметрами
       _createColaLayout();
       _runAnimatedLayout();
     } else {
-      _finishLayout();
+      print('Cola: расчёт завершён, ожидаем завершения анимации');
+      _colaCompleted = true;
+      
+      // Освобождаем Cola layout
+      _layout?.dispose();
+      _layout = null;
+      _animator = null;
+      
+      // Если анимация уже завершена, завершаем раскладку
+      // Иначе анимация сама вызовет _finishLayout когда достигнет целей
+      if (!_isAnimating) {
+        _finishLayout();
+      }
     }
   }
 
-  /// Проверяет наличие РЕАЛЬНЫХ перекрытий между узлами
-  /// Возвращает true только если узлы действительно пересекаются (не просто близко)
-  bool _checkForOverlaps() {
-    const double minGap = 5.0; // Минимальный зазор для определения пересечения
+  /// Проверяет пересечения связей с узлами
+  /// Возвращает true если хотя бы одна связь пересекает узел
+  /// Использует реальный ОРТОГОНАЛЬНЫЙ путь связи (не прямую линию)
+  /// Учитывает размеры родителей group/swimlane
+  bool _checkEdgeNodeIntersections() {
+    // Строим маппинг: id ребёнка -> id родителя
+    final Map<String, String> childToParent = {};
+    for (final node in _nodesList) {
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          childToParent[child.id] = node.id;
+        }
+      }
+    }
+    
+    for (final arrow in state.arrowsSelected) {
+      if (arrow == null) continue;
+      
+      // Получаем индексы source/target, учитывая родителей
+      final virtualSource = childToParent[arrow.source] ?? arrow.source;
+      final virtualTarget = childToParent[arrow.target] ?? arrow.target;
+      final sourceIndex = _nodeIndexMap[virtualSource];
+      final targetIndex = _nodeIndexMap[virtualTarget];
 
+      // Получаем реальный ортогональный путь связи
+      final arrowPathResult = arrowManager.getArrowPathInTile(arrow, state.delta, isNotCalculate: true);
+      final coordinates = arrowPathResult.coordinates;
+      
+      if (coordinates.length < 2) continue;
+
+      // Проверяем все остальные узлы
+      for (int i = 0; i < _nodesList.length; i++) {
+        // Пропускаем source и target (включая родителей)
+        if (i == sourceIndex || i == targetIndex) continue;
+
+        final node = _nodesList[i];
+        // Используем целевую позицию из Cola
+        final nodePos = _targetPositions[i] ?? node.aPosition;
+        if (nodePos == null) continue;
+
+        // Для group/swimlane увеличиваем отступ до 30px
+        final padding = (node.qType == 'group' || node.qType == 'swimlane') ? 30.0 : 10.0;
+        
+        // Прямоугольник узла с отступом
+        final nodeRect = Rect.fromLTWH(
+          nodePos.dx - padding,
+          nodePos.dy - padding,
+          node.size.width + padding * 2,
+          node.size.height + padding * 2,
+        );
+
+        // Проверяем каждый сегмент ортогонального пути
+        for (int seg = 0; seg < coordinates.length - 1; seg++) {
+          final p1 = coordinates[seg];
+          final p2 = coordinates[seg + 1];
+          
+          if (_lineIntersectsRect(p1, p2, nodeRect)) {
+            print('Cola: связь ${arrow.id} (сегмент $seg) пересекает узел $i (${node.qType})');
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Проверяет, пересекает ли отрезок прямоугольник
+  bool _lineIntersectsRect(Offset p1, Offset p2, Rect rect) {
+    // Проверяем, находятся ли обе точки с одной стороны прямоугольника
+    if (p1.dx < rect.left && p2.dx < rect.left) return false;
+    if (p1.dx > rect.right && p2.dx > rect.right) return false;
+    if (p1.dy < rect.top && p2.dy < rect.top) return false;
+    if (p1.dy > rect.bottom && p2.dy > rect.bottom) return false;
+
+    // Проверяем пересечение с каждой стороной прямоугольника
+    final topLeft = Offset(rect.left, rect.top);
+    final topRight = Offset(rect.right, rect.top);
+    final bottomLeft = Offset(rect.left, rect.bottom);
+    final bottomRight = Offset(rect.right, rect.bottom);
+
+    if (_segmentsIntersect(p1, p2, topLeft, topRight)) return true;
+    if (_segmentsIntersect(p1, p2, topRight, bottomRight)) return true;
+    if (_segmentsIntersect(p1, p2, bottomRight, bottomLeft)) return true;
+    if (_segmentsIntersect(p1, p2, bottomLeft, topLeft)) return true;
+
+    // Проверяем, находится ли одна из точек внутри прямоугольника
+    if (rect.contains(p1) || rect.contains(p2)) return true;
+
+    return false;
+  }
+
+  /// Проверяет пересечение двух отрезков
+  bool _segmentsIntersect(Offset a1, Offset a2, Offset b1, Offset b2) {
+    final d1 = _crossProduct(b2 - b1, a1 - b1);
+    final d2 = _crossProduct(b2 - b1, a2 - b1);
+    final d3 = _crossProduct(a2 - a1, b1 - a1);
+    final d4 = _crossProduct(a2 - a1, b2 - a1);
+
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      return true;
+    }
+
+    // Проверяем коллинеарные случаи
+    if (d1 == 0 && _onSegment(b1, a1, b2)) return true;
+    if (d2 == 0 && _onSegment(b1, a2, b2)) return true;
+    if (d3 == 0 && _onSegment(a1, b1, a2)) return true;
+    if (d4 == 0 && _onSegment(a1, b2, a2)) return true;
+
+    return false;
+  }
+
+  /// Векторное произведение
+  double _crossProduct(Offset a, Offset b) {
+    return a.dx * b.dy - a.dy * b.dx;
+  }
+
+  /// Проверяет, лежит ли точка q на отрезке pr
+  bool _onSegment(Offset p, Offset q, Offset r) {
+    return q.dx <= (p.dx > r.dx ? p.dx : r.dx) &&
+        q.dx >= (p.dx < r.dx ? p.dx : r.dx) &&
+        q.dy <= (p.dy > r.dy ? p.dy : r.dy) &&
+        q.dy >= (p.dy < r.dy ? p.dy : r.dy);
+  }
+
+  /// Проверяет пересечение узлов друг с другом
+  /// Возвращает true если узлы перекрываются или расстояние меньше minGap
+  bool _checkNodeOverlaps({required double minGap}) {
     for (int i = 0; i < _nodesList.length; i++) {
       final nodeA = _nodesList[i];
-      final posA = nodeA.aPosition;
+      final posA = _targetPositions[i] ?? nodeA.aPosition;
       if (posA == null) continue;
 
-      // Реальный прямоугольник узла A (без расширения)
+      // Для group/swimlane увеличиваем отступ
+      final paddingA = (nodeA.qType == 'group' || nodeA.qType == 'swimlane') ? 20.0 : 0.0;
+      final rectA = Rect.fromLTWH(
+        posA.dx - paddingA,
+        posA.dy - paddingA,
+        nodeA.size.width + paddingA * 2,
+        nodeA.size.height + paddingA * 2,
+      );
+
+      for (int j = i + 1; j < _nodesList.length; j++) {
+        final nodeB = _nodesList[j];
+        final posB = _targetPositions[j] ?? nodeB.aPosition;
+        if (posB == null) continue;
+
+        // Для group/swimlane увеличиваем отступ
+        final paddingB = (nodeB.qType == 'group' || nodeB.qType == 'swimlane') ? 20.0 : 0.0;
+        final rectB = Rect.fromLTWH(
+          posB.dx - paddingB,
+          posB.dy - paddingB,
+          nodeB.size.width + paddingB * 2,
+          nodeB.size.height + paddingB * 2,
+        );
+
+        // Вычисляем расстояние между границами
+        final horizontalGap = _horizontalGap(rectA, rectB);
+        final verticalGap = _verticalGap(rectA, rectB);
+        
+        // Пересечение если оба зазора < minGap
+        if (horizontalGap < minGap && verticalGap < minGap) {
+          print('Cola: узлы $i (${nodeA.qType}) и $j (${nodeB.qType}) пересекаются (hGap=$horizontalGap, vGap=$verticalGap)');
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  
+  /// Проверяет наличие пересечений между узлами
+  /// Возвращает true если между границами узлов меньше minGap пикселей
+  /// Использует _targetPositions (целевые позиции из Cola) для точной проверки
+  bool _checkForOverlaps({required double minGap}) {
+    int overlapsFound = 0;
+    
+    // Выводим все позиции для диагностики
+    print('Cola: проверка пересечений узлов (minGap=$minGap):');
+    for (int i = 0; i < _nodesList.length; i++) {
+      final node = _nodesList[i];
+      final pos = _targetPositions[i];
+      print('  Узел $i: targetPos=$pos, size=${node.size}');
+    }
+    
+    for (int i = 0; i < _nodesList.length; i++) {
+      final nodeA = _nodesList[i];
+      // Используем целевую позицию из Cola, а не анимированную
+      final posA = _targetPositions[i] ?? nodeA.aPosition;
+      if (posA == null) {
+        print('Cola: узел $i не имеет позиции');
+        continue;
+      }
+
+      // Прямоугольник узла A
       final rectA = Rect.fromLTWH(
         posA.dx,
         posA.dy,
@@ -613,33 +940,58 @@ class ColaLayoutService extends Manager {
 
       for (int j = i + 1; j < _nodesList.length; j++) {
         final nodeB = _nodesList[j];
-        final posB = nodeB.aPosition;
+        // Используем целевую позицию из Cola
+        final posB = _targetPositions[j] ?? nodeB.aPosition;
         if (posB == null) continue;
 
-        // Пропускаем проверку родитель-ребёнок
-        if (_isParentChild(nodeA, nodeB)) continue;
+        // Прямоугольник узла B
+        final rectB = Rect.fromLTWH(
+          posB.dx,
+          posB.dy,
+          nodeB.size.width,
+          nodeB.size.height,
+        );
 
-        // Реальный прямоугольник узла B
-        final rectB = Rect.fromLTWH(posB.dx, posB.dy, nodeB.size.width, nodeB.size.height);
+        // Вычисляем фактическое расстояние между границами
+        // Пересечение только если оба зазора < 0
+        final horizontalGap = _horizontalGap(rectA, rectB);
+        final verticalGap = _verticalGap(rectA, rectB);
+        final isOverlapping = horizontalGap < 0 && verticalGap < 0;
+        final actualGap = isOverlapping 
+            ? -1.0 // Реальное пересечение
+            : (horizontalGap >= 0 && verticalGap >= 0 
+                ? (horizontalGap < verticalGap ? horizontalGap : verticalGap)
+                : (horizontalGap >= 0 ? horizontalGap : verticalGap));
+        
+        print('  Узлы $i-$j: hGap=$horizontalGap, vGap=$verticalGap, overlap=$isOverlapping, gap=$actualGap');
 
-        // Проверяем реальное пересечение (с небольшим допуском)
-        final expandedA = rectA.inflate(minGap);
+        // Расширяем rectA на minGap и проверяем пересечение
+        final expandedA = rectA.inflate(minGap / 2);
         if (expandedA.overlaps(rectB)) {
-          print('Cola: пересечение узлов $i и $j');
-          return true;
+          overlapsFound++;
+          print('Cola: пересечение узлов $i и $j (зазор $actualGap < $minGap)');
         }
       }
     }
-    return false;
+    
+    if (overlapsFound > 0) {
+      print('Cola: найдено $overlapsFound пересечений узлов');
+    }
+    return overlapsFound > 0;
   }
 
-  /// Проверяет, являются ли узлы родителем и ребёнком
-  bool _isParentChild(TableNode a, TableNode b) {
-    // Проверяем, является ли b ребёнком a
-    if (a.children != null && a.children!.contains(b)) return true;
-    // Проверяем, является ли a ребёнком b
-    if (b.children != null && b.children!.contains(a)) return true;
-    return false;
+  /// Вычисляет горизонтальный зазор между прямоугольниками
+  double _horizontalGap(Rect a, Rect b) {
+    if (a.right < b.left) return b.left - a.right;
+    if (b.right < a.left) return a.left - b.right;
+    return -1; // Пересечение по горизонтали
+  }
+
+  /// Вычисляет вертикальный зазор между прямоугольниками
+  double _verticalGap(Rect a, Rect b) {
+    if (a.bottom < b.top) return b.top - a.bottom;
+    if (b.bottom < a.top) return a.top - b.bottom;
+    return -1; // Пересечение по вертикали
   }
 
   Future<void> _finishLayout() async {
@@ -647,9 +999,21 @@ class ColaLayoutService extends Manager {
     _animator?.stop();
     _animator = null;
 
-    // Освобождаем Cola layout
+    // Освобождаем Cola layout (если ещё не освобождён)
     _layout?.dispose();
     _layout = null;
+
+    // Пересчитываем пути связей с финальными позициями
+    arrowManager.recalculateSelectedArrows();
+
+    // Отладка: выводим финальные позиции узлов
+    print('Cola: финальные позиции узлов:');
+    for (int i = 0; i < _nodesList.length; i++) {
+      final node = _nodesList[i];
+      final targetPos = _targetPositions[i];
+      final aPos = node.aPosition;
+      print('  Узел $i: target=$targetPos, aPosition=$aPos');
+    }
 
     // Сохраняем узлы обратно в тайлы (используем метод NodeManager)
     await nodeManager.saveAllNodesAfterLayout();

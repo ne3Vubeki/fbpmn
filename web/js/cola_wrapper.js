@@ -362,6 +362,50 @@ class ColaLayout {
     }
     
     /**
+     * Apply flow layout constraints to a sequence of nodes
+     * Creates separation constraints (left-to-right or top-to-bottom flow)
+     * and alignment constraints (nodes on same axis)
+     * @param {number[]} nodeIds - Node indices in flow order
+     * @param {number} flowDirection - 0 = horizontal (left-to-right), 1 = vertical (top-to-bottom)
+     * @param {number} separation - Minimum separation between consecutive nodes
+     * @param {boolean} orthogonal - If true, also add orthogonal edge constraints
+     */
+    applyFlowLayout(nodeIds, flowDirection = 0, separation = 100, orthogonal = true) {
+        this._checkDestroyed();
+        
+        // Convert JSArray to regular array if needed
+        const arr = Array.isArray(nodeIds) ? nodeIds : Array.from(nodeIds);
+        
+        if (!arr || arr.length < 2) {
+            console.warn('applyFlowLayout requires at least 2 nodes');
+            return;
+        }
+        
+        // Convert values (handle JSNumber)
+        const ids = arr.map(v => typeof v === 'object' ? Number(v) : v);
+        
+        const ptr = colaModule._malloc(ids.length * 4);
+        if (!ptr) {
+            throw new Error('Failed to allocate memory for nodeIds');
+        }
+        
+        try {
+            const setValue = getSetValue();
+            for (let i = 0; i < ids.length; i++) {
+                setValue(ptr + i * 4, ids[i], 'i32');
+            }
+            
+            colaModule._cola_apply_flow_layout(
+                this._ptr, ptr, ids.length,
+                flowDirection, separation,
+                orthogonal ? 1 : 0
+            );
+        } finally {
+            colaModule._free(ptr);
+        }
+    }
+    
+    /**
      * Create a rectangular cluster
      * @param {number[]} nodeIds - Node indices in this cluster
      * @param {number} padding - Inner padding (default: 10)

@@ -667,6 +667,40 @@ class NodeManager extends Manager {
     onStateUpdate();
   }
 
+  /// Публичный метод для сворачивания swimlane узла
+  /// Используется ColaLayoutService перед запуском раскладки
+  Future<void> collapseSwimlane(TableNode swimlaneNode) async {
+    // Проверяем, что узел — развернутый swimlane
+    if (swimlaneNode.qType != 'swimlane' || (swimlaneNode.isCollapsed ?? false)) {
+      return;
+    }
+    
+    // Создаем копию узла со свернутым состоянием
+    final collapsedNode = swimlaneNode.toggleCollapsed();
+    
+    // Обновляем узел в списке узлов
+    _updateNodeInList(collapsedNode);
+    
+    // Удаляем детей из тайлов
+    final tilesToUpdate = <int>{};
+    await tileManager.removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
+    
+    // Обновляем все затронутые тайлы
+    for (final tileIndex in tilesToUpdate) {
+      await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
+    }
+    
+    // Обновляем тайлы
+    await tileManager.updateTilesAfterNodeChange();
+    
+    // Пересчитываем абсолютные позиции для всех узлов
+    for (final node in state.nodes) {
+      node.initializeAbsolutePositions(state.delta);
+    }
+    
+    onStateUpdate();
+  }
+  
   // Вспомогательный метод для обновления узла в списке
   void _updateNodeInList(TableNode updatedNode) {
     for (int i = 0; i < state.nodes.length; i++) {

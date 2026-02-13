@@ -257,6 +257,7 @@ class GraphLayoutService {
 | `addPageBoundary(...)` | Ограничение области размещения |
 | `addBoundaryConstraint(...)` | Узлы по одну сторону от линии |
 | `addFixedRelativeConstraint(...)` | Сохранение относительных позиций группы |
+| `applyFlowLayout(...)` | **Flow layout** — автоматическое создание constraints для потока |
 
 ### ColaLayout — Clusters
 
@@ -308,6 +309,85 @@ Future<void> main() async {
   // Освободить ресурсы
   layout.dispose();
 }
+```
+
+### Flow Layout — автоматический поток (BPMN/Flowchart)
+
+Метод `applyFlowLayout` автоматически создаёт все необходимые constraints для потокового layout:
+- **Separation constraints** — узлы идут последовательно с заданным расстоянием
+- **Alignment constraint** — все узлы на одной линии
+- **Orthogonal edge constraints** — связи строго горизонтальные/вертикальные
+
+```dart
+// Простой горизонтальный поток: Start -> Task1 -> Task2 -> End
+layout.applyFlowLayout(
+  nodeIds: [0, 1, 2, 3],  // Порядок узлов в потоке
+  flowDirection: ConstraintDimension.horizontal,  // Слева направо
+  separation: 120,  // Расстояние между узлами
+  orthogonal: true,  // Ортогональные связи
+);
+
+// Вертикальный поток: сверху вниз
+layout.applyFlowLayout(
+  nodeIds: [0, 1, 2],
+  flowDirection: ConstraintDimension.vertical,
+  separation: 80,
+);
+```
+
+#### Полный пример BPMN-процесса с Flow Layout
+
+```dart
+// Создаём layout для BPMN-процесса
+final layout = ColaLayout(nodeCount: 5, idealEdgeLength: 100);
+
+// Устанавливаем узлы
+layout.setNode(0, x: 0, y: 0, width: 40, height: 40);    // Start Event
+layout.setNode(1, x: 100, y: 0, width: 100, height: 60); // Task 1
+layout.setNode(2, x: 250, y: 0, width: 100, height: 60); // Task 2
+layout.setNode(3, x: 400, y: 0, width: 100, height: 60); // Task 3
+layout.setNode(4, x: 550, y: 0, width: 40, height: 40);  // End Event
+
+// Добавляем рёбра
+layout.addEdges([(0, 1), (1, 2), (2, 3), (3, 4)]);
+
+// Применяем flow layout — одна строка вместо множества constraints!
+layout.applyFlowLayout(
+  nodeIds: [0, 1, 2, 3, 4],
+  flowDirection: ConstraintDimension.horizontal,
+  separation: 100,
+  orthogonal: true,
+);
+
+// Включаем предотвращение перекрытий
+layout.setAvoidOverlaps(true);
+
+// Запускаем layout
+layout.run();
+
+// Получаем результаты — все узлы выровнены по горизонтали
+final positions = layout.getPositions();
+```
+
+#### Несколько параллельных потоков
+
+```dart
+// Основной поток: 0 -> 1 -> 2 -> 5
+layout.applyFlowLayout(
+  nodeIds: [0, 1, 2, 5],
+  flowDirection: ConstraintDimension.horizontal,
+  separation: 120,
+);
+
+// Альтернативный поток: 0 -> 3 -> 4 -> 5
+layout.applyFlowLayout(
+  nodeIds: [0, 3, 4, 5],
+  flowDirection: ConstraintDimension.horizontal,
+  separation: 120,
+);
+
+// Узлы 1,2 и 3,4 будут на разных уровнях благодаря avoidOverlaps
+layout.setAvoidOverlaps(true);
 ```
 
 ### Separation Constraint — минимальное расстояние
