@@ -42,6 +42,9 @@ class EditorState {
   final List<Arrow> arrows = [];
   final Set<Arrow?> arrowsSelected = {};
 
+  // Подсвеченные узлы (связанные с выделенными)
+  final Set<String> highlightedNodeIds = {};
+
   // Тайлы
   List<ImageTile> imageTiles = [];
   Set<String> imageTilesChanged = {};

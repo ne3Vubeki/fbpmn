@@ -299,6 +299,12 @@ class NodeManager extends Manager {
 
     _updateNodePosition();
 
+    // Обновляем подсвеченные узлы (связанные с выделенными)
+    tileManager.updateHighlightedNodes();
+    
+    // Перерисовываем тайлы с подсвеченными узлами
+    await tileManager.updateTilesAfterNodeChange();
+
     // Затем удаляем узел из тайлов и ЖДЕМ завершения
     await tileManager.removeSelectedNodeFromTiles(node);
 
@@ -326,6 +332,12 @@ class NodeManager extends Manager {
     state.nodesSelected.add(node);
     state.isNodeOnTopLayer = true;
 
+    // Обновляем подсвеченные узлы (связанные с выделенными)
+    tileManager.updateHighlightedNodes();
+    
+    // Перерисовываем тайлы с подсвеченными узлами
+    await tileManager.updateTilesAfterNodeChange();
+
     await _prepareNodeForTopLayer(node);
 
     _updateNodePosition();
@@ -345,6 +357,12 @@ class NodeManager extends Manager {
     node.isSelected = true;
     state.nodesSelected.add(node);
     state.isNodeOnTopLayer = true;
+
+    // Обновляем подсвеченные узлы (связанные с выделенными)
+    tileManager.updateHighlightedNodes();
+    
+    // Перерисовываем тайлы с подсвеченными узлами
+    await tileManager.updateTilesAfterNodeChange();
 
     await _prepareNodeForTopLayer(node);
 
@@ -428,6 +446,9 @@ class NodeManager extends Manager {
       _saveOneNodeBack(node);
     }
 
+    // Очищаем подсветку ПЕРЕД перерисовкой тайлов
+    state.highlightedNodeIds.clear();
+
     await tileManager.updateTilesAfterNodeChange();
 
     // Пересчитываем абсолютные позиции для всех узлов
@@ -500,6 +521,13 @@ class NodeManager extends Manager {
       _deselectAllNodes();
       state.nodesSelected.clear();
       state.arrowsSelected.clear();
+      
+      // Очищаем подсветку и перерисовываем тайлы
+      if (state.highlightedNodeIds.isNotEmpty) {
+        state.highlightedNodeIds.clear();
+        await tileManager.updateTilesAfterNodeChange();
+      }
+      
       state.isNodeOnTopLayer = false;
       state.selectedNodeOffset = Offset.zero;
       state.originalNodePosition = Offset.zero;

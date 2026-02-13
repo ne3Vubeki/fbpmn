@@ -36,6 +36,9 @@ class ColaLayoutService extends Manager {
   // Параметры анимации перемещения узлов
   /// Скорость анимации (0.0 - 1.0). 1.0 = мгновенное перемещение, 0.1 = медленная анимация
   double animationSpeed = 0.15;
+  
+  /// Отключить анимацию и показать только конечный результат
+  bool skipAnimation = false;
 
   /// Текущие анимированные позиции узлов
   final Map<int, Offset> _animatedPositions = {};
@@ -280,7 +283,8 @@ class ColaLayoutService extends Manager {
     }
 
     // Запускаем анимацию если она ещё не запущена
-    if (!_isAnimating) {
+    // При skipAnimation=true не запускаем анимацию во время тиков Cola
+    if (!_isAnimating && !skipAnimation) {
       _startPositionAnimation();
     }
   }
@@ -295,6 +299,30 @@ class ColaLayoutService extends Manager {
   void _animatePositions() {
     if (!_isRunning) {
       _isAnimating = false;
+      return;
+    }
+
+    // Если анимация отключена — сразу устанавливаем конечные позиции
+    if (skipAnimation) {
+      for (int i = 0; i < _nodesList.length; i++) {
+        final target = _targetPositions[i];
+        if (target == null) continue;
+        final node = _nodesList[i];
+        _animatedPositions[i] = target;
+        nodeManager.updateNodePositionForLayout(node, target);
+      }
+      
+      // Пересчитываем координаты стрелок
+      arrowManager.recalculateSelectedArrows();
+      arrowManager.onStateUpdate();
+      nodeManager.onStateUpdate();
+      onStateUpdate();
+      
+      _isAnimating = false;
+      if (_colaCompleted) {
+        print('Cola: анимация пропущена, завершаем раскладку');
+        _finishLayout();
+      }
       return;
     }
 
@@ -398,7 +426,7 @@ class ColaLayoutService extends Manager {
       _createColaLayout();
       _runAnimatedLayout();
     } else {
-      print('Cola: расчёт завершён, ожидаем завершения анимации');
+      print('Cola: расчёт завершён');
       _colaCompleted = true;
 
       // Освобождаем Cola layout
@@ -406,11 +434,18 @@ class ColaLayoutService extends Manager {
       _layout = null;
       _animator = null;
 
-      // Если анимация уже завершена, завершаем раскладку
-      // Иначе анимация сама вызовет _finishLayout когда достигнет целей
-      if (!_isAnimating) {
+      // При skipAnimation=true сразу показываем конечные позиции
+      if (skipAnimation) {
+        // Обновляем UI с конечными позициями
+        arrowManager.onStateUpdate();
+        nodeManager.onStateUpdate();
+        onStateUpdate();
+        _finishLayout();
+      } else if (!_isAnimating) {
+        // Если анимация уже завершена, завершаем раскладку
         _finishLayout();
       }
+      // Иначе анимация сама вызовет _finishLayout когда достигнет целей
     }
   }
 

@@ -9,10 +9,12 @@ import '../utils/editor_config.dart';
 class NodePainter {
   final TableNode node;
   final bool isSelected;
+  final bool isHighlighted;
 
   NodePainter({
     required this.node,
     this.isSelected = false,
+    this.isHighlighted = false,
   });
 
   /// Отрисовка узла с учетом базового отступа (рекурсивно с детьми)
@@ -21,6 +23,7 @@ class NodePainter {
     required Offset baseOffset,
     required Rect visibleBounds,
     bool forTile = false,
+    Set<String>? highlightedNodeIds,
   }) {
     // Для всех случаев используем единую рекурсивную логику
     _drawNodeRecursive(
@@ -29,6 +32,7 @@ class NodePainter {
       parentAbsolutePosition: baseOffset,
       visibleBounds: visibleBounds,
       forTile: forTile,
+      highlightedNodeIds: highlightedNodeIds,
     );
   }
 
@@ -218,6 +222,31 @@ class NodePainter {
     }
   }
 
+  /// Рисует подсветку связанного узла (прозрачный синий)
+  void _drawHighlightOverlay({
+    required Canvas canvas,
+    required Rect nodeRect,
+    required TableNode node,
+  }) {
+    final isSwimlane = node.qType == 'swimlane';
+    final attributes = node.attributes;
+    final hasAttributes = attributes.isNotEmpty;
+    final isEnum = node.qType == 'enum';
+    final isGroup = node.qType == 'group';
+
+    final highlightPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.2)
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    if (isSwimlane || isGroup || isEnum || !hasAttributes) {
+      canvas.drawRect(nodeRect, highlightPaint);
+    } else {
+      final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
+      canvas.drawRRect(roundedRect, highlightPaint);
+    }
+  }
+
   /// Рисует фон узла (без маски)
   void _drawNodeBackground({
     required Canvas canvas,
@@ -265,6 +294,7 @@ class NodePainter {
     required Offset parentAbsolutePosition,
     required Rect visibleBounds,
     required bool forTile,
+    Set<String>? highlightedNodeIds,
   }) {
     // Рассчитываем абсолютную позицию текущего узла
     final nodeAbsolutePosition = currentNode.aPosition ?? (currentNode.position + parentAbsolutePosition);
@@ -322,6 +352,12 @@ class NodePainter {
         canvas.translate(iconX, iconY);
         CanvasIcons.paintWarningTriangle(canvas, Size(iconSize, iconSize));
         canvas.restore();
+      }
+
+      // 5. Рисуем подсветку связанных узлов (прозрачный синий)
+      final isNodeHighlighted = highlightedNodeIds?.contains(currentNode.id) ?? false;
+      if (isNodeHighlighted) {
+        _drawHighlightOverlay(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
       }
     } else {
       // Для виджета: преобразуем координаты

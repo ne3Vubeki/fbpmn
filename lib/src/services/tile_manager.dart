@@ -24,6 +24,135 @@ class TileManager extends Manager {
 
   TileManager({required this.state, required this.arrowManager});
 
+  /// Получает ID узлов, связанных с выделенными узлами (на другом конце связей)
+  /// Для group: подсвечивается родитель и вложенные узлы
+  /// Для swimlane: если раскрыт - только родитель, если свернут - родитель и вложенные
+  Set<String> getConnectedNodeIds(Set<TableNode?> selectedNodes) {
+    final Set<String> connectedIds = {};
+    final Set<String> selectedIds = {};
+
+    // Собираем ID всех выделенных узлов (включая вложенные)
+    for (final node in selectedNodes) {
+      if (node == null) continue;
+      selectedIds.add(node.id);
+      if (node.children != null) {
+        for (final child in node.children!) {
+          selectedIds.add(child.id);
+        }
+      }
+    }
+
+    // Находим все связи, связанные с выделенными узлами
+    final arrows = arrowManager.getArrowsForNodes(selectedNodes.toList());
+
+    for (final arrow in arrows) {
+      if (arrow == null) continue;
+
+      // Если source выделен, добавляем target
+      if (selectedIds.contains(arrow.source)) {
+        _addConnectedNodeWithRules(arrow.target, connectedIds, selectedIds);
+      }
+      // Если target выделен, добавляем source
+      if (selectedIds.contains(arrow.target)) {
+        _addConnectedNodeWithRules(arrow.source, connectedIds, selectedIds);
+      }
+    }
+
+    return connectedIds;
+  }
+
+  /// Добавляет узел в список подсвеченных с учетом правил для group/swimlane
+  void _addConnectedNodeWithRules(String nodeId, Set<String> connectedIds, Set<String> selectedIds) {
+    // Не добавляем, если узел уже выделен
+    if (selectedIds.contains(nodeId)) return;
+
+    // Находим узел по ID
+    final node = _findNodeById(nodeId);
+    if (node == null) return;
+
+    // Проверяем, является ли узел вложенным
+    final parentNode = _findParentNode(nodeId);
+
+    if (parentNode != null) {
+      // Узел вложенный
+      if (parentNode.qType == 'group') {
+        // Для group: закрашиваем родителя и вложенный узел
+        connectedIds.add(parentNode.id);
+        connectedIds.add(nodeId);
+      } else if (parentNode.qType == 'swimlane') {
+        // Для swimlane: если раскрыт - только родитель, если свернут - родитель и вложенные
+        if (parentNode.isCollapsed == true) {
+          // Свернут - закрашиваем родителя и вложенные узлы по отдельности
+          connectedIds.add(parentNode.id);
+          connectedIds.add(nodeId);
+        } else {
+          // Раскрыт - закрашиваем только родителя
+          connectedIds.add(parentNode.id);
+        }
+      }
+    } else {
+      // Узел корневой
+      if (node.qType == 'group') {
+        // Для group: закрашиваем родителя и вложенные узлы
+        connectedIds.add(nodeId);
+        if (node.children != null) {
+          for (final child in node.children!) {
+            connectedIds.add(child.id);
+          }
+        }
+      } else if (node.qType == 'swimlane') {
+        // Для swimlane: если раскрыт - только родитель, если свернут - родитель и вложенные
+        connectedIds.add(nodeId);
+        if (node.isCollapsed == true && node.children != null) {
+          for (final child in node.children!) {
+            connectedIds.add(child.id);
+          }
+        }
+      } else {
+        // Обычный узел
+        connectedIds.add(nodeId);
+      }
+    }
+  }
+
+  /// Находит узел по ID во всей иерархии
+  TableNode? _findNodeById(String nodeId) {
+    TableNode? findRecursive(List<TableNode> nodes) {
+      for (final node in nodes) {
+        if (node.id == nodeId) return node;
+        if (node.children != null && node.children!.isNotEmpty) {
+          final found = findRecursive(node.children!);
+          if (found != null) return found;
+        }
+      }
+      return null;
+    }
+    return findRecursive(state.nodes);
+  }
+
+  /// Находит родительский узел для указанного ID
+  TableNode? _findParentNode(String nodeId) {
+    TableNode? findParentRecursive(List<TableNode> nodes, TableNode? parent) {
+      for (final node in nodes) {
+        if (node.id == nodeId) return parent;
+        if (node.children != null && node.children!.isNotEmpty) {
+          final found = findParentRecursive(node.children!, node);
+          if (found != null) return found;
+        }
+      }
+      return null;
+    }
+    return findParentRecursive(state.nodes, null);
+  }
+
+  /// Обновляет список подсвеченных узлов на основе текущего выделения
+  void updateHighlightedNodes() {
+    state.highlightedNodeIds.clear();
+    if (state.nodesSelected.isNotEmpty) {
+      state.highlightedNodeIds.addAll(getConnectedNodeIds(state.nodesSelected));
+    }
+  }
+
   Future<void> createTiledImage(List<TableNode?> nodes, List<Arrow?> arrows, {bool isUpdate = false}) async {
     try {
       // Очищаем старые данные только при полном пересоздании
@@ -573,6 +702,7 @@ class TileManager extends Manager {
           nodes: sortedNodes,
           tileBounds: tileBounds,
           delta: state.delta,
+          highlightedNodeIds: state.highlightedNodeIds,
         );
       }
 
