@@ -1,5 +1,6 @@
 import 'package:fbpmn/src/models/app.model.dart';
 import 'package:fbpmn/src/services/cola_layout_service.dart';
+import 'package:fbpmn/src/services/id_manager.dart';
 import 'package:flutter/material.dart';
 
 import 'models/table.node.dart';
@@ -15,7 +16,7 @@ import 'widgets/loading_indicator.dart';
 import 'widgets/canvas_area.dart';
 
 class StableGridImage extends StatefulWidget {
-  final Map diagram;
+  final Map<String, dynamic> diagram;
   final EventApp? appEvent;
 
   const StableGridImage({super.key, required this.diagram, this.appEvent});
@@ -32,12 +33,15 @@ class _StableGridImageState extends State<StableGridImage> {
   late NodeManager _nodeManager;
   late ArrowManager _arrowManager;
   late ColaLayoutService _colaLayoutService;
+  late IDManager _idManager;
 
   @override
   void initState() {
     super.initState();
 
     _editorState = EditorState();
+
+    _idManager = IDManager();
 
     _arrowManager = ArrowManager(state: _editorState);
 
@@ -72,6 +76,8 @@ class _StableGridImageState extends State<StableGridImage> {
     final metadata = widget.diagram['metadata'];
     final double dx = (metadata['dx'] as num).toDouble();
     final double dy = (metadata['dy'] as num).toDouble();
+
+    _idManager.initializeFromJson(widget.diagram);
 
     _editorState.delta = Offset(dx, dy);
 

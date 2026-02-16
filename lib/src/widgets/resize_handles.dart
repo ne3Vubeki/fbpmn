@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../editor_state.dart';
-import '../painters/resize_painter.dart';
 import '../services/node_manager.dart';
 import '../utils/editor_config.dart';
 import 'state_widget.dart';
@@ -43,28 +42,22 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
     // Размер узла (масштабированный)
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
-    final resizeBoxContainerSize = Size(
-      nodeSize.width + offset * 2,
-      nodeSize.height + offset * 2,
-    );
+    final resizeBoxContainerSize = Size(nodeSize.width + offset * 2, nodeSize.height + offset * 2);
 
     return node.qType != 'swimlane' || (node.qType == 'swimlane' && node.isCollapsed != null && node.isCollapsed!)
         ? Positioned(
-            left: widget.state.selectedNodeOffset.dx + frame - offset,
-            top: widget.state.selectedNodeOffset.dy + frame - offset,
+            left: widget.state.selectedNodeOffset.dx + frame - offset - width / 4,
+            top: widget.state.selectedNodeOffset.dy + frame - offset - width / 4,
             child: Container(
               width: resizeBoxContainerSize.width,
               height: resizeBoxContainerSize.height,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue.withValues(alpha: .5), width: .5),
-                color: Colors.blue.withValues(alpha: .03),
-              ),
+                       color: Colors.blue.withValues(alpha: .2),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   // Подсветка строки атрибута и кружки
                   _buildAttributeHighlight(node, nodeSize),
-                  
+
                   // Угловые маркеры
                   // Top-Left (угол в точке -offset, -offset, линии идут вправо и вниз)
                   _buildCornerHandle('tl', 0, 0, 0, length, width),
@@ -87,7 +80,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   _buildSideHandle(
                     't',
                     resizeBoxContainerSize.width / 2 - length / 2,
-                    0 - width / 2,
+                    0 - length / 2,
                     true,
                     length,
                     width,
@@ -95,7 +88,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   // Right (на расстоянии offset от правого края, центр по вертикали)
                   _buildSideHandle(
                     'r',
-                    resizeBoxContainerSize.width - length - width / 4,
+                    resizeBoxContainerSize.width - length / 2,
                     resizeBoxContainerSize.height / 2 - length / 2,
                     false,
                     length,
@@ -105,7 +98,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   _buildSideHandle(
                     'b',
                     resizeBoxContainerSize.width / 2 - length / 2,
-                    resizeBoxContainerSize.height - length - width / 4,
+                    resizeBoxContainerSize.height - length / 2,
                     true,
                     length,
                     width,
@@ -113,7 +106,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   // Left (на расстоянии offset от левого края, центр по вертикали)
                   _buildSideHandle(
                     'l',
-                    0 - width / 2,
+                    0 - length / 2,
                     resizeBoxContainerSize.height / 2 - length / 2,
                     false,
                     length,
@@ -130,22 +123,19 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   Widget _buildCornerHandle(String handle, double left, double top, double rotation, double length, double width) {
     final isHovered = widget.nodeManager.hoveredResizeHandle == handle;
     final cursor = widget.nodeManager.getResizeCursor(handle);
+    print('Сторона: ${widget.nodeManager.hoveredResizeHandle}, isHovered: $isHovered');
 
     return Positioned(
-      left: left,
-      top: top,
+      left: left + (handle == 'tl' || handle == 'bl' ? -length / 2 : length / 2),
+      top: top + (handle == 'tl' || handle == 'tr' ? -length / 2 : length / 2),
       child: MouseRegion(
         cursor: cursor,
         child: Container(
           width: length,
           height: length,
-          color: isHovered ? Colors.red.withValues(alpha: .1) : Colors.transparent,
-          child: Transform.rotate(
-            angle: rotation * 3.14159 / 180,
-            child: CustomPaint(
-              size: Size(length, length),
-              painter: ResizePainter(width: width, isHovered: isHovered),
-            ),
+          decoration: BoxDecoration(
+            color: isHovered ? Colors.blue : Colors.white,
+            border: Border.all(color: Colors.blue, width: width),
           ),
         ),
       ),
@@ -163,23 +153,13 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       child: MouseRegion(
         cursor: cursor,
         child: Container(
-          padding: EdgeInsets.only(
-            left: handle == 'r' ? length - width / 2 : 0,
-            right: handle == 'l' ? length - width / 2 : 0,
-            top: handle == 'b' ? length - width / 2 : 0,
-            bottom: handle == 't' ? length - width / 2 : 0,
-          ),
           width: length + width / 2,
           height: length + width / 2,
           alignment: Alignment.center,
-          color: isHovered ? Colors.red.withValues(alpha: .1) : const Color.fromRGBO(0, 0, 0, 0),
-          child: Container(
-            width: isHorizontal ? length : width,
-            height: isHorizontal ? width : length,
-            decoration: BoxDecoration(
-              color: isHovered ? Colors.red : Colors.blue,
-              borderRadius: BorderRadius.circular(1),
-            ),
+          decoration: BoxDecoration(
+            color: isHovered ? Colors.blue : Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.blue, width: width),
           ),
         ),
       ),
@@ -210,7 +190,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     final offset = NodeManager.resizeHandleOffset * scale;
     final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + offset;
     final rowHeightScaled = actualRowHeight * scale;
-    
+
     // Размеры кружков с учётом масштаба
     final circleDiameter = 8.0 * scale;
     final circleRadius = circleDiameter / 2;
@@ -222,9 +202,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       child: Container(
         width: nodeSize.width,
         height: rowHeightScaled,
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.2),
-        ),
+        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2)),
         child: Stack(
           clipBehavior: Clip.none,
           children: [

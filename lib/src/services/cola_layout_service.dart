@@ -453,10 +453,9 @@ class ColaLayoutService extends Manager {
   }
 
   /// Проверяет пересечение связей с узлами и смещает узлы
-  /// Смещение перпендикулярно линии связи на расстояние выхода за пределы пересечения
+  /// Логика: для каждого узла с пересечениями ищем оптимальный угол смещения (0°-360° с шагом 10°)
+  /// от центра узла, проверяя будущую позицию на отсутствие пересечений
   bool _checkEdgeNodeIntersections() {
-    final Map<int, Offset> totalDisplacements = {};
-    
     // Строим маппинг: id ребёнка -> id родителя
     final Map<String, String> childToParent = {};
     for (final node in _nodesList) {
@@ -467,113 +466,70 @@ class ColaLayoutService extends Manager {
       }
     }
 
+    // Собираем все сегменты связей для проверки пересечений
+    final List<_EdgeSegment> allEdgeSegments = [];
     for (final arrow in state.arrowsSelected) {
       if (arrow == null) continue;
-
-      // Получаем индексы source/target, учитывая родителей
       final virtualSource = childToParent[arrow.source] ?? arrow.source;
       final virtualTarget = childToParent[arrow.target] ?? arrow.target;
       final sourceIndex = _nodeIndexMap[virtualSource];
       final targetIndex = _nodeIndexMap[virtualTarget];
-
-      // Используем уже рассчитанные координаты связи (после recalculateSelectedArrows)
       final coordinates = arrow.coordinates;
       if (coordinates == null || coordinates.length < 2) continue;
+      
+      for (int seg = 0; seg < coordinates.length - 1; seg++) {
+        allEdgeSegments.add(_EdgeSegment(
+          p1: coordinates[seg],
+          p2: coordinates[seg + 1],
+          sourceIndex: sourceIndex,
+          targetIndex: targetIndex,
+        ));
+      }
+    }
 
-      // Проверяем все остальные узлы
-      for (int i = 0; i < _nodesList.length; i++) {
-        // Пропускаем source и target (включая родителей)
-        if (i == sourceIndex || i == targetIndex) continue;
-
-        final node = _nodesList[i];
-        // Используем целевую позицию из Cola
-        final nodePos = _targetPositions[i] ?? node.aPosition;
-        if (nodePos == null) continue;
+    // Находим узлы с пересечениями и вычисляем оптимальное смещение
+    final Map<int, Offset> totalDisplacements = {};
+    
+    for (int i = 0; i < _nodesList.length; i++) {
+      final node = _nodesList[i];
+      final nodePos = _targetPositions[i] ?? node.aPosition;
+      if (nodePos == null) continue;
+      
+      final minGap = (node.qType == 'group' || node.qType == 'swimlane') ? 30.0 : 10.0;
+      
+      // Проверяем текущую позицию на пересечения
+      final currentIntersections = _countEdgeIntersections(i, nodePos, node.size, minGap, allEdgeSegments);
+      if (currentIntersections == 0) continue;
+      
+      // Вычисляем необходимое расстояние смещения
+      final moveDistance = (node.size.width + node.size.height) / 2 + minGap + 10;
+      
+      // Ищем оптимальный угол смещения (0°-360° с шагом 10°)
+      Offset bestDisplacement = Offset.zero;
+      int bestIntersections = currentIntersections;
+      double bestAngle = 0;
+      
+      for (int angleDeg = 0; angleDeg < 360; angleDeg += 10) {
+        final angleRad = angleDeg * pi / 180;
+        final dx = cos(angleRad) * moveDistance;
+        final dy = sin(angleRad) * moveDistance;
+        final testPos = Offset(nodePos.dx + dx, nodePos.dy + dy);
         
-        // Минимальный отступ от связи
-        final minGap = (node.qType == 'group' || node.qType == 'swimlane') ? 30.0 : 10.0;
-
-        // Прямоугольник узла с отступом
-        final nodeRect = Rect.fromLTWH(
-          nodePos.dx - minGap,
-          nodePos.dy - minGap,
-          node.size.width + minGap * 2,
-          node.size.height + minGap * 2,
-        );
+        final testIntersections = _countEdgeIntersections(i, testPos, node.size, minGap, allEdgeSegments);
         
-        // Центр узла
-        final nodeCenter = Offset(nodePos.dx + node.size.width / 2, nodePos.dy + node.size.height / 2);
-
-        // Проверяем каждый сегмент ортогонального пути
-        for (int seg = 0; seg < coordinates.length - 1; seg++) {
-          final p1 = coordinates[seg];
-          final p2 = coordinates[seg + 1];
-
-          if (_lineIntersectsRect(p1, p2, nodeRect)) {
-            // Определяем направление сегмента (горизонтальный или вертикальный)
-            final isHorizontal = (p1.dy - p2.dy).abs() < 1.0;
-            final isVertical = (p1.dx - p2.dx).abs() < 1.0;
-            
-            Offset displacement;
-            
-            if (isHorizontal) {
-              // Горизонтальный сегмент — смещаем по вертикали
-              final lineY = p1.dy;
-              // Если центр узла выше линии — смещаем вверх, иначе вниз
-              if (nodeCenter.dy < lineY) {
-                // Узел выше линии — смещаем вверх
-                final requiredY = lineY - (node.size.height / 2 + minGap + 5);
-                displacement = Offset(0, requiredY - nodePos.dy);
-              } else {
-                // Узел ниже линии — смещаем вниз
-                final requiredY = lineY + minGap + 5;
-                displacement = Offset(0, requiredY - nodePos.dy);
-              }
-            } else if (isVertical) {
-              // Вертикальный сегмент — смещаем по горизонтали
-              final lineX = p1.dx;
-              // Если центр узла левее линии — смещаем влево, иначе вправо
-              if (nodeCenter.dx < lineX) {
-                // Узел левее линии — смещаем влево
-                final requiredX = lineX - (node.size.width / 2 + minGap + 5);
-                displacement = Offset(requiredX - nodePos.dx, 0);
-              } else {
-                // Узел правее линии — смещаем вправо
-                final requiredX = lineX + minGap + 5;
-                displacement = Offset(requiredX - nodePos.dx, 0);
-              }
-            } else {
-              // Диагональный сегмент — смещаем перпендикулярно
-              final segDir = Offset(p2.dx - p1.dx, p2.dy - p1.dy);
-              final segLen = segDir.distance;
-              if (segLen > 0) {
-                // Перпендикуляр к сегменту
-                var perpendicular = Offset(-segDir.dy / segLen, segDir.dx / segLen);
-                // Определяем направление: от линии к центру узла
-                final midPoint = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
-                final toNode = Offset(nodeCenter.dx - midPoint.dx, nodeCenter.dy - midPoint.dy);
-                // Если перпендикуляр направлен в противоположную сторону — инвертируем
-                if (toNode.dx * perpendicular.dx + toNode.dy * perpendicular.dy < 0) {
-                  perpendicular = Offset(-perpendicular.dx, -perpendicular.dy);
-                }
-                // Смещаем на размер узла + отступ
-                final moveDistance = (node.size.width + node.size.height) / 2 + minGap + 5;
-                displacement = Offset(perpendicular.dx * moveDistance, perpendicular.dy * moveDistance);
-              } else {
-                displacement = Offset.zero;
-              }
-            }
-            
-            // Накапливаем смещение
-            if (totalDisplacements.containsKey(i)) {
-              totalDisplacements[i] = totalDisplacements[i]! + displacement;
-            } else {
-              totalDisplacements[i] = displacement;
-            }
-            
-            print('Cola: связь ${arrow.id} (сегмент $seg, ${isHorizontal ? "гориз" : isVertical ? "верт" : "диаг"}) пересекает узел $i (${node.qType}), смещение: $displacement');
-          }
+        if (testIntersections < bestIntersections) {
+          bestIntersections = testIntersections;
+          bestDisplacement = Offset(dx, dy);
+          bestAngle = angleDeg.toDouble();
+          
+          // Если нашли позицию без пересечений — сразу берём её
+          if (testIntersections == 0) break;
         }
+      }
+      
+      if (bestDisplacement != Offset.zero) {
+        totalDisplacements[i] = bestDisplacement;
+        print('Cola: узел $i (${node.qType}) — найден угол $bestAngle° с $bestIntersections пересечениями (было $currentIntersections)');
       }
     }
     
@@ -589,12 +545,39 @@ class ColaLayoutService extends Manager {
         _targetPositions[nodeIndex] = newPos;
         _initialPositions[nodeIndex] = newPos;
         
-        print('Cola: применяю смещение узла $nodeIndex на ${displacement.dx}, ${displacement.dy}');
+        print('Cola: применяю смещение узла $nodeIndex на ${displacement.dx.toStringAsFixed(1)}, ${displacement.dy.toStringAsFixed(1)}');
       }
       return true;
     }
     
     return false;
+  }
+  
+  /// Подсчитывает количество пересечений узла с сегментами связей
+  int _countEdgeIntersections(
+    int nodeIndex,
+    Offset nodePos,
+    Size nodeSize,
+    double minGap,
+    List<_EdgeSegment> edgeSegments,
+  ) {
+    final nodeRect = Rect.fromLTWH(
+      nodePos.dx - minGap,
+      nodePos.dy - minGap,
+      nodeSize.width + minGap * 2,
+      nodeSize.height + minGap * 2,
+    );
+    
+    int count = 0;
+    for (final segment in edgeSegments) {
+      // Пропускаем связи, где этот узел является source или target
+      if (segment.sourceIndex == nodeIndex || segment.targetIndex == nodeIndex) continue;
+      
+      if (_lineIntersectsRect(segment.p1, segment.p2, nodeRect)) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /// Проверяет, пересекает ли отрезок прямоугольник
@@ -656,7 +639,8 @@ class ColaLayoutService extends Manager {
   }
 
   /// Проверяет пересечение узлов друг с другом и смещает их
-  /// Смещение по прямой от центра одного узла к центру другого на расстояние выхода за пределы пересечения
+  /// Логика: для каждой пары пересекающихся узлов ищем оптимальный угол смещения
+  /// в сегменте ±90° от линии центров с шагом 10°
   bool _checkNodeOverlaps({required double minGap}) {
     final Map<int, Offset> totalDisplacements = {};
     
@@ -666,7 +650,10 @@ class ColaLayoutService extends Manager {
       if (posA == null) continue;
 
       // Для group/swimlane увеличиваем отступ
-      final paddingA = (nodeA.qType == 'group' || nodeA.qType == 'swimlane') ? 20.0 : 0.0;
+      final isLargeNodeA = (nodeA.qType == 'group' || nodeA.qType == 'swimlane');
+      final paddingA = isLargeNodeA ? 20.0 : 0.0;
+      
+      // Прямоугольник узла A с учётом padding
       final rectA = Rect.fromLTWH(
         posA.dx - paddingA,
         posA.dy - paddingA,
@@ -683,7 +670,10 @@ class ColaLayoutService extends Manager {
         if (posB == null) continue;
 
         // Для group/swimlane увеличиваем отступ
-        final paddingB = (nodeB.qType == 'group' || nodeB.qType == 'swimlane') ? 20.0 : 0.0;
+        final isLargeNodeB = (nodeB.qType == 'group' || nodeB.qType == 'swimlane');
+        final paddingB = isLargeNodeB ? 20.0 : 0.0;
+        
+        // Прямоугольник узла B с учётом padding
         final rectB = Rect.fromLTWH(
           posB.dx - paddingB,
           posB.dy - paddingB,
@@ -694,57 +684,79 @@ class ColaLayoutService extends Manager {
         // Центр узла B
         final centerB = Offset(posB.dx + nodeB.size.width / 2, posB.dy + nodeB.size.height / 2);
 
-        // Вычисляем расстояние между границами
-        final horizontalGap = _horizontalGap(rectA, rectB);
-        final verticalGap = _verticalGap(rectA, rectB);
-
         // Для пар group/swimlane используем увеличенный минимальный зазор
-        final isLargeNodeA = (nodeA.qType == 'group' || nodeA.qType == 'swimlane');
-        final isLargeNodeB = (nodeB.qType == 'group' || nodeB.qType == 'swimlane');
         final effectiveMinGap = (isLargeNodeA || isLargeNodeB) ? minGap + 30.0 : minGap;
 
-        // Пересечение если оба зазора < effectiveMinGap
-        if (horizontalGap < effectiveMinGap && verticalGap < effectiveMinGap) {
-          print(
-            'Cola: узлы $i (${nodeA.qType}) и $j (${nodeB.qType}) пересекаются (hGap=$horizontalGap, vGap=$verticalGap, minGap=$effectiveMinGap)',
+        // Вычисляем реальное перекрытие (с учётом minGap)
+        final overlapInfo = _calculateOverlap(rectA, rectB, effectiveMinGap);
+        
+        if (!overlapInfo.hasOverlap) continue;
+        
+        print(
+          'Cola: узлы $i (${nodeA.qType}) и $j (${nodeB.qType}) пересекаются '
+          '(overlapX=${overlapInfo.overlapX.toStringAsFixed(1)}, overlapY=${overlapInfo.overlapY.toStringAsFixed(1)})',
+        );
+        
+        // Вычисляем базовый угол от A к B
+        final dirAtoB = Offset(centerB.dx - centerA.dx, centerB.dy - centerA.dy);
+        final baseAngle = atan2(dirAtoB.dy, dirAtoB.dx);
+        
+        // Вычисляем необходимое расстояние смещения
+        final moveDistance = max(overlapInfo.overlapX, overlapInfo.overlapY) / 2 + 10;
+        
+        // Ищем оптимальный угол в сегменте ±90° от линии центров (с шагом 10°)
+        Offset bestDisplacementA = Offset.zero;
+        Offset bestDisplacementB = Offset.zero;
+        double bestOverlap = overlapInfo.overlapX + overlapInfo.overlapY;
+        double bestAngle = 0;
+        
+        for (int angleDelta = -90; angleDelta <= 90; angleDelta += 10) {
+          final testAngle = baseAngle + (angleDelta * pi / 180);
+          
+          // Узел A смещается в противоположном направлении
+          final dxA = -cos(testAngle) * moveDistance;
+          final dyA = -sin(testAngle) * moveDistance;
+          final testPosA = Offset(posA.dx + dxA, posA.dy + dyA);
+          
+          // Узел B смещается в направлении угла
+          final dxB = cos(testAngle) * moveDistance;
+          final dyB = sin(testAngle) * moveDistance;
+          final testPosB = Offset(posB.dx + dxB, posB.dy + dyB);
+          
+          // Проверяем перекрытие в новых позициях
+          final testRectA = Rect.fromLTWH(
+            testPosA.dx - paddingA,
+            testPosA.dy - paddingA,
+            nodeA.size.width + paddingA * 2,
+            nodeA.size.height + paddingA * 2,
+          );
+          final testRectB = Rect.fromLTWH(
+            testPosB.dx - paddingB,
+            testPosB.dy - paddingB,
+            nodeB.size.width + paddingB * 2,
+            nodeB.size.height + paddingB * 2,
           );
           
-          // Вычисляем направление от центра A к центру B
-          var dirAtoB = Offset(centerB.dx - centerA.dx, centerB.dy - centerA.dy);
-          final dist = dirAtoB.distance;
+          final testOverlapInfo = _calculateOverlap(testRectA, testRectB, effectiveMinGap);
+          final testOverlapSum = testOverlapInfo.overlapX + testOverlapInfo.overlapY;
           
-          if (dist > 0) {
-            dirAtoB = Offset(dirAtoB.dx / dist, dirAtoB.dy / dist);
-          } else {
-            // Если центры совпадают, смещаем по диагонали
-            dirAtoB = const Offset(0.707, 0.707);
+          if (testOverlapSum < bestOverlap) {
+            bestOverlap = testOverlapSum;
+            bestDisplacementA = Offset(dxA, dyA);
+            bestDisplacementB = Offset(dxB, dyB);
+            bestAngle = angleDelta.toDouble();
+            
+            // Если нашли позицию без перекрытия — сразу берём её
+            if (!testOverlapInfo.hasOverlap) break;
           }
+        }
+        
+        if (bestDisplacementA != Offset.zero || bestDisplacementB != Offset.zero) {
+          print('Cola: узлы $i и $j — найден угол ${bestAngle.toStringAsFixed(0)}° от линии центров');
           
-          // Вычисляем необходимое смещение для выхода за пределы пересечения
-          // Нужно сместить так, чтобы зазор стал >= effectiveMinGap
-          final overlapX = horizontalGap < 0 ? -horizontalGap : effectiveMinGap - horizontalGap;
-          final overlapY = verticalGap < 0 ? -verticalGap : effectiveMinGap - verticalGap;
-          
-          // Смещаем в направлении от центра к центру на величину перекрытия + запас
-          final moveDistance = (overlapX + overlapY) / 2 + 10;
-          
-          // Узел A смещается в противоположном направлении (от B)
-          final displacementA = Offset(-dirAtoB.dx * moveDistance / 2, -dirAtoB.dy * moveDistance / 2);
-          if (totalDisplacements.containsKey(i)) {
-            totalDisplacements[i] = totalDisplacements[i]! + displacementA;
-          } else {
-            totalDisplacements[i] = displacementA;
-          }
-          
-          // Узел B смещается в направлении от A
-          final displacementB = Offset(dirAtoB.dx * moveDistance / 2, dirAtoB.dy * moveDistance / 2);
-          if (totalDisplacements.containsKey(j)) {
-            totalDisplacements[j] = totalDisplacements[j]! + displacementB;
-          } else {
-            totalDisplacements[j] = displacementB;
-          }
-          
-          print('Cola: смещение узлов $i и $j на $moveDistance px в направлении $dirAtoB');
+          // Накапливаем смещения
+          totalDisplacements[i] = (totalDisplacements[i] ?? Offset.zero) + bestDisplacementA;
+          totalDisplacements[j] = (totalDisplacements[j] ?? Offset.zero) + bestDisplacementB;
         }
       }
     }
@@ -761,26 +773,45 @@ class ColaLayoutService extends Manager {
         _targetPositions[nodeIndex] = newPos;
         _initialPositions[nodeIndex] = newPos;
         
-        print('Cola: применяю смещение узла $nodeIndex на ${displacement.dx}, ${displacement.dy}');
+        print('Cola: применяю смещение узла $nodeIndex на ${displacement.dx.toStringAsFixed(1)}, ${displacement.dy.toStringAsFixed(1)}');
       }
       return true;
     }
     
     return false;
   }
-
-  /// Вычисляет горизонтальный зазор между прямоугольниками
-  double _horizontalGap(Rect a, Rect b) {
-    if (a.right < b.left) return b.left - a.right;
-    if (b.right < a.left) return a.left - b.right;
-    return -1; // Пересечение по горизонтали
-  }
-
-  /// Вычисляет вертикальный зазор между прямоугольниками
-  double _verticalGap(Rect a, Rect b) {
-    if (a.bottom < b.top) return b.top - a.bottom;
-    if (b.bottom < a.top) return a.top - b.bottom;
-    return -1; // Пересечение по вертикали
+  
+  /// Вычисляет перекрытие между двумя прямоугольниками с учётом минимального зазора
+  /// Возвращает величину перекрытия по X и Y (положительные значения = есть перекрытие)
+  ({bool hasOverlap, double overlapX, double overlapY}) _calculateOverlap(Rect a, Rect b, double minGap) {
+    // Расширяем прямоугольники на minGap/2 с каждой стороны
+    final expandedA = Rect.fromLTRB(
+      a.left - minGap / 2,
+      a.top - minGap / 2,
+      a.right + minGap / 2,
+      a.bottom + minGap / 2,
+    );
+    final expandedB = Rect.fromLTRB(
+      b.left - minGap / 2,
+      b.top - minGap / 2,
+      b.right + minGap / 2,
+      b.bottom + minGap / 2,
+    );
+    
+    // Вычисляем перекрытие по X
+    final overlapX = min(expandedA.right, expandedB.right) - max(expandedA.left, expandedB.left);
+    
+    // Вычисляем перекрытие по Y
+    final overlapY = min(expandedA.bottom, expandedB.bottom) - max(expandedA.top, expandedB.top);
+    
+    // Есть перекрытие если оба значения > 0
+    final hasOverlap = overlapX > 0 && overlapY > 0;
+    
+    return (
+      hasOverlap: hasOverlap,
+      overlapX: hasOverlap ? overlapX : 0,
+      overlapY: hasOverlap ? overlapY : 0,
+    );
   }
 
   Future<void> _finishLayout() async {
@@ -845,4 +876,19 @@ class ColaLayoutService extends Manager {
     stopLayout();
     super.dispose();
   }
+}
+
+/// Вспомогательный класс для хранения сегмента связи
+class _EdgeSegment {
+  final Offset p1;
+  final Offset p2;
+  final int? sourceIndex;
+  final int? targetIndex;
+  
+  _EdgeSegment({
+    required this.p1,
+    required this.p2,
+    this.sourceIndex,
+    this.targetIndex,
+  });
 }

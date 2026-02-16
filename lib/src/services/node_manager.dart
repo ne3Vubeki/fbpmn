@@ -43,9 +43,9 @@ class NodeManager extends Manager {
   double get frameTotalOffset => framePadding + frameBorderWidth; // Общий отступ для рамки
 
   // Константы для маркеров изменения размера
-  static const double resizeHandleOffset = 12.0; // Отступ маркеров от узла
+  static const double resizeHandleOffset = 6.0; // Отступ маркеров от узла
   static const double resizeHandleLength = 12.0; // Длина линий маркера
-  static const double resizeHandleWidth = 2.0; // Толщина линий маркера
+  static const double resizeHandleWidth = 1.5; // Толщина линий маркера
 
   NodeManager({required this.state, required this.tileManager, required this.arrowManager});
 

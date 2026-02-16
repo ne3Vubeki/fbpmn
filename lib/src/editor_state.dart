@@ -11,6 +11,8 @@ class EditorState {
   Offset offset = Offset.zero;
   Offset delta = Offset.zero;
 
+  String globalId = '0000000000001';
+
   // Состояние ввода
   bool isShiftPressed = false;
   bool isCtrlPressed = false;

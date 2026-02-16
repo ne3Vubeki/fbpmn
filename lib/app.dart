@@ -20,7 +20,7 @@ class App extends StatefulWidget {
 }
 
 class _AppState extends State<App> {
-  Map _diagram = {};
+  Map<String, dynamic> _diagram = {};
   bool _isLoading = true;
   late Broadcast _broadcastManager;
   late EventApp? _appEvent;
@@ -33,7 +33,7 @@ class _AppState extends State<App> {
 
   Future<void> _loadXmlFile() async {
     try {
-      final diagram = await rootBundle.loadString('diagram_7.json');
+      final diagram = await rootBundle.loadString('diagram_3.json');
       setState(() {
         _diagram = jsonDecode(diagram);
         _isLoading = false;
