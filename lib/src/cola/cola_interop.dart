@@ -527,7 +527,6 @@ class AnimatedLayout {
 
     if (shouldStop) {
       _running = false;
-      print('Layout completed after $_iterationCount iterations (converged: $converged)');
       onComplete?.call();
     } else {
       // Schedule next tick using requestAnimationFrame equivalent

@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'src/models/app.model.dart';
-import 'src/services/broadcast.service.dart';
+import 'src/wasmapi/app.model.dart';
+import 'src/wasmapi/broadcast.service.dart';
 import 'src/stable_grid_image.dart';
 
 class App extends StatefulWidget {
@@ -33,7 +33,7 @@ class _AppState extends State<App> {
 
   Future<void> _loadXmlFile() async {
     try {
-      final diagram = await rootBundle.loadString('diagram_3.json');
+      final diagram = await rootBundle.loadString('diagram_5.json');
       setState(() {
         _diagram = jsonDecode(diagram);
         _isLoading = false;

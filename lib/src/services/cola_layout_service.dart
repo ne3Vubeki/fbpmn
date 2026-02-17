@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 
 import 'package:fbpmn/src/cola/cola_interop.dart';
 import 'package:fbpmn/src/editor_state.dart';
@@ -54,6 +55,9 @@ class ColaLayoutService extends Manager {
   /// Флаг завершения расчёта Cola (анимация может продолжаться)
   bool _colaCompleted = false;
 
+  /// Completer для ожидания завершения раскладки
+  Completer<void>? _layoutCompleter;
+
   ColaLayoutService({
     required this.state,
     required this.tileManager,
@@ -65,6 +69,9 @@ class ColaLayoutService extends Manager {
   Future<void> runAutoLayout() async {
     if (_isRunning) return;
     if (state.nodes.isEmpty) return;
+
+    // Создаем новый Completer для этого запуска
+    _layoutCompleter = Completer<void>();
 
     _isRunning = true;
     state.isAutoLayoutMode = true;
@@ -97,6 +104,7 @@ class ColaLayoutService extends Manager {
         _isRunning = false;
         state.isLoading = false;
         onStateUpdate();
+        _layoutCompleter?.complete();
         return;
       }
 
@@ -117,6 +125,9 @@ class ColaLayoutService extends Manager {
 
       // 8. Запускаем анимированную раскладку
       _runAnimatedLayout();
+      
+      // Ожидаем завершения раскладки
+      await _layoutCompleter!.future;
     } catch (e) {
       print('ColaLayoutService error: $e');
       await _finishLayout();
@@ -371,7 +382,6 @@ class ColaLayoutService extends Manager {
 
       // Если Cola уже завершила расчёт, завершаем раскладку
       if (_colaCompleted) {
-        print('Cola: анимация завершена, завершаем раскладку');
         _finishLayout();
       }
     }
@@ -400,10 +410,6 @@ class ColaLayoutService extends Manager {
     if ((hasEdgeIntersections || hasNodeOverlaps) && _currentIdealEdgeLength < 800) {
       // Увеличиваем idealEdgeLength и перезапускаем
       _currentIdealEdgeLength += 75;
-      print(
-        'Cola: пересечения (связи=$hasEdgeIntersections, узлы=$hasNodeOverlaps), увеличиваем idealEdgeLength до $_currentIdealEdgeLength',
-      );
-
       // Освобождаем текущий layout
       _layout?.dispose();
       _layout = null;
@@ -529,7 +535,6 @@ class ColaLayoutService extends Manager {
       
       if (bestDisplacement != Offset.zero) {
         totalDisplacements[i] = bestDisplacement;
-        print('Cola: узел $i (${node.qType}) — найден угол $bestAngle° с $bestIntersections пересечениями (было $currentIntersections)');
       }
     }
     
@@ -544,8 +549,6 @@ class ColaLayoutService extends Manager {
         final newPos = Offset(currentPos.dx + displacement.dx, currentPos.dy + displacement.dy);
         _targetPositions[nodeIndex] = newPos;
         _initialPositions[nodeIndex] = newPos;
-        
-        print('Cola: применяю смещение узла $nodeIndex на ${displacement.dx.toStringAsFixed(1)}, ${displacement.dy.toStringAsFixed(1)}');
       }
       return true;
     }
@@ -692,11 +695,6 @@ class ColaLayoutService extends Manager {
         
         if (!overlapInfo.hasOverlap) continue;
         
-        print(
-          'Cola: узлы $i (${nodeA.qType}) и $j (${nodeB.qType}) пересекаются '
-          '(overlapX=${overlapInfo.overlapX.toStringAsFixed(1)}, overlapY=${overlapInfo.overlapY.toStringAsFixed(1)})',
-        );
-        
         // Вычисляем базовый угол от A к B
         final dirAtoB = Offset(centerB.dx - centerA.dx, centerB.dy - centerA.dy);
         final baseAngle = atan2(dirAtoB.dy, dirAtoB.dx);
@@ -752,8 +750,6 @@ class ColaLayoutService extends Manager {
         }
         
         if (bestDisplacementA != Offset.zero || bestDisplacementB != Offset.zero) {
-          print('Cola: узлы $i и $j — найден угол ${bestAngle.toStringAsFixed(0)}° от линии центров');
-          
           // Накапливаем смещения
           totalDisplacements[i] = (totalDisplacements[i] ?? Offset.zero) + bestDisplacementA;
           totalDisplacements[j] = (totalDisplacements[j] ?? Offset.zero) + bestDisplacementB;
@@ -772,8 +768,6 @@ class ColaLayoutService extends Manager {
         final newPos = Offset(currentPos.dx + displacement.dx, currentPos.dy + displacement.dy);
         _targetPositions[nodeIndex] = newPos;
         _initialPositions[nodeIndex] = newPos;
-        
-        print('Cola: применяю смещение узла $nodeIndex на ${displacement.dx.toStringAsFixed(1)}, ${displacement.dy.toStringAsFixed(1)}');
       }
       return true;
     }
@@ -826,15 +820,6 @@ class ColaLayoutService extends Manager {
     // Пересчитываем пути связей с финальными позициями
     arrowManager.recalculateSelectedArrows();
 
-    // Отладка: выводим финальные позиции узлов
-    print('Cola: финальные позиции узлов:');
-    for (int i = 0; i < _nodesList.length; i++) {
-      final node = _nodesList[i];
-      final targetPos = _targetPositions[i];
-      final aPos = node.aPosition;
-      print('  Узел $i: target=$targetPos, aPosition=$aPos');
-    }
-
     // Пересчитываем размер холста на основе новых позиций узлов
     // ВАЖНО: делаем это ДО saveAllNodesAfterLayout, так как этот метод
     // изменяет state.delta и пересчитывает aPosition
@@ -862,6 +847,11 @@ class ColaLayoutService extends Manager {
 
     tileManager.onStateUpdate();
     onStateUpdate();
+    
+    // Завершаем Completer, чтобы разблокировать await в runAutoLayout
+    if (_layoutCompleter != null && !_layoutCompleter!.isCompleted) {
+      _layoutCompleter!.complete();
+    }
   }
 
   void stopLayout() {

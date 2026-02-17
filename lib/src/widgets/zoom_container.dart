@@ -5,7 +5,7 @@ import 'package:fbpmn/src/services/performance_tracker.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
-import '../models/app.model.dart';
+import '../wasmapi/app.model.dart';
 import '../models/image_tile.dart';
 import '../services/input_handler.dart';
 import '../services/scroll_handler.dart';
@@ -142,7 +142,6 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
       }
     });
 
-    widget.colaLayoutService!.skipAnimation = false; 
     await widget.colaLayoutService!.runAutoLayout();
   }
 

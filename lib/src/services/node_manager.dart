@@ -38,13 +38,13 @@ class NodeManager extends Manager {
   static const double snapThreshold = 15.0; // Порог прилипания в пикселях
 
   // Константы для рамки выделения (в пикселях)
-  double get framePadding => 2.0 * state.scale; // Отступ рамки от узла
+  double get framePadding => 10.0 * state.scale; // Отступ рамки от узла
   double get frameBorderWidth => 2.0 * state.scale; // Толщина рамки
   double get frameTotalOffset => framePadding + frameBorderWidth; // Общий отступ для рамки
 
   // Константы для маркеров изменения размера
-  static const double resizeHandleOffset = 6.0; // Отступ маркеров от узла
-  static const double resizeHandleLength = 12.0; // Длина линий маркера
+  static const double resizeHandleOffset = 12.0; // Отступ маркеров от узла
+  static const double resizeHandleLength = 14.0; // Длина линий маркера
   static const double resizeHandleWidth = 1.5; // Толщина линий маркера
 
   NodeManager({required this.state, required this.tileManager, required this.arrowManager});

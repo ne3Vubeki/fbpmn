@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../editor_state.dart';
-import '../models/app.model.dart';
+import '../wasmapi/app.model.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
@@ -88,7 +88,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
     if (widget.nodeManager.isResizing && _currentResizeHandle != null) {
       return widget.nodeManager.getResizeCursor(_currentResizeHandle);
     }
-    
+
     // Стандартные курсоры для панорамирования
     if (widget.state.isShiftPressed && widget.state.isPanning) {
       return SystemMouseCursors.grabbing;

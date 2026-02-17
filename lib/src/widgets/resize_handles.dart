@@ -18,6 +18,7 @@ class ResizeHandles extends StatefulWidget {
 
 class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHandles> {
   String? _hoveredCircle; // 'left' или 'right'
+  Map<String, bool> isHovered = {};
 
   @override
   void initState() {
@@ -36,8 +37,8 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     final scale = widget.state.scale;
 
     final offset = NodeManager.resizeHandleOffset * scale;
-    final length = NodeManager.resizeHandleLength * scale;
-    final width = NodeManager.resizeHandleWidth * scale;
+    final length = NodeManager.resizeHandleLength;
+    final width = NodeManager.resizeHandleWidth;
     final frame = widget.nodeManager.frameTotalOffset;
 
     // Размер узла (масштабированный)
@@ -51,46 +52,48 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             child: Container(
               width: resizeBoxContainerSize.width,
               height: resizeBoxContainerSize.height,
-                       color: Colors.blue.withValues(alpha: .2),
+              color: Colors.blue.withOpacity(0.1),
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
+                  Positioned(
+                    left: offset - frame / 2,
+                    top:offset - frame / 2,
+                    child: Container(
+                      width: nodeSize.width + frame,
+                      height: nodeSize.height + frame,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blue, width: 1),
+                      ),
+                    ),
+                  ),
                   // Подсветка строки атрибута и кружки
                   _buildAttributeHighlight(node, nodeSize),
 
                   // Угловые маркеры
                   // Top-Left (угол в точке -offset, -offset, линии идут вправо и вниз)
-                  _buildCornerHandle('tl', 0, 0, 0, length, width),
+                  _buildCornerHandle('tl', 0, 0, length, width),
                   // Top-Right (угол в точке nodeSize.width + offset, -offset, линии идут влево и вниз)
-                  _buildCornerHandle('tr', resizeBoxContainerSize.width - length - width / 4, 0, 90, length, width),
+                  _buildCornerHandle('tr', resizeBoxContainerSize.width - length - width / 2, 0, length, width),
                   // Bottom-Left (угол в точке -offset, nodeSize.height + offset, линии идут вправо и вверх)
-                  _buildCornerHandle('bl', 0, resizeBoxContainerSize.height - length - width / 2, 270, length, width),
+                  _buildCornerHandle('bl', 0, resizeBoxContainerSize.height - length - width / 2, length, width),
                   // Bottom-Right (угол в точке nodeSize.width + offset, nodeSize.height + offset, линии идут влево и вверх)
                   _buildCornerHandle(
                     'br',
-                    resizeBoxContainerSize.width - length - width / 4,
-                    resizeBoxContainerSize.height - length - width / 4,
-                    180,
+                    resizeBoxContainerSize.width - length - width / 2,
+                    resizeBoxContainerSize.height - length - width / 2,
                     length,
                     width,
                   ),
 
                   // Боковые маркеры
                   // Top (центр по горизонтали, на расстоянии offset от верха)
-                  _buildSideHandle(
-                    't',
-                    resizeBoxContainerSize.width / 2 - length / 2,
-                    0 - length / 2,
-                    true,
-                    length,
-                    width,
-                  ),
+                  _buildSideHandle('t', resizeBoxContainerSize.width / 2 - length / 2, 0, length, width),
                   // Right (на расстоянии offset от правого края, центр по вертикали)
                   _buildSideHandle(
                     'r',
-                    resizeBoxContainerSize.width - length / 2,
+                    resizeBoxContainerSize.width - length,
                     resizeBoxContainerSize.height / 2 - length / 2,
-                    false,
                     length,
                     width,
                   ),
@@ -98,20 +101,12 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   _buildSideHandle(
                     'b',
                     resizeBoxContainerSize.width / 2 - length / 2,
-                    resizeBoxContainerSize.height - length / 2,
-                    true,
+                    resizeBoxContainerSize.height - length,
                     length,
                     width,
                   ),
                   // Left (на расстоянии offset от левого края, центр по вертикали)
-                  _buildSideHandle(
-                    'l',
-                    0 - length / 2,
-                    resizeBoxContainerSize.height / 2 - length / 2,
-                    false,
-                    length,
-                    width,
-                  ),
+                  _buildSideHandle('l', 0, resizeBoxContainerSize.height / 2 - length / 2, length, width),
                 ],
               ),
             ),
@@ -120,21 +115,25 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   }
 
   /// Создаёт угловой маркер (две линии под углом 90 градусов)
-  Widget _buildCornerHandle(String handle, double left, double top, double rotation, double length, double width) {
-    final isHovered = widget.nodeManager.hoveredResizeHandle == handle;
-    final cursor = widget.nodeManager.getResizeCursor(handle);
-    print('Сторона: ${widget.nodeManager.hoveredResizeHandle}, isHovered: $isHovered');
-
+  Widget _buildCornerHandle(String handle, double left, double top, double length, double width) {
     return Positioned(
-      left: left + (handle == 'tl' || handle == 'bl' ? -length / 2 : length / 2),
-      top: top + (handle == 'tl' || handle == 'tr' ? -length / 2 : length / 2),
+      left: left + (handle == 'tl' || handle == 'bl' ? length / 2 : -length / 2),
+      top: top + (handle == 'tl' || handle == 'tr' ? length / 2 : -length / 2),
       child: MouseRegion(
-        cursor: cursor,
+        hitTestBehavior: HitTestBehavior.opaque,
+        onHover: (event) {
+          setState(() {
+            widget.nodeManager.getResizeCursor(handle);
+            print('handle: $handle');
+          });
+        },
+        onEnter: (event) => setState(() => isHovered[handle] = true),
+        onExit: (event) => setState(() => isHovered[handle] = false),
         child: Container(
           width: length,
           height: length,
           decoration: BoxDecoration(
-            color: isHovered ? Colors.blue : Colors.white,
+            color: isHovered[handle] ?? false ? Colors.blue : Colors.white,
             border: Border.all(color: Colors.blue, width: width),
           ),
         ),
@@ -143,21 +142,25 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   }
 
   /// Создаёт боковой маркер (одна линия)
-  Widget _buildSideHandle(String handle, double left, double top, bool isHorizontal, double length, double width) {
-    final isHovered = widget.nodeManager.hoveredResizeHandle == handle;
-    final cursor = widget.nodeManager.getResizeCursor(handle);
-
+  Widget _buildSideHandle(String handle, double left, double top, double length, double width) {
     return Positioned(
       left: left,
       top: top,
       child: MouseRegion(
-        cursor: cursor,
+        hitTestBehavior: HitTestBehavior.opaque,
+        onHover: (event) {
+          setState(() {
+            widget.nodeManager.getResizeCursor(handle);
+          });
+        },
+        onEnter: (event) => setState(() => isHovered[handle] = true),
+        onExit: (event) => setState(() => isHovered[handle] = false),
         child: Container(
           width: length + width / 2,
           height: length + width / 2,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isHovered ? Colors.blue : Colors.white,
+            color: isHovered[handle] ?? false ? Colors.blue : Colors.white,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.blue, width: width),
           ),
