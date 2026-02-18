@@ -7,6 +7,6 @@ class EditorConfig {
   static const arrowTileWidth = 1.0;
   static const arrowSelectedPathWidth = 4.0;
   static const arrowSelectedWidth = 1.0;
-  static const double framePadding = 6.0;
+  static const double framePadding = 8.0;
   static const double frameBorderWidth = 4.0;
 }

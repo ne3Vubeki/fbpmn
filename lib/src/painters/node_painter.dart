@@ -253,7 +253,7 @@ class NodePainter {
 
     // Константы для рамки выделения (в пикселях)
     final framePadding = EditorConfig.framePadding * scale; // Отступ рамки от узла
-    final frameBorderWidth = EditorConfig.frameBorderWidth * scale; // Толщина рамки
+    final frameBorderWidth = (EditorConfig.frameBorderWidth - 1) * scale; // Толщина рамки
     final frameTotalOffset = framePadding + frameBorderWidth; // Общий отступ для рамки
 
     // Расширяем прямоугольник на frameTotalOffset
@@ -265,7 +265,7 @@ class NodePainter {
     );
 
     final borderPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.5)
+      ..color = Colors.blue
       ..style = PaintingStyle.stroke
       ..strokeWidth = frameBorderWidth
       ..isAntiAlias = true;

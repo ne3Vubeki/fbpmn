@@ -728,7 +728,7 @@ class CanvasIcons {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = 1.0
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 

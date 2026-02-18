@@ -113,7 +113,7 @@ class Utils {
     final minHeight = _calculateMinHeight(node);
     final actualHeight = math.max(node.size.height, minHeight);
 
-    return Rect.fromLTWH(position.dx, position.dy, actualWidth, actualHeight);
+    return Rect.fromLTWH(position.dx - 20, position.dy - 20, actualWidth + 40, actualHeight + 40);
   }
 
   static double _calculateMinHeight(TableNode node) {

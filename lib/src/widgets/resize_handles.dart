@@ -283,7 +283,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     }
 
     final headerHeight = EditorConfig.headerHeight;
-    final circleRadius = length; // Радиус кружка (увеличенный будет length * 2)
+    final circleRadius = length / 2; // Радиус кружка (увеличенный будет length * 2)
 
     // Вычисляем общую область для всех атрибутов
     final totalHeight = node.size.height * scale;
@@ -319,7 +319,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 hoveredRow = rowIndex;
 
                 // Проверяем, находится ли курсор над левым кружком
-                final leftCircleCenterX = length * 2; // Центр левого кружка
+                final leftCircleCenterX = offset; // Центр левого кружка
                 final leftCircleCenterY = rowTop + rowHeightScaled / 2;
                 final distToLeft = math.sqrt(
                   math.pow(localPos.dx - leftCircleCenterX, 2) + math.pow(localPos.dy - leftCircleCenterY, 2),
@@ -329,7 +329,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 }
 
                 // Проверяем, находится ли курсор над правым кружком
-                final rightCircleCenterX = length * 2 + nodeSize.width; // Центр правого кружка
+                final rightCircleCenterX = offset + nodeSize.width; // Центр правого кружка
                 final rightCircleCenterY = rowTop + rowHeightScaled / 2;
                 final distToRight = math.sqrt(
                   math.pow(localPos.dx - rightCircleCenterX, 2) + math.pow(localPos.dy - rightCircleCenterY, 2),
