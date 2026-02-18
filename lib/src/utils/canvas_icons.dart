@@ -632,7 +632,150 @@ class CanvasIcons {
       ..color = color
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, 2, dotPaint);
+  }
 
+  /// Иконка изменения размера (open_in_full)
+  static void paintResize(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.miter;
+
+    final arrowSize = size.width * 0.25;
+
+    // Стрелка в верхний левый угол
+    final topLeftStart = Offset(size.width * 0.5, size.height * 0.5);
+    final topLeftEnd = Offset(size.width * 0.15, size.height * 0.15);
+    canvas.drawLine(topLeftStart, topLeftEnd, paint);
+    
+    // Наконечник стрелки верхний левый
+    canvas.drawLine(topLeftEnd, Offset(topLeftEnd.dx + arrowSize * 0.7, topLeftEnd.dy), paint);
+    canvas.drawLine(topLeftEnd, Offset(topLeftEnd.dx, topLeftEnd.dy + arrowSize * 0.7), paint);
+
+    // Стрелка в нижний правый угол
+    final bottomRightStart = Offset(size.width * 0.5, size.height * 0.5);
+    final bottomRightEnd = Offset(size.width * 0.85, size.height * 0.85);
+    canvas.drawLine(bottomRightStart, bottomRightEnd, paint);
+    
+    // Наконечник стрелки нижний правый
+    canvas.drawLine(bottomRightEnd, Offset(bottomRightEnd.dx - arrowSize * 0.7, bottomRightEnd.dy), paint);
+    canvas.drawLine(bottomRightEnd, Offset(bottomRightEnd.dx, bottomRightEnd.dy - arrowSize * 0.7), paint);
+  }
+
+  /// Иконка удаления (delete / trash bin)
+  static void paintDelete(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // Размеры корзины
+    final binWidth = size.width * 0.5;
+    final binHeight = size.height * 0.5;
+    final binLeft = (size.width - binWidth) / 2;
+    final binTop = size.height * 0.35;
+
+    // Крышка корзины (горизонтальная линия сверху)
+    final lidTop = binTop - size.height * 0.08;
+    canvas.drawLine(
+      Offset(binLeft - size.width * 0.1, lidTop),
+      Offset(binLeft + binWidth + size.width * 0.1, lidTop),
+      paint,
+    );
+
+    // Ручка крышки (дуга сверху)
+    final handleWidth = binWidth * 0.4;
+    final handleLeft = binLeft + (binWidth - handleWidth) / 2;
+    final handleTop = lidTop - size.height * 0.15;
+    
+    canvas.drawArc(
+      Rect.fromLTWH(handleLeft, handleTop, handleWidth, size.height * 0.15),
+      3.14159, // π
+      3.14159, // π
+      false,
+      paint,
+    );
+
+    // Тело корзины (трапеция)
+    final path = Path();
+    path.moveTo(binLeft, binTop);
+    path.lineTo(binLeft + binWidth, binTop);
+    path.lineTo(binLeft + binWidth * 0.85, binTop + binHeight);
+    path.lineTo(binLeft + binWidth * 0.15, binTop + binHeight);
+    path.close();
+    
+    canvas.drawPath(path, paint);
+
+    // Вертикальные линии внутри корзины
+    final lineSpacing = binWidth / 4;
+    for (int i = 1; i <= 2; i++) {
+      final lineX = binLeft + lineSpacing * i;
+      canvas.drawLine(
+        Offset(lineX, binTop + size.height * 0.05),
+        Offset(lineX - size.width * 0.02, binTop + binHeight - size.height * 0.05),
+        paint,
+      );
+    }
+  }
+
+  /// Иконка стрелки для маркеров ресайза
+  /// direction: 't' (вверх), 'r' (вправо), 'b' (вниз), 'l' (влево)
+  static void paintDirectionArrow(Canvas canvas, Size size, Color color, String direction) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final arrowLength = size.width * 0.4;
+    final arrowHeadSize = size.width * 0.2;
+
+    Offset lineStart;
+    Offset lineEnd;
+    Offset arrowHead1;
+    Offset arrowHead2;
+
+    switch (direction) {
+      case 't': // Вверх
+        lineStart = Offset(center.dx, center.dy + arrowLength / 2);
+        lineEnd = Offset(center.dx, center.dy - arrowLength / 2);
+        arrowHead1 = Offset(lineEnd.dx - arrowHeadSize, lineEnd.dy + arrowHeadSize);
+        arrowHead2 = Offset(lineEnd.dx + arrowHeadSize, lineEnd.dy + arrowHeadSize);
+        break;
+      case 'r': // Вправо
+        lineStart = Offset(center.dx - arrowLength / 2, center.dy);
+        lineEnd = Offset(center.dx + arrowLength / 2, center.dy);
+        arrowHead1 = Offset(lineEnd.dx - arrowHeadSize, lineEnd.dy - arrowHeadSize);
+        arrowHead2 = Offset(lineEnd.dx - arrowHeadSize, lineEnd.dy + arrowHeadSize);
+        break;
+      case 'b': // Вниз
+        lineStart = Offset(center.dx, center.dy - arrowLength / 2);
+        lineEnd = Offset(center.dx, center.dy + arrowLength / 2);
+        arrowHead1 = Offset(lineEnd.dx - arrowHeadSize, lineEnd.dy - arrowHeadSize);
+        arrowHead2 = Offset(lineEnd.dx + arrowHeadSize, lineEnd.dy - arrowHeadSize);
+        break;
+      case 'l': // Влево
+        lineStart = Offset(center.dx + arrowLength / 2, center.dy);
+        lineEnd = Offset(center.dx - arrowLength / 2, center.dy);
+        arrowHead1 = Offset(lineEnd.dx + arrowHeadSize, lineEnd.dy - arrowHeadSize);
+        arrowHead2 = Offset(lineEnd.dx + arrowHeadSize, lineEnd.dy + arrowHeadSize);
+        break;
+      default:
+        return;
+    }
+
+    // Рисуем линию стрелки
+    canvas.drawLine(lineStart, lineEnd, paint);
+    
+    // Рисуем наконечник стрелки
+    canvas.drawLine(lineEnd, arrowHead1, paint);
+    canvas.drawLine(lineEnd, arrowHead2, paint);
   }
 }
 

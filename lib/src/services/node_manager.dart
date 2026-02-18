@@ -11,6 +11,7 @@ import 'package:get/get.dart';
 import '../editor_state.dart';
 import '../models/table.node.dart';
 import '../services/tile_manager.dart';
+import '../utils/editor_config.dart';
 
 class NodeManager extends Manager {
   final EditorState state;
@@ -28,7 +29,6 @@ class NodeManager extends Manager {
 
   // Переменные для изменения размеров узла
   bool _isResizing = false;
-  String? _resizeHandle; // 'tl', 'tr', 'bl', 'br', 't', 'r', 'b', 'l'
   String? _hoveredResizeHandle;
   Offset _resizeStartPosition = Offset.zero;
   Size _resizeStartSize = Size.zero;
@@ -38,14 +38,15 @@ class NodeManager extends Manager {
   static const double snapThreshold = 15.0; // Порог прилипания в пикселях
 
   // Константы для рамки выделения (в пикселях)
-  double get framePadding => 10.0 * state.scale; // Отступ рамки от узла
-  double get frameBorderWidth => 2.0 * state.scale; // Толщина рамки
+  double get framePadding => EditorConfig.framePadding * state.scale; // Отступ рамки от узла
+  double get frameBorderWidth => EditorConfig.frameBorderWidth * state.scale; // Толщина рамки
   double get frameTotalOffset => framePadding + frameBorderWidth; // Общий отступ для рамки
 
   // Константы для маркеров изменения размера
-  static const double resizeHandleOffset = 12.0; // Отступ маркеров от узла
-  static const double resizeHandleLength = 14.0; // Длина линий маркера
-  static const double resizeHandleWidth = 1.5; // Толщина линий маркера
+  static const double resizeHandleOffset = 14.0; // Отступ маркеров от узла
+  static const double resizeHandleWidth = 14.0; // Длина линий маркера
+  static const double arrowHandleWidth = 8.0; // Длина линий маркера
+  static const double resizeHandleBorderWidth = 2; // Толщина линий маркера
 
   NodeManager({required this.state, required this.tileManager, required this.arrowManager});
 
@@ -301,7 +302,7 @@ class NodeManager extends Manager {
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
-    
+
     // Перерисовываем тайлы с подсвеченными узлами
     await tileManager.updateTilesAfterNodeChange();
 
@@ -334,7 +335,7 @@ class NodeManager extends Manager {
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
-    
+
     // Перерисовываем тайлы с подсвеченными узлами
     await tileManager.updateTilesAfterNodeChange();
 
@@ -360,7 +361,7 @@ class NodeManager extends Manager {
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
-    
+
     // Перерисовываем тайлы с подсвеченными узлами
     await tileManager.updateTilesAfterNodeChange();
 
@@ -515,19 +516,22 @@ class NodeManager extends Manager {
   }
 
   Future<void> handleEmptyAreaClick() async {
+    if (isResizing) {
+      return;
+    }
     if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
       await _saveNodeToTiles();
     } else {
       _deselectAllNodes();
       state.nodesSelected.clear();
       state.arrowsSelected.clear();
-      
+
       // Очищаем подсветку и перерисовываем тайлы
       if (state.highlightedNodeIds.isNotEmpty) {
         state.highlightedNodeIds.clear();
         await tileManager.updateTilesAfterNodeChange();
       }
-      
+
       state.isNodeOnTopLayer = false;
       state.selectedNodeOffset = Offset.zero;
       state.originalNodePosition = Offset.zero;
@@ -702,33 +706,33 @@ class NodeManager extends Manager {
     if (swimlaneNode.qType != 'swimlane' || (swimlaneNode.isCollapsed ?? false)) {
       return;
     }
-    
+
     // Создаем копию узла со свернутым состоянием
     final collapsedNode = swimlaneNode.toggleCollapsed();
-    
+
     // Обновляем узел в списке узлов
     _updateNodeInList(collapsedNode);
-    
+
     // Удаляем детей из тайлов
     final tilesToUpdate = <int>{};
     await tileManager.removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
-    
+
     // Обновляем все затронутые тайлы
     for (final tileIndex in tilesToUpdate) {
       await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
     }
-    
+
     // Обновляем тайлы
     await tileManager.updateTilesAfterNodeChange();
-    
+
     // Пересчитываем абсолютные позиции для всех узлов
     for (final node in state.nodes) {
       node.initializeAbsolutePositions(state.delta);
     }
-    
+
     onStateUpdate();
   }
-  
+
   // Вспомогательный метод для обновления узла в списке
   void _updateNodeInList(TableNode updatedNode) {
     for (int i = 0; i < state.nodes.length; i++) {
@@ -852,7 +856,7 @@ class NodeManager extends Manager {
   void updateNodePositionForLayout(TableNode node, Offset newWorldPosition) {
     node.aPosition = newWorldPosition;
     node.position = newWorldPosition - state.delta;
-    
+
     // Обновляем позиции детей для group/swimlane
     _updateChildrenPositions(node);
   }
@@ -921,9 +925,7 @@ class NodeManager extends Manager {
 
     // Вычисляем worldDelta из позиции первого узла
     final firstStartPos = _multiDragStartPositions[state.nodesSelected.first!.id];
-    final worldDelta = (firstStartPos != null)
-        ? worldPosition - firstStartPos
-        : Offset.zero;
+    final worldDelta = (firstStartPos != null) ? worldPosition - firstStartPos : Offset.zero;
 
     // Ищем ближайшие snap-точки среди ВСЕХ выделенных узлов
     double correctionX = 0;
@@ -1053,11 +1055,7 @@ class NodeManager extends Manager {
   }
 
   // Применяет snap-прилипание при изменении размера узла
-  ({Offset position, Size size, List<SnapLine> snapLines}) _applySnapForResize(
-    Offset worldPosition,
-    Size nodeSize,
-    String handle,
-  ) {
+  ({Offset position, Size size, List<SnapLine> snapLines}) _applySnapForResize(Offset worldPosition, Size nodeSize) {
     if (state.nodesSelected.isEmpty || state.nodesSelected.first == null) {
       return (position: worldPosition, size: nodeSize, snapLines: []);
     }
@@ -1065,9 +1063,7 @@ class NodeManager extends Manager {
     final selectedNode = state.nodesSelected.first!;
 
     // Границы изменяемого узла
-    final nodeLeft = worldPosition.dx;
     final nodeRight = worldPosition.dx + nodeSize.width;
-    final nodeTop = worldPosition.dy;
     final nodeBottom = worldPosition.dy + nodeSize.height;
 
     // Получаем видимые узлы в viewport
@@ -1100,106 +1096,54 @@ class NodeManager extends Manager {
     final threshold = snapThreshold / state.scale;
 
     // Применяем snap в зависимости от того, какой маркер используется
-    // Для маркеров, изменяющих левую границу (tl, l, bl)
-    if (handle.contains('l')) {
-      double? bestSnapX;
-      double bestSnapDistX = threshold;
-
-      for (final snapX in snapPointsX) {
-        final dist = (nodeLeft - snapX).abs();
-        if (dist < bestSnapDistX) {
-          bestSnapDistX = dist;
-          bestSnapX = snapX;
-        }
-      }
-
-      if (bestSnapX != null) {
-        final widthDiff = nodeLeft - bestSnapX;
-        newWidth = nodeSize.width + widthDiff;
-        newX = bestSnapX;
-        final screenX = bestSnapX * state.scale + state.offset.dx;
-        snapLines.add(SnapLine(type: SnapLineType.vertical, position: screenX));
-      }
-    }
 
     // Для маркеров, изменяющих правую границу (tr, r, br)
-    if (handle.contains('r')) {
-      double? bestSnapX;
-      double bestSnapDistX = threshold;
+    double? bestSnapX;
+    double bestSnapDistX = threshold;
 
-      for (final snapX in snapPointsX) {
-        final dist = (nodeRight - snapX).abs();
-        if (dist < bestSnapDistX) {
-          bestSnapDistX = dist;
-          bestSnapX = snapX;
-        }
-      }
-
-      if (bestSnapX != null) {
-        newWidth = bestSnapX - worldPosition.dx;
-        final screenX = bestSnapX * state.scale + state.offset.dx;
-        snapLines.add(SnapLine(type: SnapLineType.vertical, position: screenX));
+    for (final snapX in snapPointsX) {
+      final dist = (nodeRight - snapX).abs();
+      if (dist < bestSnapDistX) {
+        bestSnapDistX = dist;
+        bestSnapX = snapX;
       }
     }
 
-    // Для маркеров, изменяющих верхнюю границу (tl, t, tr)
-    if (handle.contains('t')) {
-      double? bestSnapY;
-      double bestSnapDistY = threshold;
-
-      for (final snapY in snapPointsY) {
-        final dist = (nodeTop - snapY).abs();
-        if (dist < bestSnapDistY) {
-          bestSnapDistY = dist;
-          bestSnapY = snapY;
-        }
-      }
-
-      if (bestSnapY != null) {
-        final heightDiff = nodeTop - bestSnapY;
-        newHeight = nodeSize.height + heightDiff;
-        newY = bestSnapY;
-        final screenY = bestSnapY * state.scale + state.offset.dy;
-        snapLines.add(SnapLine(type: SnapLineType.horizontal, position: screenY));
-      }
+    if (bestSnapX != null) {
+      newWidth = bestSnapX - worldPosition.dx;
+      final screenX = bestSnapX * state.scale + state.offset.dx;
+      snapLines.add(SnapLine(type: SnapLineType.vertical, position: screenX));
     }
 
     // Для маркеров, изменяющих нижнюю границу (bl, b, br)
-    if (handle.contains('b')) {
-      double? bestSnapY;
-      double bestSnapDistY = threshold;
+    double? bestSnapY;
+    double bestSnapDistY = threshold;
 
-      for (final snapY in snapPointsY) {
-        final dist = (nodeBottom - snapY).abs();
-        if (dist < bestSnapDistY) {
-          bestSnapDistY = dist;
-          bestSnapY = snapY;
-        }
-      }
-
-      if (bestSnapY != null) {
-        newHeight = bestSnapY - worldPosition.dy;
-        final screenY = bestSnapY * state.scale + state.offset.dy;
-        snapLines.add(SnapLine(type: SnapLineType.horizontal, position: screenY));
+    for (final snapY in snapPointsY) {
+      final dist = (nodeBottom - snapY).abs();
+      if (dist < bestSnapDistY) {
+        bestSnapDistY = dist;
+        bestSnapY = snapY;
       }
     }
 
-    return (
-      position: Offset(newX, newY),
-      size: Size(newWidth, newHeight),
-      snapLines: snapLines,
-    );
+    if (bestSnapY != null) {
+      newHeight = bestSnapY - worldPosition.dy;
+      final screenY = bestSnapY * state.scale + state.offset.dy;
+      snapLines.add(SnapLine(type: SnapLineType.horizontal, position: screenY));
+    }
+
+    return (position: Offset(newX, newY), size: Size(newWidth, newHeight), snapLines: snapLines);
   }
 
   // ============ МЕТОДЫ ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРОВ УЗЛА ============
 
   /// Начало изменения размера узла
-  void startResize(String handle, Offset screenPosition) {
+  void startResize(Offset screenPosition) {
     if (state.nodesSelected.isEmpty) return;
 
     final node = state.nodesSelected.first!;
     _isResizing = true;
-    _resizeHandle = handle;
     _resizeStartPosition = Utils.screenToWorld(screenPosition, state);
     _resizeStartSize = node.size;
     _resizeStartNodePosition = node.aPosition ?? (state.delta + node.position);
@@ -1209,7 +1153,7 @@ class NodeManager extends Manager {
 
   /// Обновление размера узла при перемещении курсора
   void updateResize(Offset screenPosition) {
-    if (!_isResizing || state.nodesSelected.isEmpty || _resizeHandle == null) return;
+    if (!_isResizing || state.nodesSelected.isEmpty) return;
 
     final node = state.nodesSelected.first!;
     final currentWorldPos = Utils.screenToWorld(screenPosition, state);
@@ -1219,77 +1163,18 @@ class NodeManager extends Manager {
     Offset newPosition = _resizeStartNodePosition;
 
     // Минимальные размеры узла
-    const double minWidth = 50.0;
+    const double minWidth = 80.0;
     final double minHeight = node.qType == 'group' ? 80.0 : 30.0;
 
-    switch (_resizeHandle) {
-      // Угловые маркеры
-      case 'tl': // Top-Left
-        newSize = Size(
-          (_resizeStartSize.width - delta.dx).clamp(minWidth, double.infinity),
-          (_resizeStartSize.height - delta.dy).clamp(minHeight, double.infinity),
-        );
-        newPosition = Offset(
-          _resizeStartNodePosition.dx + (_resizeStartSize.width - newSize.width),
-          _resizeStartNodePosition.dy + (_resizeStartSize.height - newSize.height),
-        );
-        break;
-      case 'tr': // Top-Right
-        newSize = Size(
-          (_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity),
-          (_resizeStartSize.height - delta.dy).clamp(minHeight, double.infinity),
-        );
-        newPosition = Offset(
-          _resizeStartNodePosition.dx,
-          _resizeStartNodePosition.dy + (_resizeStartSize.height - newSize.height),
-        );
-        break;
-      case 'bl': // Bottom-Left
-        newSize = Size(
-          (_resizeStartSize.width - delta.dx).clamp(minWidth, double.infinity),
-          (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity),
-        );
-        newPosition = Offset(
-          _resizeStartNodePosition.dx + (_resizeStartSize.width - newSize.width),
-          _resizeStartNodePosition.dy,
-        );
-        break;
-      case 'br': // Bottom-Right
-        newSize = Size(
-          (_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity),
-          (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity),
-        );
-        newPosition = _resizeStartNodePosition;
-        break;
-
-      // Боковые маркеры
-      case 't': // Top
-        newSize = Size(_resizeStartSize.width, (_resizeStartSize.height - delta.dy).clamp(minHeight, double.infinity));
-        newPosition = Offset(
-          _resizeStartNodePosition.dx,
-          _resizeStartNodePosition.dy + (_resizeStartSize.height - newSize.height),
-        );
-        break;
-      case 'r': // Right
-        newSize = Size((_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity), _resizeStartSize.height);
-        newPosition = _resizeStartNodePosition;
-        break;
-      case 'b': // Bottom
-        newSize = Size(_resizeStartSize.width, (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity));
-        newPosition = _resizeStartNodePosition;
-        break;
-      case 'l': // Left
-        newSize = Size((_resizeStartSize.width - delta.dx).clamp(minWidth, double.infinity), _resizeStartSize.height);
-        newPosition = Offset(
-          _resizeStartNodePosition.dx + (_resizeStartSize.width - newSize.width),
-          _resizeStartNodePosition.dy,
-        );
-        break;
-    }
+    newSize = Size(
+      (_resizeStartSize.width + delta.dx).clamp(minWidth, double.infinity),
+      (_resizeStartSize.height + delta.dy).clamp(minHeight, double.infinity),
+    );
+    newPosition = _resizeStartNodePosition;
 
     // Применяем snap-прилипание, если включено
     if (state.snapEnabled) {
-      final snapResult = _applySnapForResize(newPosition, newSize, _resizeHandle!);
+      final snapResult = _applySnapForResize(newPosition, newSize);
       newPosition = snapResult.position;
       newSize = snapResult.size;
       state.snapLines = snapResult.snapLines;
@@ -1297,40 +1182,18 @@ class NodeManager extends Manager {
       state.snapLines = [];
     }
 
-    // Проверяем минимальные размеры после snap-прилипания
-    if (newSize.width < minWidth) {
-      newSize = Size(minWidth, newSize.height);
-      // Корректируем позицию для маркеров, изменяющих левую границу
-      if (_resizeHandle!.contains('l')) {
-        newPosition = Offset(
-          _resizeStartNodePosition.dx + (_resizeStartSize.width - minWidth),
-          newPosition.dy,
-        );
-      }
-    }
-    if (newSize.height < minHeight) {
-      newSize = Size(newSize.width, minHeight);
-      // Корректируем позицию для маркеров, изменяющих верхнюю границу
-      if (_resizeHandle!.contains('t')) {
-        newPosition = Offset(
-          newPosition.dx,
-          _resizeStartNodePosition.dy + (_resizeStartSize.height - minHeight),
-        );
-      }
-    }
-
     // Обновляем размер и позицию узла
     node.size = newSize;
     node.aPosition = newPosition;
     node.position = newPosition - state.delta;
 
-    if(node.qType == 'group' && node.children != null && node.children!.isNotEmpty){
-      for(final child in node.children!){
+    if (node.qType == 'group' && node.children != null && node.children!.isNotEmpty) {
+      for (final child in node.children!) {
         child.size = Size(node.size.width - 50, node.size.height - 50);
         child.aPosition = Offset(node.aPosition!.dx + 25, node.aPosition!.dy + 25);
       }
     }
-    
+
     // Обновляем originalNodePosition для корректного расчёта связей
     state.originalNodePosition = newPosition;
 
@@ -1351,7 +1214,6 @@ class NodeManager extends Manager {
     if (!_isResizing || state.nodesSelected.isEmpty) return;
 
     _isResizing = false;
-    _resizeHandle = null;
     clearSnapLines();
 
     onStateUpdate();
@@ -1369,7 +1231,7 @@ class NodeManager extends Manager {
       _hoveredResizeHandle = null;
       return;
     }
-    
+
     final handle = getResizeHandleAtPosition(position);
     if (_hoveredResizeHandle != handle) {
       _hoveredResizeHandle = handle;
@@ -1384,8 +1246,8 @@ class NodeManager extends Manager {
     final node = state.nodesSelected.first!;
     final scale = state.scale;
     final offset = resizeHandleOffset * scale;
-    final length = resizeHandleLength * scale;
-    final width = resizeHandleWidth * scale;
+    final length = resizeHandleWidth * scale;
+    final width = resizeHandleBorderWidth * scale;
 
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
     final resizeBoxContainerSize = Size(
@@ -1476,112 +1338,6 @@ class NodeManager extends Manager {
         return SystemMouseCursors.resizeLeftRight;
       default:
         return SystemMouseCursors.basic;
-    }
-  }
-
-  /// Определяет строку атрибута под курсором для выделенного узла
-  void updateHoveredAttributeRow(Offset screenPosition) {
-    // Проверяем, есть ли выделенный узел
-    if (state.nodesSelected.isEmpty) {
-      if (state.hoveredAttributeRowIndex != null) {
-        state.hoveredAttributeRowIndex = null;
-        state.hoveredAttributeNodeId = null;
-        onStateUpdate();
-      }
-      return;
-    }
-
-    // Работаем только с единичным выделением
-    final selectedNode = state.nodesSelected.first;
-    if (selectedNode == null || state.nodesSelected.length > 1) {
-      if (state.hoveredAttributeRowIndex != null) {
-        state.hoveredAttributeRowIndex = null;
-        state.hoveredAttributeNodeId = null;
-        onStateUpdate();
-      }
-      return;
-    }
-
-    // Проверяем, есть ли атрибуты
-    if (selectedNode.attributes.isEmpty) {
-      if (state.hoveredAttributeRowIndex != null) {
-        state.hoveredAttributeRowIndex = null;
-        state.hoveredAttributeNodeId = null;
-        onStateUpdate();
-      }
-      return;
-    }
-
-    // Вычисляем позицию узла на экране
-    final nodeScreenPos = state.selectedNodeOffset;
-    final scale = state.scale;
-
-    // Размер кружков с учётом масштаба (для расширения области проверки)
-    final circleRadius = 5.0 * scale;
-
-    // Проверяем, находится ли курсор внутри области узла (с учётом кружков за границами)
-    final nodeLeft = nodeScreenPos.dx + framePadding + frameBorderWidth;
-    final nodeTop = nodeScreenPos.dy + framePadding + frameBorderWidth;
-    final nodeWidth = selectedNode.size.width * scale;
-    final nodeHeight = selectedNode.size.height * scale;
-
-    // Расширяем область проверки на радиус кружков слева и справа
-    if (screenPosition.dx < nodeLeft - circleRadius || 
-        screenPosition.dx > nodeLeft + nodeWidth + circleRadius ||
-        screenPosition.dy < nodeTop ||
-        screenPosition.dy > nodeTop + nodeHeight) {
-      if (state.hoveredAttributeRowIndex != null) {
-        state.hoveredAttributeRowIndex = null;
-        state.hoveredAttributeNodeId = null;
-        onStateUpdate();
-      }
-      return;
-    }
-
-    // Вычисляем индекс строки атрибута
-    final headerHeight = 30.0; // EditorConfig.headerHeight
-    final localY = screenPosition.dy - nodeTop;
-
-    if (localY < headerHeight * scale) {
-      // Курсор над заголовком
-      if (state.hoveredAttributeRowIndex != null) {
-        state.hoveredAttributeRowIndex = null;
-        state.hoveredAttributeNodeId = null;
-        onStateUpdate();
-      }
-      return;
-    }
-
-    final rowHeight = (selectedNode.size.height - headerHeight) / selectedNode.attributes.length;
-    final minRowHeight = 20.0; // EditorConfig.minRowHeight
-    final actualRowHeight = rowHeight > minRowHeight ? rowHeight : minRowHeight;
-    
-    final rowIndex = ((localY / scale - headerHeight) / actualRowHeight).floor();
-
-    if (rowIndex >= 0 && rowIndex < selectedNode.attributes.length) {
-      // Проверяем, что атрибут имеет qType='attribute'
-      final attribute = selectedNode.attributes[rowIndex];
-      if (attribute.qType == 'attribute') {
-        if (state.hoveredAttributeRowIndex != rowIndex ||
-            state.hoveredAttributeNodeId != selectedNode.id) {
-          state.hoveredAttributeRowIndex = rowIndex;
-          state.hoveredAttributeNodeId = selectedNode.id;
-          onStateUpdate();
-        }
-      } else {
-        // Если qType не 'attribute', сбрасываем подсветку
-        if (state.hoveredAttributeRowIndex != null) {
-          state.hoveredAttributeRowIndex = null;
-          state.hoveredAttributeNodeId = null;
-          onStateUpdate();
-        }
-      }
-    } else {
-      if (state.hoveredAttributeRowIndex != null) {
-        state.hoveredAttributeRowIndex = null;
-        state.hoveredAttributeNodeId = null;
-        onStateUpdate();
-      }
     }
   }
 }

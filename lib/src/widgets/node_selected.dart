@@ -73,9 +73,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
     // Размер узла (масштабированный)
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
 
-    final borderColor = node.qType == 'swimlane' && node.isCollapsed != null && !node.isCollapsed!
-        ? Colors.blue
-        : Colors.transparent;
+    final borderColor = Colors.transparent;
 
     return Positioned(
       left: widget.state.selectedNodeOffset.dx,
@@ -87,7 +85,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
             color: borderColor,
             width: frameBorderWidth,
           ),
-          borderRadius: !isGroup || isEnum || !hasAttributes
+          borderRadius: isGroup || isEnum || !hasAttributes
               ? BorderRadius.zero
               : BorderRadius.circular(12 * scale),
         ),
@@ -148,6 +146,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
               targetSize: nodeSize,
               worldBounds: worldBounds,
               simplifiedMode: widget.state.isAutoLayoutMode,
+              nodeManager: widget.nodeManager,
             ),
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/table.node.dart';
+import '../services/node_manager.dart';
 import 'node_painter.dart';
 
 /// Адаптер для использования NodePainter как CustomPainter
@@ -10,6 +11,7 @@ import 'node_painter.dart';
 class NodeCustomPainter extends CustomPainter {
   final TableNode? node;
   final List<TableNode>? nodes;
+  final NodeManager? nodeManager;
   final Size targetSize;
   final Rect? worldBounds;
   /// Упрощённый режим отрисовки (только цветные прямоугольники) для Cola анимации
@@ -18,6 +20,7 @@ class NodeCustomPainter extends CustomPainter {
   NodeCustomPainter({
     this.node,
     this.nodes,
+    this.nodeManager,
     required this.targetSize,
     this.worldBounds,
     this.simplifiedMode = false,

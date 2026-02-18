@@ -35,6 +35,8 @@ class EditorState {
   // Наведение на строку атрибута
   String? hoveredAttributeNodeId;
   int? hoveredAttributeRowIndex;
+  bool hoveredAttributeCircleLeft = false;
+  bool hoveredAttributeCircleRight = false;
 
   // Snap-линии для прилипания узлов
   List<SnapLine> snapLines = [];

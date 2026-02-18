@@ -11,11 +11,7 @@ class NodePainter {
   final bool isSelected;
   final bool isHighlighted;
 
-  NodePainter({
-    required this.node,
-    this.isSelected = false,
-    this.isHighlighted = false,
-  });
+  NodePainter({required this.node, this.isSelected = false, this.isHighlighted = false});
 
   /// Отрисовка узла с учетом базового отступа (рекурсивно с детьми)
   void paintWithOffset({
@@ -223,11 +219,7 @@ class NodePainter {
   }
 
   /// Рисует подсветку связанного узла (прозрачный синий)
-  void _drawHighlightOverlay({
-    required Canvas canvas,
-    required Rect nodeRect,
-    required TableNode node,
-  }) {
+  void _drawHighlightOverlay({required Canvas canvas, required Rect nodeRect, required TableNode node}) {
     final isSwimlane = node.qType == 'swimlane';
     final attributes = node.attributes;
     final hasAttributes = attributes.isNotEmpty;
@@ -235,7 +227,7 @@ class NodePainter {
     final isGroup = node.qType == 'group';
 
     final highlightPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.2)
+      ..color = Colors.blue.withOpacity(0.1)
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
@@ -244,6 +236,45 @@ class NodePainter {
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
       canvas.drawRRect(roundedRect, highlightPaint);
+    }
+  }
+
+  /// Рисует рамку выделения вокруг узла с padding
+  void _drawSelectionBorder({required Canvas canvas, required Rect nodeRect, required TableNode node}) {
+    final attributes = node.attributes;
+    final hasAttributes = attributes.isNotEmpty;
+    final isEnum = node.qType == 'enum';
+    final isGroup = node.qType == 'group';
+
+    // Рассчитываем толщину линии для внутренних границ
+    final scaleX = nodeRect.width / node.size.width;
+    final scaleY = nodeRect.height / node.size.height;
+    final scale = math.min(scaleX, scaleY);
+
+    // Константы для рамки выделения (в пикселях)
+    final framePadding = EditorConfig.framePadding * scale; // Отступ рамки от узла
+    final frameBorderWidth = EditorConfig.frameBorderWidth * scale; // Толщина рамки
+    final frameTotalOffset = framePadding + frameBorderWidth; // Общий отступ для рамки
+
+    // Расширяем прямоугольник на frameTotalOffset
+    final expandedRect = Rect.fromLTRB(
+      nodeRect.left - frameTotalOffset,
+      nodeRect.top - frameTotalOffset,
+      nodeRect.right + frameTotalOffset,
+      nodeRect.bottom + frameTotalOffset,
+    );
+
+    final borderPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = frameBorderWidth
+      ..isAntiAlias = true;
+
+    if (isGroup || isEnum || !hasAttributes) {
+      canvas.drawRect(expandedRect, borderPaint);
+    } else {
+      final roundedRect = RRect.fromRectAndRadius(expandedRect, Radius.circular(8));
+      canvas.drawRRect(roundedRect, borderPaint);
     }
   }
 
@@ -352,12 +383,16 @@ class NodePainter {
         canvas.translate(iconX, iconY);
         CanvasIcons.paintWarningTriangle(canvas, Size(iconSize, iconSize));
         canvas.restore();
+      } else {
+        // Если не было переполнения, нужно снять маску перед рисованием рамки
+        canvas.restore();
+        canvas.save();
       }
 
-      // 5. Рисуем подсветку связанных узлов (прозрачный синий)
+      // 5. Рисуем рамку выделения связанных узлов (поверх всего, вне маски)
       final isNodeHighlighted = highlightedNodeIds?.contains(currentNode.id) ?? false;
       if (isNodeHighlighted) {
-        _drawHighlightOverlay(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
+        _drawSelectionBorder(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
       }
     } else {
       // Для виджета: преобразуем координаты

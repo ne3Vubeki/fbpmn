@@ -134,8 +134,8 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                 cursor: _getCursor(),
                 onHover: (PointerHoverEvent event) {
                   widget.state.mousePosition = event.localPosition;
-                  widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
-                  widget.nodeManager.updateHoveredAttributeRow(event.localPosition);
+                  // widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
+                  // widget.nodeManager.updateHoveredAttributeRow(event.localPosition);
                 },
                 child: Listener(
                   onPointerSignal: (pointerSignal) {
@@ -149,8 +149,8 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   },
                   onPointerMove: (PointerMoveEvent event) {
                     widget.state.mousePosition = event.localPosition;
-                    widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
-                    widget.nodeManager.updateHoveredAttributeRow(event.localPosition);
+                    // widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
+                    // widget.nodeManager.updateHoveredAttributeRow(event.localPosition);
 
                     if (widget.state.isPanning && widget.state.isShiftPressed) {
                       widget.inputHandler.handlePanUpdate(
@@ -158,24 +158,24 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         event.delta,
                       );
                     } else if (widget.nodeManager.isResizing) {
-                      widget.nodeManager.updateResize(event.localPosition);
+                      // widget.nodeManager.updateResize(event.localPosition);
                     } else if (widget.state.isNodeDragging) {
                       widget.nodeManager.updateNodeDrag(event.localPosition);
                     }
                   },
                   onPointerDown: (PointerDownEvent event) {
                     // Проверяем, нажали ли на resize handle
-                    final resizeHandle = widget.nodeManager.getResizeHandleAtPosition(event.localPosition);
-                    if (resizeHandle != null) {
-                      _currentResizeHandle = resizeHandle;
-                      widget.nodeManager.startResize(resizeHandle, event.localPosition);
-                    } else {
+                    // final resizeHandle = widget.nodeManager.getResizeHandleAtPosition(event.localPosition);
+                    // if (resizeHandle != null) {
+                    //   _currentResizeHandle = resizeHandle;
+                      // widget.nodeManager.startResize(resizeHandle, event.localPosition);
+                    // } else {
                       widget.inputHandler.handlePanStart(event.localPosition);
-                    }
+                    // }
                   },
                   onPointerUp: (PointerUpEvent event) {
                     if (widget.nodeManager.isResizing) {
-                      widget.nodeManager.endResize();
+                      // widget.nodeManager.endResize();
                       _currentResizeHandle = null;
                     } else {
                       widget.inputHandler.handlePanEnd();
@@ -183,7 +183,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   },
                   onPointerCancel: (PointerCancelEvent event) {
                     if (widget.nodeManager.isResizing) {
-                      widget.nodeManager.endResize();
+                      // widget.nodeManager.endResize();
                       _currentResizeHandle = null;
                     } else {
                       widget.inputHandler.handlePanCancel();
