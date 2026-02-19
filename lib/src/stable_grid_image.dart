@@ -19,9 +19,10 @@ import 'widgets/canvas_area.dart';
 
 class StableGridImage extends StatefulWidget {
   final Map<String, dynamic> diagram;
+  final Map<String, dynamic> properties;
   final EventApp? appEvent;
 
-  const StableGridImage({super.key, required this.diagram, this.appEvent});
+  const StableGridImage({super.key, required this.diagram, required this.properties, this.appEvent});
 
   @override
   State<StableGridImage> createState() => _StableGridImageState();
@@ -42,7 +43,7 @@ class _StableGridImageState extends State<StableGridImage> {
   void initState() {
     super.initState();
 
-    _editorState = EditorState();
+    _editorState = EditorState(widget.properties);
 
     _idManager = IDManager();
 

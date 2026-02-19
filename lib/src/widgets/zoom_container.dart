@@ -82,7 +82,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
           ],
 
           // Миниатюра холста (отображается если включена)
-          if (widget.zoomManager.showThumbnail) ...[
+          if (widget.state.showThumbnail) ...[
             CanvasThumbnail(
               canvasWidth: canvasWidth,
               canvasHeight: canvasHeight,
@@ -101,7 +101,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
           ZoomPanel(
             scale: scale,
             showTileBorders: showTileBorders,
-            showThumbnail: widget.zoomManager.showThumbnail,
+            showThumbnail: widget.state.showThumbnail,
             showCurves: widget.state.useCurves,
             snapEnabled: widget.state.snapEnabled,
             showPerformance: widget.state.showPerformance,

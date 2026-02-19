@@ -8,12 +8,12 @@ import 'src/wasmapi/broadcast.service.dart';
 import 'src/stable_grid_image.dart';
 
 class App extends StatefulWidget {
-  final Map? properties;
+  final Map<String, dynamic> properties;
 
   final String app = 'fbpmn';
   final String view = 'fbpmn';
 
-  const App({super.key, this.properties});
+  const App({super.key, required this.properties});
 
   @override
   State<App> createState() => _AppState();
@@ -61,7 +61,7 @@ class _AppState extends State<App> {
       home: Scaffold(
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : StableGridImage(diagram: _diagram, appEvent: _appEvent),
+            : StableGridImage(diagram: _diagram, properties: widget.properties, appEvent: _appEvent),
       ),
     );
   }

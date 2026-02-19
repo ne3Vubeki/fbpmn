@@ -13,14 +13,19 @@ void main() {
       viewBuilder: (BuildContext context) {
         final FlutterView view = View.of(context);
         final int viewId = view.viewId;
-        // final Map?  properties = views.getInitialData(viewId).dartify() as Map? ?? {'view': 'fbpmn'};
-        final Map?  properties = {'view': 'fbpmn'};
-        return _views[properties?['view']]!;
+        final Map<String, dynamic> properties =
+            views.getInitialData(viewId).dartify() as Map<String, dynamic>? ?? {'view': 'fbpmn'};
+        return _buildView(properties['view'] as String, properties);
       },
     ),
   );
 }
 
-const Map<String, Widget> _views = {
-  'fbpmn': App(),
-};
+Widget _buildView(String viewName, Map<String, dynamic> properties) {
+  switch (viewName) {
+    case 'fbpmn':
+      return App(properties: properties);
+    default:
+      throw ArgumentError('Unknown view: $viewName');
+  }
+}

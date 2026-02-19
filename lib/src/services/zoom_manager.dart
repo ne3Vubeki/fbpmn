@@ -16,7 +16,6 @@ class ZoomManager extends Manager {
   final NodeManager nodeManager;
   final ColaLayoutService? colaLayoutService;
 
-  bool _showThumbnail = true;
   bool _isLayoutRunning = false;
 
   ZoomManager({
@@ -28,7 +27,6 @@ class ZoomManager extends Manager {
     this.colaLayoutService,
   });
 
-  bool get showThumbnail => _showThumbnail;
   bool get isLayoutRunning => _isLayoutRunning;
 
   Future<void> resetZoom() async {
@@ -60,7 +58,17 @@ class ZoomManager extends Manager {
   }
 
   void toggleThumbnail() {
-    _showThumbnail = !_showThumbnail;
+    state.showThumbnail = !state.showThumbnail;
+    onStateUpdate();
+  }
+
+  void onThumbnail() {
+    state.showThumbnail = true;
+    onStateUpdate();
+  }
+
+  void offThumbnail() {
+    state.showThumbnail = false;
     onStateUpdate();
   }
 

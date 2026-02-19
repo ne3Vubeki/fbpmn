@@ -44,6 +44,12 @@ class EventManager {
         await colaLayoutService.runAutoLayout();
         appEvent?.emitToJs(action: 'finish_cola');
         break;
+      case 'thunbnail_on':
+        zoomManager.onThumbnail();
+        break;
+      case 'thunbnail_off':
+        zoomManager.offThumbnail();
+        break;
       case 'snap_on':
         state.snapEnabled = true;
         break;
