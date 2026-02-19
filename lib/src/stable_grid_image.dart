@@ -69,6 +69,7 @@ class _StableGridImageState extends State<StableGridImage> {
 
     EventManager(
       state: _editorState,
+      inputHandler: _inputHandler,
       tileManager: _tileManager,
       arrowManager: _arrowManager,
       nodeManager: _nodeManager,

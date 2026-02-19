@@ -61,4 +61,6 @@ class EditorState {
   bool isAutoLayoutMode = false;
 
   bool useCurves = false;
+
+  bool showPerformance = false;
 }

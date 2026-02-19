@@ -30,8 +30,7 @@ class InputHandler extends Manager {
   void handleKeyEvent(KeyEvent event) {
     bool stateChanged = false;
 
-    if (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
-        event.logicalKey == LogicalKeyboardKey.shiftRight) {
+    if (event.logicalKey == LogicalKeyboardKey.shiftLeft || event.logicalKey == LogicalKeyboardKey.shiftRight) {
       final bool newShiftState = event is KeyDownEvent || event is KeyRepeatEvent;
       if (state.isShiftPressed != newShiftState) {
         state.isShiftPressed = newShiftState;
@@ -39,8 +38,7 @@ class InputHandler extends Manager {
       }
     }
 
-    if (event.logicalKey == LogicalKeyboardKey.controlLeft ||
-        event.logicalKey == LogicalKeyboardKey.controlRight) {
+    if (event.logicalKey == LogicalKeyboardKey.controlLeft || event.logicalKey == LogicalKeyboardKey.controlRight) {
       final bool newCtrlState = event is KeyDownEvent || event is KeyRepeatEvent;
       if (state.isCtrlPressed != newCtrlState) {
         state.isCtrlPressed = newCtrlState;
@@ -67,6 +65,16 @@ class InputHandler extends Manager {
 
   void toggleTileBorders() {
     state.showTileBorders = !state.showTileBorders;
+    onStateUpdate();
+  }
+
+  void onTileBorders() {
+    state.showTileBorders = true;
+    onStateUpdate();
+  }
+
+  void offTileBorders() {
+    state.showTileBorders = false;
     onStateUpdate();
   }
 

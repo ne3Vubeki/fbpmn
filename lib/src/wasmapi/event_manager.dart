@@ -5,10 +5,12 @@ import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/wasmapi/app.model.dart';
 
 import '../editor_state.dart';
+import '../services/input_handler.dart';
 import '../services/tile_manager.dart';
 
 class EventManager {
   final EditorState state;
+  final InputHandler inputHandler;
   final TileManager tileManager;
   final ArrowManager arrowManager;
   final NodeManager nodeManager;
@@ -20,6 +22,7 @@ class EventManager {
 
   EventManager({
     required this.state,
+    required this.inputHandler,
     required this.tileManager,
     required this.arrowManager,
     required this.nodeManager,
@@ -33,10 +36,28 @@ class EventManager {
   }
 
   switcher(String action, Map<String, dynamic>? data) async {
-    switch(action) {
+    switch (action) {
       case 'run_cola':
         await colaLayoutService.runAutoLayout();
         appEvent?.emitToJs(action: 'finish_cola');
+        break;
+      case 'snap_on':
+        state.snapEnabled = true;
+        break;
+      case 'snap_off':
+        state.snapEnabled = false;
+        break;
+      case 'tiles_border_on':
+        inputHandler.onTileBorders();
+        break;
+      case 'tiles_border_off':
+        inputHandler.offTileBorders();
+        break;
+      case 'perfomance_on':
+        state.showPerformance = true;
+        break;
+      case 'perfomance_off':
+        state.showPerformance = false;
         break;
     }
   }

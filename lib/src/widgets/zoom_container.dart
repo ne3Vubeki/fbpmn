@@ -41,7 +41,6 @@ class ZoomContainer extends StatefulWidget {
 
 class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomContainer> {
   bool _showThumbnail = true;
-  bool _showPerformance = false;
   bool _isLayoutRunning = false;
 
   double get scale => widget.state.scale;
@@ -120,8 +119,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
 
   void _togglePerformance() {
     setState(() {
-      _showPerformance = !_showPerformance;
-      // widget.appEvent?.emitToJs(action: 'relay', targets: ['fbpmn.fbpmn'], data: {'isShowPerformance': _showPerformance});
+      widget.state.showPerformance = !widget.state.showPerformance;
     });
   }
 
@@ -158,7 +156,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Метрики производительности (отображаются над миниатюрой)
-          if (_showPerformance) ...[PerformanceMetrics(panelWidth: containerWidth), const SizedBox(height: 8)],
+          if (widget.state.showPerformance) ...[PerformanceMetrics(panelWidth: containerWidth), const SizedBox(height: 8)],
 
           // Миниатюра холста (отображается если включена)
           if (_showThumbnail) ...[
@@ -183,7 +181,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
             showThumbnail: _showThumbnail,
             showCurves: widget.state.useCurves,
             snapEnabled: widget.state.snapEnabled,
-            showPerformance: _showPerformance,
+            showPerformance: widget.state.showPerformance,
             onAutoLayout: widget.colaLayoutService != null ? _onAutoLayout : null,
             isLayoutRunning: _isLayoutRunning,
             canvasWidth: canvasWidth,

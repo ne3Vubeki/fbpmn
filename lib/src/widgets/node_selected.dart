@@ -73,7 +73,9 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
     // Размер узла (масштабированный)
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
 
-    final borderColor = Colors.transparent;
+    final borderColor = node.qType == 'swimlane' && node.isCollapsed != null && !node.isCollapsed!
+        ? Colors.blue
+        : Colors.transparent;
 
     return Positioned(
       left: widget.state.selectedNodeOffset.dx,
@@ -81,22 +83,14 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
       child: Container(
         padding: widget.state.framePadding,
         decoration: BoxDecoration(
-          border: Border.all(
-            color: borderColor,
-            width: frameBorderWidth,
-          ),
-          borderRadius: isGroup || isEnum || !hasAttributes
-              ? BorderRadius.zero
-              : BorderRadius.circular(12 * scale),
+          color: Colors.blue.withOpacity(0.1),
+          border: Border.all(color: borderColor, width: frameBorderWidth),
+          borderRadius: !isGroup || isEnum || !hasAttributes ? BorderRadius.zero : BorderRadius.circular(12 * scale),
         ),
         child: RepaintBoundary(
           child: CustomPaint(
             size: nodeSize,
-            painter: NodeCustomPainter(
-              node: node,
-              targetSize: nodeSize,
-              simplifiedMode: widget.state.isAutoLayoutMode,
-            ),
+            painter: NodeCustomPainter(node: node, targetSize: nodeSize, simplifiedMode: widget.state.isAutoLayoutMode),
           ),
         ),
       ),
@@ -117,10 +111,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
     final screenBottomRight = Utils.worldToScreen(worldBounds.bottomRight, widget.state);
 
     // Размер области (масштабированный)
-    final nodeSize = Size(
-      screenBottomRight.dx - screenTopLeft.dx,
-      screenBottomRight.dy - screenTopLeft.dy,
-    );
+    final nodeSize = Size(screenBottomRight.dx - screenTopLeft.dx, screenBottomRight.dy - screenTopLeft.dy);
 
     // В режиме автораскладки скрываем рамку
     final showBorder = !widget.state.isAutoLayoutMode;
@@ -132,10 +123,8 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
         padding: EdgeInsets.all(framePadding),
         decoration: showBorder
             ? BoxDecoration(
-                border: Border.all(
-                  color: Colors.blue,
-                  width: frameBorderWidth,
-                ),
+                color: Colors.blue.withOpacity(0.1),
+                border: Border.all(color: Colors.blue, width: frameBorderWidth),
               )
             : null,
         child: RepaintBoundary(
@@ -146,7 +135,6 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
               targetSize: nodeSize,
               worldBounds: worldBounds,
               simplifiedMode: widget.state.isAutoLayoutMode,
-              nodeManager: widget.nodeManager,
             ),
           ),
         ),
