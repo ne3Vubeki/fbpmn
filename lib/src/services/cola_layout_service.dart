@@ -513,7 +513,6 @@ class ColaLayoutService extends Manager {
       // Ищем оптимальный угол смещения (0°-360° с шагом 10°)
       Offset bestDisplacement = Offset.zero;
       int bestIntersections = currentIntersections;
-      double bestAngle = 0;
       
       for (int angleDeg = 0; angleDeg < 360; angleDeg += 10) {
         final angleRad = angleDeg * pi / 180;
@@ -526,7 +525,6 @@ class ColaLayoutService extends Manager {
         if (testIntersections < bestIntersections) {
           bestIntersections = testIntersections;
           bestDisplacement = Offset(dx, dy);
-          bestAngle = angleDeg.toDouble();
           
           // Если нашли позицию без пересечений — сразу берём её
           if (testIntersections == 0) break;
@@ -706,7 +704,6 @@ class ColaLayoutService extends Manager {
         Offset bestDisplacementA = Offset.zero;
         Offset bestDisplacementB = Offset.zero;
         double bestOverlap = overlapInfo.overlapX + overlapInfo.overlapY;
-        double bestAngle = 0;
         
         for (int angleDelta = -90; angleDelta <= 90; angleDelta += 10) {
           final testAngle = baseAngle + (angleDelta * pi / 180);
@@ -742,7 +739,6 @@ class ColaLayoutService extends Manager {
             bestOverlap = testOverlapSum;
             bestDisplacementA = Offset(dxA, dyA);
             bestDisplacementB = Offset(dxB, dyB);
-            bestAngle = angleDelta.toDouble();
             
             // Если нашли позицию без перекрытия — сразу берём её
             if (!testOverlapInfo.hasOverlap) break;

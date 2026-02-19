@@ -392,7 +392,8 @@ class NodePainter {
       // 5. Рисуем рамку выделения связанных узлов (поверх всего, вне маски)
       final isNodeHighlighted = highlightedNodeIds?.contains(currentNode.id) ?? false;
       if (isNodeHighlighted) {
-        _drawSelectionBorder(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
+        _drawHighlightOverlay(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
+        // _drawSelectionBorder(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
       }
     } else {
       // Для виджета: преобразуем координаты

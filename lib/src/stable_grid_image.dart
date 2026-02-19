@@ -10,6 +10,7 @@ import 'services/input_handler.dart';
 import 'services/scroll_handler.dart';
 import 'services/tile_manager.dart';
 import 'services/node_manager.dart';
+import 'services/zoom_manager.dart';
 import 'editor_state.dart';
 import 'wasmapi/event_manager.dart';
 import 'widgets/zoom_container.dart';
@@ -35,6 +36,7 @@ class _StableGridImageState extends State<StableGridImage> {
   late ArrowManager _arrowManager;
   late ColaLayoutService _colaLayoutService;
   late IDManager _idManager;
+  late ZoomManager _zoomManager;
 
   @override
   void initState() {
@@ -67,6 +69,15 @@ class _StableGridImageState extends State<StableGridImage> {
       scrollHandler: _scrollHandler,
     );
 
+    _zoomManager = ZoomManager(
+      state: _editorState,
+      inputHandler: _inputHandler,
+      scrollHandler: _scrollHandler,
+      tileManager: _tileManager,
+      nodeManager: _nodeManager,
+      colaLayoutService: _colaLayoutService,
+    );
+
     EventManager(
       state: _editorState,
       inputHandler: _inputHandler,
@@ -75,6 +86,7 @@ class _StableGridImageState extends State<StableGridImage> {
       nodeManager: _nodeManager,
       scrollHandler: _scrollHandler,
       colaLayoutService: _colaLayoutService,
+      zoomManager: _zoomManager,
       appEvent: widget.appEvent,
     );
 
@@ -140,6 +152,7 @@ class _StableGridImageState extends State<StableGridImage> {
     _scrollHandler.dispose();
     _tileManager.dispose();
     _nodeManager.dispose();
+    _zoomManager.dispose();
     super.dispose();
   }
 
@@ -166,11 +179,7 @@ class _StableGridImageState extends State<StableGridImage> {
               bottom: 0,
               child: ZoomContainer(
                 state: _editorState,
-                scrollHandler: _scrollHandler,
-                inputHandler: _inputHandler,
-                tileManager: _tileManager,
-                nodeManager: _nodeManager,
-                colaLayoutService: _colaLayoutService,
+                zoomManager: _zoomManager,
                 appEvent: widget.appEvent,
               ),
             ),

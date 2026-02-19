@@ -7,6 +7,7 @@ import 'package:fbpmn/src/wasmapi/app.model.dart';
 import '../editor_state.dart';
 import '../services/input_handler.dart';
 import '../services/tile_manager.dart';
+import '../services/zoom_manager.dart';
 
 class EventManager {
   final EditorState state;
@@ -16,6 +17,7 @@ class EventManager {
   final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
   final ColaLayoutService colaLayoutService;
+  final ZoomManager zoomManager;
   final EventApp? appEvent;
 
   Stream? get eventStream => appEvent?.stream;
@@ -28,6 +30,7 @@ class EventManager {
     required this.nodeManager,
     required this.scrollHandler,
     required this.colaLayoutService,
+    required this.zoomManager,
     required this.appEvent,
   }) {
     eventStream?.listen((event) {
@@ -48,16 +51,22 @@ class EventManager {
         state.snapEnabled = false;
         break;
       case 'tiles_border_on':
-        inputHandler.onTileBorders();
+        zoomManager.onTileBorders();
         break;
       case 'tiles_border_off':
-        inputHandler.offTileBorders();
+        zoomManager.offTileBorders();
         break;
       case 'perfomance_on':
-        state.showPerformance = true;
+        zoomManager.onPerformance();
         break;
       case 'perfomance_off':
-        state.showPerformance = false;
+        zoomManager.offPerformance();
+        break;
+      case 'curves_on':
+        zoomManager.onCurves();
+        break;
+      case 'curves_off':
+        zoomManager.offCurves();
         break;
     }
   }
