@@ -1,5 +1,5 @@
 class EditorConfig {
-  static const int tileSize = 1024;
+  static const int tileSize = 512;
   static const double minScale = 0.35;
   static const double maxScale = 5.0;
   static const double minRowHeight = 18.0;

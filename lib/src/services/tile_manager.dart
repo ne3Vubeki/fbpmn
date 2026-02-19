@@ -157,7 +157,7 @@ class TileManager extends Manager {
     try {
       // Очищаем старые данные только при полном пересоздании
       if (!isUpdate) {
-        _disposeTiles();
+        await _disposeTiles();
       }
 
       if (nodes.isEmpty) {
@@ -785,7 +785,7 @@ class TileManager extends Manager {
 
   Future<void> createFallbackTiles() async {
     try {
-      _disposeTiles();
+      await _disposeTiles();
 
       // Создаем 4 начальных тайла
       final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
@@ -859,7 +859,7 @@ class TileManager extends Manager {
     _disposeTiles();
   }
 
-  void _disposeTiles() {
+  Future<void> _disposeTiles() async {
     for (final tile in state.imageTiles) {
       try {
         tile.image.dispose();
@@ -869,6 +869,9 @@ class TileManager extends Manager {
       }
     }
     state.imageTiles.clear();
+    
+    // Принудительная очистка памяти WASM после массового dispose
+    await Future.microtask(() {});
   }
 
   @override

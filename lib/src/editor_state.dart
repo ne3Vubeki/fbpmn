@@ -22,22 +22,22 @@ class EditorState {
   /// Применяет начальную конфигурацию из [properties]['config'].
   void _applyConfig() {
     final config = properties['config'];
-    if (config == null) return;
+    if (config == null || config is! Map) return;
 
-    for (final entry in (config as Map<String, dynamic>).entries) {
-      switch (entry.key) {
+    config.forEach((key, value) {
+      switch (key.toString()) {
         case 'snapEnabled':
-          snapEnabled = entry.value as bool;
+          if (value is bool) snapEnabled = value;
         case 'showTileBorders':
-          showTileBorders = entry.value as bool;
+          if (value is bool) showTileBorders = value;
         case 'useCurves':
-          useCurves = entry.value as bool;
+          if (value is bool) useCurves = value;
         case 'showPerformance':
-          showPerformance = entry.value as bool;
+          if (value is bool) showPerformance = value;
         case 'showThumbnail':
-          showThumbnail = entry.value as bool;
+          if (value is bool) showThumbnail = value;
       }
-    }
+    });
   }
 
   // ---------------------------------------------------------------------------
