@@ -180,6 +180,9 @@ class _StableGridImageState extends State<StableGridImage> {
               child: ZoomContainer(
                 state: _editorState,
                 zoomManager: _zoomManager,
+                inputHandler: _inputHandler,
+                scrollHandler: _scrollHandler,
+                tileManager: _tileManager,
                 appEvent: widget.appEvent,
               ),
             ),

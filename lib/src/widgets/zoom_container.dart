@@ -1,3 +1,6 @@
+import 'package:fbpmn/src/services/input_handler.dart';
+import 'package:fbpmn/src/services/scroll_handler.dart';
+import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:fbpmn/src/services/zoom_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -12,12 +15,18 @@ import 'zoom_panel.dart';
 class ZoomContainer extends StatefulWidget {
   final EditorState state;
   final ZoomManager zoomManager;
+  final InputHandler inputHandler;
+  final ScrollHandler scrollHandler;
+  final TileManager tileManager;
   final EventApp? appEvent;
 
   const ZoomContainer({
     super.key,
     required this.state,
     required this.zoomManager,
+    required this.inputHandler,
+    required this.scrollHandler,
+    required this.tileManager,
     required this.appEvent,
   });
 
@@ -43,8 +52,16 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
     widget.zoomManager.setOnStateUpdate('ZoomContainer', () {
       timeoutSetState();
     });
+    widget.inputHandler.setOnStateUpdate('ZoomContainer', () {
+      timeoutSetState();
+    });
+    widget.scrollHandler.setOnStateUpdate('ZoomContainer', () {
+      timeoutSetState();
+    });
+    widget.tileManager.setOnStateUpdate('ZoomContainer', () {
+      timeoutSetState();
+    });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +76,10 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Метрики производительности (отображаются над миниатюрой)
-          if (widget.state.showPerformance) ...[PerformanceMetrics(panelWidth: containerWidth), const SizedBox(height: 8)],
+          if (widget.state.showPerformance) ...[
+            PerformanceMetrics(panelWidth: containerWidth),
+            const SizedBox(height: 8),
+          ],
 
           // Миниатюра холста (отображается если включена)
           if (widget.zoomManager.showThumbnail) ...[
