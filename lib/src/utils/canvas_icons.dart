@@ -427,6 +427,7 @@ class CanvasIcons {
     );
     
     textPainter.paint(canvas, textOffset);
+    textPainter.dispose();
   }
 
   /// Иконка перемещения (open_with)

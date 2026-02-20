@@ -15,6 +15,7 @@ class CanvasThumbnail extends StatefulWidget {
   final List<ImageTile> imageTiles;
   final Function(Offset)?
   onThumbnailClick; // Новый callback для кликов по миниатюре
+  final VoidCallback? onInteractionStart; // Callback при начале взаимодействия с миниатюрой
 
   const CanvasThumbnail({
     super.key,
@@ -27,6 +28,7 @@ class CanvasThumbnail extends StatefulWidget {
     required this.scale,
     required this.imageTiles,
     this.onThumbnailClick, // Добавляем callback
+    this.onInteractionStart,
   });
 
   @override
@@ -39,6 +41,8 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   double _thumbnailWidth = 0;
   double _thumbnailHeight = 0;
   bool _isDragging = false;
+  bool _isBuildingThumbnail = false;
+  bool _pendingThumbnailRebuild = false;
   Offset _dragStartPosition = Offset.zero;
   Offset _dragStartRectPosition = Offset.zero;
 
@@ -102,6 +106,14 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   Future<void> _createThumbnail() async {
     if (widget.imageTiles.isEmpty) return;
 
+    if (_isBuildingThumbnail) {
+      _pendingThumbnailRebuild = true;
+      return;
+    }
+
+    _isBuildingThumbnail = true;
+    _pendingThumbnailRebuild = false;
+
     try {
       // Ширина миниатюры всегда = panelWidth
       final double thumbnailWidth = widget.panelWidth;
@@ -125,8 +137,12 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       // Применяем масштаб миниатюры
       canvas.scale(thumbnailScale, thumbnailScale);
 
+      // Делаем снимок списка тайлов ДО первого await,
+      // чтобы избежать use-after-free при dispose тайлов в TileManager
+      final tilesSnapshot = List.of(widget.imageTiles);
+
       // Рисуем все тайлы с улучшенным качеством
-      for (final tile in widget.imageTiles) {
+      for (final tile in tilesSnapshot) {
         // Позиция тайла на миниатюре
         final tileRect = tile.bounds;
 
@@ -154,15 +170,26 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
 
       if (mounted) {
         setState(() {
+          _thumbnailImage?.dispose();
           _thumbnailImage = image;
         });
+      } else {
+        image.dispose();
       }
-    } catch (e) {}
+    } catch (e) {
+    } finally {
+      _isBuildingThumbnail = false;
+      if (_pendingThumbnailRebuild && mounted) {
+        _createThumbnail();
+      }
+    }
   }
 
   // Обработчик начала перетаскивания в миниатюре
   void _handleDragStart(Offset localPosition) {
     if (_thumbnailImage == null) return;
+
+    widget.onInteractionStart?.call();
 
     // Проверяем, кликнули ли внутри видимой области
     final bool clickedInVisibleArea =

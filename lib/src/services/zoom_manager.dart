@@ -42,6 +42,12 @@ class ZoomManager extends Manager {
     onStateUpdate();
   }
 
+  Future<void> handleThumbnailInteractionStart() async {
+    if (state.nodesSelected.isNotEmpty || state.arrowsSelected.isNotEmpty) {
+      await nodeManager.handleEmptyAreaClick();
+    }
+  }
+
   void toggleTileBorders() {
     inputHandler.toggleTileBorders();
     onStateUpdate();

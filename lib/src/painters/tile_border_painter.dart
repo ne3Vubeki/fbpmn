@@ -33,10 +33,12 @@ class TileBorderPainter extends CustomPainter {
       ..color = Colors.red.withOpacity(0.01)
       ..style = PaintingStyle.fill;
 
+    final double safeScale = scale > 0 ? scale : 1.0;
+
     final tileBorderPaint = Paint()
       ..color = Colors.red.withOpacity(0.7)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0 / scale
+      ..strokeWidth = 1.0 / safeScale
       ..isAntiAlias = true;
 
     for (final tile in state.imageTiles) {
@@ -44,13 +46,16 @@ class TileBorderPainter extends CustomPainter {
         canvas.drawRect(tile.bounds, tilePaint);
         canvas.drawRect(tile.bounds, tileBorderPaint);
 
+        final double idFontSize = (12 / safeScale).clamp(1.0, 200.0);
+        final double countFontSize = (10 / safeScale).clamp(1.0, 200.0);
+
         // Отображаем id тайла
         final idTextPainter = TextPainter(
           text: TextSpan(
             text: '${tile.id}',
             style: TextStyle(
               color: Colors.red,
-              fontSize: 12 / scale,
+              fontSize: idFontSize,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -59,8 +64,9 @@ class TileBorderPainter extends CustomPainter {
 
         idTextPainter.paint(
           canvas,
-          Offset(tile.bounds.left + 2 / scale, tile.bounds.top + 2 / scale),
+          Offset(tile.bounds.left + 2 / safeScale, tile.bounds.top + 2 / safeScale),
         );
+        idTextPainter.dispose();
 
         // Отображаем количество узлов в тайле
         final countText =
@@ -71,7 +77,7 @@ class TileBorderPainter extends CustomPainter {
             text: countText,
             style: TextStyle(
               color: Colors.blue.withOpacity(0.8),
-              fontSize: 10 / scale,
+              fontSize: countFontSize,
             ),
           ),
           textDirection: TextDirection.ltr,
@@ -80,10 +86,11 @@ class TileBorderPainter extends CustomPainter {
         countTextPainter.paint(
           canvas,
           Offset(
-            tile.bounds.right - countTextPainter.width - 2 / scale,
-            tile.bounds.top + 2 / scale,
+            tile.bounds.right - countTextPainter.width - 2 / safeScale,
+            tile.bounds.top + 2 / safeScale,
           ),
         );
+        countTextPainter.dispose();
       }
     }
 

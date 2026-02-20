@@ -93,6 +93,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
               scale: scale,
               imageTiles: imageTiles,
               onThumbnailClick: widget.zoomManager.handleThumbnailClick,
+              onInteractionStart: widget.zoomManager.handleThumbnailInteractionStart,
             ),
             const SizedBox(height: 8),
           ],

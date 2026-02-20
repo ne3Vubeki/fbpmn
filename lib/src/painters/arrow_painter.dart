@@ -231,6 +231,7 @@ class ArrowsPainter {
       );
 
       textPainter.paint(canvas, textPosition);
+      textPainter.dispose();
     }
   }
 }

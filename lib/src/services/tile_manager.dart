@@ -21,6 +21,8 @@ class TileManager extends Manager {
   final ArrowManager arrowManager;
 
   final NodeRenderer _nodeRenderer = NodeRenderer();
+  bool _isCreatingTiles = false;
+  bool _pendingTilesUpdate = false;
 
   TileManager({required this.state, required this.arrowManager});
 
@@ -154,6 +156,12 @@ class TileManager extends Manager {
   }
 
   Future<void> createTiledImage(List<TableNode?> nodes, List<Arrow?> arrows, {bool isUpdate = false}) async {
+    if (_isCreatingTiles) {
+      _pendingTilesUpdate = true;
+      return;
+    }
+    _isCreatingTiles = true;
+    _pendingTilesUpdate = false;
     try {
       // Очищаем старые данные только при полном пересоздании
       if (!isUpdate) {
@@ -207,6 +215,12 @@ class TileManager extends Manager {
       }
     } catch (e) {
       await createFallbackTiles();
+    } finally {
+      _isCreatingTiles = false;
+      if (_pendingTilesUpdate) {
+        _pendingTilesUpdate = false;
+        await createTiledImage(state.nodes, state.arrows, isUpdate: true);
+      }
     }
   }
 

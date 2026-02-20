@@ -536,13 +536,16 @@ class NodePainter {
       ellipsis: '...',
     )..textWidthBasis = TextWidthBasis.longestLine;
 
-    headerTextPainter.layout(maxWidth: nodeRect.width - 16);
-
-    // Если текст заголовка выходит за границы, он будет автоматически обрезан маской
-    headerTextPainter.paint(
-      canvas,
-      Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2),
-    );
+    final headerTextMaxWidth = nodeRect.width - 16;
+    if (headerTextMaxWidth >= 1.0) {
+      headerTextPainter.layout(maxWidth: headerTextMaxWidth);
+      // Если текст заголовка выходит за границы, он будет автоматически обрезан маской
+      headerTextPainter.paint(
+        canvas,
+        Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2),
+      );
+    }
+    headerTextPainter.dispose();
 
     // Рисуем иконку замка в заголовке, если qCompStatus == '6'
     if (node.qCompStatus == '6') {
@@ -566,7 +569,7 @@ class NodePainter {
       final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
       final rowBottom = rowTop + actualRowHeight;
 
-      final columnSplit = isEnum ? 20 : nodeRect.width - 40;
+      final double columnSplit = isEnum ? 20.0 : nodeRect.width - 40;
 
       // Вертикальная граница - будет обрезана маской если выходит за границы
       canvas.drawLine(
@@ -596,11 +599,15 @@ class NodePainter {
           ellipsis: '...',
         )..textWidthBasis = TextWidthBasis.parent;
 
-        leftTextPainter.layout(maxWidth: columnSplit - 16);
-        leftTextPainter.paint(
-          canvas,
-          Offset(nodeRect.left + 8, rowTop + (actualRowHeight - leftTextPainter.height) / 2),
-        );
+        final leftTextMaxWidth = columnSplit - 16;
+        if (leftTextMaxWidth >= 1.0) {
+          leftTextPainter.layout(maxWidth: leftTextMaxWidth);
+          leftTextPainter.paint(
+            canvas,
+            Offset(nodeRect.left + 8, rowTop + (actualRowHeight - leftTextPainter.height) / 2),
+          );
+        }
+        leftTextPainter.dispose();
       }
 
       // Текст в правой колонке - будет обрезан маской если выходит за границы
@@ -619,11 +626,15 @@ class NodePainter {
           ellipsis: '...',
         )..textWidthBasis = TextWidthBasis.parent;
 
-        rightTextPainter.layout(maxWidth: nodeRect.width - columnSplit - 16);
-        rightTextPainter.paint(
-          canvas,
-          Offset(nodeRect.left + columnSplit + 8, rowTop + (actualRowHeight - rightTextPainter.height) / 2),
-        );
+        final rightTextMaxWidth = nodeRect.width - columnSplit - 16;
+        if (rightTextMaxWidth >= 1.0) {
+          rightTextPainter.layout(maxWidth: rightTextMaxWidth);
+          rightTextPainter.paint(
+            canvas,
+            Offset(nodeRect.left + columnSplit + 8, rowTop + (actualRowHeight - rightTextPainter.height) / 2),
+          );
+        }
+        rightTextPainter.dispose();
       }
 
       // Рисуем иконку замка во второй ячейке, если qCompStatus == '6'
@@ -722,11 +733,15 @@ class NodePainter {
 
     final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 1, ellipsis: '...');
 
-    textPainter.layout(maxWidth: nodeRect.width - textLeftMargin - 8);
-    textPainter.paint(
-      canvas,
-      Offset(nodeRect.left + textLeftMargin, nodeRect.top + (actualHeaderHeight - textPainter.height) / 2),
-    );
+    final swimlaneTextMaxWidth = nodeRect.width - textLeftMargin - 8;
+    if (swimlaneTextMaxWidth >= 1.0) {
+      textPainter.layout(maxWidth: swimlaneTextMaxWidth);
+      textPainter.paint(
+        canvas,
+        Offset(nodeRect.left + textLeftMargin, nodeRect.top + (actualHeaderHeight - textPainter.height) / 2),
+      );
+    }
+    textPainter.dispose();
   }
 
   /// Простая отрисовка одного узла (без детей) - для обратной совместимости
