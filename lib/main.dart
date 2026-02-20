@@ -13,7 +13,11 @@ void main() {
       viewBuilder: (BuildContext context) {
         final FlutterView view = View.of(context);
         final int viewId = view.viewId;
-        final Map properties = views.getInitialData(viewId).dartify() as Map? ?? {'view': 'fbpmn'};
+        final Map properties = views.getInitialData(viewId).dartify() as Map;
+        if (properties['view'] == null) {
+          properties['view'] = 'fbpmn';
+        }
+        print('Start App with properties: $properties');
         return _buildView(properties['view'] as String, properties);
       },
     ),
