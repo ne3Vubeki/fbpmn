@@ -161,6 +161,9 @@ class EditorState {
   /// Список тайлов, на которые разбит холст для оптимизации отрисовки.
   List<ImageTile> imageTiles = [];
 
+  /// Индекс тайлов по id ('x:y') для O(1) доступа.
+  Map<String, ImageTile> tileIndex = {};
+
   /// ID тайлов, требующих перерисовки.
   Set<String> imageTilesChanged = {};
 

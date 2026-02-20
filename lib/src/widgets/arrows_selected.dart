@@ -49,7 +49,9 @@ class _ArrowsSelected extends State<ArrowsSelected>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.state.arrows.isEmpty) return Container();
+    // Проверяем arrowsSelected вместо arrows, т.к. связи выделенных узлов
+    // переносятся из state.arrows в state.arrowsSelected
+    if (widget.state.arrowsSelected.isEmpty) return Container();
 
     final nodes = widget.state.nodesSelected.toList();
     final arrows = widget.state.arrowsSelected.toList();

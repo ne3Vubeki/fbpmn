@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../editor_state.dart';
+import '../models/arrow.dart';
 import '../models/table.node.dart';
 import '../services/tile_manager.dart';
 import '../utils/editor_config.dart';
@@ -300,21 +301,29 @@ class NodeManager extends Manager {
 
     _updateNodePosition();
 
-    // Обновляем подсвеченные узлы (связанные с выделенными)
-    tileManager.updateHighlightedNodes();
-
-    // Перерисовываем тайлы с подсвеченными узлами
-    await tileManager.updateTilesAfterNodeChange();
-
-    // Затем удаляем узел из тайлов и ЖДЕМ завершения
-    await tileManager.removeSelectedNodeFromTiles(node);
+    // Подавляем промежуточные обновления тайлов до финального setState
+    tileManager.suppressTileUpdates = true;
+    try {
+      // Шаг 1: подсветка соседних узлов и рисуем связи пока они ещё в state.arrows
+      tileManager.updateHighlightedNodes();
+      await tileManager.updateTilesAfterNodeChange();
+      // Шаг 2: удаляем узел из state.nodes
+      _removeNodeFromNodesList(node);
+      // Шаг 3: перерисовываем тайлы выделенного узла без него
+      // (стрелки ещё в state.arrows — removeSelectedNodeFromTiles найдёт их и заполнит state.arrowsSelected)
+      await tileManager.removeSelectedNodeFromTiles(node);
+      // Шаг 4: теперь удаляем стрелки из state.arrows (после заполнения arrowsSelected)
+      _removeNodeArrowsFromState(node);
+    } finally {
+      tileManager.suppressTileUpdates = false;
+    }
 
     arrowManager.selectAllArrows();
-
     startNodeDrag(screenPosition);
-
     tracker.endSelect();
 
+    // Тайлы и NodeSelected обновляются в одном кадре
+    tileManager.onStateUpdate();
     onStateUpdate();
   }
 
@@ -333,20 +342,44 @@ class NodeManager extends Manager {
     state.nodesSelected.add(node);
     state.isNodeOnTopLayer = true;
 
-    // Обновляем подсвеченные узлы (связанные с выделенными)
-    tileManager.updateHighlightedNodes();
+    // Подавляем промежуточные обновления тайлов до финального setState
+    tileManager.suppressTileUpdates = true;
+    try {
+      // Шаг 1: подсветка соседних узлов и рисуем связи пока они ещё в state.arrows
+      tileManager.updateHighlightedNodes();
+      await tileManager.updateTilesAfterNodeChange();
+      // Шаг 2: удаляем узел из state.nodes
+      _removeNodeFromNodesList(node);
 
-    // Перерисовываем тайлы с подсвеченными узлами
-    await tileManager.updateTilesAfterNodeChange();
+      // Для swimlane в развернутом состоянии удаляем детей из тайлов
+      if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+        if (node.children != null) {
+          for (final child in node.children!) {
+            child.aPosition ??= state.delta + node.position + child.position;
+          }
+        }
+        final tilesToUpdate = <int>{};
+        await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+        for (final tileIndex in tilesToUpdate) {
+          await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
+        }
+      }
 
-    await _prepareNodeForTopLayer(node);
+      // Шаг 3: перерисовываем тайлы выделенного узла без него
+      // (стрелки ещё в state.arrows — removeSelectedNodeFromTiles найдёт их и заполнит state.arrowsSelected)
+      await tileManager.removeSelectedNodeFromTiles(node);
+      // Шаг 4: теперь удаляем стрелки из state.arrows
+      _removeNodeArrowsFromState(node);
+    } finally {
+      tileManager.suppressTileUpdates = false;
+    }
 
     _updateNodePosition();
-
     arrowManager.selectAllArrows();
-
     tracker.endSelect();
 
+    // Тайлы и NodeSelected обновляются в одном кадре
+    tileManager.onStateUpdate();
     onStateUpdate();
   }
 
@@ -359,42 +392,43 @@ class NodeManager extends Manager {
     state.nodesSelected.add(node);
     state.isNodeOnTopLayer = true;
 
-    // Обновляем подсвеченные узлы (связанные с выделенными)
-    tileManager.updateHighlightedNodes();
+    // Подавляем промежуточные обновления тайлов до финального setState
+    tileManager.suppressTileUpdates = true;
+    try {
+      // Шаг 1: подсветка соседних узлов и рисуем связи пока они ещё в state.arrows
+      tileManager.updateHighlightedNodes();
+      await tileManager.updateTilesAfterNodeChange();
+      // Шаг 2: удаляем узел из state.nodes
+      _removeNodeFromNodesList(node);
 
-    // Перерисовываем тайлы с подсвеченными узлами
-    await tileManager.updateTilesAfterNodeChange();
+      // Для swimlane в развернутом состоянии удаляем детей из тайлов
+      if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
+        if (node.children != null) {
+          for (final child in node.children!) {
+            child.aPosition ??= state.delta + node.position + child.position;
+          }
+        }
+        final tilesToUpdate = <int>{};
+        await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
+        for (final tileIndex in tilesToUpdate) {
+          await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
+        }
+      }
 
-    await _prepareNodeForTopLayer(node);
+      // Шаг 3: перерисовываем тайлы выделенного узла без него
+      // (стрелки ещё в state.arrows — removeSelectedNodeFromTiles найдёт их и заполнит state.arrowsSelected)
+      await tileManager.removeSelectedNodeFromTiles(node);
+      // Шаг 4: теперь удаляем стрелки из state.arrows
+      _removeNodeArrowsFromState(node);
+    } finally {
+      tileManager.suppressTileUpdates = false;
+    }
 
     arrowManager.selectAllArrows();
 
+    // Тайлы и NodeSelected обновляются в одном кадре
+    tileManager.onStateUpdate();
     onStateUpdate();
-  }
-
-  /// Подготовка узла для перемещения на верхний слой
-  Future<void> _prepareNodeForTopLayer(TableNode node) async {
-    // Удаляем узел из state.nodes
-    _removeNodeFromNodesList(node);
-
-    // Для swimlane в развернутом состоянии удаляем всех детей из тайлов
-    if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
-      // Сохраняем абсолютные позиции детей перед удалением
-      if (node.children != null) {
-        for (final child in node.children!) {
-          child.aPosition ??= state.delta + node.position + child.position;
-        }
-      }
-      final tilesToUpdate = <int>{};
-      await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
-      // Обновляем все затронутые тайлы
-      for (final tileIndex in tilesToUpdate) {
-        await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
-      }
-    }
-
-    // Удаляем узел из тайлов
-    await tileManager.removeSelectedNodeFromTiles(node);
   }
 
   // Новый метод: удаление узла из основного списка узлов
@@ -410,6 +444,23 @@ class NodeManager extends Manager {
       // Удаляем только корневой узел из основного списка
       // Вложенные узлы НЕ хранятся отдельно в state.nodes
       state.nodes.removeWhere((n) => n.id == node.id);
+    }
+  }
+
+  /// Удаляет связи узла из state.arrows и возвращает их список для последующего восстановления.
+  List<Arrow> _removeNodeArrowsFromState(TableNode node) {
+    final arrowsForNode = arrowManager.getArrowsForNodes([node]).whereType<Arrow>().toList();
+    final arrowIds = arrowsForNode.map((a) => a.id).toSet();
+    state.arrows.removeWhere((a) => arrowIds.contains(a.id));
+    return arrowsForNode;
+  }
+
+  /// Возвращает стрелки обратно в state.arrows (если их там ещё нет).
+  void _restoreArrowsToState(List<Arrow> arrows) {
+    for (final arrow in arrows) {
+      if (!state.arrows.any((a) => a.id == arrow.id)) {
+        state.arrows.add(arrow);
+      }
     }
   }
 
@@ -499,6 +550,20 @@ class NodeManager extends Manager {
 
     // Добавляем узел обратно в основной список узлов
     _addNodeBackToNodesList(node);
+
+    // Возвращаем стрелки узла обратно в state.arrows
+    // Используем state.arrowsSelected, т.к. связи уже были удалены из state.arrows при выделении
+    final nodeIds = <String>{node.id};
+    if (node.children != null) {
+      for (final child in node.children!) {
+        nodeIds.add(child.id);
+      }
+    }
+    final arrowsForNode = state.arrowsSelected
+        .whereType<Arrow>()
+        .where((arrow) => nodeIds.contains(arrow.source) || nodeIds.contains(arrow.target))
+        .toList();
+    _restoreArrowsToState(arrowsForNode);
 
     node.isSelected = false;
 

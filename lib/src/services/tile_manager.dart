@@ -24,7 +24,18 @@ class TileManager extends Manager {
   bool _isCreatingTiles = false;
   bool _pendingTilesUpdate = false;
 
+  /// Когда true — onStateUpdate не рассылает события подписчикам.
+  /// Используется при выделении узла, чтобы избежать промежуточных
+  /// перерисовок между удалением узла из тайла и его появлением на верхнем слое.
+  bool suppressTileUpdates = false;
+
   TileManager({required this.state, required this.arrowManager});
+
+  @override
+  void onStateUpdate() {
+    if (suppressTileUpdates) return;
+    super.onStateUpdate();
+  }
 
   /// Получает ID узлов, связанных с выделенными узлами (на другом конце связей)
   /// Для group: подсвечивается родитель и вложенные узлы
@@ -210,8 +221,10 @@ class TileManager extends Manager {
         
         // Заменяем список целиком для корректного отслеживания изменений
         state.imageTiles = updatedTiles;
+        _syncTileIndex();
       } else {
         state.imageTiles = tiles;
+        _syncTileIndex();
       }
     } catch (e) {
       await createFallbackTiles();
@@ -230,6 +243,7 @@ class TileManager extends Manager {
     final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
     state.imageTiles = tiles;
+    _syncTileIndex();
 
     state.isLoading = false;
     onStateUpdate();
@@ -664,6 +678,7 @@ class TileManager extends Manager {
 
       // Удаляем тайл из списка
       state.imageTiles.removeAt(tileIndex);
+      _syncTileIndex();
 
       onStateUpdate();
     } catch (e) {}
@@ -745,6 +760,51 @@ class TileManager extends Manager {
     }
   }
 
+  /// Создаёт один тайл по его id ('x:y') с учётом текущих узлов и стрелок.
+  /// Используется ViewportTileController для ленивой загрузки тайлов.
+  Future<ImageTile?> createTileById(
+    String tileId,
+    List<dynamic> nodes,
+    List<dynamic> arrows,
+  ) async {
+    final parts = tileId.split(':');
+    if (parts.length != 2) return null;
+    final left = double.tryParse(parts[0]);
+    final top = double.tryParse(parts[1]);
+    if (left == null || top == null) return null;
+
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+    final tileBounds = Rect.fromLTRB(left, top, left + tileWorldSize, top + tileWorldSize);
+
+    // Собираем узлы и стрелки, пересекающиеся с этим тайлом
+    final allNodesIncludingChildren = <TableNode>[];
+    void collectAll(List<TableNode?> ns) {
+      for (final n in ns) {
+        if (n == null) continue;
+        allNodesIncludingChildren.add(n);
+        if (n.children != null && n.children!.isNotEmpty) {
+          collectAll(n.children!);
+        }
+      }
+    }
+    collectAll(state.nodes);
+
+    final nodesInTile = allNodesIncludingChildren.where((node) {
+      final pos = node.aPosition ?? (state.delta + node.position);
+      final rect = Utils.calculateNodeRect(node: node, position: pos);
+      return rect.overlaps(tileBounds);
+    }).toList();
+
+    final arrowsInTile = state.arrows.where((arrow) {
+      return nodesInTile.any((n) => n.id == arrow.source || n.id == arrow.target);
+    }).toList();
+
+    // Не создаём пустой тайл — нет смысла рендерить пустую область
+    if (nodesInTile.isEmpty && arrowsInTile.isEmpty) return null;
+
+    return _createUpdatedTileWithContent(tileBounds, tileId, nodesInTile, arrowsInTile);
+  }
+
   // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
   Future<void> updateTilesAfterNodeChange() async {
     // state.isLoading = true;
@@ -786,6 +846,7 @@ class TileManager extends Manager {
             // Игнорируем ошибки disposal
           }
           state.imageTiles[tileIndex] = newTile;
+          _syncTileIndex();
           onStateUpdate();
         }
       } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
@@ -805,6 +866,7 @@ class TileManager extends Manager {
       final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
       state.imageTiles = tiles;
+      _syncTileIndex();
 
       state.isLoading = false;
       onStateUpdate();
@@ -865,6 +927,14 @@ class TileManager extends Manager {
           await callback(left: left, top: top);
         }
       }
+    }
+  }
+
+  /// Синхронизирует state.tileIndex с state.imageTiles.
+  void _syncTileIndex() {
+    state.tileIndex.clear();
+    for (final tile in state.imageTiles) {
+      state.tileIndex[tile.id] = tile;
     }
   }
 
