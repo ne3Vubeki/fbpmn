@@ -47,8 +47,15 @@ class TilePainter extends CustomPainter {
       ..blendMode = BlendMode.srcOver;
 
     for (final tile in visibleTiles) {
+      // Пропускаем освобождённые тайлы
+      if (tile.isDisposed) continue;
       if (!tile.bounds.overlaps(visibleRect)) continue;
       try {
+        // Проверяем, что изображение ещё валидно (не освобождено)
+        final imageWidth = tile.image.width;
+        final imageHeight = tile.image.height;
+        if (imageWidth <= 0 || imageHeight <= 0) continue;
+
         final intersection = tile.bounds.intersect(visibleRect);
         if (intersection.isEmpty) continue;
 
@@ -60,23 +67,25 @@ class TilePainter extends CustomPainter {
         const double epsilon = 0.5;
         if (srcLeft   < -epsilon ||
             srcTop    < -epsilon ||
-            srcRight  > tile.image.width  + epsilon ||
-            srcBottom > tile.image.height + epsilon) {
+            srcRight  > imageWidth  + epsilon ||
+            srcBottom > imageHeight + epsilon) {
           continue;
         }
 
         final srcRect = Rect.fromLTRB(
           math.max(0.0, srcLeft),
           math.max(0.0, srcTop),
-          math.min(tile.image.width.toDouble(),  srcRight),
-          math.min(tile.image.height.toDouble(), srcBottom),
+          math.min(imageWidth.toDouble(),  srcRight),
+          math.min(imageHeight.toDouble(), srcBottom),
         );
 
         const double minVisibleSize = 0.1;
         if (srcRect.width > minVisibleSize && srcRect.height > minVisibleSize) {
           _drawTileWithQuality(canvas, tile.image, srcRect, intersection, paint);
         }
-      } catch (_) {}
+      } catch (_) {
+        // Игнорируем ошибки доступа к освобождённым изображениям
+      }
     }
   }
 

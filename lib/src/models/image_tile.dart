@@ -8,6 +8,7 @@ class ImageTile {
   final String id; // id тайла
   Set<String?> nodes; // Список id узлов в тайле
   Set<String?> arrows; // Список id связей в тайле
+  bool isDisposed = false; // Флаг, указывающий что изображение освобождено
   
   ImageTile({
     required this.image,
@@ -17,5 +18,13 @@ class ImageTile {
     this.nodes = const {},
     this.arrows = const {},
   });
+  
+  /// Освобождает изображение и устанавливает флаг isDisposed
+  void dispose() {
+    if (!isDisposed) {
+      isDisposed = true;
+      image.dispose();
+    }
+  }
 }
 

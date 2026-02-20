@@ -20,9 +20,12 @@ class ArrowManager extends Manager {
 
   ArrowManager({required this.state});
 
+  /// Добавляет все связи выделенных узлов в state.arrowsSelected и уведомляет виджет.
+  /// Ищет связи как в state.arrows, так и в уже добавленных state.arrowsSelected.
   selectAllArrows() {
-    final arrowsSelected = getArrowsForNodes(state.nodesSelected.toList()).toSet();
-    state.arrowsSelected.addAll(arrowsSelected);
+    // Ищем связи в state.arrows (для случая Cola layout, когда связи ещё не удалены)
+    final arrowsFromState = getArrowsForNodes(state.nodesSelected.toList()).toSet();
+    state.arrowsSelected.addAll(arrowsFromState);
     onStateUpdate();
   }
 

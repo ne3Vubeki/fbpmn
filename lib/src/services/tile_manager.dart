@@ -191,12 +191,16 @@ class TileManager extends Manager {
       if (isUpdate) {
         // Собираем ID новых тайлов
         final newTileIds = tiles.map((t) => t.id).toSet();
+        
+        // Собираем ID тайлов, которые уже были освобождены
+        final disposedTileIds = <String>{};
 
         // Удаляем старые тайлы, которых нет в новом списке
         final tilesToRemove = state.imageTiles.where((t) => !newTileIds.contains(t.id)).toList();
         for (final oldTile in tilesToRemove) {
           try {
-            oldTile.image.dispose();
+            oldTile.dispose();
+            disposedTileIds.add(oldTile.id);
           } catch (e) {
             print('Warning: Error disposing removed tile: $e');
           }
@@ -208,10 +212,10 @@ class TileManager extends Manager {
         // Обновляем существующие и добавляем новые тайлы
         for (final tile in tiles) {
           final existingIndex = state.imageTiles.indexWhere((t) => t.id == tile.id);
-          if (existingIndex >= 0) {
-            // Тайл существует - dispose старого и добавляем новый
+          if (existingIndex >= 0 && !disposedTileIds.contains(tile.id)) {
+            // Тайл существует и ещё не был освобождён - dispose старого
             try {
-              state.imageTiles[existingIndex].image.dispose();
+              state.imageTiles[existingIndex].dispose();
             } catch (e) {
               print('Warning: Error disposing old tile in update: $e');
             }
@@ -265,14 +269,15 @@ class TileManager extends Manager {
 
     void collectAllNodes(List<TableNode?> nodes, {TableNode? parent}) {
       for (final node in nodes) {
+        if (node == null) continue;
         if (parent == null) {
-          allNodesIncludingChildren.add(node!);
+          allNodesIncludingChildren.add(node);
           if (node.children != null && node.children!.isNotEmpty) {
             collectAllNodes(node.children!, parent: node);
           }
         } else {
           if (parent.isCollapsed == null || !parent.isCollapsed!) {
-            allNodesIncludingChildren.add(node!);
+            allNodesIncludingChildren.add(node);
           }
         }
       }
@@ -315,7 +320,8 @@ class TileManager extends Manager {
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
     for (final arrow in allArrows) {
-      final Arrow arrowCopy = arrow!;
+      if (arrow == null) continue;
+      final Arrow arrowCopy = arrow;
 
       /// Перенаправляем связи скрытых узлов на узел родителя
       for (final n in allNodesIncludingChildren) {
@@ -518,7 +524,8 @@ class TileManager extends Manager {
     final List<TableNode> swimlaneNodes = [];
 
     for (final node in nodes) {
-      if (node!.qType == 'swimlane') {
+      if (node == null) continue;
+      if (node.qType == 'swimlane') {
         swimlaneNodes.add(node);
       } else {
         nonSwimlaneNodes.add(node);
@@ -554,9 +561,9 @@ class TileManager extends Manager {
     Set<String> nodeIds = {node.id};
 
     /// Находим все связи этого узла
-    final arrowsSelected = arrowManager.getArrowsForNodes([node]);
-    arrowIdsConnectedToNode.addAll(arrowsSelected.map((arrow) => arrow!.id));
-    state.arrowsSelected.addAll(arrowsSelected);
+    final arrowsForNode = arrowManager.getArrowsForNodes([node]);
+    arrowIdsConnectedToNode.addAll(arrowsForNode.whereType<Arrow>().map((arrow) => arrow.id));
+    state.arrowsSelected.addAll(arrowsForNode.whereType<Arrow>());
 
     /// Находим и добавляем для удаления id вложенных в группу узлов
     if ((node.qType == 'group' || node.qType == 'swimlane') && node.children != null && node.children!.isNotEmpty) {
@@ -670,7 +677,7 @@ class TileManager extends Manager {
     try {
       final tile = state.imageTiles[tileIndex];
       try {
-        tile.image.dispose();
+        tile.dispose();
       } catch (e) {
         // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
         print('Warning: Error disposing tile image: $e');
@@ -841,7 +848,7 @@ class TileManager extends Manager {
         final tileIndex = _findTileIndexById(tileId);
         if (tileIndex != null) {
           try {
-            state.imageTiles[tileIndex].image.dispose();
+            state.imageTiles[tileIndex].dispose();
           } catch (e) {
             // Игнорируем ошибки disposal
           }
@@ -946,7 +953,7 @@ class TileManager extends Manager {
   Future<void> _disposeTiles() async {
     for (final tile in state.imageTiles) {
       try {
-        tile.image.dispose();
+        tile.dispose();
       } catch (e) {
         // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
         // (например, если изображение уже было освобождено)

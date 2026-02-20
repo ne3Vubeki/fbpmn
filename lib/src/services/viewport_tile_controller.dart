@@ -45,18 +45,19 @@ class ViewportTileController extends Manager {
   ViewportTileController({required this.state, required this.tileManager});
 
   /// Публичный геттер: список тайлов для отрисовки в текущем кадре.
+  /// Фильтрует освобождённые тайлы.
   List<ImageTile> get visibleTiles {
     final result = <ImageTile>[];
     for (final id in _visibleTileIds) {
       // Сначала ищем в основном индексе
       final tile = state.tileIndex[id];
-      if (tile != null) {
+      if (tile != null && !tile.isDisposed) {
         result.add(tile);
         continue;
       }
       // Затем в LRU-кэше
       final cached = _lruCache[id];
-      if (cached != null) {
+      if (cached != null && !cached.isDisposed) {
         result.add(cached);
       }
     }
@@ -120,11 +121,26 @@ class ViewportTileController extends Manager {
   }
 
   /// Вызывается из TileManager после создания/обновления тайлов.
-  /// Синхронизирует tileIndex с imageTiles.
+  /// Синхронизирует tileIndex с imageTiles и очищает устаревшие тайлы из LRU-кэша.
   void syncTileIndex() {
     state.tileIndex.clear();
     for (final tile in state.imageTiles) {
       state.tileIndex[tile.id] = tile;
+    }
+    
+    // Очищаем LRU-кэш от тайлов, которые были обновлены в imageTiles
+    // (старые версии тайлов уже освобождены в TileManager)
+    final validTileIds = state.imageTiles.map((t) => t.id).toSet();
+    final lruIdsToRemove = <String>[];
+    for (final id in _lruCache.keys) {
+      if (validTileIds.contains(id)) {
+        // Тайл с таким ID уже есть в imageTiles - удаляем старую версию из кэша
+        lruIdsToRemove.add(id);
+      }
+    }
+    for (final id in lruIdsToRemove) {
+      _lruCache.remove(id);
+      _lruOrder.remove(id);
     }
   }
 
@@ -262,7 +278,7 @@ class ViewportTileController extends Manager {
       final evicted = _lruCache.remove(evictId);
       if (evicted != null) {
         try {
-          evicted.image.dispose();
+          evicted.dispose();
         } catch (_) {}
       }
     }
@@ -290,7 +306,7 @@ class ViewportTileController extends Manager {
     _lruOrder.clear();
     for (final tile in _lruCache.values) {
       try {
-        tile.image.dispose();
+        tile.dispose();
       } catch (_) {}
     }
     _lruCache.clear();
@@ -303,7 +319,7 @@ class ViewportTileController extends Manager {
     _zoomDebounceTimer?.cancel();
     for (final tile in _lruCache.values) {
       try {
-        tile.image.dispose();
+        tile.dispose();
       } catch (_) {}
     }
     _lruCache.clear();
