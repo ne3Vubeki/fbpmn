@@ -33,17 +33,23 @@ class HierarchicalGrid extends StatefulWidget {
 }
 
 class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<HierarchicalGrid> {
+  bool isTileEvent = false;
+
   @override
   void initState() {
     super.initState();
     widget.nodeManager.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState();
+      print('Event HierarchicalGrid: NodeManager');
     });
     widget.tileManager.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState();
+      print('Event HierarchicalGrid: TileManager');
+      isTileEvent = !isTileEvent;
     });
     widget.scrollHandler.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState();
+      print('Event HierarchicalGrid: ScrollHandler');
     });
   }
 
@@ -90,6 +96,7 @@ class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<Hi
               state: widget.state,
               imageTiles: widget.state.imageTiles,
               nodesIdOnTopLayer: widget.state.nodesIdOnTopLayer,
+              isTileEvent: isTileEvent,
             ),
           ),
         ),
