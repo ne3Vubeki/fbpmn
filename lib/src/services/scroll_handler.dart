@@ -203,7 +203,7 @@ class ScrollHandler extends Manager {
     _constrainCurrentOffset();
 
     // Обновляем позицию выделенного узла
-    if (state.counterNodeOnTopLayer > 0) {
+    if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
     }
 
@@ -225,7 +225,7 @@ class ScrollHandler extends Manager {
     _constrainCurrentOffset();
 
     // Обновляем позицию выделенного узла
-    if (state.counterNodeOnTopLayer > 0) {
+    if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
     }
 
@@ -325,7 +325,7 @@ class ScrollHandler extends Manager {
     updateScrollControllers();
 
     // Обновляем позицию выделенного узла
-    if (state.counterNodeOnTopLayer > 0) {
+    if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
     }
 
@@ -347,7 +347,7 @@ class ScrollHandler extends Manager {
     state.offset = Offset(-clampedScroll, state.offset.dy);
 
     // Обновляем позицию выделенного узла
-    if (state.counterNodeOnTopLayer > 0) {
+    if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
     }
 
@@ -369,7 +369,7 @@ class ScrollHandler extends Manager {
     state.offset = Offset(state.offset.dx, -clampedScroll);
 
     // Обновляем позицию выделенного узла
-    if (state.counterNodeOnTopLayer > 0) {
+    if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
     }
 
@@ -417,7 +417,7 @@ class ScrollHandler extends Manager {
 
     state.offset = Offset(-newScrollOffset, state.offset.dy);
 
-    if (state.counterNodeOnTopLayer > 0) {
+    if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
     }
 
@@ -466,7 +466,7 @@ class ScrollHandler extends Manager {
 
     state.offset = Offset(state.offset.dx, -newScrollOffset);
 
-    if (state.counterNodeOnTopLayer > 0) {
+    if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
     }
 

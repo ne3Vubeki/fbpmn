@@ -97,7 +97,7 @@ class EditorState {
   final Set<TableNode?> nodesSelected = {};
 
   /// Находится ли перетаскиваемый узел на верхнем слое отрисовки.
-  int counterNodeOnTopLayer = 0;
+  String nodesIdOnTopLayer = '';
 
   /// Исходная позиция узла до начала перетаскивания.
   Offset originalNodePosition = Offset.zero;

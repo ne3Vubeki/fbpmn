@@ -11,7 +11,7 @@ class TileImagePainter extends CustomPainter {
   final Size canvasSize;
   final EditorState state;
   final Map<String, ImageTile> imageTiles;
-  final int counterNodeOnTopLayer;
+  final String nodesIdOnTopLayer;
 
   TileImagePainter({
     required this.scale,
@@ -19,7 +19,7 @@ class TileImagePainter extends CustomPainter {
     required this.canvasSize,
     required this.state,
     required this.imageTiles,
-    required this.counterNodeOnTopLayer,
+    required this.nodesIdOnTopLayer,
   });
 
   @override
@@ -114,6 +114,6 @@ class TileImagePainter extends CustomPainter {
         oldDelegate.offset != offset ||
         oldDelegate.canvasSize != canvasSize ||
         oldDelegate.imageTiles.length != imageTiles.length ||
-        oldDelegate.counterNodeOnTopLayer != counterNodeOnTopLayer;
+        oldDelegate.nodesIdOnTopLayer != nodesIdOnTopLayer;
   }
 }

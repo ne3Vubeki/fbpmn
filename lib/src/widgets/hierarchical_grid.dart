@@ -89,7 +89,7 @@ class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<Hi
               canvasSize: size,
               state: widget.state,
               imageTiles: widget.state.imageTiles,
-              counterNodeOnTopLayer: widget.state.counterNodeOnTopLayer,
+              nodesIdOnTopLayer: widget.state.nodesIdOnTopLayer,
             ),
           ),
         ),
