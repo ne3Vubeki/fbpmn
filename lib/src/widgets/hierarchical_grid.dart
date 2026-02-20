@@ -1,8 +1,10 @@
+import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
-import '../painters/hierarchical_grid_painter.dart';
+import '../painters/grid_painter.dart';
+import '../painters/tile_image_painter.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
@@ -13,6 +15,7 @@ class HierarchicalGrid extends StatefulWidget {
   final InputHandler inputHandler;
   final NodeManager nodeManager;
   final TileManager tileManager;
+  final ArrowManager arrowManager;
   final ScrollHandler scrollHandler;
 
   const HierarchicalGrid({
@@ -21,6 +24,7 @@ class HierarchicalGrid extends StatefulWidget {
     required this.inputHandler,
     required this.nodeManager,
     required this.tileManager,
+    required this.arrowManager,
     required this.scrollHandler,
   });
 
@@ -34,18 +38,27 @@ class _HierarchicalGridState extends State<HierarchicalGrid>
   @override
   void initState() {
     super.initState();
-    // widget.inputHandler.setOnStateUpdate('HierarchicalGrid', () {
-    //   timeoutSetState();
-    // });
-    widget.nodeManager.setOnStateUpdate('HierarchicalGrid ', () {
+    widget.nodeManager.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState();
     });
     widget.tileManager.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState();
     });
+    widget.arrowManager.setOnStateUpdate('HierarchicalGrid', () {
+      timeoutSetState();
+    });
     widget.scrollHandler.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState();
     });
+  }
+
+  @override
+  void dispose() {
+    widget.nodeManager.removeOnStateUpdate('HierarchicalGrid');
+    widget.tileManager.removeOnStateUpdate('HierarchicalGrid');
+    widget.arrowManager.removeOnStateUpdate('HierarchicalGrid');
+    widget.scrollHandler.removeOnStateUpdate('HierarchicalGrid');
+    super.dispose();
   }
 
   @override
@@ -55,16 +68,23 @@ class _HierarchicalGridState extends State<HierarchicalGrid>
 
   @override
   Widget build(BuildContext context) {
+    final size = widget.scrollHandler.scaledCanvasSize;
     return RepaintBoundary(
       child: CustomPaint(
-        size: widget.scrollHandler.scaledCanvasSize,
-        painter: HierarchicalGridPainter(
+        size: size,
+        painter: TileImagePainter(
           scale: widget.state.scale,
           offset: widget.state.offset,
-          canvasSize: widget.scrollHandler.scaledCanvasSize,
+          canvasSize: size,
           state: widget.state,
+          tileManager: widget.tileManager,
           nodeManager: widget.nodeManager,
-          isNodeDragging: widget.state.isNodeDragging,
+          arrowManager: widget.arrowManager,
+        ),
+        foregroundPainter: GridPainter(
+          scale: widget.state.scale,
+          offset: widget.state.offset,
+          nodeManager: widget.nodeManager,
         ),
       ),
     );

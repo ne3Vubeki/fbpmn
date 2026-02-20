@@ -198,6 +198,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           inputHandler: widget.inputHandler,
                           nodeManager: widget.nodeManager,
                           tileManager: widget.tileManager,
+                          arrowManager: widget.arrowManager,
                           scrollHandler: widget.scrollHandler,
                         ),
 
