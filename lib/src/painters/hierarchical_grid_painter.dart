@@ -101,6 +101,8 @@ class HierarchicalGridPainter extends CustomPainter {
           // При малых масштабах линии могут быть очень тонкими, но все равно должны отображаться
           final double minVisibleSize = 0.1; // Минимальный размер для отображения
           if (srcRect.width > minVisibleSize && srcRect.height > minVisibleSize) {
+            print('Рисуем тайл: ${tile.id}');
+
             // Используем улучшенный метод отрисовки с учетом масштаба
             _drawTileWithQuality(canvas, tile.image, srcRect, dstRect, paint);
           }

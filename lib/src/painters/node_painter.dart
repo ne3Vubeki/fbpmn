@@ -522,30 +522,33 @@ class NodePainter {
     }
 
     // Текст заголовка
-    final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
-    final headerTextSpan = TextSpan(
-      text: node.text,
-      style: TextStyle(color: textColorHeader, fontSize: 12, fontWeight: FontWeight.bold),
-    );
-
-    final headerTextPainter = TextPainter(
-      text: headerTextSpan,
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-      maxLines: 1,
-      ellipsis: '...',
-    )..textWidthBasis = TextWidthBasis.longestLine;
-
-    final headerTextMaxWidth = nodeRect.width - 16;
-    if (headerTextMaxWidth >= 1.0) {
-      headerTextPainter.layout(maxWidth: headerTextMaxWidth);
-      // Если текст заголовка выходит за границы, он будет автоматически обрезан маской
-      headerTextPainter.paint(
-        canvas,
-        Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2),
+    final headerText = node.text;
+    if (headerText.isNotEmpty) {
+      final textColorHeader = headerBackgroundColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+      final headerTextSpan = TextSpan(
+        text: headerText,
+        style: TextStyle(color: textColorHeader, fontSize: 12, fontWeight: FontWeight.bold),
       );
+
+      final headerTextPainter = TextPainter(
+        text: headerTextSpan,
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        ellipsis: '...',
+      )..textWidthBasis = TextWidthBasis.longestLine;
+
+      final headerTextMaxWidth = nodeRect.width - 16;
+      if (headerTextMaxWidth >= 1.0) {
+        headerTextPainter.layout(maxWidth: headerTextMaxWidth);
+        // Если текст заголовка выходит за границы, он будет автоматически обрезан маской
+        headerTextPainter.paint(
+          canvas,
+          Offset(nodeRect.left + 8, nodeRect.top + (headerHeight - headerTextPainter.height) / 2),
+        );
+      }
+      headerTextPainter.dispose();
     }
-    headerTextPainter.dispose();
 
     // Рисуем иконку замка в заголовке, если qCompStatus == '6'
     if (node.qCompStatus == '6') {
@@ -722,26 +725,29 @@ class NodePainter {
     }
 
     // Текст заголовка
-    final textSpan = TextSpan(
-      text: node.text,
-      style: TextStyle(
-        color: Colors.black, // Черный текст на белом фоне
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
-      ),
-    );
-
-    final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 1, ellipsis: '...');
-
-    final swimlaneTextMaxWidth = nodeRect.width - textLeftMargin - 8;
-    if (swimlaneTextMaxWidth >= 1.0) {
-      textPainter.layout(maxWidth: swimlaneTextMaxWidth);
-      textPainter.paint(
-        canvas,
-        Offset(nodeRect.left + textLeftMargin, nodeRect.top + (actualHeaderHeight - textPainter.height) / 2),
+    final swimlaneText = node.text;
+    if (swimlaneText.isNotEmpty) {
+      final textSpan = TextSpan(
+        text: swimlaneText,
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
       );
+
+      final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 1, ellipsis: '...');
+
+      final swimlaneTextMaxWidth = nodeRect.width - textLeftMargin - 8;
+      if (swimlaneTextMaxWidth >= 1.0) {
+        textPainter.layout(maxWidth: swimlaneTextMaxWidth);
+        textPainter.paint(
+          canvas,
+          Offset(nodeRect.left + textLeftMargin, nodeRect.top + (actualHeaderHeight - textPainter.height) / 2),
+        );
+      }
+      textPainter.dispose();
     }
-    textPainter.dispose();
   }
 
   /// Простая отрисовка одного узла (без детей) - для обратной совместимости
