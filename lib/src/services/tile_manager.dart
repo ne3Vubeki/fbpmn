@@ -129,6 +129,7 @@ class TileManager extends Manager {
       }
       return null;
     }
+
     return findRecursive(state.nodes);
   }
 
@@ -144,6 +145,7 @@ class TileManager extends Manager {
       }
       return null;
     }
+
     return findParentRecursive(state.nodes, null);
   }
 
@@ -178,40 +180,22 @@ class TileManager extends Manager {
       final tiles = await _createTilesForContent(nodes, arrows);
 
       if (isUpdate) {
-        // Собираем ID новых тайлов
-        final newTileIds = tiles.map((t) => t.id).toSet();
 
-        // Удаляем старые тайлы, которых нет в новом списке
-        final tilesToRemove = state.imageTiles.where((t) => !newTileIds.contains(t.id)).toList();
-        for (final oldTile in tilesToRemove) {
-          try {
-            oldTile.image.dispose();
-          } catch (e) {
-            print('Warning: Error disposing removed tile: $e');
-          }
+        for (final tile in state.imageTiles.entries) {
+          state.imageTiles[tile.key]?.image.dispose();
         }
 
-        // Создаем новый список тайлов
-        final updatedTiles = <ImageTile>[];
-        
-        // Обновляем существующие и добавляем новые тайлы
+        state.imageTiles.clear();
+
         for (final tile in tiles) {
-          final existingIndex = state.imageTiles.indexWhere((t) => t.id == tile.id);
-          if (existingIndex >= 0) {
-            // Тайл существует - dispose старого и добавляем новый
-            try {
-              state.imageTiles[existingIndex].image.dispose();
-            } catch (e) {
-              print('Warning: Error disposing old tile in update: $e');
-            }
-          }
-          updatedTiles.add(tile);
+          state.imageTiles[tile.id] = tile;
         }
-        
-        // Заменяем список целиком для корректного отслеживания изменений
-        state.imageTiles = updatedTiles;
+
+        print('Tiles updated: ${state.imageTiles.length}');
       } else {
-        state.imageTiles = tiles;
+        for (final tile in tiles) {
+          state.imageTiles[tile.id] = tile;
+        }
       }
     } catch (e) {
       await createFallbackTiles();
@@ -229,7 +213,9 @@ class TileManager extends Manager {
     // Создаем 4 тайла для начальной видимой области
     final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
-    state.imageTiles = tiles;
+    for (final tile in tiles) {
+      state.imageTiles[tile.id] = tile;
+    }
 
     state.isLoading = false;
     onStateUpdate();
@@ -340,8 +326,12 @@ class TileManager extends Manager {
       }
 
       // Получаем полный путь стрелки
-      final arrowPathResult = arrowManager
-          .getArrowPathInTile(arrowCopy, state.delta, isTiles: true, isNotCalculate: true);
+      final arrowPathResult = arrowManager.getArrowPathInTile(
+        arrowCopy,
+        state.delta,
+        isTiles: true,
+        isNotCalculate: true,
+      );
       final coordinates = arrowPathResult.coordinates;
       final arrowPaths = arrowPathResult.paths;
       final tileWorldSize = EditorConfig.tileSize.toDouble();
@@ -378,27 +368,27 @@ class TileManager extends Manager {
         } else {
           // Для кривых связей используем Path.getBounds() + проверку пересечения
           final path = arrowPaths.path;
-          
+
           // Получаем bounding box пути
           final pathBounds = path.getBounds();
-          
+
           // Определяем диапазон тайлов, которые могут пересекаться с путём
           final gridXStart = (pathBounds.left / tileWorldSize).floor();
           final gridXEnd = (pathBounds.right / tileWorldSize).ceil();
           final gridYStart = (pathBounds.top / tileWorldSize).floor();
           final gridYEnd = (pathBounds.bottom / tileWorldSize).ceil();
-          
+
           // Для каждого тайла в bounding box проверяем пересечение с путём
           for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
             for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
               final tileLeft = gridX * tileWorldSize;
               final tileTop = gridY * tileWorldSize;
               final tileRect = Rect.fromLTWH(tileLeft, tileTop, tileWorldSize, tileWorldSize);
-              
+
               // Проверяем пересечение пути с тайлом через Path.combine
               final tilePath = Path()..addRect(tileRect);
               final intersection = Path.combine(PathOperation.intersect, path, tilePath);
-              
+
               // Если пересечение не пустое, добавляем тайл
               if (intersection.getBounds().width > 0 && intersection.getBounds().height > 0) {
                 await createTiles(top: tileTop, left: tileLeft, arrow: arrow);
@@ -488,16 +478,6 @@ class TileManager extends Manager {
     return tiles;
   }
 
-  // Поиск индекса тайла по id
-  int? _findTileIndexById(String tileId) {
-    for (int i = 0; i < state.imageTiles.length; i++) {
-      if (state.imageTiles[i].id == tileId) {
-        return i;
-      }
-    }
-    return null;
-  }
-
   /// Сортирует узлы так, чтобы swimlane были после своих детей
   List<TableNode?> _sortNodesWithSwimlaneLast(List<TableNode?> nodes) {
     final List<TableNode> nonSwimlaneNodes = [];
@@ -516,17 +496,17 @@ class TileManager extends Manager {
   }
 
   /// Удаление детей swimlane из тайлов
-  Future<void> removeSwimlaneChildrenFromTiles(TableNode swimlaneNode, Set<int> tilesToUpdate) async {
+  Future<void> removeSwimlaneChildrenFromTiles(TableNode swimlaneNode, Set<String> tilesToUpdate) async {
     if (swimlaneNode.children == null || swimlaneNode.children!.isEmpty) {
       return;
     }
 
     // Удаляем всех детей из тайлов
     for (final child in swimlaneNode.children!) {
-      final childTileIndices = _findTilesContainingNode(child);
-      for (final tileIndex in childTileIndices) {
-        if (tileIndex < state.imageTiles.length) {
-          tilesToUpdate.add(tileIndex);
+      final childTileIds = _findTilesContainingNode(child);
+      for (final tileId in childTileIds) {
+        if (state.imageTiles[tileId] != null) {
+          tilesToUpdate.add(tileId);
         }
       }
     }
@@ -552,20 +532,20 @@ class TileManager extends Manager {
     }
 
     /// Находим все тайлы содержащие этот узел, удаляем узел и его связи
-    for (final tile in state.imageTiles) {
-      if (nodeIds.any((id) => tile.nodes.contains(id))) {
+    for (final tile in state.imageTiles.entries) {
+      if (nodeIds.any((id) => state.imageTiles[tile.key]!.nodes.contains(id))) {
         // удаляем узел из списка узлов в тайле
-        tile.nodes.removeAll(nodeIds);
-        tile.arrows.removeAll(arrowIdsConnectedToNode);
-        tilesToUpdate.add(tile);
+        state.imageTiles[tile.key]!.nodes.removeAll(nodeIds);
+        state.imageTiles[tile.key]!.arrows.removeAll(arrowIdsConnectedToNode);
+        tilesToUpdate.add(state.imageTiles[tile.key]!);
       }
     }
 
     /// Находим все тайлы содержащие связи этого узла и удаляем связи
-    for (final tile in state.imageTiles) {
-      if (arrowIdsConnectedToNode.any((arrowId) => tile.arrows.contains(arrowId))) {
-        tile.arrows.removeAll(arrowIdsConnectedToNode);
-        tilesToUpdate.add(tile);
+    for (final tile in state.imageTiles.entries) {
+      if (arrowIdsConnectedToNode.any((arrowId) => state.imageTiles[tile.key]!.arrows.contains(arrowId))) {
+        state.imageTiles[tile.key]!.arrows.removeAll(arrowIdsConnectedToNode);
+        tilesToUpdate.add(state.imageTiles[tile.key]!);
       }
     }
 
@@ -576,19 +556,19 @@ class TileManager extends Manager {
   }
 
   // Поиск тайлов, содержащих указанный узел
-  Set<int> _findTilesContainingNode(TableNode node) {
-    final Set<int> tileIndices = {};
+  Set<String> _findTilesContainingNode(TableNode node) {
+    final Set<String> tileIndices = {};
 
     // Проходим по всем тайлам и проверяем, содержит ли тайл этот узел
-    for (int i = 0; i < state.imageTiles.length; i++) {
-      final tile = state.imageTiles[i];
+    for (final entry in state.imageTiles.entries) {
+      final tile = state.imageTiles[entry.key];
 
       // Проверяем, пересекается ли узел с тайлом
       final nodePosition = _findNodeAbsolutePosition(node);
       final nodeRect = Utils.calculateNodeRect(node: node, position: nodePosition);
 
-      if (nodeRect.overlaps(tile.bounds)) {
-        tileIndices.add(i);
+      if (nodeRect.overlaps(tile!.bounds)) {
+        tileIndices.add(tile.id);
       }
     }
 
@@ -650,20 +630,19 @@ class TileManager extends Manager {
 
   // Удаление тайла по id
   Future<void> _removeTile(String tileId) async {
-    final tileIndex = _findTileIndexById(tileId);
-    if (tileIndex == null) return;
+    if (state.imageTiles[tileId] == null) return;
 
     try {
-      final tile = state.imageTiles[tileIndex];
+      final tile = state.imageTiles[tileId];
       try {
-        tile.image.dispose();
+        tile!.image.dispose();
       } catch (e) {
         // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
         print('Warning: Error disposing tile image: $e');
       }
 
       // Удаляем тайл из списка
-      state.imageTiles.removeAt(tileIndex);
+      state.imageTiles.remove(tileId);
 
       onStateUpdate();
     } catch (e) {}
@@ -753,8 +732,6 @@ class TileManager extends Manager {
 
     await createTiledImage(state.nodes, state.arrows, isUpdate: true);
 
-    state.imageTilesChanged.clear();
-
     // Уведомляем об изменении
     // state.isLoading = false;
     onStateUpdate();
@@ -766,8 +743,6 @@ class TileManager extends Manager {
       final tileId = tile.id;
       final bounds = tile.bounds;
 
-      state.imageTilesChanged.add(tileId);
-
       // Получаем ВСЕ узлы для этого тайла из state.nodes
       final nodesInTile = _getNodesForTile(tile);
 
@@ -778,14 +753,13 @@ class TileManager extends Manager {
       final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
       if (newTile != null) {
         // Находим и dispose старый тайл перед заменой
-        final tileIndex = _findTileIndexById(tileId);
-        if (tileIndex != null) {
+        if (state.imageTiles[tileId] != null) {
           try {
-            state.imageTiles[tileIndex].image.dispose();
+            state.imageTiles[tileId]!.image.dispose();
           } catch (e) {
             // Игнорируем ошибки disposal
           }
-          state.imageTiles[tileIndex] = newTile;
+          state.imageTiles[tileId] = newTile;
           onStateUpdate();
         }
       } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
@@ -804,7 +778,9 @@ class TileManager extends Manager {
       // Создаем 4 начальных тайла
       final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
 
-      state.imageTiles = tiles;
+      for (final tile in tiles) {
+        state.imageTiles[tile.id] = tile;
+      }
 
       state.isLoading = false;
       onStateUpdate();
@@ -830,7 +806,7 @@ class TileManager extends Manager {
         final tileId = _generateTileId(left, top);
 
         // Ищем тайл с таким ID в существующих тайлах
-        final tile = getTileById(state.imageTiles, tileId);
+        final tile = state.imageTiles[tileId];
         if (tile != null) {
           intersectingTiles.add(tile);
         }
@@ -874,16 +850,16 @@ class TileManager extends Manager {
   }
 
   Future<void> _disposeTiles() async {
-    for (final tile in state.imageTiles) {
+    for (final entry in state.imageTiles.entries) {
       try {
-        tile.image.dispose();
+        state.imageTiles[entry.key]?.image.dispose();
       } catch (e) {
         // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
         // (например, если изображение уже было освобождено)
       }
     }
     state.imageTiles.clear();
-    
+
     // Принудительная очистка памяти WASM после массового dispose
     await Future.microtask(() {});
   }

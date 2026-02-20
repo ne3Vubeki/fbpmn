@@ -116,7 +116,7 @@ class InputHandler extends Manager {
     } else {
       bool clickedOnSelectedNode = false;
 
-      if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+      if (state.counterNodeOnTopLayer > 0 && state.nodesSelected.isNotEmpty) {
         if (state.nodesSelected.length > 1) {
           // Мультивыделение — проверяем клик по общему bounding box
           final result = Utils.getNodesWorldBounds(state.nodesSelected.toList(), state.delta);
@@ -183,11 +183,11 @@ class InputHandler extends Manager {
       state.offset = constrainOffset(newOffset);
 
       // ВАЖНОЕ ИСПРАВЛЕНИЕ: Обновляем позицию выделенного узла при панорамировании
-      if (state.isNodeOnTopLayer) {
+      if (state.counterNodeOnTopLayer > 0) {
         nodeManager.onOffsetChanged();
       }
 
-      if (state.isNodeOnTopLayer) {
+      if (state.counterNodeOnTopLayer > 0) {
         arrowManager.onStateUpdate();
       }
 

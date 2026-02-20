@@ -42,7 +42,7 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
   Offset get canvasOffset => widget.state.offset;
   Offset get delta => widget.state.delta;
   Size get viewportSize => widget.state.viewportSize;
-  List<ImageTile> get imageTiles => widget.state.imageTiles;
+  Map<String, ImageTile> get imageTiles => widget.state.imageTiles;
 
   onToggleTileBorders() => widget.zoomManager.toggleTileBorders();
 

@@ -41,7 +41,8 @@ class TileBorderPainter extends CustomPainter {
       ..strokeWidth = 1.0 / safeScale
       ..isAntiAlias = true;
 
-    for (final tile in state.imageTiles) {
+    for (final entry in state.imageTiles.entries) {
+      final tile = entry.value;
       if (tile.bounds.overlaps(visibleRect)) {
         canvas.drawRect(tile.bounds, tilePaint);
         canvas.drawRect(tile.bounds, tileBorderPaint);

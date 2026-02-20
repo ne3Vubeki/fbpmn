@@ -97,7 +97,7 @@ class EditorState {
   final Set<TableNode?> nodesSelected = {};
 
   /// Находится ли перетаскиваемый узел на верхнем слое отрисовки.
-  bool isNodeOnTopLayer = false;
+  int counterNodeOnTopLayer = 0;
 
   /// Исходная позиция узла до начала перетаскивания.
   Offset originalNodePosition = Offset.zero;
@@ -159,10 +159,7 @@ class EditorState {
   // ---------------------------------------------------------------------------
 
   /// Список тайлов, на которые разбит холст для оптимизации отрисовки.
-  List<ImageTile> imageTiles = [];
-
-  /// ID тайлов, требующих перерисовки.
-  Set<String> imageTilesChanged = {};
+  Map<String, ImageTile> imageTiles = {};
 
   /// Отображать ли границы тайлов (для отладки).
   bool showTileBorders = true;

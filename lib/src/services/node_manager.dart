@@ -103,7 +103,7 @@ class NodeManager extends Manager {
   }
 
   void updateNodeDrag(Offset screenPosition) {
-    if (state.isNodeDragging && state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+    if (state.isNodeDragging && state.counterNodeOnTopLayer > 0 && state.nodesSelected.isNotEmpty) {
       final screenDelta = screenPosition - _nodeDragStart;
       final worldDelta = screenDelta / state.scale;
 
@@ -145,7 +145,7 @@ class NodeManager extends Manager {
 
   // Корректировка позиции при изменении масштаба
   void onScaleChanged() {
-    if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+    if (state.counterNodeOnTopLayer > 0 && state.nodesSelected.isNotEmpty) {
       _updateNodePosition();
       onStateUpdate();
     }
@@ -153,7 +153,7 @@ class NodeManager extends Manager {
 
   // Корректировка позиции при изменении offset
   void onOffsetChanged() {
-    if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+    if (state.counterNodeOnTopLayer > 0 && state.nodesSelected.isNotEmpty) {
       _updateNodePosition();
       onStateUpdate();
     }
@@ -296,7 +296,7 @@ class NodeManager extends Manager {
     final worldNodePosition = node.aPosition ?? (state.delta + node.position);
     state.originalNodePosition = worldNodePosition;
     state.nodesSelected.add(node);
-    state.isNodeOnTopLayer = true;
+    state.counterNodeOnTopLayer++;
 
     _updateNodePosition();
 
@@ -331,7 +331,7 @@ class NodeManager extends Manager {
     state.originalNodePosition = worldNodePosition;
 
     state.nodesSelected.add(node);
-    state.isNodeOnTopLayer = true;
+    state.counterNodeOnTopLayer++;
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
@@ -357,7 +357,7 @@ class NodeManager extends Manager {
 
     node.isSelected = true;
     state.nodesSelected.add(node);
-    state.isNodeOnTopLayer = true;
+    state.counterNodeOnTopLayer++;
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
@@ -385,11 +385,11 @@ class NodeManager extends Manager {
           child.aPosition ??= state.delta + node.position + child.position;
         }
       }
-      final tilesToUpdate = <int>{};
+      final tilesToUpdate = <String>{};
       await tileManager.removeSwimlaneChildrenFromTiles(node, tilesToUpdate);
       // Обновляем все затронутые тайлы
-      for (final tileIndex in tilesToUpdate) {
-        await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
+      for (final tileId in tilesToUpdate) {
+        await tileManager.updateTileWithAllContent(state.imageTiles[tileId]!);
       }
     }
 
@@ -433,7 +433,7 @@ class NodeManager extends Manager {
   }
 
   Future<void> _saveNodeToTiles() async {
-    if (!state.isNodeOnTopLayer || state.nodesSelected.isEmpty) {
+    if (state.counterNodeOnTopLayer == 0 || state.nodesSelected.isEmpty) {
       return;
     }
 
@@ -458,7 +458,7 @@ class NodeManager extends Manager {
     }
 
     state.isNodeDragging = false;
-    state.isNodeOnTopLayer = false;
+    state.counterNodeOnTopLayer = math.max(0, state.counterNodeOnTopLayer - 1);
     state.nodesSelected.clear();
     state.arrowsSelected.clear();
     state.selectedNodeOffset = Offset.zero;
@@ -519,7 +519,7 @@ class NodeManager extends Manager {
     if (isResizing) {
       return;
     }
-    if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+    if (state.counterNodeOnTopLayer > 0 && state.nodesSelected.isNotEmpty) {
       await _saveNodeToTiles();
     } else {
       _deselectAllNodes();
@@ -532,7 +532,7 @@ class NodeManager extends Manager {
         await tileManager.updateTilesAfterNodeChange();
       }
 
-      state.isNodeOnTopLayer = false;
+    state.counterNodeOnTopLayer = math.max(0, state.counterNodeOnTopLayer - 1);
       state.selectedNodeOffset = Offset.zero;
       state.originalNodePosition = Offset.zero;
       onStateUpdate();
@@ -554,7 +554,7 @@ class NodeManager extends Manager {
         final nodeRect = Rect.fromLTWH(nodeOffset.dx, nodeOffset.dy, node.size.width, node.size.height);
 
         // Если это выделенный узел на верхнем слое, игнорируем его
-        if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty && state.nodesSelected.first!.id == node.id) {
+        if (state.counterNodeOnTopLayer > 0 && state.nodesSelected.isNotEmpty && state.nodesSelected.first!.id == node.id) {
           continue;
         }
 
@@ -605,7 +605,7 @@ class NodeManager extends Manager {
         return;
       }
 
-      if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+      if (state.counterNodeOnTopLayer > 0 && state.nodesSelected.isNotEmpty) {
         if (state.nodesSelected.any((n) => n?.id == foundNode!.id)) {
           if (immediateDrag) {
             startNodeDrag(screenPosition);
@@ -662,11 +662,11 @@ class NodeManager extends Manager {
     // В зависимости от состояния обновляем тайлы
     if (toggledNode.isCollapsed ?? false) {
       // Удаляем детей из тайлов
-      final tilesToUpdate = <int>{};
+      final tilesToUpdate = <String>{};
       await tileManager.removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
       // Обновляем все затронутые тайлы
-      for (final tileIndex in tilesToUpdate) {
-        await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
+      for (final tileId in tilesToUpdate) {
+        await tileManager.updateTileWithAllContent(state.imageTiles[tileId]!);
       }
     } else {
       // При раскрытии swimlane, когда у детей есть абсолютные позиции,
@@ -714,12 +714,11 @@ class NodeManager extends Manager {
     _updateNodeInList(collapsedNode);
 
     // Удаляем детей из тайлов
-    final tilesToUpdate = <int>{};
-    await tileManager.removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
-
-    // Обновляем все затронутые тайлы
-    for (final tileIndex in tilesToUpdate) {
-      await tileManager.updateTileWithAllContent(state.imageTiles[tileIndex]);
+    final tilesToUpdate = <String>{};
+      await tileManager.removeSwimlaneChildrenFromTiles(swimlaneNode, tilesToUpdate);
+      // Обновляем все затронутые тайлы
+      for (final tileId in tilesToUpdate) {
+        await tileManager.updateTileWithAllContent(state.imageTiles[tileId]!);
     }
 
     // Обновляем тайлы
@@ -769,7 +768,7 @@ class NodeManager extends Manager {
   }
 
   void startNodeDrag(Offset screenPosition) {
-    if (state.isNodeOnTopLayer && state.nodesSelected.isNotEmpty) {
+    if (state.counterNodeOnTopLayer > 0 && state.nodesSelected.isNotEmpty) {
       _nodeDragStart = screenPosition;
       _nodeStartWorldPosition = state.originalNodePosition;
 
@@ -845,7 +844,7 @@ class NodeManager extends Manager {
       state.nodesSelected.add(node);
     }
 
-    state.isNodeOnTopLayer = true;
+    state.counterNodeOnTopLayer++;
     onStateUpdate();
 
     return parentNodes;
@@ -875,7 +874,7 @@ class NodeManager extends Manager {
     // Очищаем выделение
     state.nodesSelected.clear();
     state.arrowsSelected.clear();
-    state.isNodeOnTopLayer = false;
+    state.counterNodeOnTopLayer = math.max(0, state.counterNodeOnTopLayer - 1);
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
 

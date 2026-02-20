@@ -12,7 +12,7 @@ class CanvasThumbnail extends StatefulWidget {
   final Offset delta;
   final Size viewportSize;
   final double scale;
-  final List<ImageTile> imageTiles;
+  final Map<String, ImageTile> imageTiles;
   final Function(Offset)?
   onThumbnailClick; // Новый callback для кликов по миниатюре
   final VoidCallback? onInteractionStart; // Callback при начале взаимодействия с миниатюрой
@@ -72,15 +72,15 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       tilesChanged = true;
     } else {
       // Проверяем содержимое тайлов (id, bounds, image, scale)
-      for (int i = 0; i < widget.imageTiles.length; i++) {
-        final newTile = widget.imageTiles[i];
-        final oldTile = oldWidget.imageTiles[i];
+      for(final entry in widget.imageTiles.entries) {
+        final newTile = widget.imageTiles[entry.key];
+        final oldTile = oldWidget.imageTiles[entry.key];
 
         // Сравниваем по id, bounds, image и scale
-        if (newTile.id != oldTile.id ||
-            newTile.bounds != oldTile.bounds ||
-            !identical(newTile.image, oldTile.image) ||
-            newTile.scale != oldTile.scale) {
+        if (newTile?.id != oldTile?.id ||
+            newTile?.bounds != oldTile?.bounds ||
+            !identical(newTile?.image, oldTile?.image) ||
+            newTile?.scale != oldTile?.scale) {
           tilesChanged = true;
           break;
         }
@@ -139,10 +139,11 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
 
       // Делаем снимок списка тайлов ДО первого await,
       // чтобы избежать use-after-free при dispose тайлов в TileManager
-      final tilesSnapshot = List.of(widget.imageTiles);
+      final tilesSnapshot = Map.of(widget.imageTiles);
 
       // Рисуем все тайлы с улучшенным качеством
-      for (final tile in tilesSnapshot) {
+      for (final entry in tilesSnapshot.entries) {
+        final tile = entry.value;
         // Позиция тайла на миниатюре
         final tileRect = tile.bounds;
 

@@ -1,38 +1,31 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:fbpmn/src/models/image_tile.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
-import '../services/arrow_manager.dart';
-import '../services/node_manager.dart';
-import '../services/tile_manager.dart';
 
 class TileImagePainter extends CustomPainter {
   final double scale;
   final Offset offset;
   final Size canvasSize;
   final EditorState state;
-  final TileManager tileManager;
-  final NodeManager nodeManager;
-  final ArrowManager arrowManager;
+  final Map<String, ImageTile> imageTiles;
+  final int counterNodeOnTopLayer;
 
   TileImagePainter({
     required this.scale,
     required this.offset,
     required this.canvasSize,
     required this.state,
-    required this.tileManager,
-    required this.nodeManager,
-    required this.arrowManager,
+    required this.imageTiles,
+    required this.counterNodeOnTopLayer,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     // Рисуем белый фон холста
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-      Paint()..color = Colors.white,
-    );
+    canvas.drawRect(Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height), Paint()..color = Colors.transparent);
 
     canvas.save();
     canvas.scale(scale, scale);
@@ -55,7 +48,7 @@ class TileImagePainter extends CustomPainter {
     double visibleRight,
     double visibleBottom,
   ) {
-    if (state.imageTiles.isEmpty) return;
+    if (imageTiles.isEmpty) return;
 
     final visibleRect = Rect.fromLTRB(visibleLeft, visibleTop, visibleRight, visibleBottom);
 
@@ -64,8 +57,9 @@ class TileImagePainter extends CustomPainter {
       ..isAntiAlias = true
       ..blendMode = BlendMode.srcOver;
 
-    for (final tile in state.imageTiles) {
-      if (tile.bounds.overlaps(visibleRect)) {
+    for (final entry in imageTiles.entries) {
+      final tile = state.imageTiles[entry.key];
+      if (tile != null && tile.bounds.overlaps(visibleRect)) {
         try {
           final intersection = tile.bounds.intersect(visibleRect);
           if (intersection.isEmpty) continue;
@@ -92,6 +86,7 @@ class TileImagePainter extends CustomPainter {
 
           const double minVisibleSize = 0.1;
           if (srcRect.width > minVisibleSize && srcRect.height > minVisibleSize) {
+            print('Рисую тайл ${tile.id}');
             _drawTileWithQuality(canvas, tile.image, srcRect, intersection, paint);
           }
         } catch (e) {
@@ -118,6 +113,7 @@ class TileImagePainter extends CustomPainter {
     return oldDelegate.scale != scale ||
         oldDelegate.offset != offset ||
         oldDelegate.canvasSize != canvasSize ||
-        oldDelegate.state.imageTiles.length != state.imageTiles.length;
+        oldDelegate.imageTiles.length != imageTiles.length ||
+        oldDelegate.counterNodeOnTopLayer != counterNodeOnTopLayer;
   }
 }

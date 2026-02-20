@@ -32,9 +32,7 @@ class HierarchicalGrid extends StatefulWidget {
   State<HierarchicalGrid> createState() => _HierarchicalGridState();
 }
 
-class _HierarchicalGridState extends State<HierarchicalGrid>
-    with StateWidget<HierarchicalGrid> {
-
+class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<HierarchicalGrid> {
   @override
   void initState() {
     super.initState();
@@ -42,9 +40,6 @@ class _HierarchicalGridState extends State<HierarchicalGrid>
       timeoutSetState();
     });
     widget.tileManager.setOnStateUpdate('HierarchicalGrid', () {
-      timeoutSetState();
-    });
-    widget.arrowManager.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState();
     });
     widget.scrollHandler.setOnStateUpdate('HierarchicalGrid', () {
@@ -69,24 +64,36 @@ class _HierarchicalGridState extends State<HierarchicalGrid>
   @override
   Widget build(BuildContext context) {
     final size = widget.scrollHandler.scaledCanvasSize;
-    return RepaintBoundary(
-      child: CustomPaint(
-        size: size,
-        painter: TileImagePainter(
-          scale: widget.state.scale,
-          offset: widget.state.offset,
-          canvasSize: size,
-          state: widget.state,
-          tileManager: widget.tileManager,
-          nodeManager: widget.nodeManager,
-          arrowManager: widget.arrowManager,
+    print('Update tiles: ${widget.state.imageTiles.length}');
+    return Stack(
+      children: [
+        // Слой 1: сетка — перерисовывается только при scale/offset
+        RepaintBoundary(
+          child: CustomPaint(
+            size: size,
+            painter: GridPainter(
+              scale: widget.state.scale,
+              offset: widget.state.offset,
+              nodeManager: widget.nodeManager,
+            ),
+          ),
         ),
-        foregroundPainter: GridPainter(
-          scale: widget.state.scale,
-          offset: widget.state.offset,
-          nodeManager: widget.nodeManager,
+
+        // Слой 2: тайлы — перерисовывается только при изменении visibleTiles
+        RepaintBoundary(
+          child: CustomPaint(
+            size: size,
+            painter: TileImagePainter(
+              scale: widget.state.scale,
+              offset: widget.state.offset,
+              canvasSize: size,
+              state: widget.state,
+              imageTiles: widget.state.imageTiles,
+              counterNodeOnTopLayer: widget.state.counterNodeOnTopLayer,
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

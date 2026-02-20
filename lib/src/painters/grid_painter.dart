@@ -25,6 +25,8 @@ class GridPainter extends CustomPainter {
     final double visibleRight = (size.width - offset.dx) / scale;
     final double visibleBottom = (size.height - offset.dy) / scale;
 
+    print('Рисую сетку: $visibleLeft:$visibleTop $visibleRight:$visibleBottom');
+
     _drawHierarchicalGrid(canvas, visibleLeft, visibleTop, visibleRight, visibleBottom);
 
     canvas.restore();
