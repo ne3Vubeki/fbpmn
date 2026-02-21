@@ -50,13 +50,17 @@ class TileManager extends Manager {
     for (final arrow in arrows) {
       if (arrow == null) continue;
 
+      // Разрешаем source и target: если это ID атрибута — берём родительский узел
+      final String resolvedSource = _resolveNodeIdFromAttributeId(arrow.source) ?? arrow.source;
+      final String resolvedTarget = _resolveNodeIdFromAttributeId(arrow.target) ?? arrow.target;
+
       // Если source выделен, добавляем target
-      if (selectedIds.contains(arrow.source)) {
-        _addConnectedNodeWithRules(arrow.target, connectedIds, selectedIds);
+      if (selectedIds.contains(resolvedSource)) {
+        _addConnectedNodeWithRules(resolvedTarget, connectedIds, selectedIds);
       }
       // Если target выделен, добавляем source
-      if (selectedIds.contains(arrow.target)) {
-        _addConnectedNodeWithRules(arrow.source, connectedIds, selectedIds);
+      if (selectedIds.contains(resolvedTarget)) {
+        _addConnectedNodeWithRules(resolvedSource, connectedIds, selectedIds);
       }
     }
 
@@ -115,6 +119,25 @@ class TileManager extends Manager {
         connectedIds.add(nodeId);
       }
     }
+  }
+
+  /// Находит родительский узел по ID атрибута.
+  /// Возвращает ID родительского узла, если атрибут найден, иначе null.
+  String? _resolveNodeIdFromAttributeId(String id) {
+    String? resolveRecursive(List<TableNode> nodes) {
+      for (final node in nodes) {
+        if (node.attributes.any((attr) => attr.id == id)) {
+          return node.id;
+        }
+        if (node.children != null && node.children!.isNotEmpty) {
+          final found = resolveRecursive(node.children!);
+          if (found != null) return found;
+        }
+      }
+      return null;
+    }
+
+    return resolveRecursive(state.nodes);
   }
 
   /// Находит узел по ID во всей иерархии

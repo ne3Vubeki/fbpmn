@@ -302,6 +302,8 @@ class NodeManager extends Manager {
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
+    
+    arrowManager.selectAllArrows();
 
     // Перерисовываем тайлы с подсвеченными узлами
     await tileManager.updateTilesAfterNodeChange();
@@ -309,7 +311,6 @@ class NodeManager extends Manager {
     // Затем удаляем узел из тайлов и ЖДЕМ завершения
     await tileManager.removeSelectedNodeFromTiles(node);
 
-    arrowManager.selectAllArrows();
 
     startNodeDrag(screenPosition);
 
@@ -330,11 +331,12 @@ class NodeManager extends Manager {
     final worldNodePosition = node.aPosition ?? (state.delta + node.position);
     state.originalNodePosition = worldNodePosition;
 
-    state.nodesSelected.add(node);
     state.nodesIdOnTopLayer += node.id;
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
+
+    arrowManager.selectAllArrows();
 
     // Перерисовываем тайлы с подсвеченными узлами
     await tileManager.updateTilesAfterNodeChange();
@@ -343,7 +345,6 @@ class NodeManager extends Manager {
 
     _updateNodePosition();
 
-    arrowManager.selectAllArrows();
 
     tracker.endSelect();
 

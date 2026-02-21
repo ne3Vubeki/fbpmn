@@ -37,7 +37,7 @@ class HierarchicalGrid extends StatefulWidget {
 class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<HierarchicalGrid> {
   bool isTileEvent = false;
   Timer? _tileEventTimer;
-  Timer? _nodeEventTimer;
+  // Timer? _nodeEventTimer;
 
   @override
   void initState() {
