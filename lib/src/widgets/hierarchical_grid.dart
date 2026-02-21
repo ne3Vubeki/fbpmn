@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:flutter/material.dart';
@@ -34,18 +36,30 @@ class HierarchicalGrid extends StatefulWidget {
 
 class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<HierarchicalGrid> {
   bool isTileEvent = false;
+  Timer? _tileEventTimer;
+  Timer? _nodeEventTimer;
 
   @override
   void initState() {
     super.initState();
-    widget.nodeManager.setOnStateUpdate('HierarchicalGrid', () {
-      timeoutSetState();
-      print('Event HierarchicalGrid: NodeManager');
-    });
+    // widget.nodeManager.setOnStateUpdate('HierarchicalGrid', () {
+    //   timeoutSetState(
+    //     duration: Duration(milliseconds: 200),
+    //     callback: () {
+    //       print('Event HierarchicalGrid: NodeManager');
+    //     },
+    //     timer: _nodeEventTimer,
+    //   );
+    // });
     widget.tileManager.setOnStateUpdate('HierarchicalGrid', () {
-      timeoutSetState();
-      print('Event HierarchicalGrid: TileManager');
-      isTileEvent = !isTileEvent;
+      timeoutSetState(
+        duration: Duration(milliseconds: 200),
+        callback: () {
+          isTileEvent = !isTileEvent;
+          print('Event HierarchicalGrid: TileManager');
+        },
+        timer: _tileEventTimer,
+      );
     });
     widget.scrollHandler.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState();
@@ -70,7 +84,6 @@ class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<Hi
   @override
   Widget build(BuildContext context) {
     final size = widget.scrollHandler.scaledCanvasSize;
-    print('Update tiles: ${widget.state.imageTiles.length}');
     return Stack(
       children: [
         // Слой 1: сетка — перерисовывается только при scale/offset

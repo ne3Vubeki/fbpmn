@@ -394,7 +394,8 @@ class NodeManager extends Manager {
     }
 
     // Удаляем узел из тайлов
-    await tileManager.removeSelectedNodeFromTiles(node);
+    // Вместо вызова для одного узла, нужно передавать список всех выделенных узлов
+    await tileManager.removeSelectedNodesFromTiles(state.nodesSelected); // Новый метод
   }
 
   // Новый метод: удаление узла из основного списка узлов

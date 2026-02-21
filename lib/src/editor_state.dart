@@ -95,6 +95,8 @@ class EditorState {
 
   /// Множество выделенных узлов.
   final Set<TableNode?> nodesSelected = {};
+  /// Множество узлов на другом конце связей выделенных узлов.
+  final Set<TableNode?> nodesOutsideSelected = {};
 
   /// Находится ли перетаскиваемый узел на верхнем слое отрисовки.
   String nodesIdOnTopLayer = '';

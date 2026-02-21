@@ -180,7 +180,6 @@ class TileManager extends Manager {
       final tiles = await _createTilesForContent(nodes, arrows);
 
       if (isUpdate) {
-
         for (final tile in state.imageTiles.entries) {
           state.imageTiles[tile.key]?.image.dispose();
         }
@@ -509,6 +508,59 @@ class TileManager extends Manager {
           tilesToUpdate.add(tileId);
         }
       }
+    }
+  }
+
+  Future<void> removeSelectedNodesFromTiles(Set<TableNode?> nodes) async {
+    final Set<ImageTile> tilesToUpdate = {};
+    final Set<String> allNodeIds = {};
+    final Set<String?> allArrowIds = {};
+
+    // Собираем все ID узлов и связанных стрелок
+    for (final node in nodes) {
+      if (node == null) continue;
+
+      allNodeIds.add(node.id);
+
+      // Находим все связи этого узла
+      final arrowsSelected = arrowManager.getArrowsForNodes([node]);
+      allArrowIds.addAll(arrowsSelected.map((arrow) => arrow!.id));
+      state.arrowsSelected.addAll(arrowsSelected);
+
+      // Добавляем вложенные узлы
+      if ((node.qType == 'group' || node.qType == 'swimlane') && node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          allNodeIds.add(child.id);
+        }
+      }
+    }
+
+    // Удаляем все найденные узлы и стрелки из тайлов
+    for (final tile in state.imageTiles.entries) {
+      bool tileUpdated = false;
+
+      // Удаляем узлы
+      for (final nodeId in allNodeIds) {
+        if (state.imageTiles[tile.key]!.nodes.contains(nodeId)) {
+          state.imageTiles[tile.key]!.nodes.remove(nodeId);
+          tileUpdated = true;
+        }
+      }
+
+      // Удаляем стрелки
+      if (allArrowIds.any((arrowId) => state.imageTiles[tile.key]!.arrows.contains(arrowId))) {
+        state.imageTiles[tile.key]!.arrows.removeAll(allArrowIds);
+        tileUpdated = true;
+      }
+
+      if (tileUpdated) {
+        tilesToUpdate.add(state.imageTiles[tile.key]!);
+      }
+    }
+
+    // Обновляем все затронутые тайлы
+    for (final tile in tilesToUpdate) {
+      await updateTileWithAllContent(tile);
     }
   }
 

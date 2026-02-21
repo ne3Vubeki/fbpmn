@@ -30,10 +30,10 @@ class _TileBorderState extends State<ScrollBarHorizontal> with StateWidget<Scrol
   void initState() {
     super.initState();
     widget.scrollHandler.setOnStateUpdate('ScrollBarHorizontal', () {
-      timeoutSetState(updateCanvasSize);
+      timeoutSetState(callback: updateCanvasSize);
     });
     widget.inputHandler.setOnStateUpdate('ScrollBarHorizontal', () {
-      timeoutSetState(updateCanvasSize);
+      timeoutSetState(callback: updateCanvasSize);
     });
   }
 

@@ -115,8 +115,6 @@ class TileImagePainter extends CustomPainter {
     return oldDelegate.scale != scale ||
         oldDelegate.offset != offset ||
         oldDelegate.canvasSize != canvasSize ||
-        oldDelegate.imageTiles.length != imageTiles.length ||
-        oldDelegate.nodesIdOnTopLayer != nodesIdOnTopLayer ||
         oldDelegate.isTileEvent != isTileEvent;
   }
 }
