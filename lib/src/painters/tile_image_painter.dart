@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:fbpmn/src/models/image_tile.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
@@ -13,6 +14,7 @@ class TileImagePainter extends CustomPainter {
   final Map<String, ImageTile> imageTiles;
   final String nodesIdOnTopLayer;
   final bool isTileEvent;
+  final Set<String> updatedImageTileIds;
 
   TileImagePainter({
     required this.scale,
@@ -22,6 +24,7 @@ class TileImagePainter extends CustomPainter {
     required this.imageTiles,
     required this.nodesIdOnTopLayer,
     required this.isTileEvent,
+    required this.updatedImageTileIds,
   });
 
   @override
@@ -115,6 +118,7 @@ class TileImagePainter extends CustomPainter {
     return oldDelegate.scale != scale ||
         oldDelegate.offset != offset ||
         oldDelegate.canvasSize != canvasSize ||
+        setEquals(oldDelegate.updatedImageTileIds, updatedImageTileIds) ||
         oldDelegate.isTileEvent != isTileEvent;
   }
 }

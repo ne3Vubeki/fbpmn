@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +34,7 @@ class HierarchicalGrid extends StatefulWidget {
 
 class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<HierarchicalGrid> {
   bool isTileEvent = false;
-  Timer? _tileEventTimer;
+  // Timer? _tileEventTimer;
   // Timer? _nodeEventTimer;
 
   @override
@@ -53,12 +51,10 @@ class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<Hi
     // });
     widget.tileManager.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState(
-        duration: Duration(milliseconds: 200),
         callback: () {
           isTileEvent = !isTileEvent;
           print('Event HierarchicalGrid: TileManager');
         },
-        timer: _tileEventTimer,
       );
     });
     widget.scrollHandler.setOnStateUpdate('HierarchicalGrid', () {
@@ -110,6 +106,7 @@ class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<Hi
               imageTiles: widget.state.imageTiles,
               nodesIdOnTopLayer: widget.state.nodesIdOnTopLayer,
               isTileEvent: isTileEvent,
+              updatedImageTileIds: widget.state.updatedImageTileIds,
             ),
           ),
         ),

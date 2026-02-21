@@ -95,6 +95,7 @@ class EditorState {
 
   /// Множество выделенных узлов.
   final Set<TableNode?> nodesSelected = {};
+
   /// Множество узлов на другом конце связей выделенных узлов.
   final Set<TableNode?> nodesOutsideSelected = {};
 
@@ -162,6 +163,9 @@ class EditorState {
 
   /// Список тайлов, на которые разбит холст для оптимизации отрисовки.
   Map<String, ImageTile> imageTiles = {};
+
+  /// Список обновленных тайлов
+  Set<String> updatedImageTileIds = {};
 
   /// Отображать ли границы тайлов (для отладки).
   bool showTileBorders = true;

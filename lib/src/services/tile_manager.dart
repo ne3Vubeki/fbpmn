@@ -199,27 +199,34 @@ class TileManager extends Manager {
         return;
       }
 
-      // Создаем тайлы только там где есть узлы или стрелки
+      // Создаем тайлы только там где изменялись узлы или стрелки
       final tiles = await _createTilesForContent(nodes, arrows);
+      state.updatedImageTileIds.addAll(tiles.map((tile) => tile.id));
 
       if (isUpdate) {
-        for (final tile in state.imageTiles.entries) {
-          state.imageTiles[tile.key]?.image.dispose();
-        }
-
-        state.imageTiles.clear();
-
+        /// перезапись измененных тайлов
         for (final tile in tiles) {
+          final tileId = tile.id;
+          state.imageTiles[tileId]?.image.dispose();
           state.imageTiles[tile.id] = tile;
         }
-
-        print('Tiles updated: ${state.imageTiles.length}');
+        /// удаление удаленных тайлов
+        final keysToRemove = state.imageTiles.entries
+            .where((entry) => entry.value.nodes.isEmpty && entry.value.arrows.isEmpty)
+            .map((entry) => entry.key)
+            .toList();
+        for (final key in keysToRemove) {
+          state.imageTiles[key]?.image.dispose();
+          state.imageTiles.remove(key);
+        }
       } else {
+        /// создание новых тайлов
         for (final tile in tiles) {
           state.imageTiles[tile.id] = tile;
         }
       }
     } catch (e) {
+      print('Ошибка в createTiledImage: $e');
       await createFallbackTiles();
     } finally {
       _isCreatingTiles = false;
@@ -422,6 +429,7 @@ class TileManager extends Manager {
     }
 
     final List<ImageTile> tiles = [];
+    int counterUpdatedTiles = 0;
 
     /// Создание тайлов рассчитанным узлам и связям
     for (final tileId in createdTiles) {
@@ -431,10 +439,25 @@ class TileManager extends Manager {
       final top = double.tryParse(tilePos.last);
       final List<TableNode?> nodesInTile = mapNodesInTile[tileId]!;
       final List<Arrow?> arrowsInTile = mapArrowsInTile[tileId]!;
+
+      // Проверяем, отличается ли содержимое от существующего тайла
+      final existingTile = state.imageTiles[tileId];
+      if (existingTile != null) {
+        final newNodeIds = nodesInTile.map((n) => n?.id).toSet();
+        final newArrowIds = arrowsInTile.map((a) => a?.id).toSet();
+        if (existingTile.nodes.length == newNodeIds.length &&
+            existingTile.arrows.length == newArrowIds.length &&
+            existingTile.nodes.containsAll(newNodeIds) &&
+            existingTile.arrows.containsAll(newArrowIds)) {
+          // tiles.add(existingTile);
+          continue;
+        }
+      }
+      counterUpdatedTiles++;
       final ImageTile? tile = await _createTileAtPosition(left!, top!, nodesInTile, arrowsInTile);
       tile != null ? tiles.add(tile) : null;
     }
-
+    print('Обновлено тайлов $counterUpdatedTiles');
     return tiles;
   }
 
@@ -835,7 +858,6 @@ class TileManager extends Manager {
             // Игнорируем ошибки disposal
           }
           state.imageTiles[tileId] = newTile;
-          onStateUpdate();
         }
       } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
         // Если тайл пустой, удаляем его
