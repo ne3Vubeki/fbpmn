@@ -4,7 +4,7 @@ import 'package:flutter/widgets.dart';
 
 mixin StateWidget<T extends StatefulWidget> on State<T> {
 
-  timeoutSetState({Duration? duration, Function? callback, Timer? timer}) {
+  timeoutSetState({Duration? duration, VoidCallback? callback, Timer? timer}) {
     if (timer != null) {
       timer.cancel();
     }
