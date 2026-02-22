@@ -42,16 +42,16 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     final offset = NodeManager.resizeHandleOffset * scale;
     final lengthArrow = NodeManager.arrowHandleWidth * scale;
     final width = NodeManager.resizeHandleBorderWidth * scale;
-
-    // Размер узла (масштабированный)
-    final nodeSize = Size(node.size.width * scale, node.size.height * scale);
-    final resizeBoxContainerSize = Size(nodeSize.width + offset * 2, nodeSize.height + offset * 2);
-
     // рамка (масштабированный)
     final frame = widget.nodeManager.frameTotalOffset;
 
-    final containerLeft = widget.state.selectedNodeOffset.dx + frame - offset - width / 4;
-    final containerTop = widget.state.selectedNodeOffset.dy + frame - offset - width / 4;
+    // Размер узла (масштабированный)
+    final nodeSize = Size(node.size.width * scale, node.size.height * scale);
+    final resizeBoxContainerSize = Size(nodeSize.width + offset * 2 + frame * 2, nodeSize.height + offset * 2 + frame * 2);
+
+
+    final containerLeft = widget.state.selectedNodeOffset.dx - offset - width / 4;
+    final containerTop = widget.state.selectedNodeOffset.dy - offset - width / 4;
     final buttonSize = 26.0 * scale;
 
     final showHandles =
@@ -80,25 +80,21 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         Positioned(
           left: containerLeft,
           top: containerTop,
-          child: Container(
+          child: SizedBox(
             width: resizeBoxContainerSize.width,
             height: resizeBoxContainerSize.height,
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.2),
-              borderRadius: isGroup || isEnum || !hasAttributes ? BorderRadius.zero : BorderRadius.circular(8 * scale),
-            ),
             child: Stack(
               clipBehavior: Clip.none,
               children: [
                 Positioned(
-                  left: offset,
-                  top: offset,
+                  left: frame,
+                  top: frame,
                   child: IgnorePointer(
                     child: Container(
-                      width: nodeSize.width,
-                      height: nodeSize.height,
+                      width: resizeBoxContainerSize.width - frame * 2,
+                      height: resizeBoxContainerSize.height - frame * 2,
                       decoration: BoxDecoration(
-                        // color: Colors.blue.withOpacity(0.2),
+                        color: Colors.blue.withOpacity(0.2),
                         borderRadius: isGroup || isEnum || !hasAttributes
                             ? BorderRadius.zero
                             : BorderRadius.circular(8 * scale),
@@ -107,33 +103,33 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   ),
                 ),
                 // Подсветка строки атрибута и кружки для всех узлов, включая вложенные в группу
-                _buildAllAttributesHighlights(node, nodeSize, offset, scale, lengthArrow, width),
+                _buildAllAttributesHighlights(node, nodeSize, offset + frame, scale, lengthArrow, width),
 
                 // Боковые маркеры
                 _buildSideHandle(
                   't',
                   resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
-                  0 + groupOffsetY,
+                  frame + groupOffsetY - lengthArrow / 2,
                   lengthArrow,
                   width,
                 ),
                 _buildSideHandle(
                   'r',
-                  resizeBoxContainerSize.width - lengthArrow - groupOffsetX,
-                  resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
+                  resizeBoxContainerSize.width - frame - lengthArrow / 2 - groupOffsetX,
+                  resizeBoxContainerSize.height / 2 - lengthArrow / 2,
                   lengthArrow,
                   width,
                 ),
                 _buildSideHandle(
                   'b',
                   resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
-                  resizeBoxContainerSize.height - lengthArrow - groupOffsetY,
+                  resizeBoxContainerSize.height - frame - lengthArrow / 2 - groupOffsetY,
                   lengthArrow,
                   width,
                 ),
                 _buildSideHandle(
                   'l',
-                  0 + groupOffsetX,
+                  frame + groupOffsetX - lengthArrow / 2,
                   resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
                   lengthArrow,
                   width,
