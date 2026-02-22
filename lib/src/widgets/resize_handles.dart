@@ -84,7 +84,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             width: resizeBoxContainerSize.width,
             height: resizeBoxContainerSize.height,
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.05),
+              color: Colors.blue.withOpacity(0.2),
               borderRadius: isGroup || isEnum || !hasAttributes ? BorderRadius.zero : BorderRadius.circular(8 * scale),
             ),
             child: Stack(
@@ -98,7 +98,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                       width: nodeSize.width,
                       height: nodeSize.height,
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.2),
+                        // color: Colors.blue.withOpacity(0.2),
                         borderRadius: isGroup || isEnum || !hasAttributes
                             ? BorderRadius.zero
                             : BorderRadius.circular(8 * scale),
@@ -110,34 +110,34 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 _buildAllAttributesHighlights(node, nodeSize, offset, scale, lengthArrow, width),
 
                 // Боковые маркеры
-                  _buildSideHandle(
-                    't',
-                    resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
-                    0 + groupOffsetY,
-                    lengthArrow,
-                    width,
-                  ),
-                  _buildSideHandle(
-                    'r',
-                    resizeBoxContainerSize.width - lengthArrow - groupOffsetX,
-                    resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
-                    lengthArrow,
-                    width,
-                  ),
-                  _buildSideHandle(
-                    'b',
-                    resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
-                    resizeBoxContainerSize.height - lengthArrow - groupOffsetY,
-                    lengthArrow,
-                    width,
-                  ),
-                  _buildSideHandle(
-                    'l',
-                    0 + groupOffsetX,
-                    resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
-                    lengthArrow,
-                    width,
-                  ),
+                _buildSideHandle(
+                  't',
+                  resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
+                  0 + groupOffsetY,
+                  lengthArrow,
+                  width,
+                ),
+                _buildSideHandle(
+                  'r',
+                  resizeBoxContainerSize.width - lengthArrow - groupOffsetX,
+                  resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
+                  lengthArrow,
+                  width,
+                ),
+                _buildSideHandle(
+                  'b',
+                  resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
+                  resizeBoxContainerSize.height - lengthArrow - groupOffsetY,
+                  lengthArrow,
+                  width,
+                ),
+                _buildSideHandle(
+                  'l',
+                  0 + groupOffsetX,
+                  resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
+                  lengthArrow,
+                  width,
+                ),
               ],
             ),
           ),
@@ -226,12 +226,15 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   /// Создаёт боковой маркер с увеличенной анимацией при ховере (3x)
   Widget _buildSideHandle(String handle, double left, double top, double length, double width) {
     final isHoveredHandle = isHovered[handle] ?? false;
+    final hoverAreaSize = length * 3; // Увеличиваем область для ховера в 3 раза
 
     return Positioned(
-      left: left,
-      top: top,
+      left: left - (hoverAreaSize - length) / 2, // Смещаем, чтобы центрировать увеличенную область
+      top: top - (hoverAreaSize - length) / 2,
+      width: hoverAreaSize,
+      height: hoverAreaSize,
       child: MouseRegion(
-        hitTestBehavior: HitTestBehavior.opaque,
+        hitTestBehavior: HitTestBehavior.translucent, // Прозрачная область для захвата событий
         onEnter: (_) {
           setState(() {
             isHovered[handle] = true;
@@ -242,29 +245,31 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             isHovered[handle] = false;
           });
         },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          width: length,
-          height: length,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-          child: AnimatedScale(
-            scale: isHoveredHandle ? 3.0 : 1.0,
+        child: Center(
+          child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
-            child: Container(
-              width: length,
-              height: length,
-              decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-              child: isHoveredHandle
-                  ? Center(
-                      child: CustomPaint(
-                        size: Size(length * 0.6, length * 0.6),
-                        painter: _DirectionArrowPainter(direction: handle, color: Colors.white),
-                      ),
-                    )
-                  : null,
+            width: length,
+            height: length,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+            child: AnimatedScale(
+              scale: isHoveredHandle ? 3.0 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: Container(
+                width: length,
+                height: length,
+                decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                child: isHoveredHandle
+                    ? Center(
+                        child: CustomPaint(
+                          size: Size(length * 0.6, length * 0.6),
+                          painter: _DirectionArrowPainter(direction: handle, color: Colors.white),
+                        ),
+                      )
+                    : null,
+              ),
             ),
           ),
         ),
