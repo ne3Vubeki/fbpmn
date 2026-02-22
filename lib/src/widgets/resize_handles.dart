@@ -59,6 +59,17 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
     if (!showHandles) return Container();
 
+    // Для группы определяем смещение для маркеров (если есть вложенный узел)
+    double groupOffsetX = 0;
+    double groupOffsetY = 0;
+
+    if (isGroup && node.children != null && node.children!.isNotEmpty) {
+      // Берем первый дочерний узел для определения области маркеров
+      final firstChild = node.children!.first;
+      groupOffsetX = firstChild.position.dx * scale;
+      groupOffsetY = firstChild.position.dy * scale;
+    }
+
     // Позиция кнопки относительно контейнера
     final buttonTop = containerTop - buttonSize / 2;
     final buttonRight = containerLeft + resizeBoxContainerSize.width - buttonSize / 2;
@@ -99,34 +110,34 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 _buildAllAttributesHighlights(node, nodeSize, offset, scale, lengthArrow, width),
 
                 // Боковые маркеры
-                _buildSideHandle(
-                  't',
-                  resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
-                  0,
-                  lengthArrow,
-                  width,
-                ),
-                _buildSideHandle(
-                  'r',
-                  resizeBoxContainerSize.width - lengthArrow,
-                  resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
-                  lengthArrow,
-                  width,
-                ),
-                _buildSideHandle(
-                  'b',
-                  resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
-                  resizeBoxContainerSize.height - lengthArrow,
-                  lengthArrow,
-                  width,
-                ),
-                _buildSideHandle(
-                  'l',
-                  0,
-                  resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
-                  lengthArrow,
-                  width,
-                ),
+                  _buildSideHandle(
+                    't',
+                    resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
+                    0 + groupOffsetY,
+                    lengthArrow,
+                    width,
+                  ),
+                  _buildSideHandle(
+                    'r',
+                    resizeBoxContainerSize.width - lengthArrow - groupOffsetX,
+                    resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
+                    lengthArrow,
+                    width,
+                  ),
+                  _buildSideHandle(
+                    'b',
+                    resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
+                    resizeBoxContainerSize.height - lengthArrow - groupOffsetY,
+                    lengthArrow,
+                    width,
+                  ),
+                  _buildSideHandle(
+                    'l',
+                    0 + groupOffsetX,
+                    resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
+                    lengthArrow,
+                    width,
+                  ),
               ],
             ),
           ),
