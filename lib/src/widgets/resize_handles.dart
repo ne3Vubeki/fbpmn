@@ -88,7 +88,6 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                       height: nodeSize.height,
                       decoration: BoxDecoration(
                         color: Colors.blue.withOpacity(0.2),
-                        // border: Border.all(color: Colors.blue, width: 5),
                         borderRadius: isGroup || isEnum || !hasAttributes
                             ? BorderRadius.zero
                             : BorderRadius.circular(8 * scale),
@@ -96,11 +95,10 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                     ),
                   ),
                 ),
-                // Подсветка строки атрибута и кружки
-                _buildAttributeHighlight(node, nodeSize, offset, scale, lengthArrow, width),
+                // Подсветка строки атрибута и кружки для всех узлов, включая вложенные в группу
+                _buildAllAttributesHighlights(node, nodeSize, offset, scale, lengthArrow, width),
 
                 // Боковые маркеры
-                // Top (центр по горизонтали, на расстоянии offset от верха)
                 _buildSideHandle(
                   't',
                   resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
@@ -108,7 +106,6 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                 ),
-                // Right (на расстоянии offset от правого края, центр по вертикали)
                 _buildSideHandle(
                   'r',
                   resizeBoxContainerSize.width - lengthArrow,
@@ -116,7 +113,6 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                 ),
-                // Bottom (центр по горизонтали, на расстоянии offset от низа)
                 _buildSideHandle(
                   'b',
                   resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
@@ -124,7 +120,6 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                 ),
-                // Left (на расстоянии offset от левого края, центр по вертикали)
                 _buildSideHandle(
                   'l',
                   0,
@@ -136,7 +131,6 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             ),
           ),
         ),
-        // Круглая кнопка с иконкой в правом нижнем углу - внутри расширенного контейнера
         _buildRemoveButton(buttonRight, buttonTop, buttonSize),
         _buildResizeButton(buttonRight, buttonBottom, buttonSize),
       ],
@@ -155,7 +149,6 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         child: GestureDetector(
           onTap: () {
             // TODO: Добавить логику удаления узла
-            // widget.nodeManager.deleteSelectedNode();
           },
           child: Container(
             width: size,
@@ -219,7 +212,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     );
   }
 
-  /// Создаёт боковой маркер (одна линия)
+  /// Создаёт боковой маркер с увеличенной анимацией при ховере (3x)
   Widget _buildSideHandle(String handle, double left, double top, double length, double width) {
     final isHoveredHandle = isHovered[handle] ?? false;
 
@@ -246,7 +239,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           alignment: Alignment.center,
           decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
           child: AnimatedScale(
-            scale: isHoveredHandle ? 2 : 1.0,
+            scale: isHoveredHandle ? 3.0 : 1.0,
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
             child: Container(
@@ -268,8 +261,8 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     );
   }
 
-  /// Создаёт подсветку строки атрибута с кружками на границах
-  Widget _buildAttributeHighlight(
+  /// Создаёт подсветку атрибутов для всех узлов, включая вложенные в группу
+  Widget _buildAllAttributesHighlights(
     dynamic node,
     Size nodeSize,
     double offset,
@@ -277,17 +270,29 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     double length,
     double width,
   ) {
-    // Проверяем, есть ли атрибуты
-    if (node.attributes.isEmpty) {
-      return Container();
+    // Собираем все узлы для отображения атрибутов (текущий узел и вложенные, если это группа)
+    final List<dynamic> nodesToProcess = [];
+    final isGroup = node.qType == 'group';
+
+    if (isGroup && node.children != null) {
+      // Явно приводим children к списку и фильтруем
+      final children = List<dynamic>.from(node.children);
+      for (var child in children) {
+        if (child.attributes != null && child.attributes.isNotEmpty) {
+          nodesToProcess.add(child);
+        }
+      }
     }
 
-    final headerHeight = EditorConfig.headerHeight;
-    final circleRadius = length / 2; // Радиус кружка (увеличенный будет length * 2)
+    // Добавляем текущий узел, если у него есть атрибуты
+    if (node.attributes != null && node.attributes.isNotEmpty) {
+      nodesToProcess.add(node);
+    }
 
-    // Вычисляем общую область для всех атрибутов
-    final totalHeight = node.size.height * scale;
-    final totalWidth = nodeSize.width + offset * 2; // Включаем область для кружков
+    if (nodesToProcess.isEmpty) return Container();
+
+    final headerHeight = EditorConfig.headerHeight;
+    final circleRadius = length / 2;
 
     return Positioned(
       top: offset,
@@ -297,214 +302,264 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         onHover: (event) {
           final localPos = event.localPosition;
 
-          // Определяем, над какой строкой атрибута находится курсор
-          int? hoveredRow;
-          bool hoveredLeft = false;
-          bool hoveredRight = false;
+          // Проверяем все узлы
+          for (final currentNode in nodesToProcess) {
+            // Для вложенных узлов учитываем их реальный размер и позицию
+            final nodeOffset = currentNode == node ? 0.0 : (currentNode.position.dy * scale);
+            final currentNodeWidth = currentNode.size.width * scale;
+            final currentNodeHeight = currentNode.size.height * scale;
 
-          for (int rowIndex = 0; rowIndex < node.attributes.length; rowIndex++) {
-            final attribute = node.attributes[rowIndex];
-            if (attribute.qType != 'attribute') continue;
+            // Проверяем, есть ли атрибуты у текущего узла
+            if (currentNode.attributes == null || currentNode.attributes.isEmpty) continue;
 
-            final rowHeight = (node.size.height - headerHeight) / node.attributes.length;
-            final minRowHeight = EditorConfig.minRowHeight;
-            final actualRowHeight = math.max(rowHeight, minRowHeight);
-            final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale;
-            final rowHeightScaled = actualRowHeight * scale;
+            for (int rowIndex = 0; rowIndex < currentNode.attributes.length; rowIndex++) {
+              final attribute = currentNode.attributes[rowIndex];
+              if (attribute.qType != 'attribute') continue;
 
-            // Проверяем, находится ли курсор в области строки (включая кружки)
-            if (localPos.dy >= rowTop && localPos.dy <= rowTop + rowHeightScaled) {
-              // Курсор в области строки
-              if (localPos.dx >= 0 && localPos.dx <= totalWidth) {
-                hoveredRow = rowIndex;
+              final rowHeight = (currentNode.size.height - headerHeight) / currentNode.attributes.length;
+              final minRowHeight = EditorConfig.minRowHeight;
+              final actualRowHeight = math.max(rowHeight, minRowHeight);
+              final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffset;
+              final rowHeightScaled = actualRowHeight * scale;
 
-                // Проверяем, находится ли курсор над левым кружком
-                final leftCircleCenterX = offset; // Центр левого кружка
-                final leftCircleCenterY = rowTop + rowHeightScaled / 2;
-                final distToLeft = math.sqrt(
-                  math.pow(localPos.dx - leftCircleCenterX, 2) + math.pow(localPos.dy - leftCircleCenterY, 2),
-                );
-                if (distToLeft <= circleRadius * 2) {
-                  hoveredLeft = true;
+              // Проверяем, находится ли курсор в области строки вложенного узла
+              if (localPos.dy >= rowTop && localPos.dy <= rowTop + rowHeightScaled) {
+                // Проверяем по ширине вложенного узла (с учетом offset для кружков)
+                if (localPos.dx >= 0 && localPos.dx <= offset * 2 + currentNodeWidth) {
+                  // Обновляем состояние hover для строки
+                  if (widget.state.hoveredAttributeRowIndex != rowIndex ||
+                      widget.state.hoveredAttributeNodeId != currentNode.id) {
+                    widget.nodeManager.state.hoveredAttributeRowIndex = rowIndex;
+                    widget.nodeManager.state.hoveredAttributeNodeId = currentNode.id;
+                    widget.nodeManager.onStateUpdate();
+                  }
+
+                  // Проверяем hover для кружков с учетом размеров вложенного узла
+                  final leftCircleCenterX = offset;
+                  final rightCircleCenterX = offset + currentNodeWidth;
+                  final circleCenterY = rowTop + rowHeightScaled / 2;
+
+                  final distToLeft = math.sqrt(
+                    math.pow(localPos.dx - leftCircleCenterX, 2) + math.pow(localPos.dy - circleCenterY, 2),
+                  );
+                  final distToRight = math.sqrt(
+                    math.pow(localPos.dx - rightCircleCenterX, 2) + math.pow(localPos.dy - circleCenterY, 2),
+                  );
+
+                  final hoveredLeft = distToLeft <= circleRadius * 3;
+                  final hoveredRight = distToRight <= circleRadius * 3;
+
+                  final leftKey = 'attr_left_${currentNode.id}_$rowIndex';
+                  final rightKey = 'attr_right_${currentNode.id}_$rowIndex';
+
+                  bool needsUpdate = false;
+
+                  // Сбрасываем старые состояния
+                  final keysToRemove = [];
+                  for (final key in isHovered.keys) {
+                    if (key.startsWith('attr_left_') || key.startsWith('attr_right_')) {
+                      if (key != leftKey && key != rightKey) {
+                        keysToRemove.add(key);
+                      }
+                    }
+                  }
+                  for (final key in keysToRemove) {
+                    isHovered.remove(key);
+                    needsUpdate = true;
+                  }
+
+                  if (isHovered[leftKey] != hoveredLeft) {
+                    isHovered[leftKey] = hoveredLeft;
+                    needsUpdate = true;
+                  }
+                  if (isHovered[rightKey] != hoveredRight) {
+                    isHovered[rightKey] = hoveredRight;
+                    needsUpdate = true;
+                  }
+
+                  if (needsUpdate) {
+                    setState(() {});
+                  }
+                  return;
                 }
-
-                // Проверяем, находится ли курсор над правым кружком
-                final rightCircleCenterX = offset + nodeSize.width; // Центр правого кружка
-                final rightCircleCenterY = rowTop + rowHeightScaled / 2;
-                final distToRight = math.sqrt(
-                  math.pow(localPos.dx - rightCircleCenterX, 2) + math.pow(localPos.dy - rightCircleCenterY, 2),
-                );
-                if (distToRight <= circleRadius * 2) {
-                  hoveredRight = true;
-                }
-
-                break;
               }
             }
           }
 
-          // Обновляем состояние hover для строки
-          if (hoveredRow != widget.state.hoveredAttributeRowIndex || widget.state.hoveredAttributeNodeId != node.id) {
-            widget.nodeManager.state.hoveredAttributeRowIndex = hoveredRow;
-            widget.nodeManager.state.hoveredAttributeNodeId = hoveredRow != null ? node.id : null;
-            widget.nodeManager.onStateUpdate();
-          }
-
-          // Обновляем состояние hover для кружков
-          final currentHoveredRow = hoveredRow ?? -1;
-          final leftKey = 'attr_left_$currentHoveredRow';
-          final rightKey = 'attr_right_$currentHoveredRow';
-
-          bool needsUpdate = false;
-
-          // Сбрасываем все hover состояния кружков
-          for (final key in isHovered.keys.toList()) {
-            if (key.startsWith('attr_left_') || key.startsWith('attr_right_')) {
-              if (key != leftKey && key != rightKey) {
-                if (isHovered[key] == true) {
-                  isHovered[key] = false;
-                  needsUpdate = true;
-                }
-              }
-            }
-          }
-
-          if (isHovered[leftKey] != hoveredLeft) {
-            isHovered[leftKey] = hoveredLeft;
-            needsUpdate = true;
-          }
-          if (isHovered[rightKey] != hoveredRight) {
-            isHovered[rightKey] = hoveredRight;
-            needsUpdate = true;
-          }
-
-          if (needsUpdate) {
-            setState(() {});
-          }
+          // Сбрасываем если не нашли
+          _resetHoverState();
         },
         onExit: (_) {
-          // Сбрасываем все hover состояния при выходе из области
-          widget.nodeManager.state.hoveredAttributeRowIndex = null;
-          widget.nodeManager.state.hoveredAttributeNodeId = null;
-          widget.nodeManager.onStateUpdate();
-
-          bool needsUpdate = false;
-          for (final key in isHovered.keys.toList()) {
-            if (key.startsWith('attr_left_') || key.startsWith('attr_right_')) {
-              if (isHovered[key] == true) {
-                isHovered[key] = false;
-                needsUpdate = true;
-              }
-            }
-          }
-          if (needsUpdate) {
-            setState(() {});
-          }
+          _resetHoverState();
         },
         child: Container(
-          width: totalWidth,
-          height: totalHeight,
-          // color: Colors.red.withOpacity(0.2),
+          width: offset * 2 + nodeSize.width,
+          height: nodeSize.height,
           child: Stack(
             clipBehavior: Clip.none,
-            children: _buildAttributeHighlightChildren(node, nodeSize, length, offset, headerHeight, scale),
+            children: _buildAllAttributesHighlightChildren(
+              nodesToProcess,
+              node,
+              nodeSize,
+              offset,
+              headerHeight,
+              scale,
+              length,
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// Создаёт дочерние виджеты для подсветки атрибутов
-  List<Widget> _buildAttributeHighlightChildren(
-    dynamic node,
-    Size nodeSize,
-    double length,
+  /// Сбрасывает состояние hover
+  void _resetHoverState() {
+    widget.nodeManager.state.hoveredAttributeRowIndex = null;
+    widget.nodeManager.state.hoveredAttributeNodeId = null;
+    widget.nodeManager.onStateUpdate();
+
+    bool needsUpdate = false;
+    final keysToRemove = [];
+    for (final key in isHovered.keys) {
+      if (key.startsWith('attr_left_') || key.startsWith('attr_right_')) {
+        keysToRemove.add(key);
+      }
+    }
+    for (final key in keysToRemove) {
+      isHovered.remove(key);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      setState(() {});
+    }
+  }
+
+  /// Создаёт дочерние виджеты для подсветки атрибутов всех узлов
+  List<Widget> _buildAllAttributesHighlightChildren(
+    List<dynamic> nodesToProcess,
+    dynamic mainNode,
+    Size mainNodeSize,
     double offset,
     double headerHeight,
     double scale,
+    double length,
   ) {
     final List<Widget> children = [];
 
-    for (int rowIndex = 0; rowIndex < node.attributes.length; rowIndex++) {
-      final attribute = node.attributes[rowIndex];
-      if (attribute.qType != 'attribute') continue;
+    for (final node in nodesToProcess) {
+      // Проверяем наличие атрибутов
+      if (node.attributes == null || node.attributes.isEmpty) continue;
 
-      final rowHeight = (node.size.height - headerHeight) / node.attributes.length;
-      final minRowHeight = EditorConfig.minRowHeight;
-      final actualRowHeight = math.max(rowHeight, minRowHeight);
-      final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale;
-      final rowHeightScaled = actualRowHeight * scale;
+      // Для каждого узла используем его собственные размеры
+      final nodeOffset = node == mainNode ? 0.0 : (node.position.dy * scale);
+      final currentNodeWidth = node.size.width * scale;
 
-      final isHoveredRow =
-          widget.state.hoveredAttributeNodeId == node.id && widget.state.hoveredAttributeRowIndex == rowIndex;
-      final isHoveredLeft = isHovered['attr_left_$rowIndex'] ?? false;
-      final isHoveredRight = isHovered['attr_right_$rowIndex'] ?? false;
+      for (int rowIndex = 0; rowIndex < node.attributes.length; rowIndex++) {
+        final attribute = node.attributes[rowIndex];
+        if (attribute.qType != 'attribute') continue;
 
-      if (isHoveredRow) {
-        // Центральная подсветка
-        children.add(
-          Positioned(
-            left: offset,
-            top: rowTop,
-            child: Container(
-              width: nodeSize.width,
-              height: rowHeightScaled,
-              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2)),
-            ),
-          ),
-        );
+        final rowHeight = (node.size.height - headerHeight) / node.attributes.length;
+        final minRowHeight = EditorConfig.minRowHeight;
+        final actualRowHeight = math.max(rowHeight, minRowHeight);
+        final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffset;
+        final rowHeightScaled = actualRowHeight * scale;
 
-        // Левый кружок
-        children.add(
-          Positioned(
-            left: offset - length / 2,
-            top: rowTop + rowHeightScaled / 2 - length / 2,
-            child: AnimatedScale(
-              scale: isHoveredLeft ? 2 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
+        final isHoveredRow =
+            widget.state.hoveredAttributeNodeId == node.id && widget.state.hoveredAttributeRowIndex == rowIndex;
+        final isHoveredLeft = isHovered['attr_left_${node.id}_$rowIndex'] ?? false;
+        final isHoveredRight = isHovered['attr_right_${node.id}_$rowIndex'] ?? false;
+
+        if (isHoveredRow) {
+          // Центральная подсветка для вложенного узла с его размерами
+          children.add(
+            Positioned(
+              left: offset,
+              top: rowTop,
               child: Container(
-                width: length,
-                height: length,
-                decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                child: isHoveredLeft
-                    ? Center(
-                        child: CustomPaint(
-                          size: Size(length * 0.6, length * 0.6),
-                          painter: _DirectionArrowPainter(direction: 'l', color: Colors.white),
-                        ),
-                      )
-                    : null,
+                width: currentNodeWidth, // Используем ширину вложенного узла
+                height: rowHeightScaled,
+                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2)),
               ),
             ),
-          ),
-        );
+          );
 
-        // Правый кружок
-        children.add(
-          Positioned(
-            left: offset + nodeSize.width - length / 2,
-            top: rowTop + rowHeightScaled / 2 - length / 2,
-            child: AnimatedScale(
-              scale: isHoveredRight ? 2 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: Container(
-                width: length,
-                height: length,
-                decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                child: isHoveredRight
-                    ? Center(
-                        child: CustomPaint(
-                          size: Size(length * 0.6, length * 0.6),
-                          painter: _DirectionArrowPainter(direction: 'r', color: Colors.white),
-                        ),
-                      )
-                    : null,
+          // Левый кружок с анимацией 3x - позиционируется относительно вложенного узла
+          children.add(
+            Positioned(
+              left: offset - length / 2,
+              top: rowTop + rowHeightScaled / 2 - length / 2,
+              child: AnimatedScale(
+                scale: isHoveredLeft ? 3.0 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                child: MouseRegion(
+                  onEnter: (_) {
+                    setState(() {
+                      isHovered['attr_left_${node.id}_$rowIndex'] = true;
+                    });
+                  },
+                  onExit: (_) {
+                    setState(() {
+                      isHovered['attr_left_${node.id}_$rowIndex'] = false;
+                    });
+                  },
+                  child: Container(
+                    width: length,
+                    height: length,
+                    decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                    child: isHoveredLeft
+                        ? Center(
+                            child: CustomPaint(
+                              size: Size(length * 0.6, length * 0.6),
+                              painter: _DirectionArrowPainter(direction: 'l', color: Colors.white),
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
               ),
             ),
-          ),
-        );
+          );
+
+          // Правый кружок с анимацией 3x - позиционируется относительно вложенного узла
+          children.add(
+            Positioned(
+              left: offset + currentNodeWidth - length / 2, // Используем ширину вложенного узла
+              top: rowTop + rowHeightScaled / 2 - length / 2,
+              child: AnimatedScale(
+                scale: isHoveredRight ? 3.0 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                child: MouseRegion(
+                  onEnter: (_) {
+                    setState(() {
+                      isHovered['attr_right_${node.id}_$rowIndex'] = true;
+                    });
+                  },
+                  onExit: (_) {
+                    setState(() {
+                      isHovered['attr_right_${node.id}_$rowIndex'] = false;
+                    });
+                  },
+                  child: Container(
+                    width: length,
+                    height: length,
+                    decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                    child: isHoveredRight
+                        ? Center(
+                            child: CustomPaint(
+                              size: Size(length * 0.6, length * 0.6),
+                              painter: _DirectionArrowPainter(direction: 'r', color: Colors.white),
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
       }
     }
 
