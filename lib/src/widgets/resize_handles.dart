@@ -272,9 +272,8 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   ) {
     // Собираем все узлы для отображения атрибутов (текущий узел и вложенные, если это группа)
     final List<dynamic> nodesToProcess = [];
-    final isGroup = node.qType == 'group';
 
-    if (isGroup && node.children != null) {
+    if (node.qType == 'group' && node.children != null) {
       // Явно приводим children к списку и фильтруем
       final children = List<dynamic>.from(node.children);
       for (var child in children) {
@@ -293,6 +292,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
     final headerHeight = EditorConfig.headerHeight;
     final circleRadius = length / 2;
+    final circleHoverRadius = circleRadius * 3; // Радиус для ховера (увеличенный круг)
 
     return Positioned(
       top: offset,
@@ -305,9 +305,9 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           // Проверяем все узлы
           for (final currentNode in nodesToProcess) {
             // Для вложенных узлов учитываем их реальный размер и позицию
-            final nodeOffset = currentNode == node ? 0.0 : (currentNode.position.dy * scale);
+            final nodeOffsetY = currentNode == node ? 0.0 : (currentNode.position.dy * scale);
+            final nodeOffsetX = currentNode == node ? 0.0 : (currentNode.position.dx * scale);
             final currentNodeWidth = currentNode.size.width * scale;
-            final currentNodeHeight = currentNode.size.height * scale;
 
             // Проверяем, есть ли атрибуты у текущего узла
             if (currentNode.attributes == null || currentNode.attributes.isEmpty) continue;
@@ -319,69 +319,43 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
               final rowHeight = (currentNode.size.height - headerHeight) / currentNode.attributes.length;
               final minRowHeight = EditorConfig.minRowHeight;
               final actualRowHeight = math.max(rowHeight, minRowHeight);
-              final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffset;
+              final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
+              final rowBottom = rowTop + actualRowHeight * scale;
               final rowHeightScaled = actualRowHeight * scale;
 
-              // Проверяем, находится ли курсор в области строки вложенного узла
-              if (localPos.dy >= rowTop && localPos.dy <= rowTop + rowHeightScaled) {
-                // Проверяем по ширине вложенного узла (с учетом offset для кружков)
-                if (localPos.dx >= 0 && localPos.dx <= offset * 2 + currentNodeWidth) {
-                  // Обновляем состояние hover для строки
-                  if (widget.state.hoveredAttributeRowIndex != rowIndex ||
-                      widget.state.hoveredAttributeNodeId != currentNode.id) {
-                    widget.nodeManager.state.hoveredAttributeRowIndex = rowIndex;
-                    widget.nodeManager.state.hoveredAttributeNodeId = currentNode.id;
-                    widget.nodeManager.onStateUpdate();
-                  }
+              // Координаты центров кружков с учетом смещения
+              final leftCircleCenterX = offset + nodeOffsetX; // Центр левого кружка
+              final rightCircleCenterX = offset + nodeOffsetX + currentNodeWidth; // Центр правого кружка
+              final circleCenterY = rowTop + rowHeightScaled / 2;
 
-                  // Проверяем hover для кружков с учетом размеров вложенного узла
-                  final leftCircleCenterX = offset;
-                  final rightCircleCenterX = offset + currentNodeWidth;
-                  final circleCenterY = rowTop + rowHeightScaled / 2;
+              // Проверяем попадание в область левого кружка (по круговой области)
+              final distToLeft = math.sqrt(
+                math.pow(localPos.dx - leftCircleCenterX, 2) + math.pow(localPos.dy - circleCenterY, 2),
+              );
 
-                  final distToLeft = math.sqrt(
-                    math.pow(localPos.dx - leftCircleCenterX, 2) + math.pow(localPos.dy - circleCenterY, 2),
-                  );
-                  final distToRight = math.sqrt(
-                    math.pow(localPos.dx - rightCircleCenterX, 2) + math.pow(localPos.dy - circleCenterY, 2),
-                  );
+              // Проверяем попадание в область правого кружка
+              final distToRight = math.sqrt(
+                math.pow(localPos.dx - rightCircleCenterX, 2) + math.pow(localPos.dy - circleCenterY, 2),
+              );
 
-                  final hoveredLeft = distToLeft <= circleRadius * 3;
-                  final hoveredRight = distToRight <= circleRadius * 3;
+              // Проверяем попадание в область строки (прямоугольная область)
+              final inRowArea = localPos.dy >= rowTop && localPos.dy <= rowBottom;
+              final inRowHorizontalArea =
+                  localPos.dx >= offset + nodeOffsetX && localPos.dx <= offset + nodeOffsetX + currentNodeWidth;
 
-                  final leftKey = 'attr_left_${currentNode.id}_$rowIndex';
-                  final rightKey = 'attr_right_${currentNode.id}_$rowIndex';
-
-                  bool needsUpdate = false;
-
-                  // Сбрасываем старые состояния
-                  final keysToRemove = [];
-                  for (final key in isHovered.keys) {
-                    if (key.startsWith('attr_left_') || key.startsWith('attr_right_')) {
-                      if (key != leftKey && key != rightKey) {
-                        keysToRemove.add(key);
-                      }
-                    }
-                  }
-                  for (final key in keysToRemove) {
-                    isHovered.remove(key);
-                    needsUpdate = true;
-                  }
-
-                  if (isHovered[leftKey] != hoveredLeft) {
-                    isHovered[leftKey] = hoveredLeft;
-                    needsUpdate = true;
-                  }
-                  if (isHovered[rightKey] != hoveredRight) {
-                    isHovered[rightKey] = hoveredRight;
-                    needsUpdate = true;
-                  }
-
-                  if (needsUpdate) {
-                    setState(() {});
-                  }
-                  return;
-                }
+              // Приоритетно проверяем попадание в кружки (по круговой области)
+              if (distToLeft <= circleHoverRadius) {
+                // Ховер на левом кружке
+                _updateHoverState(currentNode, rowIndex, left: true, right: false);
+                return;
+              } else if (distToRight <= circleHoverRadius) {
+                // Ховер на правом кружке
+                _updateHoverState(currentNode, rowIndex, left: false, right: true);
+                return;
+              } else if (inRowArea && inRowHorizontalArea) {
+                // Ховер на строке (не на кружках)
+                _updateHoverState(currentNode, rowIndex, left: false, right: false);
+                return;
               }
             }
           }
@@ -410,6 +384,48 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         ),
       ),
     );
+  }
+
+  /// Вспомогательный метод для обновления состояния hover
+  void _updateHoverState(dynamic currentNode, int rowIndex, {required bool left, required bool right}) {
+    // Обновляем состояние hover для строки
+    if (widget.state.hoveredAttributeRowIndex != rowIndex || widget.state.hoveredAttributeNodeId != currentNode.id) {
+      widget.nodeManager.state.hoveredAttributeRowIndex = rowIndex;
+      widget.nodeManager.state.hoveredAttributeNodeId = currentNode.id;
+      widget.nodeManager.onStateUpdate();
+    }
+
+    final leftKey = 'attr_left_${currentNode.id}_$rowIndex';
+    final rightKey = 'attr_right_${currentNode.id}_$rowIndex';
+
+    bool needsUpdate = false;
+
+    // Сбрасываем старые состояния
+    final keysToRemove = [];
+    for (final key in isHovered.keys) {
+      if (key.startsWith('attr_left_') || key.startsWith('attr_right_')) {
+        if (key != leftKey && key != rightKey) {
+          keysToRemove.add(key);
+        }
+      }
+    }
+    for (final key in keysToRemove) {
+      isHovered.remove(key);
+      needsUpdate = true;
+    }
+
+    if (isHovered[leftKey] != left) {
+      isHovered[leftKey] = left;
+      needsUpdate = true;
+    }
+    if (isHovered[rightKey] != right) {
+      isHovered[rightKey] = right;
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      setState(() {});
+    }
   }
 
   /// Сбрасывает состояние hover
@@ -451,9 +467,13 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       // Проверяем наличие атрибутов
       if (node.attributes == null || node.attributes.isEmpty) continue;
 
-      // Для каждого узла используем его собственные размеры
-      final nodeOffset = node == mainNode ? 0.0 : (node.position.dy * scale);
+      // Для каждого узла используем его собственные размеры и учитываем смещение по X
+      final nodeOffsetY = node == mainNode ? 0.0 : (node.position.dy * scale);
+      // Добавляем смещение по X для вложенных узлов
+      final nodeOffsetX = node == mainNode ? 0.0 : (node.position.dx * scale);
+
       final currentNodeWidth = node.size.width * scale;
+      final currentNodeLeft = offset + nodeOffsetX; // Смещение по X для левого края узла
 
       for (int rowIndex = 0; rowIndex < node.attributes.length; rowIndex++) {
         final attribute = node.attributes[rowIndex];
@@ -462,7 +482,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         final rowHeight = (node.size.height - headerHeight) / node.attributes.length;
         final minRowHeight = EditorConfig.minRowHeight;
         final actualRowHeight = math.max(rowHeight, minRowHeight);
-        final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffset;
+        final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
         final rowHeightScaled = actualRowHeight * scale;
 
         final isHoveredRow =
@@ -471,23 +491,23 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         final isHoveredRight = isHovered['attr_right_${node.id}_$rowIndex'] ?? false;
 
         if (isHoveredRow) {
-          // Центральная подсветка для вложенного узла с его размерами
+          // Центральная подсветка для вложенного узла с учетом смещения по X
           children.add(
             Positioned(
-              left: offset,
+              left: currentNodeLeft, // Используем смещенную позицию
               top: rowTop,
               child: Container(
-                width: currentNodeWidth, // Используем ширину вложенного узла
+                width: currentNodeWidth,
                 height: rowHeightScaled,
                 decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2)),
               ),
             ),
           );
 
-          // Левый кружок с анимацией 3x - позиционируется относительно вложенного узла
+          // Левый кружок с учетом смещения по X
           children.add(
             Positioned(
-              left: offset - length / 2,
+              left: currentNodeLeft - length / 2, // Смещаем левый кружок вместе с узлом
               top: rowTop + rowHeightScaled / 2 - length / 2,
               child: AnimatedScale(
                 scale: isHoveredLeft ? 3.0 : 1.0,
@@ -522,10 +542,10 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             ),
           );
 
-          // Правый кружок с анимацией 3x - позиционируется относительно вложенного узла
+          // Правый кружок с учетом смещения по X
           children.add(
             Positioned(
-              left: offset + currentNodeWidth - length / 2, // Используем ширину вложенного узла
+              left: currentNodeLeft + currentNodeWidth - length / 2, // Правый край с учетом смещения
               top: rowTop + rowHeightScaled / 2 - length / 2,
               child: AnimatedScale(
                 scale: isHoveredRight ? 3.0 : 1.0,
