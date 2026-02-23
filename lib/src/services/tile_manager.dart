@@ -310,6 +310,13 @@ class TileManager extends Manager {
 
     collectAllNodes(allNodes);
 
+    // Собираем стрелки swimlane-узла (включая стрелки его детей) при переключении состояния
+    final Set<String> swimlaneArrows = {};
+    if (isToggleSwimlane && state.toggleSwimlaneNode != null) {
+      final swimlaneNode = state.toggleSwimlaneNode!;
+      swimlaneArrows.addAll(arrowManager.getArrowsForNodes([swimlaneNode]).map((arrow) => arrow!.id));
+    }
+
     // Для каждого узла (включая вложенные) создаем метки тайлов в нужных позициях
     for (final node in allNodesIncludingChildren) {
       // Получаем абсолютную позицию узла
@@ -464,7 +471,10 @@ class TileManager extends Manager {
       final existingTile = state.imageTiles[tileId];
       if (existingTile != null) {
         final changedNodeIds = nodesInTile.map((n) => n?.id).toSet();
-        final changedArrowIds = arrowsInTile.map((a) => a?.id).toSet();
+        final changedArrowIds = arrowsInTile
+            .map((a) => a?.id)
+            .where((id) => !swimlaneArrows.contains(id))
+            .toSet();
         if (existingTile.nodes.length == changedNodeIds.length &&
             existingTile.arrows.length == changedArrowIds.length &&
             existingTile.nodes.containsAll(changedNodeIds) &&
