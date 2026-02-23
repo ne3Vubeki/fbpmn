@@ -180,7 +180,12 @@ class TileManager extends Manager {
     }
   }
 
-  Future<void> createTiledImage(List<TableNode?> nodes, List<Arrow?> arrows, {bool isUpdate = false}) async {
+  Future<void> createTiledImage(
+    List<TableNode?> nodes,
+    List<Arrow?> arrows, {
+    bool isUpdate = false,
+    bool isToggleSwimlane = false,
+  }) async {
     if (_isCreatingTiles) {
       _pendingTilesUpdate = true;
       return;
@@ -200,7 +205,7 @@ class TileManager extends Manager {
       }
 
       // Создаем тайлы только там где изменялись узлы или стрелки
-      final tiles = await _createTilesForContent(nodes, arrows);
+      final tiles = await _createTilesForContent(nodes, arrows, isToggleSwimlane: isToggleSwimlane);
       state.updatedImageTileIds.addAll(tiles.map((tile) => tile.id));
 
       if (isUpdate) {
@@ -210,7 +215,8 @@ class TileManager extends Manager {
           state.imageTiles[tileId]?.image.dispose();
           state.imageTiles[tile.id] = tile;
         }
-        /// удаление удаленных тайлов
+
+        /// удаление пустых тайлов
         final keysToRemove = state.imageTiles.entries
             .where((entry) => entry.value.nodes.isEmpty && entry.value.arrows.isEmpty)
             .map((entry) => entry.key)
@@ -251,7 +257,11 @@ class TileManager extends Manager {
   }
 
   // Создание тайлов для узлов и стрелок
-  Future<List<ImageTile>> _createTilesForContent(List<TableNode?> allNodes, List<Arrow?> allArrows) async {
+  Future<List<ImageTile>> _createTilesForContent(
+    List<TableNode?> allNodes,
+    List<Arrow?> allArrows, {
+    bool isToggleSwimlane = false,
+  }) async {
     final Map<String, List<TableNode?>> mapNodesInTile = {}; // узлы для создаваемых тайлов
     final Map<String, List<Arrow?>> mapArrowsInTile = {}; // связи для создаваемых тайлов
     final createdTiles = <String>[];
@@ -300,7 +310,7 @@ class TileManager extends Manager {
 
     collectAllNodes(allNodes);
 
-    // Для каждого узла (включая вложенные) создаем тайлы в нужных позициях
+    // Для каждого узла (включая вложенные) создаем метки тайлов в нужных позициях
     for (final node in allNodesIncludingChildren) {
       // Получаем абсолютную позицию узла
       final nodePosition = node.aPosition ?? (state.delta + node.position);
@@ -431,6 +441,16 @@ class TileManager extends Manager {
     final List<ImageTile> tiles = [];
     int counterUpdatedTiles = 0;
 
+    /// удаление удаленных тайлов
+    final keysToRemove = state.imageTiles.entries
+        .where((entry) => !createdTiles.contains(entry.key))
+        .map((entry) => entry.key)
+        .toList();
+    for (final key in keysToRemove) {
+      state.imageTiles[key]?.image.dispose();
+      state.imageTiles.remove(key);
+    }
+
     /// Создание тайлов рассчитанным узлам и связям
     for (final tileId in createdTiles) {
       // print('Create tile $tileId ----------');
@@ -443,12 +463,12 @@ class TileManager extends Manager {
       // Проверяем, отличается ли содержимое от существующего тайла
       final existingTile = state.imageTiles[tileId];
       if (existingTile != null) {
-        final newNodeIds = nodesInTile.map((n) => n?.id).toSet();
-        final newArrowIds = arrowsInTile.map((a) => a?.id).toSet();
-        if (existingTile.nodes.length == newNodeIds.length &&
-            existingTile.arrows.length == newArrowIds.length &&
-            existingTile.nodes.containsAll(newNodeIds) &&
-            existingTile.arrows.containsAll(newArrowIds)) {
+        final changedNodeIds = nodesInTile.map((n) => n?.id).toSet();
+        final changedArrowIds = arrowsInTile.map((a) => a?.id).toSet();
+        if (existingTile.nodes.length == changedNodeIds.length &&
+            existingTile.arrows.length == changedArrowIds.length &&
+            existingTile.nodes.containsAll(changedNodeIds) &&
+            existingTile.arrows.containsAll(changedArrowIds)) {
           // tiles.add(existingTile);
           continue;
         }
@@ -823,12 +843,12 @@ class TileManager extends Manager {
   }
 
   // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
-  Future<void> updateTilesAfterNodeChange() async {
+  Future<void> updateTilesAfterNodeChange({bool isToggleSwimlane = false}) async {
     // state.isLoading = true;
     // onStateUpdate();
     // await Future.delayed(const Duration(milliseconds: 100));
 
-    await createTiledImage(state.nodes, state.arrows, isUpdate: true);
+    await createTiledImage(state.nodes, state.arrows, isUpdate: true, isToggleSwimlane: isToggleSwimlane);
 
     // Уведомляем об изменении
     // state.isLoading = false;

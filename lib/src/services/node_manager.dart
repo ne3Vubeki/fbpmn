@@ -652,6 +652,8 @@ class NodeManager extends Manager {
     final tracker = PerformanceTracker();
     tracker.startSwimlaneToggle();
 
+    state.toggleSwimlaneNode = swimlaneNode;
+
     // Создаем копию узла с переключенным состоянием
     final toggledNode = swimlaneNode.toggleCollapsed();
 
@@ -691,7 +693,7 @@ class NodeManager extends Manager {
     }
 
     // Обновляем тайлы
-    await tileManager.updateTilesAfterNodeChange();
+    await tileManager.updateTilesAfterNodeChange(isToggleSwimlane: true);
 
     // Пересчитываем абсолютные позиции для всех узлов
     for (final node in state.nodes) {
