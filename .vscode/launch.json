@@ -14,6 +14,16 @@
             "flutterMode": "debug"
         },
         {
+            "name": "fbpmn (profile)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--wasm",
+                "--dart-define=Dart2jsOptimization=O0"
+            ],
+            "flutterMode": "profile"
+        },
+        {
             "name": "fbpmn js",
             "request": "launch",
             "type": "dart",
@@ -24,7 +34,8 @@
             "request": "launch",
             "type": "dart",
             "args": [
-                "--wasm"
+                "--wasm",
+                "-O0"
             ],
             "flutterMode": "release"
         }
