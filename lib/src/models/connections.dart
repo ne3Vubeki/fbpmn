@@ -82,6 +82,7 @@ class Connections {
         final oldLength = otherSideProp?.length ?? 0;
         final filtered = otherSideProp?.where((conn) => conn!.id != arrowId).toSet();
         if (filtered != null && filtered.length != oldLength) {
+          // Обновляем сторону с отфильтрованными коннектами
           switch (otherSide) {
             case 'top':
               top = filtered;
@@ -96,30 +97,42 @@ class Connections {
               left = filtered;
               break;
           }
+          
+          // Пересчитываем индексы на стороне, откуда удалили коннект
+          if (filtered.isNotEmpty) {
+            final sortedList = filtered.toList();
+            sortedList.sort((a, b) => a!.index!.compareTo(b!.index!));
+            
+            for (int i = 0; i < sortedList.length; i++) {
+              sortedList[i]!.index = i;
+            }
+            
+            filtered.clear();
+            filtered.addAll(sortedList);
+          }
         }
       }
     }
 
-    int ind;
-    final countSide = length(side);
     final newConn = Connection(id: arrowId, pos: position);
 
-    for (ind = 0; ind < countSide; ind++) {
-      final conn = sideProp!.toList()[ind];
-      if (conn == null  || conn.index != ind) {
-        newConn.index = ind;
-        break;
+    // Находим максимальный индекс на стороне
+    int maxIndex = -1;
+    for (final conn in sideProp!.toList()) {
+      if (conn != null && conn.index != null && conn.index! > maxIndex) {
+        maxIndex = conn.index!;
       }
     }
 
-    newConn.index = newConn.index ?? ind;
-    sideProp?.add(newConn);
+    // Новый коннект всегда добавляется в конец
+    newConn.index = maxIndex + 1;
+    sideProp.add(newConn);
 
-    final sidePropList = sideProp?.toList();
+    final sidePropList = sideProp.toList();
 
-    sidePropList?.sort((a, b) => a!.index!.compareTo(b!.index!));
-    sideProp?.clear();
-    sideProp?.addAll(sidePropList as Iterable<Connection?>);
+    sidePropList.sort((a, b) => a!.index!.compareTo(b!.index!));
+    sideProp.clear();
+    sideProp.addAll(sidePropList);
 
     _changesController.add('add, all on sides left: ${get('left')?.length} top: ${get('top')?.length} right: ${get('right')?.length} bottom: ${get('bottom')?.length}');
     return newConn;
