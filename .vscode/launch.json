@@ -35,7 +35,7 @@
             "type": "dart",
             "args": [
                 "--wasm",
-                "-O0"
+                "--dart-define=Dart2jsOptimization=O0"
             ],
             "flutterMode": "release"
         }

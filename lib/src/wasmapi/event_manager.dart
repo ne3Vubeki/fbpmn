@@ -34,7 +34,16 @@ class EventManager {
     required this.appEvent,
   }) {
     eventStream?.listen((event) {
-      switcher(event.getActionDart(), event.getDataDart());
+      if (event == null) return;
+
+      final dynamic rawAction = event.getActionDart();
+      if (rawAction == null) return;
+
+      final String action = rawAction.toString();
+      final dynamic rawData = event.getDataDart();
+      final Map<String, dynamic>? data = rawData is Map<String, dynamic> ? rawData : null;
+
+      switcher(action, data);
     });
   }
 
@@ -73,6 +82,30 @@ class EventManager {
         break;
       case 'curves_off':
         zoomManager.offCurves();
+        break;
+      case 'configuration_editor_changed':
+        if (data != null) {
+          state.setConfig(data);
+          for (final entry in data.entries) {
+            switch (entry.key) {
+              case 'snapEnabled':
+                state.snapEnabled = entry.value;
+                break;
+              case 'showTileBorders':
+                entry.value == true ? zoomManager.onTileBorders() : zoomManager.offTileBorders();
+                break;
+              case 'useCurves':
+                entry.value == true ? zoomManager.onCurves() : zoomManager.offCurves();
+                break;
+              case 'showPerformance':
+                entry.value == true ? zoomManager.onPerformance() : zoomManager.offPerformance();
+                break;
+              case 'showThumbnail':
+                entry.value == true ? zoomManager.onThumbnail() : zoomManager.offThumbnail();
+                break;
+            }
+          }
+        }
         break;
     }
   }

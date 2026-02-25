@@ -12,6 +12,7 @@ class Node {
   Size size;
   String text;
   bool isSelected;
+  bool isChanged;
   Offset? aPosition;
   Connections? connections;
 
@@ -22,6 +23,7 @@ class Node {
     this.size = const Size(100, EditorConfig.headerHeight),
     this.text = 'Node',
     this.isSelected = false,
+    this.isChanged = false,
     this.aPosition,
     this.connections,
   }) {

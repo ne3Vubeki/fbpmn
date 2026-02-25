@@ -91,7 +91,7 @@ class TileImagePainter extends CustomPainter {
 
           const double minVisibleSize = 0.1;
           if (srcRect.width > minVisibleSize && srcRect.height > minVisibleSize) {
-            print('Рисую тайл ${tile.id}');
+            // print('Рисую тайл ${tile.id}');
             _drawTileWithQuality(canvas, tile.image, srcRect, intersection, paint);
           }
         } catch (e) {

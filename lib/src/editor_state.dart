@@ -13,7 +13,7 @@ import 'models/arrow.dart';
 class EditorState {
   /// Свойства, переданные при инициализации приложения (из JS-окружения).
   /// Секция `config` используется для настройки начального состояния редактора.
-  final Map<String, dynamic> properties;
+  Map<String, dynamic> properties;
 
   EditorState(this.properties) {
     _applyConfig();
@@ -38,6 +38,11 @@ class EditorState {
           if (value is bool) showThumbnail = value;
       }
     });
+  }
+
+  setConfig(Map<String, dynamic> config) {
+    properties['config'] = config;
+    _applyConfig();
   }
 
   // ---------------------------------------------------------------------------
@@ -95,9 +100,6 @@ class EditorState {
 
   /// Множество выделенных узлов.
   final Set<TableNode?> nodesSelected = {};
-
-  /// Множество узлов на другом конце связей выделенных узлов.
-  final Set<TableNode?> nodesOutsideSelected = {};
 
   /// Находится ли перетаскиваемый узел на верхнем слое отрисовки.
   String nodesIdOnTopLayer = '';

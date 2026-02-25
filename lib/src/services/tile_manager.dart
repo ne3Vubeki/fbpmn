@@ -205,7 +205,7 @@ class TileManager extends Manager {
       }
 
       // Создаем тайлы только там где изменялись узлы или стрелки
-      final tiles = await _createTilesForContent(nodes, arrows, isToggleSwimlane: isToggleSwimlane);
+      final tiles = await _createTilesForContent(nodes, arrows, isUpdate: isUpdate, isToggleSwimlane: isToggleSwimlane);
       state.updatedImageTileIds.addAll(tiles.map((tile) => tile.id));
 
       if (isUpdate) {
@@ -229,6 +229,14 @@ class TileManager extends Manager {
         /// создание новых тайлов
         for (final tile in tiles) {
           state.imageTiles[tile.id] = tile;
+        }
+        for (final node in nodes) {
+          node?.isChanged = false;
+          if (node?.children != null && node!.children!.isNotEmpty) {
+            for (final child in node.children!) {
+              child.isChanged = false;
+            }
+          }
         }
       }
     } catch (e) {
@@ -260,6 +268,7 @@ class TileManager extends Manager {
   Future<List<ImageTile>> _createTilesForContent(
     List<TableNode?> allNodes,
     List<Arrow?> allArrows, {
+    bool isUpdate = true,
     bool isToggleSwimlane = false,
   }) async {
     final Map<String, List<TableNode?>> mapNodesInTile = {}; // узлы для создаваемых тайлов
@@ -267,12 +276,13 @@ class TileManager extends Manager {
     final createdTiles = <String>[];
 
     // Удаляем все коннекты из выбранных узлов для повторного расчета
-    for (var node in allNodes) {
-      node?.connections?.removeAll();
-    }
+    // for (var node in allNodes) {
+    //   node?.connections?.removeAll();
+    // }
 
     // Собираем все узлы (включая вложенные) для определения, где создавать тайлы
     final allNodesIncludingChildren = <TableNode>[];
+    final Set<TableNode> changedConnectionsNodes = {};
 
     void collectAllNodes(List<TableNode?> nodes, {TableNode? parent}) {
       for (final node in nodes) {
@@ -311,10 +321,9 @@ class TileManager extends Manager {
     collectAllNodes(allNodes);
 
     // Собираем стрелки swimlane-узла (включая стрелки его детей) при переключении состояния
-    final Set<String> swimlaneArrows = {};
+    final Set<String> changedArrows = {};
     if (isToggleSwimlane && state.toggleSwimlaneNode != null) {
-      final swimlaneNode = state.toggleSwimlaneNode!;
-      swimlaneArrows.addAll(arrowManager.getArrowsForNodes([swimlaneNode]).map((arrow) => arrow!.id));
+      changedConnectionsNodes.add(state.toggleSwimlaneNode!);
     }
 
     // Для каждого узла (включая вложенные) создаем метки тайлов в нужных позициях
@@ -323,6 +332,11 @@ class TileManager extends Manager {
       final nodePosition = node.aPosition ?? (state.delta + node.position);
       final nodeRect = Utils.calculateNodeRect(node: node, position: nodePosition);
 
+      if (node.isChanged && isUpdate) {
+        changedConnectionsNodes.add(node);
+        node.isChanged = false;
+      }
+
       await _tilesIntersectingRect(
         nodeRect,
         callback: ({required double left, required double top}) async {
@@ -330,6 +344,9 @@ class TileManager extends Manager {
         },
       );
     }
+
+    print('changedConnectionsNodes: ${changedConnectionsNodes.length}');
+    changedArrows.addAll(arrowManager.getArrowsForNodes(changedConnectionsNodes.toList()).map((arrow) => arrow!.id));
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
     for (final arrow in allArrows) {
@@ -458,7 +475,7 @@ class TileManager extends Manager {
       state.imageTiles.remove(key);
     }
 
-    /// Создание тайлов рассчитанным узлам и связям
+    /// Создание тайлов по измененным узлам и связям
     for (final tileId in createdTiles) {
       // print('Create tile $tileId ----------');
       final tilePos = tileId.split(':');
@@ -471,21 +488,21 @@ class TileManager extends Manager {
       final existingTile = state.imageTiles[tileId];
       if (existingTile != null) {
         final changedNodeIds = nodesInTile.map((n) => n?.id).toSet();
-        final changedArrowIds = arrowsInTile
-            .map((a) => a?.id)
-            .where((id) => !swimlaneArrows.contains(id))
-            .toSet();
-        if (existingTile.nodes.length == changedNodeIds.length &&
+        final changedArrowIds = arrowsInTile.map((a) => a?.id).toSet();
+        final ischangedArrowsChanged = changedArrowIds.any((id) => changedArrows.contains(id));
+
+        if (!ischangedArrowsChanged &&
+            existingTile.nodes.length == changedNodeIds.length &&
             existingTile.arrows.length == changedArrowIds.length &&
             existingTile.nodes.containsAll(changedNodeIds) &&
             existingTile.arrows.containsAll(changedArrowIds)) {
-          // tiles.add(existingTile);
           continue;
         }
       }
       counterUpdatedTiles++;
       final ImageTile? tile = await _createTileAtPosition(left!, top!, nodesInTile, arrowsInTile);
       tile != null ? tiles.add(tile) : null;
+      print('Создаю тайл ${tile?.id}');
     }
     print('Обновлено тайлов $counterUpdatedTiles');
     return tiles;

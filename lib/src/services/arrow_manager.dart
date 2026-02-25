@@ -432,8 +432,8 @@ class ArrowManager extends Manager {
       ),
     );
 
-    effectiveSourceNode.connections?.remove(arrow.id);
-    effectiveTargetNode.connections?.remove(arrow.id);
+    // effectiveSourceNode.connections?.remove(arrow.id);
+    // effectiveTargetNode.connections?.remove(arrow.id);
 
     // Вычисляем точки соединения
     final baseConnectionPoints = calculateConnectionPoints(

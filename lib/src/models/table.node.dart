@@ -1,4 +1,5 @@
 // Модель табличного узла
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../utils/editor_config.dart';
@@ -17,6 +18,7 @@ class TableNode extends Node {
   final bool? isCollapsed;
 
   String? tooltip;
+  StreamSubscription<void>? _connectionsSubscription;
 
   TableNode({
     required super.id,
@@ -31,12 +33,15 @@ class TableNode extends Node {
     required this.backgroundColor,
     this.qCompStatus,
     super.isSelected,
+    super.isChanged,
     super.aPosition,
     super.parent,
     super.connections,
     this.children,
     this.isCollapsed,
-  });
+  }) {
+    initConnectionsListener();
+  }
 
   factory TableNode.fromJson(Map<String, dynamic> object, [String? parent]) {
     final id = object['id'] as String;
@@ -153,5 +158,20 @@ class TableNode extends Node {
         child.calculateAbsolutePositions(aPosition!);
       }
     }
+  }
+
+  // Метод для инициализации слушателя изменений коннекторов
+  void initConnectionsListener() {
+    if (connections != null) {
+      _connectionsSubscription = connections!.changesStream.listen((event) {
+        isChanged = true;
+        print('connections changed: $event');
+      });
+    }
+  }
+
+  // Метод для отмены подписки
+  void dispose() {
+    _connectionsSubscription?.cancel();
   }
 }
