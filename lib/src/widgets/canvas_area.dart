@@ -11,6 +11,7 @@ import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
 import 'arrows_selected.dart';
+import 'cursor_layer.dart';
 import 'hierarchical_grid.dart';
 import 'node_selected.dart';
 import 'resize_handles.dart';
@@ -82,28 +83,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
     }
   }
 
-  /// Возвращает курсор в зависимости от состояния
-  MouseCursor _getCursor() {
-    // Если идёт resize, показываем курсор для текущего handle
-    if (widget.nodeManager.isResizing && _currentResizeHandle != null) {
-      return widget.nodeManager.getResizeCursor(_currentResizeHandle);
-    }
-
-    // Стандартные курсоры для панорамирования
-    if (widget.state.isShiftPressed && widget.state.isPanning) {
-      return SystemMouseCursors.grabbing;
-    }
-    if (widget.state.isShiftPressed) {
-      return SystemMouseCursors.grab;
-    }
-
-    // Курсор с плюсом при зажатом Ctrl (добавление к выделению)
-    if (widget.state.isCtrlPressed) {
-      return SystemMouseCursors.cell;
-    }
-    
-    return SystemMouseCursors.basic;
-  }
 
   @override
   void didUpdateWidget(covariant CanvasArea oldWidget) {
@@ -130,14 +109,15 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
               focusNode: widget.inputHandler.focusNode,
               autofocus: true,
               onKeyEvent: widget.inputHandler.handleKeyEvent,
-              child: MouseRegion(
-                cursor: _getCursor(),
-                onHover: (PointerHoverEvent event) {
-                  widget.state.mousePosition = event.localPosition;
-                  // widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
-                  // widget.nodeManager.updateHoveredAttributeRow(event.localPosition);
-                },
-                child: Listener(
+              child: CursorLayer(
+                state: widget.state,
+                nodeManager: widget.nodeManager,
+                currentResizeHandle: _currentResizeHandle,
+                child: MouseRegion(
+                  onHover: (PointerHoverEvent event) {
+                    widget.state.mousePosition = event.localPosition;
+                  },
+                  child: Listener(
                   onPointerSignal: (pointerSignal) {
                     if (pointerSignal is PointerScrollEvent &&
                         widget.state.isShiftPressed) {
@@ -149,29 +129,18 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   },
                   onPointerMove: (PointerMoveEvent event) {
                     widget.state.mousePosition = event.localPosition;
-                    // widget.nodeManager.updateHoveredResizeHandle(event.localPosition);
-                    // widget.nodeManager.updateHoveredAttributeRow(event.localPosition);
-
                     if (widget.state.isPanning && widget.state.isShiftPressed) {
                       widget.inputHandler.handlePanUpdate(
                         event.localPosition,
                         event.delta,
                       );
                     } else if (widget.nodeManager.isResizing) {
-                      // widget.nodeManager.updateResize(event.localPosition);
                     } else if (widget.state.isNodeDragging) {
                       widget.nodeManager.updateNodeDrag(event.localPosition);
                     }
                   },
                   onPointerDown: (PointerDownEvent event) {
-                    // Проверяем, нажали ли на resize handle
-                    // final resizeHandle = widget.nodeManager.getResizeHandleAtPosition(event.localPosition);
-                    // if (resizeHandle != null) {
-                    //   _currentResizeHandle = resizeHandle;
-                      // widget.nodeManager.startResize(resizeHandle, event.localPosition);
-                    // } else {
                       widget.inputHandler.handlePanStart(event.localPosition);
-                    // }
                   },
                   onPointerUp: (PointerUpEvent event) {
                     if (widget.nodeManager.isResizing) {
@@ -239,6 +208,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         ),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ),
