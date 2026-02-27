@@ -393,7 +393,7 @@ class NodePainter {
       final isNodeHighlighted = highlightedNodeIds?.contains(currentNode.id) ?? false;
       if (isNodeHighlighted) {
         _drawHighlightOverlay(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
-        // _drawSelectionBorder(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
+        _drawSelectionBorder(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
       }
     } else {
       // Для виджета: преобразуем координаты

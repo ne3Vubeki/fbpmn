@@ -86,7 +86,7 @@ class ZoomManager extends Manager {
     if (state.nodesSelected.isNotEmpty) {
       await nodeManager.handleEmptyAreaClick();
     }
-    await tileManager.updateTilesAfterNodeChange();
+    await tileManager.updateTilesAfterNodeChange(isUpdate: false);
 
     tracker.endArrowStyleChange();
 

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import 'src/wasmapi/app.model.dart';
 import 'src/wasmapi/broadcast.service.dart';
@@ -33,13 +33,19 @@ class _AppState extends State<App> {
 
   Future<void> _loadXmlFile() async {
     try {
-      final diagram = await rootBundle.loadString('diagram_2.json');
+      final String filePath = widget.properties['filePath'] ?? 'assets/diagram_3.json';
+      final response = await http.get(Uri.parse(filePath));
+      
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+      
       setState(() {
-        _diagram = jsonDecode(diagram);
+        _diagram = jsonDecode(response.body);
         _isLoading = false;
       });
     } catch (e) {
-      print('Ошибка загрузки файла diagram1.json: $e');
+      print('Ошибка загрузки файла $e');
       setState(() {
         _isLoading = false;
       });

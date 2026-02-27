@@ -97,7 +97,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                         color: Colors.blue.withOpacity(0.2),
                         borderRadius: isGroup || isEnum || !hasAttributes
                             ? BorderRadius.zero
-                            : BorderRadius.circular(8 * scale),
+                            : BorderRadius.circular(12 * scale),
                       ),
                     ),
                   ),
@@ -248,7 +248,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             width: length,
             height: length,
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+            // decoration: BoxDecoration(color: Colors.blue.shade900, shape: BoxShape.circle),
             child: AnimatedScale(
               scale: isHoveredHandle ? 3.0 : 1.0,
               duration: const Duration(milliseconds: 200),
