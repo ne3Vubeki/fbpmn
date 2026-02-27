@@ -3,8 +3,14 @@
  * Provides a convenient API for use from Dart via js_interop
  */
 
-let colaModule = null;
-let colaReady = false;
+// Используем window для избежания ошибки повторного объявления
+if (typeof window !== 'undefined') {
+    window.colaModule = window.colaModule || null;
+    window.colaReady = window.colaReady || false;
+}
+
+var colaModule = (typeof window !== 'undefined') ? window.colaModule : null;
+var colaReady = (typeof window !== 'undefined') ? window.colaReady : false;
 
 // Helper functions for memory access (polyfills for setValue/getValue)
 function _setValue(ptr, value, type) {
@@ -65,10 +71,23 @@ function getGetValue() {
  * @returns {Promise<void>}
  */
 async function initCola() {
+    // Проверяем глобальное состояние
+    if (typeof window !== 'undefined' && window.colaReady) {
+        colaModule = window.colaModule;
+        colaReady = window.colaReady;
+        return;
+    }
+    
     if (colaReady) return;
     
     colaModule = await ColaModule();
     colaReady = true;
+    
+    // Синхронизируем с window
+    if (typeof window !== 'undefined') {
+        window.colaModule = colaModule;
+        window.colaReady = colaReady;
+    }
     
     // Debug: check available memory access methods
     console.log('Cola WASM module initialized');

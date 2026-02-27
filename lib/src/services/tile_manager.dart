@@ -84,12 +84,13 @@ class TileManager extends Manager {
       if (parentNode.qType == 'group') {
         // Для group: закрашиваем родителя и вложенный узел
         connectedIds.add(parentNode.id);
+        // connectedIds.add(nodeId);
       } else if (parentNode.qType == 'swimlane') {
         // Для swimlane: если раскрыт - только родитель, если свернут - родитель и вложенные
         if (parentNode.isCollapsed == true) {
           // Свернут - закрашиваем родителя и вложенные узлы по отдельности
           connectedIds.add(parentNode.id);
-          // connectedIds.add(nodeId);
+          connectedIds.add(nodeId);
         } else {
           // Раскрыт - закрашиваем только родителя
           connectedIds.add(nodeId);

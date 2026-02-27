@@ -65,10 +65,18 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
 
   /// Режим 1: Единичное выделение — один узел
   Widget _buildSingleSelect(TableNode node) {
+    final hasAttributes = node.attributes.isNotEmpty;
+    final isEnum = node.qType == 'enum';
+    final isGroup = node.qType == 'group';
     final scale = widget.state.scale;
 
     // Размер узла (масштабированный)
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
+    final isSwimlaneNotCollapsed = node.qType == 'swimlane' && node.isCollapsed != null && !node.isCollapsed!;
+
+    final borderColor = isSwimlaneNotCollapsed
+        ? Colors.blue
+        : Colors.transparent;
 
     return Positioned(
       left: widget.state.selectedNodeOffset.dx,
@@ -76,7 +84,9 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
       child: Container(
         padding: widget.state.framePadding,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.transparent, width: frameBorderWidth),
+          color: isSwimlaneNotCollapsed ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
+          border: Border.all(color: borderColor, width: frameBorderWidth),
+          borderRadius: !isGroup || isEnum || !hasAttributes ? BorderRadius.zero : BorderRadius.circular(12 * scale),
         ),
         child: RepaintBoundary(
           child: CustomPaint(

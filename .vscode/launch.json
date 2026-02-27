@@ -34,10 +34,12 @@
             "request": "launch",
             "type": "dart",
             "args": [
+                "--release",
                 "--wasm",
-                "--dart-define=Dart2jsOptimization=O0"
+                "--dart-define=Dart2jsOptimization=O0",
+                " --web-resources-hash"
             ],
-            "flutterMode": "release"
+            // "flutterMode": "release"
         }
     ]
 }
