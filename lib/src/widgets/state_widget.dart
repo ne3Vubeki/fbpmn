@@ -3,20 +3,28 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 
 mixin StateWidget<T extends StatefulWidget> on State<T> {
+  Timer? _timer; // Добавляем поле класса для хранения таймера
 
-  timeoutSetState({Duration? duration, VoidCallback? callback, Timer? timer}) {
-    if (timer != null) {
-      timer.cancel();
-    }
-    timer = Timer(duration ?? Duration(milliseconds: 0), () {
+  void timeoutSetState({
+    Duration? duration, 
+    VoidCallback? callback,
+  }) {
+    _timer?.cancel(); // Отменяем предыдущий таймер если есть
+    
+    _timer = Timer(duration ?? Duration.zero, () {
       if (mounted) {
         setState(() {
-          if(callback != null) {
-            callback();
-          }
+          callback?.call();
         });
       }
-      timer = null;
+      _timer = null;
     });
+  }
+  
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+    super.dispose();
   }
 }
