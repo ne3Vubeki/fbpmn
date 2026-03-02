@@ -1,4 +1,4 @@
-import 'package:fbpmn/src/wasmapi/app.model.dart';
+import 'package:fbpmn/src/models/app.model.dart';
 import 'package:fbpmn/src/services/cola_layout_service.dart';
 import 'package:fbpmn/src/services/id_manager.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +12,7 @@ import 'services/tile_manager.dart';
 import 'services/node_manager.dart';
 import 'services/zoom_manager.dart';
 import 'editor_state.dart';
-import 'wasmapi/event_manager.dart';
+import 'services/event_manager.dart';
 import 'widgets/zoom_container.dart';
 import 'widgets/loading_indicator.dart';
 import 'widgets/canvas_area.dart';

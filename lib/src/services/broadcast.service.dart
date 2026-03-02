@@ -1,8 +1,8 @@
 import 'dart:js_interop';
 import 'package:web/web.dart';
 
-import 'action.model.dart';
-import 'app.model.dart';
+import '../models/action.model.dart';
+import '../models/app.model.dart';
 
 class Broadcast {
   final String _app;

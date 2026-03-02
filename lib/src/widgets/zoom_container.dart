@@ -5,7 +5,7 @@ import 'package:fbpmn/src/services/zoom_manager.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
-import '../wasmapi/app.model.dart';
+import '../models/app.model.dart';
 import '../models/image_tile.dart';
 import 'canvas_thumbnail.dart';
 import 'performance_metrics.dart';

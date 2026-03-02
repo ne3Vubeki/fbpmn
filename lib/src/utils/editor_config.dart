@@ -9,4 +9,7 @@ class EditorConfig {
   static const arrowSelectedWidth = 1.0;
   static const double framePadding = 8.0;
   static const double frameBorderWidth = 4.0;
+  // Статичный размер холста (используется по умолчанию)
+  static const double staticCanvasWidth = 12288.0;
+  static const double staticCanvasHeight = 6144.0;
 }

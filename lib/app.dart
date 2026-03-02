@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import 'src/wasmapi/app.model.dart';
-import 'src/wasmapi/broadcast.service.dart';
+import 'src/models/app.model.dart';
+import 'src/services/broadcast.service.dart';
 import 'src/stable_grid_image.dart';
 
 class App extends StatefulWidget {

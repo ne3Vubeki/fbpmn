@@ -2,12 +2,12 @@ import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/cola_layout_service.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/services/scroll_handler.dart';
-import 'package:fbpmn/src/wasmapi/app.model.dart';
+import 'package:fbpmn/src/models/app.model.dart';
 
 import '../editor_state.dart';
-import '../services/input_handler.dart';
-import '../services/tile_manager.dart';
-import '../services/zoom_manager.dart';
+import 'input_handler.dart';
+import 'tile_manager.dart';
+import 'zoom_manager.dart';
 
 class EventManager {
   final EditorState state;

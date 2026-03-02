@@ -19,13 +19,9 @@ class ScrollHandler extends Manager {
   final ScrollController horizontalScrollController = ScrollController();
   final ScrollController verticalScrollController = ScrollController();
 
-  // Статичный размер холста (используется по умолчанию)
-  static const double staticCanvasWidth = 12288.0;
-  static const double staticCanvasHeight = 6144.0;
-
   // Динамически рассчитанные размеры холста
-  double _dynamicCanvasWidth = staticCanvasWidth;
-  double _dynamicCanvasHeight = staticCanvasHeight;
+  double _dynamicCanvasWidth = EditorConfig.staticCanvasWidth;
+  double _dynamicCanvasHeight = EditorConfig.staticCanvasHeight;
 
   // Для перетаскивания скроллбаров
   bool _isHorizontalDragging = false;
@@ -122,8 +118,8 @@ class ScrollHandler extends Manager {
     final double calculatedHeight = _roundToTileMultiple(finalHeight, tileSize);
 
     // Используем бОльший размер: расчетный или статический
-    _dynamicCanvasWidth = math.max(calculatedWidth, staticCanvasWidth);
-    _dynamicCanvasHeight = math.max(calculatedHeight, staticCanvasHeight);
+    _dynamicCanvasWidth = math.max(calculatedWidth, EditorConfig.staticCanvasWidth);
+    _dynamicCanvasHeight = math.max(calculatedHeight, EditorConfig.staticCanvasHeight);
   }
 
   /// Округляет значение до ближайшего кратного размеру тайла
@@ -136,9 +132,9 @@ class ScrollHandler extends Manager {
   Size _calculateCanvasSize() {
     // Используем динамический размер, но не меньше минимального
     final double width =
-        math.max(_dynamicCanvasWidth, staticCanvasWidth) * state.scale;
+        math.max(_dynamicCanvasWidth, EditorConfig.staticCanvasWidth) * state.scale;
     final double height =
-        math.max(_dynamicCanvasHeight, staticCanvasHeight) * state.scale;
+        math.max(_dynamicCanvasHeight, EditorConfig.staticCanvasHeight) * state.scale;
 
     return Size(width, height);
   }
