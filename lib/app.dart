@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import 'src/models/app.model.dart';
 import 'src/services/broadcast.service.dart';
@@ -20,37 +17,8 @@ class App extends StatefulWidget {
 }
 
 class _AppState extends State<App> {
-  Map<String, dynamic> _diagram = {};
-  bool _isLoading = true;
   late Broadcast _broadcastManager;
   late EventApp? _appEvent;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadXmlFile();
-  }
-
-  Future<void> _loadXmlFile() async {
-    try {
-      final String filePath = widget.properties['filePath'] ?? 'assets/diagram_3.json';
-      final response = await http.get(Uri.parse(filePath));
-      
-      if (response.statusCode != 200) {
-        throw Exception('HTTP ${response.statusCode}');
-      }
-      
-      setState(() {
-        _diagram = jsonDecode(response.body);
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Ошибка загрузки файла $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
 
   @override
   void didChangeDependencies() async {
@@ -65,9 +33,7 @@ class _AppState extends State<App> {
       title: 'WASM редактор BPMN',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: Scaffold(
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : StableGridImage(diagram: _diagram, properties: widget.properties, appEvent: _appEvent),
+        body: StableGridImage(properties: widget.properties, appEvent: _appEvent),
       ),
     );
   }

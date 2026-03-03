@@ -6,6 +6,7 @@ import 'package:fbpmn/src/models/app.model.dart';
 
 import '../editor_state.dart';
 import 'input_handler.dart';
+import 'shema_manager.dart';
 import 'tile_manager.dart';
 import 'zoom_manager.dart';
 
@@ -18,6 +19,7 @@ class EventManager {
   final ScrollHandler scrollHandler;
   final ColaLayoutService colaLayoutService;
   final ZoomManager zoomManager;
+  final ShemaManager shemaManager;
   final EventApp? appEvent;
 
   Stream? get eventStream => appEvent?.stream;
@@ -31,6 +33,7 @@ class EventManager {
     required this.scrollHandler,
     required this.colaLayoutService,
     required this.zoomManager,
+    required this.shemaManager,
     required this.appEvent,
   }) {
     eventStream?.listen((event) {
@@ -105,6 +108,19 @@ class EventManager {
                 break;
             }
           }
+        }
+        break;
+      case 'schema_create':
+        shemaManager.createEmptySchema();
+        break;
+      case 'schema_upload':
+        if (data != null) {
+          shemaManager.createSchemaFromString(data['schema'] as String);
+        }
+        break;
+      case 'schema_url':
+        if (data != null) {
+          shemaManager.resolveSchema(allowHttpLoad: true, filePath: data['filePath'] as String);
         }
         break;
     }

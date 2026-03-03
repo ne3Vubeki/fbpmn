@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:fbpmn/src/utils/editor_config.dart';
+import 'package:http/http.dart' as http;
 
 import 'manager.dart';
 
@@ -76,6 +77,27 @@ class ShemaManager extends Manager {
   String encodeSchemaMap(Map<String, dynamic> schemaMap, {bool pretty = true}) {
     final normalized = _normalizeSchema(schemaMap);
     return _encodeSchema(normalized, pretty: pretty);
+  }
+
+  /// Возвращает текущую схему.
+  ///
+  /// HTTP-загрузка выполняется только если [allowHttpLoad] == true.
+  Future<Map<String, dynamic>> resolveSchema({
+    bool allowHttpLoad = false,
+    String? filePath,
+    String fallbackFilePath = 'assets/diagram_3.json',
+  }) async {
+    if (!allowHttpLoad) {
+      return schema;
+    }
+
+    final path = (filePath == null || filePath.trim().isEmpty) ? fallbackFilePath : filePath.trim();
+    final response = await http.get(Uri.parse(path));
+    if (response.statusCode != 200) {
+      throw Exception('HTTP ${response.statusCode}');
+    }
+
+    return createSchemaFromString(response.body, apply: true);
   }
 
   void resetToDefaultEmptySchema() {

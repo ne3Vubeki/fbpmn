@@ -26,6 +26,9 @@ class TileManager extends Manager {
 
   TileManager({required this.state, required this.arrowManager});
 
+  /// Даёт UI-потоку время на отрисовку (для анимации LoadingIndicator)
+  Future<void> _yieldToUi() => Future<void>.delayed(Duration.zero);
+
   /// Получает ID узлов, связанных с выделенными узлами (на другом конце связей)
   /// Для group: подсвечивается родитель и вложенные узлы
   /// Для swimlane: если раскрыт - только родитель, если свернут - родитель и вложенные
@@ -327,6 +330,7 @@ class TileManager extends Manager {
     }
 
     // Для каждого узла (включая вложенные) создаем метки тайлов в нужных позициях
+    var processedNodes = 0;
     for (final node in allNodesIncludingChildren) {
       // Получаем абсолютную позицию узла
       final nodePosition = node.aPosition ?? (state.delta + node.position);
@@ -343,12 +347,18 @@ class TileManager extends Manager {
           await createTiles(top: top, left: left, node: node);
         },
       );
+
+      processedNodes++;
+      if (processedNodes % 50 == 0) {
+        await _yieldToUi();
+      }
     }
 
     print('changedNodes: ${changedNodes.length}');
     changedArrows.addAll(arrowManager.getArrowsForNodes(changedNodes.toList()).map((arrow) => arrow!.id));
 
     // Теперь обрабатываем стрелки - для каждой стрелки, которая пересекает тайлы, убедимся, что тайлы созданы
+    var processedArrows = 0;
     for (final arrow in allArrows) {
       final Arrow arrowCopy = arrow!;
 
@@ -460,6 +470,11 @@ class TileManager extends Manager {
           }
         }
       }
+
+      processedArrows++;
+      if (processedArrows % 50 == 0) {
+        await _yieldToUi();
+      }
     }
 
     final List<ImageTile> tiles = [];
@@ -508,7 +523,12 @@ class TileManager extends Manager {
       counterUpdatedTiles++;
       final ImageTile? tile = await _createTileAtPosition(left!, top!, nodesInTile, arrowsInTile);
       tile != null ? tiles.add(tile) : null;
-      print('Создаю тайл ${tile?.id}');
+      // print('Создаю тайл ${tile?.id}');
+
+      // Yield каждые 10 тайлов для анимации LoadingIndicator
+      if (counterUpdatedTiles % 10 == 0) {
+        await _yieldToUi();
+      }
     }
     print('Обновлено тайлов $counterUpdatedTiles');
     return tiles;

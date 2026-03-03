@@ -165,7 +165,7 @@ class TableNode extends Node {
     if (connections != null) {
       _connectionsSubscription = connections!.changesStream.listen((event) {
         isChanged = true;
-        print('connections changed: $event');
+        // print('connections changed: $event');
       });
     }
   }

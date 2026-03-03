@@ -50,6 +50,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   double _clampedVisibleTop = 0;
   double _clampedVisibleWidth = 0;
   double _clampedVisibleHeight = 0;
+  int _lastTilesCount = 0;
 
   @override
   void initState() {
@@ -61,37 +62,16 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   void didUpdateWidget(CanvasThumbnail oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Проверяем, изменились ли тайлы
-    bool tilesChanged = false;
-    
-    // Если это разные списки по ссылке - точно изменились
-    if (!identical(widget.imageTiles, oldWidget.imageTiles)) {
-      tilesChanged = true;
-    } else if (widget.imageTiles.length != oldWidget.imageTiles.length) {
-      // Если длина изменилась - точно изменились
-      tilesChanged = true;
-    } else {
-      // Проверяем содержимое тайлов (id, bounds, image, scale)
-      for(final entry in widget.imageTiles.entries) {
-        final newTile = widget.imageTiles[entry.key];
-        final oldTile = oldWidget.imageTiles[entry.key];
-
-        // Сравниваем по id, bounds, image и scale
-        if (newTile?.id != oldTile?.id ||
-            newTile?.bounds != oldTile?.bounds ||
-            !identical(newTile?.image, oldTile?.image) ||
-            newTile?.scale != oldTile?.scale) {
-          tilesChanged = true;
-          break;
-        }
-      }
-    }
-
-    // Обновляем миниатюру если изменились тайлы или размер холста
-    if (tilesChanged ||
+    // imageTiles мутируется на месте (тот же объект Map), поэтому
+    // сравниваем по количеству тайлов или изменению размеров холста/delta
+    final bool shouldRebuildThumbnail =
+        widget.imageTiles.length != _lastTilesCount ||
         widget.canvasWidth != oldWidget.canvasWidth ||
         widget.canvasHeight != oldWidget.canvasHeight ||
-        widget.delta != oldWidget.delta) {
+        widget.delta != oldWidget.delta;
+
+    if (shouldRebuildThumbnail) {
+      _lastTilesCount = widget.imageTiles.length;
       _createThumbnail();
     }
 
@@ -104,8 +84,6 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   }
 
   Future<void> _createThumbnail() async {
-    if (widget.imageTiles.isEmpty) return;
-
     if (_isBuildingThumbnail) {
       _pendingThumbnailRebuild = true;
       return;
@@ -115,15 +93,20 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     _pendingThumbnailRebuild = false;
 
     try {
+      print('CanvasThumbnail._createThumbnail: canvasWidth=${widget.canvasWidth}, canvasHeight=${widget.canvasHeight}, imageTiles=${widget.imageTiles.length}');
+      
+      final double safeCanvasWidth = widget.canvasWidth > 0 ? widget.canvasWidth : 1;
+      final double safeCanvasHeight = widget.canvasHeight > 0 ? widget.canvasHeight : 1;
+
       // Ширина миниатюры всегда = panelWidth
       final double thumbnailWidth = widget.panelWidth;
 
       // Высота рассчитывается пропорционально размерам холста
-      final double aspectRatio = widget.canvasWidth / widget.canvasHeight;
+      final double aspectRatio = safeCanvasWidth / safeCanvasHeight;
       final double thumbnailHeight = thumbnailWidth / aspectRatio;
 
       // Масштаб для миниатюры (отношение ширины миниатюры к ширине холста)
-      final double thumbnailScale = thumbnailWidth / widget.canvasWidth;
+      final double thumbnailScale = thumbnailWidth / safeCanvasWidth;
 
       // Сохраняем расчетные значения для использования в build()
       _thumbnailScale = thumbnailScale;
@@ -136,6 +119,12 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
 
       // Применяем масштаб миниатюры
       canvas.scale(thumbnailScale, thumbnailScale);
+
+      // Фон миниатюры (важно для пустой схемы без тайлов)
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, safeCanvasWidth, safeCanvasHeight),
+        Paint()..color = const Color(0xFFF7F9FC),
+      );
 
       // Делаем снимок списка тайлов ДО первого await,
       // чтобы избежать use-after-free при dispose тайлов в TileManager
@@ -164,8 +153,8 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       // Завершаем запись и создаем изображение
       final picture = recorder.endRecording();
       final image = await picture.toImage(
-        thumbnailWidth.toInt(),
-        thumbnailHeight.toInt(),
+        thumbnailWidth.toInt().clamp(1, 1000000),
+        thumbnailHeight.toInt().clamp(1, 1000000),
       );
       picture.dispose();
 
@@ -178,6 +167,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
         image.dispose();
       }
     } catch (e) {
+      print('CanvasThumbnail._createThumbnail error: $e');
     } finally {
       _isBuildingThumbnail = false;
       if (_pendingThumbnailRebuild && mounted) {
@@ -221,13 +211,17 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     // Рассчитываем смещение мыши в координатах миниатюры
     final Offset mouseDelta = localPosition - _dragStartPosition;
 
+    final double maxRectLeft = (_thumbnailWidth - _clampedVisibleWidth) < 0
+        ? 0
+        : (_thumbnailWidth - _clampedVisibleWidth);
+    final double maxRectTop = (_thumbnailHeight - _clampedVisibleHeight) < 0
+        ? 0
+        : (_thumbnailHeight - _clampedVisibleHeight);
+
     // Новая позиция прямоугольника в миниатюре
     final double newRectLeft = (_dragStartRectPosition.dx + mouseDelta.dx)
-        .clamp(0, _thumbnailWidth - _clampedVisibleWidth);
-    final double newRectTop = (_dragStartRectPosition.dy + mouseDelta.dy).clamp(
-      0,
-      _thumbnailHeight - _clampedVisibleHeight,
-    );
+        .clamp(0, maxRectLeft);
+    final double newRectTop = (_dragStartRectPosition.dy + mouseDelta.dy).clamp(0, maxRectTop);
 
     // Обновляем позицию прямоугольника
     _clampedVisibleLeft = newRectLeft;
@@ -282,8 +276,11 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     final double maxWorldTop =
         widget.canvasHeight - (widget.viewportSize.height / widget.scale);
 
-    final double clampedWorldLeft = newVisibleWorldLeft.clamp(0, maxWorldLeft);
-    final double clampedWorldTop = newVisibleWorldTop.clamp(0, maxWorldTop);
+    final double safeMaxWorldLeft = maxWorldLeft < 0 ? 0 : maxWorldLeft;
+    final double safeMaxWorldTop = maxWorldTop < 0 ? 0 : maxWorldTop;
+
+    final double clampedWorldLeft = newVisibleWorldLeft.clamp(0, safeMaxWorldLeft);
+    final double clampedWorldTop = newVisibleWorldTop.clamp(0, safeMaxWorldTop);
 
     // Преобразуем в canvasOffset
     final double newCanvasOffsetX = -clampedWorldLeft * widget.scale;
@@ -338,14 +335,20 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     final double visibleWidth = visibleWorldWidth * thumbnailScale;
     final double visibleHeight = visibleWorldHeight * thumbnailScale;
 
-    // Ограничиваем координаты видимой области границами миниатюры
-    _clampedVisibleLeft = visibleLeft.clamp(0, thumbnailWidth - visibleWidth);
-    _clampedVisibleTop = visibleTop.clamp(0, thumbnailHeight - visibleHeight);
-    _clampedVisibleWidth = visibleWidth.clamp(0, thumbnailWidth);
-    _clampedVisibleHeight = visibleHeight.clamp(0, thumbnailHeight);
-
     final double clampedVisibleWidth = visibleWidth.clamp(0, thumbnailWidth);
     final double clampedVisibleHeight = visibleHeight.clamp(0, thumbnailHeight);
+    final double maxVisibleLeft = (thumbnailWidth - clampedVisibleWidth) < 0
+        ? 0
+        : (thumbnailWidth - clampedVisibleWidth);
+    final double maxVisibleTop = (thumbnailHeight - clampedVisibleHeight) < 0
+        ? 0
+        : (thumbnailHeight - clampedVisibleHeight);
+
+    // Ограничиваем координаты видимой области границами миниатюры
+    _clampedVisibleLeft = visibleLeft.clamp(0, maxVisibleLeft);
+    _clampedVisibleTop = visibleTop.clamp(0, maxVisibleTop);
+    _clampedVisibleWidth = clampedVisibleWidth;
+    _clampedVisibleHeight = clampedVisibleHeight;
 
     return GestureDetector(
       onPanStart: (details) => _handleDragStart(details.localPosition),
