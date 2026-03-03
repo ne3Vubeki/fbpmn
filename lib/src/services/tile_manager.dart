@@ -24,10 +24,12 @@ class TileManager extends Manager {
   bool _isCreatingTiles = false;
   bool _pendingTilesUpdate = false;
 
+  final bool _waitForUI = false;
+
   TileManager({required this.state, required this.arrowManager});
 
   /// Даёт UI-потоку время на отрисовку (для анимации LoadingIndicator)
-  Future<void> _yieldToUi() => Future<void>.delayed(Duration.zero);
+  Future<void>? _yieldToUi() => _waitForUI ?Future<void>.delayed(Duration.zero) : null;
 
   /// Получает ID узлов, связанных с выделенными узлами (на другом конце связей)
   /// Для group: подсвечивается родитель и вложенные узлы
@@ -244,7 +246,6 @@ class TileManager extends Manager {
       }
     } catch (e) {
       print('Ошибка в createTiledImage: $e');
-      await createFallbackTiles();
     } finally {
       _isCreatingTiles = false;
       if (_pendingTilesUpdate) {
@@ -523,7 +524,7 @@ class TileManager extends Manager {
       counterUpdatedTiles++;
       final ImageTile? tile = await _createTileAtPosition(left!, top!, nodesInTile, arrowsInTile);
       tile != null ? tiles.add(tile) : null;
-      // print('Создаю тайл ${tile?.id}');
+      print('Создаю тайл ${tile?.id}');
 
       // Yield каждые 10 тайлов для анимации LoadingIndicator
       if (counterUpdatedTiles % 10 == 0) {
@@ -938,25 +939,6 @@ class TileManager extends Manager {
       }
     } catch (e) {
       print('Ошибка обновления тайла ${tile.id}: $e');
-    }
-  }
-
-  Future<void> createFallbackTiles() async {
-    try {
-      await _disposeTiles();
-
-      // Создаем 4 начальных тайла
-      final tiles = await _createTilesInGrid(0, 0, 2, 2, [], []);
-
-      for (final tile in tiles) {
-        state.imageTiles[tile.id] = tile;
-      }
-
-      state.isLoading = false;
-      onStateUpdate();
-    } catch (e) {
-      state.isLoading = false;
-      onStateUpdate();
     }
   }
 

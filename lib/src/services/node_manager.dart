@@ -300,16 +300,21 @@ class NodeManager extends Manager {
 
     _updateNodePosition();
 
+    // Сначала показываем выделение узла и рамки, затем выполняем тяжёлые операции по тайлам.
+    onStateUpdate();
+
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
-    
-    arrowManager.selectAllArrows();
 
     // Перерисовываем тайлы с подсвеченными узлами
     await tileManager.updateTilesAfterNodeChange();
 
     // Затем удаляем узел из тайлов и ЖДЕМ завершения
     await tileManager.removeSelectedNodeFromTiles(node);
+
+    // Выделяем стрелки после тяжелой подготовки тайлов, чтобы не было
+    // ситуации «сначала стрелки, потом узел».
+    arrowManager.selectAllArrows();
 
 
     startNodeDrag(screenPosition);
@@ -333,17 +338,21 @@ class NodeManager extends Manager {
 
     state.nodesIdOnTopLayer += node.id;
 
+    _updateNodePosition();
+
+    // Сначала показываем выделение узла и рамки, затем выполняем тяжёлые операции по тайлам.
+    onStateUpdate();
+
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
-
-    arrowManager.selectAllArrows();
 
     // Перерисовываем тайлы с подсвеченными узлами
     await tileManager.updateTilesAfterNodeChange();
 
     await _prepareNodeForTopLayer(node);
 
-    _updateNodePosition();
+    // Выделяем стрелки после завершения тяжелой работы.
+    arrowManager.selectAllArrows();
 
 
     tracker.endSelect();
@@ -362,6 +371,9 @@ class NodeManager extends Manager {
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
+
+    // Сначала показываем обновлённое выделение узлов.
+    onStateUpdate();
 
     // Перерисовываем тайлы с подсвеченными узлами
     await tileManager.updateTilesAfterNodeChange();

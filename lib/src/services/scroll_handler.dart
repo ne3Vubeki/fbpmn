@@ -48,6 +48,17 @@ class ScrollHandler extends Manager {
     verticalScrollController.addListener(_onVerticalScroll);
   }
 
+  /// Сбрасывает динамические размеры холста к дефолтным значениям.
+  /// Нужен при переключении на пустую схему, чтобы не сохранялись размеры
+  /// предыдущей (большой) схемы.
+  void resetCanvasSizeToDefault({bool notify = false}) {
+    _dynamicCanvasWidth = EditorConfig.staticCanvasWidth;
+    _dynamicCanvasHeight = EditorConfig.staticCanvasHeight;
+    if (notify) {
+      onStateUpdate();
+    }
+  }
+
   /// Рассчитывает размер холста на основе расположения узлов
   void calculateCanvasSizeFromNodes(List<TableNode> nodes) {
     if (nodes.isEmpty) return;

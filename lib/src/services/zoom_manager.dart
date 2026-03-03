@@ -33,6 +33,14 @@ class ZoomManager extends Manager {
     if (state.nodesSelected.isNotEmpty) {
       await nodeManager.handleEmptyAreaClick();
     }
+
+    // Для пустой схемы всегда возвращаем 100% масштаб
+    if (state.nodes.isEmpty) {
+      state.scale = 1.0;
+      scrollHandler.centerCanvas();
+      return;
+    }
+
     scrollHandler.autoFitAndCenterNodes();
   }
 

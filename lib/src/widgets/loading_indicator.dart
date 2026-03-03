@@ -25,7 +25,6 @@ class _LoadingIndicatorState extends State<LoadingIndicator>
     super.initState();
     widget.tileManager.setOnStateUpdate('LoadingIndicator', () {
       timeoutSetState();
-      print('LoadingIndicator setState ====================================================================');
     });
   }
 

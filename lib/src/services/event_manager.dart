@@ -120,7 +120,7 @@ class EventManager {
         break;
       case 'schema_url':
         if (data != null) {
-          shemaManager.resolveSchema(allowHttpLoad: true, filePath: data['filePath'] as String);
+          await shemaManager.resolveSchema(allowHttpLoad: true, filePath: data['filePath'] as String);
         }
         break;
     }

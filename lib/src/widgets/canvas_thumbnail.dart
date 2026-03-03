@@ -92,9 +92,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     _isBuildingThumbnail = true;
     _pendingThumbnailRebuild = false;
 
-    try {
-      print('CanvasThumbnail._createThumbnail: canvasWidth=${widget.canvasWidth}, canvasHeight=${widget.canvasHeight}, imageTiles=${widget.imageTiles.length}');
-      
+    try { 
       final double safeCanvasWidth = widget.canvasWidth > 0 ? widget.canvasWidth : 1;
       final double safeCanvasHeight = widget.canvasHeight > 0 ? widget.canvasHeight : 1;
 

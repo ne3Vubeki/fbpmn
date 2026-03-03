@@ -148,6 +148,10 @@ class Connections {
   }
 
   void dispose() {
+    top?.clear();
+    right?.clear();
+    bottom?.clear();
+    left?.clear();
     _changesController.close();
   }
 }

@@ -136,6 +136,8 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _isEditorInitializing = true;
     _clearEditorData();
+    _scrollHandler.resetCanvasSizeToDefault();
+    await _zoomManager.resetZoom();
     _editorState.isLoading = true;
     _tileManager.onStateUpdate();
     if (mounted) {
@@ -192,14 +194,11 @@ class _StableGridImageState extends State<StableGridImage> {
         }
 
         await _tileManager.createTiledImage(_editorState.nodes, _editorState.arrows);
-      } else {
-        await _tileManager.createFallbackTiles();
       }
     } catch (e) {
       _shemaManager.resetToDefaultEmptySchema();
       _idManager.initializeFromJson(_shemaManager.schema);
       _editorState.delta = Offset.zero;
-      await _tileManager.createFallbackTiles();
     } finally {
       _editorState.isLoading = false;
       _tileManager.onStateUpdate();
@@ -239,12 +238,19 @@ class _StableGridImageState extends State<StableGridImage> {
   }
 
   void _clearEditorData() {
+    // Очищаем узлы и их подписки
+    for (final node in _editorState.nodes) {
+      node.dispose();
+    }
     _editorState.nodes.clear();
     _editorState.nodesSelected.clear();
+    
     _editorState.arrows.clear();
     _editorState.arrowsSelected.clear();
     _editorState.highlightedNodeIds.clear();
-    _editorState.imageTiles.clear();
+    
+    // Важно: вызываем dispose на тайлах через TileManager для освобождения ui.Image
+    _tileManager.disposeTiles();
     _editorState.updatedImageTileIds.clear();
     _editorState.snapLines.clear();
   }

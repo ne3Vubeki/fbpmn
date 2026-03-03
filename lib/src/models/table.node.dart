@@ -170,8 +170,24 @@ class TableNode extends Node {
     }
   }
 
-  // Метод для отмены подписки
+  // Метод для отмены подписки и очистки ресурсов
   void dispose() {
     _connectionsSubscription?.cancel();
+    _connectionsSubscription = null;
+    
+    // Рекурсивно очищаем дочерние узлы
+    if (children != null) {
+      for (final child in children!) {
+        child.dispose();
+      }
+      children!.clear();
+    }
+    
+    // Очищаем атрибуты
+    attributes.clear();
+    
+    // Очищаем и закрываем connections (включая StreamController)
+    connections?.dispose();
+    connections = null;
   }
 }
