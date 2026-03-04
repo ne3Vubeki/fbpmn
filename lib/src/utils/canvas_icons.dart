@@ -18,20 +18,10 @@ class CanvasIcons {
       final innerPaint = Paint()
         ..color = color
         ..style = PaintingStyle.fill;
-      final innerRect = Rect.fromLTWH(
-        size.width * 0.5,
-        size.height * 0.5,
-        size.width * 0.4,
-        size.height * 0.4,
-      );
+      final innerRect = Rect.fromLTWH(size.width * 0.5, size.height * 0.5, size.width * 0.4, size.height * 0.4);
       canvas.drawRect(innerRect, innerPaint);
     } else {
-      final innerRect = Rect.fromLTWH(
-        size.width * 0.5,
-        size.height * 0.5,
-        size.width * 0.4,
-        size.height * 0.4,
-      );
+      final innerRect = Rect.fromLTWH(size.width * 0.5, size.height * 0.5, size.width * 0.4, size.height * 0.4);
       canvas.drawRect(innerRect, paint);
     }
   }
@@ -48,20 +38,12 @@ class CanvasIcons {
 
     // Вертикальные линии
     for (int i = 1; i < 3; i++) {
-      canvas.drawLine(
-        Offset(cellWidth * i, 2),
-        Offset(cellWidth * i, size.height - 2),
-        paint,
-      );
+      canvas.drawLine(Offset(cellWidth * i, 2), Offset(cellWidth * i, size.height - 2), paint);
     }
 
     // Горизонтальные линии
     for (int i = 1; i < 3; i++) {
-      canvas.drawLine(
-        Offset(2, cellHeight * i),
-        Offset(size.width - 2, cellHeight * i),
-        paint,
-      );
+      canvas.drawLine(Offset(2, cellHeight * i), Offset(size.width - 2, cellHeight * i), paint);
     }
 
     // Рамка
@@ -118,20 +100,10 @@ class CanvasIcons {
 
     final path = Path();
     path.moveTo(2, size.height - 2);
-    
+
     // Кривая линия
-    path.quadraticBezierTo(
-      size.width * 0.25,
-      size.height * 0.5,
-      size.width * 0.5,
-      size.height * 0.5,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.75,
-      size.height * 0.5,
-      size.width - 2,
-      2,
-    );
+    path.quadraticBezierTo(size.width * 0.25, size.height * 0.5, size.width * 0.5, size.height * 0.5);
+    path.quadraticBezierTo(size.width * 0.75, size.height * 0.5, size.width - 2, 2);
 
     canvas.drawPath(path, paint);
 
@@ -198,8 +170,16 @@ class CanvasIcons {
     canvas.drawLine(Offset(2, size.height - 2), Offset(2, size.height - 2 - arrowSize), paint);
 
     // Нижний правый
-    canvas.drawLine(Offset(size.width - 2, size.height - 2), Offset(size.width - 2 - arrowSize, size.height - 2), paint);
-    canvas.drawLine(Offset(size.width - 2, size.height - 2), Offset(size.width - 2, size.height - 2 - arrowSize), paint);
+    canvas.drawLine(
+      Offset(size.width - 2, size.height - 2),
+      Offset(size.width - 2 - arrowSize, size.height - 2),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width - 2, size.height - 2),
+      Offset(size.width - 2, size.height - 2 - arrowSize),
+      paint,
+    );
   }
 
   /// Иконка границ включена (border_outer)
@@ -218,16 +198,8 @@ class CanvasIcons {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
-    canvas.drawLine(
-      Offset(size.width / 2, 4),
-      Offset(size.width / 2, size.height - 4),
-      thinPaint,
-    );
-    canvas.drawLine(
-      Offset(4, size.height / 2),
-      Offset(size.width - 4, size.height / 2),
-      thinPaint,
-    );
+    canvas.drawLine(Offset(size.width / 2, 4), Offset(size.width / 2, size.height - 4), thinPaint);
+    canvas.drawLine(Offset(4, size.height / 2), Offset(size.width - 4, size.height / 2), thinPaint);
   }
 
   /// Иконка границ выключена (border_clear)
@@ -284,12 +256,7 @@ class CanvasIcons {
     final shackleLeft = lockLeft + (lockWidth - shackleWidth) / 2;
     final shackleTop = lockTop - shackleHeight;
 
-    final shackleRect = Rect.fromLTWH(
-      shackleLeft,
-      shackleTop,
-      shackleWidth,
-      shackleHeight * 2,
-    );
+    final shackleRect = Rect.fromLTWH(shackleLeft, shackleTop, shackleWidth, shackleHeight * 2);
 
     canvas.drawArc(
       shackleRect,
@@ -300,11 +267,7 @@ class CanvasIcons {
     );
 
     // Вертикальные линии дужки
-    canvas.drawLine(
-      Offset(shackleLeft, shackleTop + shackleHeight),
-      Offset(shackleLeft, lockTop),
-      paint,
-    );
+    canvas.drawLine(Offset(shackleLeft, shackleTop + shackleHeight), Offset(shackleLeft, lockTop), paint);
     canvas.drawLine(
       Offset(shackleLeft + shackleWidth, shackleTop + shackleHeight),
       Offset(shackleLeft + shackleWidth, lockTop),
@@ -329,11 +292,7 @@ class CanvasIcons {
       ..color = Colors.white
       ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(
-      Offset(keyholeCenterX, keyholeCenterY),
-      keyholeRadius,
-      keyholePaint,
-    );
+    canvas.drawCircle(Offset(keyholeCenterX, keyholeCenterY), keyholeRadius, keyholePaint);
 
     // Прямоугольная часть замочной скважины (внизу)
     final keyholeSlotWidth = keyholeRadius * 0.6;
@@ -350,55 +309,55 @@ class CanvasIcons {
   /// Иконка предупреждения (красный треугольник с буквой i)
   static void paintWarningTriangle(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    
+
     // Вычисляем точки треугольника
     final triangleHeight = size.height * 0.85;
     final triangleWidth = size.width * 0.85;
-    
+
     final topPoint = Offset(center.dx, center.dy - triangleHeight / 2);
     final bottomLeft = Offset(center.dx - triangleWidth / 2, center.dy + triangleHeight / 2);
     final bottomRight = Offset(center.dx + triangleWidth / 2, center.dy + triangleHeight / 2);
-    
+
     // Создаем путь треугольника с закругленными углами
     final path = Path();
     final cornerRadius = size.width * 0.1;
-    
+
     // Начинаем от верхней точки (с небольшим смещением для закругления)
     path.moveTo(topPoint.dx, topPoint.dy + cornerRadius);
-    
+
     // Линия к нижнему левому углу
     path.lineTo(bottomLeft.dx + cornerRadius * 0.866, bottomLeft.dy - cornerRadius * 0.5);
-    
+
     // Закругление в нижнем левом углу
     path.arcToPoint(
       Offset(bottomLeft.dx + cornerRadius, bottomLeft.dy),
       radius: Radius.circular(cornerRadius),
       clockwise: false,
     );
-    
+
     // Нижняя линия
     path.lineTo(bottomRight.dx - cornerRadius, bottomRight.dy);
-    
+
     // Закругление в нижнем правом углу
     path.arcToPoint(
       Offset(bottomRight.dx - cornerRadius * 0.866, bottomRight.dy - cornerRadius * 0.5),
       radius: Radius.circular(cornerRadius),
       clockwise: false,
     );
-    
+
     // Линия к верхней точке
     path.lineTo(topPoint.dx, topPoint.dy + cornerRadius);
-    
+
     path.close();
-    
+
     // Рисуем красный треугольник
     final trianglePaint = Paint()
       ..color = Colors.red
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
-    
+
     canvas.drawPath(path, trianglePaint);
-    
+
     // Рисуем белую букву "i"
     final textStyle = TextStyle(
       color: Colors.white,
@@ -406,26 +365,16 @@ class CanvasIcons {
       fontWeight: FontWeight.bold,
       fontFamily: 'Arial',
     );
-    
-    final textSpan = TextSpan(
-      text: 'i',
-      style: textStyle,
-    );
-    
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-    
+
+    final textSpan = TextSpan(text: 'i', style: textStyle);
+
+    final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, textAlign: TextAlign.center);
+
     textPainter.layout();
-    
+
     // Позиционируем букву "i" в центре треугольника
-    final textOffset = Offset(
-      center.dx - textPainter.width / 2,
-      center.dy - textPainter.height / 4,
-    );
-    
+    final textOffset = Offset(center.dx - textPainter.width / 2, center.dy - textPainter.height / 4);
+
     textPainter.paint(canvas, textOffset);
     textPainter.dispose();
   }
@@ -497,10 +446,7 @@ class CanvasIcons {
     double dashSpace = 3,
   }) {
     final distance = (end - start).distance;
-    final normalizedVector = Offset(
-      (end.dx - start.dx) / distance,
-      (end.dy - start.dy) / distance,
-    );
+    final normalizedVector = Offset((end.dx - start.dx) / distance, (end.dy - start.dy) / distance);
 
     double currentDistance = 0;
     bool isDash = true;
@@ -579,10 +525,7 @@ class CanvasIcons {
 
     // Рисуем узлы поверх связей
     for (final node in nodes) {
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(node.dx, node.dy, nodeSize, nodeSize),
-        Radius.circular(2),
-      );
+      final rect = RRect.fromRectAndRadius(Rect.fromLTWH(node.dx, node.dy, nodeSize, nodeSize), Radius.circular(2));
       if (active) {
         canvas.drawRRect(rect, fillPaint);
       } else {
@@ -621,10 +564,7 @@ class CanvasIcons {
     // Угол стрелки (примерно 45 градусов от вертикали)
     final needleAngle = filled ? -0.5 : -1.0; // Разные позиции для filled/unfilled
     final needleLength = radius * 0.7;
-    final needleEnd = Offset(
-      center.dx + needleLength * (needleAngle > 0 ? 0.7 : -0.3),
-      center.dy - needleLength * 0.7,
-    );
+    final needleEnd = Offset(center.dx + needleLength * (needleAngle > 0 ? 0.7 : -0.3), center.dy - needleLength * 0.7);
 
     canvas.drawLine(center, needleEnd, needlePaint);
 
@@ -650,7 +590,7 @@ class CanvasIcons {
     final topLeftStart = Offset(size.width * 0.5, size.height * 0.5);
     final topLeftEnd = Offset(size.width * 0.15, size.height * 0.15);
     canvas.drawLine(topLeftStart, topLeftEnd, paint);
-    
+
     // Наконечник стрелки верхний левый
     canvas.drawLine(topLeftEnd, Offset(topLeftEnd.dx + arrowSize * 0.7, topLeftEnd.dy), paint);
     canvas.drawLine(topLeftEnd, Offset(topLeftEnd.dx, topLeftEnd.dy + arrowSize * 0.7), paint);
@@ -659,7 +599,7 @@ class CanvasIcons {
     final bottomRightStart = Offset(size.width * 0.5, size.height * 0.5);
     final bottomRightEnd = Offset(size.width * 0.85, size.height * 0.85);
     canvas.drawLine(bottomRightStart, bottomRightEnd, paint);
-    
+
     // Наконечник стрелки нижний правый
     canvas.drawLine(bottomRightEnd, Offset(bottomRightEnd.dx - arrowSize * 0.7, bottomRightEnd.dy), paint);
     canvas.drawLine(bottomRightEnd, Offset(bottomRightEnd.dx, bottomRightEnd.dy - arrowSize * 0.7), paint);
@@ -692,7 +632,7 @@ class CanvasIcons {
     final handleWidth = binWidth * 0.4;
     final handleLeft = binLeft + (binWidth - handleWidth) / 2;
     final handleTop = lidTop - size.height * 0.15;
-    
+
     canvas.drawArc(
       Rect.fromLTWH(handleLeft, handleTop, handleWidth, size.height * 0.15),
       3.14159, // π
@@ -708,7 +648,7 @@ class CanvasIcons {
     path.lineTo(binLeft + binWidth * 0.85, binTop + binHeight);
     path.lineTo(binLeft + binWidth * 0.15, binTop + binHeight);
     path.close();
-    
+
     canvas.drawPath(path, paint);
 
     // Вертикальные линии внутри корзины
@@ -773,10 +713,31 @@ class CanvasIcons {
 
     // Рисуем линию стрелки
     canvas.drawLine(lineStart, lineEnd, paint);
-    
+
     // Рисуем наконечник стрелки
     canvas.drawLine(lineEnd, arrowHead1, paint);
     canvas.drawLine(lineEnd, arrowHead2, paint);
+  }
+
+  /// Иконка с тремя горизонтальными полосками (menu / burger)
+  static void paintBars(Canvas canvas, Size size, Color color) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    final barWidth = size.width * 0.7;
+    final startX = (size.width - barWidth) / 2;
+
+    // Верхняя полоска
+    canvas.drawLine(Offset(startX, size.height * 0.25), Offset(startX + barWidth, size.height * 0.25), paint);
+
+    // Средняя полоска
+    canvas.drawLine(Offset(startX, size.height * 0.5), Offset(startX + barWidth, size.height * 0.5), paint);
+
+    // Нижняя полоска
+    canvas.drawLine(Offset(startX, size.height * 0.75), Offset(startX + barWidth, size.height * 0.75), paint);
   }
 }
 
@@ -786,12 +747,7 @@ class CanvasIcon extends StatelessWidget {
   final double size;
   final Color color;
 
-  const CanvasIcon({
-    super.key,
-    required this.painter,
-    this.size = 18,
-    this.color = Colors.black,
-  });
+  const CanvasIcon({super.key, required this.painter, this.size = 18, this.color = Colors.black});
 
   @override
   Widget build(BuildContext context) {

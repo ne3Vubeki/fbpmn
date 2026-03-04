@@ -67,16 +67,15 @@ class NodePainter {
     required TableNode node,
     double lineWidth = 1.0,
   }) {
-    final attributes = node.attributes;
-    final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isGroup = node.qType == 'group';
     final isSwimlane = node.qType == 'swimlane';
+    final isBO = node.qType == 'bo';
 
     // Уменьшаем область обрезки на половину толщины линии, чтобы оставить место для границы
     final clipInset = lineWidth;
 
-    if (isSwimlane || isGroup || isEnum || !hasAttributes) {
+    if (isSwimlane || isGroup || isEnum || !isBO) {
       // Прямоугольная маска без скруглений
       final clipRect = Rect.fromLTWH(
         nodeRect.left + clipInset,
@@ -111,8 +110,7 @@ class NodePainter {
     bool isContentOverflowing = false,
   }) {
     final isSwimlane = node.qType == 'swimlane';
-    final attributes = node.attributes;
-    final hasAttributes = attributes.isNotEmpty;
+    final isBO = node.qType == 'bo';
     final isEnum = node.qType == 'enum';
     final isGroup = node.qType == 'group';
 
@@ -122,7 +120,7 @@ class NodePainter {
     // Если есть переполнение содержимого, используем красный цвет для нижней границы
     if (isContentOverflowing) {
       // Для узлов со скругленными углами рисуем специальным способом
-      if (!isSwimlane && !isGroup && !isEnum && hasAttributes) {
+      if (!isSwimlane && !isGroup && !isEnum && isBO) {
         // Сначала рисуем всю границу черным
         final blackBorderPaint = Paint()
           ..color = Colors.black
@@ -177,7 +175,7 @@ class NodePainter {
           ..isAntiAlias = true
           ..filterQuality = FilterQuality.high;
 
-        if (isSwimlane || isGroup || isEnum || !hasAttributes) {
+        if (isSwimlane || isGroup || isEnum || !isBO) {
           canvas.drawRect(nodeRect, blackBorderPaint);
         } else {
           final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -210,7 +208,7 @@ class NodePainter {
 
     if (isSwimlane) {
       canvas.drawRect(nodeRect, borderPaint);
-    } else if (isGroup || isEnum || !hasAttributes) {
+    } else if (isGroup || isEnum || !isBO) {
       canvas.drawRect(nodeRect, borderPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -221,17 +219,16 @@ class NodePainter {
   /// Рисует подсветку связанного узла (прозрачный синий)
   void _drawHighlightOverlay({required Canvas canvas, required Rect nodeRect, required TableNode node}) {
     final isSwimlane = node.qType == 'swimlane';
-    final attributes = node.attributes;
-    final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isGroup = node.qType == 'group';
+    final isBO = node.qType == 'bo';
 
     final highlightPaint = Paint()
       ..color = Colors.blue.withOpacity(0.1)
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    if (isSwimlane || isGroup || isEnum || !hasAttributes) {
+    if (isSwimlane || isGroup || isEnum || !isBO) {
       canvas.drawRect(nodeRect, highlightPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -241,10 +238,9 @@ class NodePainter {
 
   /// Рисует рамку выделения вокруг узла с padding
   void _drawSelectionBorder({required Canvas canvas, required Rect nodeRect, required TableNode node}) {
-    final attributes = node.attributes;
-    final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isGroup = node.qType == 'group';
+    final isBO = node.qType == 'bo';
 
     // Рассчитываем толщину линии для внутренних границ
     final scaleX = nodeRect.width / node.size.width;
@@ -270,7 +266,7 @@ class NodePainter {
       ..strokeWidth = frameBorderWidth
       ..isAntiAlias = true;
 
-    if (isGroup || isEnum || !hasAttributes) {
+    if (isGroup || isEnum || !isBO) {
       canvas.drawRect(expandedRect, borderPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(expandedRect, Radius.circular(8));
@@ -286,10 +282,9 @@ class NodePainter {
     bool forTile = false,
   }) {
     final isSwimlane = node.qType == 'swimlane';
-    final attributes = node.attributes;
-    final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isGroup = node.qType == 'group';
+    final isBO = node.qType == 'bo';
 
     // Для swimlane рисуем белый фон
     if (isSwimlane) {
@@ -310,7 +305,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (isGroup || isEnum || !hasAttributes) {
+    if (isGroup || isEnum || !isBO) {
       canvas.drawRect(nodeRect, backgroundPaint);
     } else {
       final roundedRect = RRect.fromRectAndRadius(nodeRect, Radius.circular(8));
@@ -467,10 +462,9 @@ class NodePainter {
       return;
     }
 
-    final attributes = node.attributes;
-    final hasAttributes = attributes.isNotEmpty;
     final isEnum = node.qType == 'enum';
     final isGroup = node.qType == 'group';
+    final isBO = node.qType == 'bo';
 
     // Для swimlane в раскрытом состоянии
     if (isSwimlane && !isCollapsed) {
@@ -490,7 +484,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (isGroup || isEnum || !hasAttributes) {
+    if (isGroup || isEnum || !isBO) {
       canvas.drawRect(headerRect, headerPaint);
     } else {
       final headerRoundedRect = RRect.fromRectAndCorners(
@@ -513,7 +507,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (!isGroup && hasAttributes) {
+    if (!isGroup && isBO) {
       canvas.drawLine(
         Offset(nodeRect.left, nodeRect.top + headerHeight),
         Offset(nodeRect.right, nodeRect.top + headerHeight),
@@ -563,12 +557,12 @@ class NodePainter {
     }
 
     // Рисуем строки таблицы
-    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
+    final rowHeight = (nodeRect.height - headerHeight) / node.attributes.length;
     final minRowHeight = EditorConfig.minRowHeight;
     final actualRowHeight = math.max(rowHeight, minRowHeight);
 
-    for (int i = 0; i < attributes.length; i++) {
-      final attribute = attributes[i];
+    for (int i = 0; i < node.attributes.length; i++) {
+      final attribute = node.attributes[i];
       final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
       final rowBottom = rowTop + actualRowHeight;
 
@@ -582,7 +576,7 @@ class NodePainter {
       );
 
       // Горизонтальная граница - будет обрезана маской если выходит за границы
-      if (i < attributes.length - 1) {
+      if (i < node.attributes.length - 1) {
         canvas.drawLine(Offset(nodeRect.left, rowBottom), Offset(nodeRect.right, rowBottom), headerBorderPaint);
       }
 

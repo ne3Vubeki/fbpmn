@@ -123,6 +123,14 @@ class EventManager {
           await shemaManager.resolveSchema(allowHttpLoad: true, filePath: data['filePath'] as String);
         }
         break;
+      case 'node_create':
+        if (data != null) {
+          final payload = data['node'];
+          if (payload is Map<String, dynamic>) {
+            await nodeManager.createNodeFromMap(payload);
+          }
+        }
+        break;
     }
   }
 }

@@ -10,6 +10,7 @@
             "type": "dart",
             "args": [
                 // "--wasm"
+                "--no-web-resources-cdn",
             ],
             "flutterMode": "debug"
         },
@@ -27,6 +28,9 @@
             "name": "fbpmn js",
             "request": "launch",
             "type": "dart",
+            "args": [
+                "--no-web-resources-cdn",
+            ],
             "flutterMode": "release"
         },
         {
@@ -34,12 +38,10 @@
             "request": "launch",
             "type": "dart",
             "args": [
-                "--release",
                 "--wasm",
-                "--dart-define=Dart2jsOptimization=O0",
-                " --web-resources-hash"
+                "--no-web-resources-cdn",
             ],
-            // "flutterMode": "release"
+            "flutterMode": "release"
         }
     ]
 }

@@ -159,6 +159,39 @@ class NodeManager extends Manager {
     }
   }
 
+  /// Создает новый узел из Map и помещает его в центр видимой области
+  /// как выделенный узел на верхнем слое.
+  Future<void> createNodeFromMap(Map<String, dynamic> nodeMap) async {
+    if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
+      await _saveNodeToTiles();
+    }
+
+    final node = TableNode.fromJson(nodeMap);
+
+    final viewportCenterScreen = Offset(
+      state.viewportSize.width / 2,
+      state.viewportSize.height / 2,
+    );
+    final viewportCenterWorld = Utils.screenToWorld(viewportCenterScreen, state);
+
+    final nodeTopLeftWorld = Offset(
+      viewportCenterWorld.dx - node.size.width / 2,
+      viewportCenterWorld.dy - node.size.height / 2,
+    );
+
+    node.aPosition = nodeTopLeftWorld;
+    node.position = nodeTopLeftWorld - state.delta;
+    node.isSelected = false;
+
+    // Новый узел сначала добавляется в общую модель,
+    // после чего переводится в верхний слой стандартной логикой выделения.
+    if (!state.nodes.any((n) => n.id == node.id)) {
+      state.nodes.add(node);
+    }
+
+    await _selectNode(node);
+  }
+
   // Обновление позиции РАМКИ на основе позиции УЗЛА
   void _updateNodePosition() {
     if (state.nodesSelected.isEmpty) return;

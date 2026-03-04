@@ -31,7 +31,7 @@ class _AppState extends State<App> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'WASM редактор BPMN',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: ThemeData(fontFamilyFallback: const ["Roboto"], primarySwatch: Colors.blue),
       home: Scaffold(
         body: StableGridImage(properties: widget.properties, appEvent: _appEvent),
       ),

@@ -47,8 +47,10 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
     // Размер узла (масштабированный)
     final nodeSize = Size(node.size.width * scale, node.size.height * scale);
-    final resizeBoxContainerSize = Size(nodeSize.width + offset * 2 + frame * 2, nodeSize.height + offset * 2 + frame * 2);
-
+    final resizeBoxContainerSize = Size(
+      nodeSize.width + offset * 2 + frame * 2,
+      nodeSize.height + offset * 2 + frame * 2,
+    );
 
     final containerLeft = widget.state.selectedNodeOffset.dx - offset - width / 4;
     final containerTop = widget.state.selectedNodeOffset.dy - offset - width / 4;
@@ -72,6 +74,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
     // Позиция кнопки относительно контейнера
     final buttonTop = containerTop - buttonSize / 2;
+    final buttonLeft = containerLeft - buttonSize / 2;
     final buttonRight = containerLeft + resizeBoxContainerSize.width - buttonSize / 2;
     final buttonBottom = containerTop + resizeBoxContainerSize.height - buttonSize / 2;
 
@@ -102,6 +105,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                     ),
                   ),
                 ),
+
                 // Подсветка строки атрибута и кружки для всех узлов, включая вложенные в группу
                 _buildAllAttributesHighlights(node, nodeSize, offset + frame, scale, lengthArrow, width),
 
@@ -113,13 +117,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                 ),
-                _buildSideHandle(
-                  'r',
-                  resizeBoxContainerSize.width - frame - lengthArrow / 2 - groupOffsetX,
-                  resizeBoxContainerSize.height / 2 - lengthArrow / 2,
-                  lengthArrow,
-                  width,
-                ),
+
                 _buildSideHandle(
                   'b',
                   resizeBoxContainerSize.width / 2 - lengthArrow / 2 + width / 4,
@@ -127,25 +125,47 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                 ),
-                _buildSideHandle(
-                  'l',
-                  frame + groupOffsetX - lengthArrow / 2,
-                  resizeBoxContainerSize.height / 2 - lengthArrow / 2 + width / 4,
-                  lengthArrow,
-                  width,
-                ),
               ],
             ),
           ),
         ),
-        _buildRemoveButton(buttonRight, buttonTop, buttonSize),
-        _buildResizeButton(buttonRight, buttonBottom, buttonSize),
+
+        _buildActionButton(
+          left: buttonLeft,
+          top: buttonTop,
+          size: buttonSize,
+          color: Colors.white,
+          colorIcon: Colors.black,
+          icon: CanvasIcons.paintBars,
+        ),
+        _buildActionButton(
+          left: buttonRight,
+          top: buttonTop,
+          size: buttonSize,
+          color: Colors.red,
+          icon: CanvasIcons.paintDelete,
+        ),
+        _buildResizeButton(
+          left: buttonRight,
+          top: buttonBottom,
+          size: buttonSize,
+          color: Colors.amber,
+          colorIcon: Colors.black,
+        ),
       ],
     );
   }
 
   /// Создаёт круглую кнопку для удаления узла
-  Widget _buildRemoveButton(double left, double top, double size) {
+  Widget _buildActionButton({
+    required double left,
+    required double top,
+    required double size,
+    required Color color,
+    Color colorIcon = Colors.white,
+    required void Function(Canvas, Size, Color) icon,
+    Function()? onTap,
+  }) {
     return Positioned(
       left: left,
       top: top,
@@ -154,21 +174,19 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: () {
-            // TODO: Добавить логику удаления узла
-          },
+          onTap: onTap,
           child: Container(
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: Colors.red,
+              color: color,
               shape: BoxShape.circle,
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))],
             ),
             child: Center(
               child: CustomPaint(
                 size: Size(size * 0.5, size * 0.5),
-                painter: _IconPainter(painter: CanvasIcons.paintDelete, color: Colors.white),
+                painter: _IconPainter(painter: icon, color: colorIcon),
               ),
             ),
           ),
@@ -178,7 +196,13 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   }
 
   /// Создаёт круглую кнопку для изменения размера
-  Widget _buildResizeButton(double left, double top, double size) {
+  Widget _buildResizeButton({
+    required double left,
+    required double top,
+    required double size,
+    required Color color,
+    required Color colorIcon,
+  }) {
     return Positioned(
       left: left,
       top: top,
@@ -203,14 +227,14 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: Colors.blue,
+              color: color,
               shape: BoxShape.circle,
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))],
             ),
             child: Center(
               child: CustomPaint(
                 size: Size(size * 0.5, size * 0.5),
-                painter: _IconPainter(painter: CanvasIcons.paintResize, color: Colors.white),
+                painter: _IconPainter(painter: CanvasIcons.paintResize, color: colorIcon),
               ),
             ),
           ),
