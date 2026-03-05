@@ -340,9 +340,8 @@ class NodePainter {
 
     if (forTile) {
       // Для тайла: рисуем в мировых координатах
-      final scaleX = 1.0;
-      final scaleY = 1.0;
-      final lineWidth = 1.0 / math.min(scaleX, scaleY);
+      final scale = 1.0;
+      final lineWidth = 1.0;
 
       // Проверяем переполнение содержимого
       final isContentOverflowing = _isContentOverflowing(node: currentNode, nodeRect: nodeWorldRect);
@@ -363,7 +362,7 @@ class NodePainter {
       _applyClipMask(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode, lineWidth: lineWidth);
 
       // 3. Рисуем внутреннее содержимое (с маской)
-      _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeWorldRect, forTile: true);
+      _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeWorldRect, forTile: true, scale: scale);
 
       // 4. Рисуем иконку треугольника поверх всего (вне маски)
       if (isContentOverflowing) {
@@ -392,13 +391,12 @@ class NodePainter {
       }
     } else {
       // Для виджета: преобразуем координаты
-      final scaleX = nodeWorldRect.width / currentNode.size.width;
-      final scaleY = nodeWorldRect.height / currentNode.size.height;
+      final scale = nodeWorldRect.width / currentNode.size.width;
 
-      canvas.scale(scaleX, scaleY);
+      canvas.scale(scale, scale);
 
       final nodeLocalRect = Rect.fromLTWH(0, 0, currentNode.size.width, currentNode.size.height);
-      final lineWidth = 1.0 / math.min(scaleX, scaleY);
+      final lineWidth = 1.0 / scale;
 
       // Проверяем переполнение содержимого
       final isContentOverflowing = _isContentOverflowing(node: currentNode, nodeRect: nodeLocalRect);
@@ -419,7 +417,7 @@ class NodePainter {
       _applyClipMask(canvas: canvas, nodeRect: nodeLocalRect, node: currentNode, lineWidth: lineWidth);
 
       // 3. Рисуем внутреннее содержимое (с маской)
-      _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeLocalRect, forTile: false);
+      _drawNodeContent(canvas: canvas, node: currentNode, nodeRect: nodeLocalRect, forTile: false, scale: scale);
 
       // 4. Рисуем иконку треугольника поверх всего (вне маски)
       if (isContentOverflowing) {
@@ -451,6 +449,7 @@ class NodePainter {
     required TableNode node,
     required Rect nodeRect,
     required bool forTile,
+    required double scale,
   }) {
     final isSwimlane = node.qType == 'swimlane';
     // Проверяем, является ли узел свернутым
@@ -496,9 +495,7 @@ class NodePainter {
     }
 
     // Рассчитываем толщину линии для внутренних границ
-    final scaleX = nodeRect.width / node.size.width;
-    final scaleY = nodeRect.height / node.size.height;
-    final lineWidth = 1.0 / math.min(scaleX, scaleY);
+    final lineWidth = 1.0 / scale;
 
     final headerBorderPaint = Paint()
       ..color = Colors.black
@@ -563,10 +560,15 @@ class NodePainter {
 
     for (int i = 0; i < node.attributes.length; i++) {
       final attribute = node.attributes[i];
-      final rowTop = nodeRect.top + headerHeight + actualRowHeight * i;
+      final topHeight = headerHeight + actualRowHeight * i;
+      final rowTop = nodeRect.top + topHeight;
       final rowBottom = rowTop + actualRowHeight;
 
       final double columnSplit = isEnum ? 20.0 : nodeRect.width - 40;
+
+      // Сохраняем относительные позицию и размеры атрибутов в мировых координатах
+      attribute.position = Offset(0, topHeight * scale);
+      attribute.size = Size(nodeRect.width * scale, actualRowHeight * scale);
 
       // Вертикальная граница - будет обрезана маской если выходит за границы
       canvas.drawLine(
@@ -723,11 +725,7 @@ class NodePainter {
     if (swimlaneText.isNotEmpty) {
       final textSpan = TextSpan(
         text: swimlaneText,
-        style: TextStyle(
-          color: Colors.black,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold),
       );
 
       final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 1, ellipsis: '...');
@@ -747,9 +745,8 @@ class NodePainter {
   /// Простая отрисовка одного узла (без детей) - для обратной совместимости
   void paint(Canvas canvas, Rect targetRect, {bool forTile = false}) {
     // Рассчитываем толщину линии
-    final scaleX = targetRect.width / node.size.width;
-    final scaleY = targetRect.height / node.size.height;
-    final lineWidth = 1.0 / math.min(scaleX, scaleY);
+    final scale = targetRect.width / node.size.width;
+    final lineWidth = 1.0 / scale;
 
     // Проверяем переполнение содержимого
     final isContentOverflowing = _isContentOverflowing(node: node, nodeRect: targetRect);
@@ -772,7 +769,7 @@ class NodePainter {
     _applyClipMask(canvas: canvas, nodeRect: targetRect, node: node, lineWidth: lineWidth);
 
     // 3. Рисуем внутреннее содержимое (с маской)
-    _drawNodeContent(canvas: canvas, node: node, nodeRect: targetRect, forTile: forTile);
+    _drawNodeContent(canvas: canvas, node: node, nodeRect: targetRect, forTile: forTile, scale: scale);
 
     // 4. Рисуем иконку треугольника поверх всего (вне маски)
     if (isContentOverflowing) {

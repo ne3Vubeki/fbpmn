@@ -487,8 +487,8 @@
       "qCompStatus": "0",
       "id": "1768315075764",
       "style": "endArrow=none;html=1;endSize=12;startArrow=diamondThin;startSize=14;startFill=1;edgeStyle=orthogonalEdgeStyle;movable=0;",
-      "source": "1768315075755",
-      "target": "1768315075756",
+      "source": "1768315075755_status",
+      "target": "1768315075756_status",
       "powers": [
         {
           "id": "1768315075765",

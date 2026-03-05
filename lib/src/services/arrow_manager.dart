@@ -5,6 +5,7 @@ import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
 import 'package:flutter/cupertino.dart';
 
+import '../models/attribute.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import 'manager.dart';
@@ -44,6 +45,8 @@ class ArrowManager extends Manager {
     Rect targetRect,
     TableNode sourceNode,
     TableNode targetNode,
+    Attribute? sourceAttribute,
+    Attribute? targetAttribute,
   ) {
     // Определяем центральные точки узлов
     final sourceCenter = sourceRect.center;
@@ -63,6 +66,9 @@ class ArrowManager extends Manager {
     // Вычисляем расстояния между центрами узлов
     final cx = targetCenter.dx - sourceCenter.dx;
     final cy = targetCenter.dy - sourceCenter.dy;
+
+    final isSourceAttribute = sourceAttribute != null;
+    final isTargetAttribute = targetAttribute != null;
 
     // Истино для Source узла
     final isLeftSide60 = sourceRight <= targetLeft - 60;
@@ -402,46 +408,44 @@ class ArrowManager extends Manager {
     bool isNotCalculate = false,
     bool isTiles = false,
   }) {
-
     // Находим эффективные узлы
-    final effectiveSourceNode = _getEffectiveNode(arrow.source);
-    final effectiveTargetNode = _getEffectiveNode(arrow.target);
+    final sourceNodeAndAttr = _getNodeFromArrow(arrow.source);
+    final targetNodeAndAttr = _getNodeFromArrow(arrow.target);
 
-    if (effectiveSourceNode == null || effectiveTargetNode == null) {
+    final sourceNode = sourceNodeAndAttr.node;
+    final targetNode = targetNodeAndAttr.node;
+
+    final sourceAttr = sourceNodeAndAttr.attribute;
+    final targetAttr = targetNodeAndAttr.attribute;
+
+    if (sourceNode == null || targetNode == null) {
       return (paths: ArrowPaths(path: Path()), coordinates: []);
     }
 
     // Получаем абсолютные позиции
-    final sourceAbsolutePos = effectiveSourceNode.aPosition ?? (effectiveSourceNode.position + baseOffset);
-    final targetAbsolutePos = effectiveTargetNode.aPosition ?? (effectiveTargetNode.position + baseOffset);
+    final sourceAbsolutePos = sourceNode.aPosition ?? (sourceNode.position + baseOffset);
+    final targetAbsolutePos = targetNode.aPosition ?? (targetNode.position + baseOffset);
 
     // Создаем Rect для узлов
     final sourceRect = Rect.fromPoints(
       sourceAbsolutePos,
-      Offset(
-        sourceAbsolutePos.dx + effectiveSourceNode.size.width,
-        sourceAbsolutePos.dy + effectiveSourceNode.size.height,
-      ),
+      Offset(sourceAbsolutePos.dx + sourceNode.size.width, sourceAbsolutePos.dy + sourceNode.size.height),
     );
 
     final targetRect = Rect.fromPoints(
       targetAbsolutePos,
-      Offset(
-        targetAbsolutePos.dx + effectiveTargetNode.size.width,
-        targetAbsolutePos.dy + effectiveTargetNode.size.height,
-      ),
+      Offset(targetAbsolutePos.dx + targetNode.size.width, targetAbsolutePos.dy + targetNode.size.height),
     );
-
-    // effectiveSourceNode.connections?.remove(arrow.id);
-    // effectiveTargetNode.connections?.remove(arrow.id);
 
     // Вычисляем точки соединения
     final baseConnectionPoints = calculateConnectionPoints(
       arrow,
       sourceRect,
       targetRect,
-      effectiveSourceNode,
-      effectiveTargetNode,
+      sourceNode,
+      targetNode,
+      sourceAttr,
+      targetAttr,
     );
 
     arrow.aPositionSource = baseConnectionPoints.start!;
@@ -924,12 +928,27 @@ class ArrowManager extends Manager {
   }
 
   /// Найти эффективный узел
-  TableNode? _getEffectiveNode(String nodeId) {
+  /// Найти эффективный узел
+  ({TableNode? node, Attribute? attribute}) _getNodeFromArrow(String nodeId) {
+    TableNode? foundNode;
+    Attribute? foundAttribute;
+
     TableNode? findNodeRecursive(List<TableNode> nodeList) {
       for (final node in nodeList) {
+        // Сначала проверяем сам узел
         if (node.id == nodeId) {
           return node;
         }
+
+        // Проверяем атрибуты узла
+        for (final attr in node.attributes) {
+          if (attr.id == nodeId) {
+            foundAttribute = attr;
+            return node;
+          }
+        }
+
+        // Рекурсивно ищем в детях
         if (node.children != null) {
           final found = findNodeRecursive(node.children!);
           if (found != null) return found;
@@ -939,37 +958,51 @@ class ArrowManager extends Manager {
     }
 
     // Ищем в основном списке узлов
-    TableNode? node = findNodeRecursive(state.nodes);
+    foundNode = findNodeRecursive(state.nodes);
 
     // Если не найден — ищем среди выделенных узлов (они удалены из state.nodes)
-    if (node == null && state.nodesSelected.isNotEmpty) {
+    if (foundNode == null && state.nodesSelected.isNotEmpty) {
       for (final selected in state.nodesSelected) {
         if (selected == null) continue;
+
         if (selected.id == nodeId) {
-          node = selected;
+          foundNode = selected;
           break;
         }
+
+        // Проверяем атрибуты выделенного узла
+        for (final attr in selected.attributes) {
+          if (attr.id == nodeId) {
+            foundAttribute = attr;
+            foundNode = selected;
+            break;
+          }
+        }
+
+        if (foundNode != null) break;
+
+        // Ищем в детях выделенного узла
         if (selected.children != null) {
           final found = findNodeRecursive(selected.children!);
           if (found != null) {
-            node = found;
+            foundNode = found;
             break;
           }
         }
       }
     }
 
-    if (node == null) return null;
+    if (foundNode == null) return (node: null, attribute: null);
 
     // Проверка на свернутые swimlane
-    if (node.parent != null) {
-      final parent = _getEffectiveNode(node.parent!);
+    if (foundNode.parent != null) {
+      final parent = _getNodeFromArrow(foundNode.parent!).node;
       if (parent != null && parent.qType == 'swimlane' && (parent.isCollapsed ?? false)) {
-        return parent;
+        return (node: parent, attribute: null);
       }
     }
 
-    return node;
+    return (node: foundNode, attribute: foundAttribute);
   }
 
   /// Находит все связи, связанные с указанными узлами
@@ -978,16 +1011,26 @@ class ArrowManager extends Manager {
   List<Arrow?> getArrowsForNodes(List<TableNode?> nodes) {
     // Создаем Set для хранения уникальных ID узлов
     final Set<String> nodeIds = {};
+    final Set<String> attributeIds = {};
 
     // Добавляем ID всех узлов из списка
     for (final node in nodes) {
       nodeIds.add(node!.id);
+
+      // Добавляем ID всех атрибутов узла
+      for (final attr in node.attributes) {
+        attributeIds.add(attr.id);
+      }
 
       // Также добавляем ID всех вложенных узлов, если они есть
       if (node.children != null && node.children!.isNotEmpty) {
         void addChildrenIds(TableNode parentNode) {
           for (final child in parentNode.children!) {
             nodeIds.add(child.id);
+            // Добавляем ID всех атрибутов узла
+            for (final attr in node.attributes) {
+              attributeIds.add(attr.id);
+            }
             if (child.children != null && child.children!.isNotEmpty) {
               addChildrenIds(child);
             }
@@ -1004,7 +1047,10 @@ class ArrowManager extends Manager {
     // Проходим по всем стрелкам в state.arrows
     for (final arrow in state.arrows) {
       // Проверяем, связана ли стрелка с любым из узлов в списке
-      if (nodeIds.contains(arrow.source) || nodeIds.contains(arrow.target)) {
+      if (nodeIds.contains(arrow.source) ||
+          nodeIds.contains(arrow.target) ||
+          attributeIds.contains(arrow.source) ||
+          attributeIds.contains(arrow.target)) {
         arrowsSet.add(arrow);
       }
     }
@@ -1012,5 +1058,4 @@ class ArrowManager extends Manager {
     // Преобразуем Set в List и возвращаем
     return arrowsSet.toList();
   }
-
 }

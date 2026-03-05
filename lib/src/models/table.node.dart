@@ -47,8 +47,27 @@ class TableNode extends Node {
     final id = object['id'] as String;
     final geometry = object['geometry'] as Map<String, dynamic>;
     final style = object['style'] as String? ?? '';
+
+    final x = (geometry['x'] as num).toDouble();
+    final y = (geometry['y'] as num).toDouble();
+    final width = (geometry['width'] as num).toDouble();
+    double height = (geometry['height'] as num).toDouble();
+
     final attributes = (object['attributes'] as List<dynamic>? ?? [])
-        .map<Attribute>((attr) => Attribute.fromJson(attr as Map<String, dynamic>))
+        .asMap()
+        .entries
+        .map<Attribute>((entry) {
+          final index = entry.key;
+          final attr = entry.value;
+          final attribute = Attribute.fromJson(attr as Map<String, dynamic>);
+
+          if (attribute.position == Offset.zero && attribute.size == Size.zero) {
+            attribute.position = Offset(0, EditorConfig.headerHeight + EditorConfig.minRowHeight * index);
+            attribute.size = Size(width, EditorConfig.minRowHeight);
+          }
+
+          return attribute;
+        })
         .toList();
     final children = (object['children'] as List<dynamic>? ?? [])
         .map<TableNode>((object) => TableNode.fromJson(object, id))
@@ -57,11 +76,6 @@ class TableNode extends Node {
 
     // Извлекаем свойство collapsed
     final isCollapsed = object['collapsed'] == '1';
-
-    final x = (geometry['x'] as num).toDouble();
-    final y = (geometry['y'] as num).toDouble();
-    final width = (geometry['width'] as num).toDouble();
-    double height = (geometry['height'] as num).toDouble();
 
     if (height < EditorConfig.headerHeight) {
       height = EditorConfig.headerHeight;

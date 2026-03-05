@@ -164,7 +164,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     );
   }
 
-  /// Создаёт круглую кнопку для удаления узла
+  /// Создаёт круглую кнопку по углам узла
   Widget _buildActionButton({
     required double left,
     required double top,
@@ -252,7 +252,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     );
   }
 
-  /// Создаёт боковой маркер с увеличенной анимацией при ховере (3x)
+  /// Создаёт боковой маркер для создания связей узел->
   Widget _buildSideHandle(
     String handle,
     double left,
@@ -420,7 +420,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         onExit: (_) {
           _resetHoverState();
         },
-        child: Container(
+        child: SizedBox(
           width: offset * 2 + nodeSize.width,
           height: nodeSize.height,
           child: Stack(
@@ -505,7 +505,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     }
   }
 
-  /// Создаёт дочерние виджеты для подсветки атрибутов всех узлов
+  /// Создаёт дочерние виджеты кружки с лева и права атрибута для создания связи атрибут->
   List<Widget> _buildAllAttributesHighlightChildren(
     List<dynamic> nodesToProcess,
     dynamic mainNode,

@@ -14,8 +14,8 @@ class Attribute {
   final String? originalId;
   final String? index;
   final UserObject? userObject;
-  final Offset position;
-  final Size size;
+  Offset position;
+  Size size;
 
   Attribute({
     required this.id,
