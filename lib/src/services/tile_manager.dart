@@ -29,7 +29,7 @@ class TileManager extends Manager {
   TileManager({required this.state, required this.arrowManager});
 
   /// Даёт UI-потоку время на отрисовку (для анимации LoadingIndicator)
-  Future<void>? _yieldToUi() => _waitForUI ?Future<void>.delayed(Duration.zero) : null;
+  Future<void>? _yieldToUi() => _waitForUI ? Future<void>.delayed(Duration.zero) : null;
 
   /// Получает ID узлов, связанных с выделенными узлами (на другом конце связей)
   /// Для group: подсвечивается родитель и вложенные узлы
@@ -994,6 +994,28 @@ class TileManager extends Manager {
         }
       }
     }
+  }
+
+  /// Возвращает тайл, содержащий указанную мировую позицию
+  /// [worldPosition] - мировая координата точки
+  /// Возвращает тайл, если он существует, иначе null
+  ImageTile? getTileAtWorldPosition(Offset worldPosition) {
+    // Размер тайла в мировых координатах
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+
+    // Рассчитываем grid координаты тайла, в котором находится точка
+    final gridX = (worldPosition.dx / tileWorldSize).floor();
+    final gridY = (worldPosition.dy / tileWorldSize).floor();
+
+    // Вычисляем мировые координаты левого верхнего угла тайла
+    final tileLeft = gridX * tileWorldSize;
+    final tileTop = gridY * tileWorldSize;
+
+    // Генерируем ID тайла
+    final tileId = _generateTileId(tileLeft, tileTop);
+
+    // Возвращаем тайл из существующих, если он есть
+    return state.imageTiles[tileId];
   }
 
   /// Публичный метод для очистки всех тайлов

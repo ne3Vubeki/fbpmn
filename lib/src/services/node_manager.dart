@@ -168,10 +168,7 @@ class NodeManager extends Manager {
 
     final node = TableNode.fromJson(nodeMap);
 
-    final viewportCenterScreen = Offset(
-      state.viewportSize.width / 2,
-      state.viewportSize.height / 2,
-    );
+    final viewportCenterScreen = Offset(state.viewportSize.width / 2, state.viewportSize.height / 2);
     final viewportCenterWorld = Utils.screenToWorld(viewportCenterScreen, state);
 
     final nodeTopLeftWorld = Offset(
@@ -349,7 +346,6 @@ class NodeManager extends Manager {
     // ситуации «сначала стрелки, потом узел».
     arrowManager.selectAllArrows();
 
-
     startNodeDrag(screenPosition);
 
     tracker.endSelect();
@@ -386,7 +382,6 @@ class NodeManager extends Manager {
 
     // Выделяем стрелки после завершения тяжелой работы.
     arrowManager.selectAllArrows();
-
 
     tracker.endSelect();
 
@@ -590,60 +585,92 @@ class NodeManager extends Manager {
   Future<void> selectNodeAtPosition(Offset screenPosition, {bool immediateDrag = false}) async {
     final worldPos = Utils.screenToWorld(screenPosition, state);
 
+    // Определяем тайл, в котором произошел клик
+    final tile = tileManager.getTileAtWorldPosition(worldPos);
+    if (tile == null) {
+      // Клик вне области тайлов - обрабатываем как клик по пустой области
+      await handleEmptyAreaClick();
+      return;
+    }
+
     TableNode? foundNode;
     Offset? foundNodeWorldPosition;
 
-    // Ищем узел под курсором (с учетом иерархии)
-    TableNode? findNodeRecursive(List<TableNode> nodes, Offset parentOffset) {
-      for (int i = nodes.length - 1; i >= 0; i--) {
-        final node = nodes[i];
-        final nodeOffset = node.aPosition ?? (parentOffset + node.position);
-        final nodeRect = Rect.fromLTWH(nodeOffset.dx, nodeOffset.dy, node.size.width, node.size.height);
+    // Получаем множество ID узлов в этом тайле для быстрого поиска
+    final nodeIdsInTile = Set<String>.from(tile.nodes);
 
-        // Если это выделенный узел на верхнем слое, игнорируем его
-        if (state.nodesIdOnTopLayer.isNotEmpty &&
-            state.nodesSelected.isNotEmpty &&
-            state.nodesSelected.first!.id == node.id) {
-          continue;
-        }
+    // Функция для рекурсивного сбора узлов, чьи ID есть в множестве
+    List<TableNode> collectNodesByIds(List<TableNode> nodes) {
+      final result = <TableNode>[];
 
-        if (nodeRect.contains(worldPos)) {
-          foundNodeWorldPosition = nodeOffset;
-          return node;
-        }
-
-        // Проверяем, является ли узел свернутым swimlane
-        final isCollapsedSwimlane = node.qType == 'swimlane' && (node.isCollapsed ?? false);
-
-        // Если узел не свернут, проверяем детей
-        if (!isCollapsedSwimlane && node.children != null && node.children!.isNotEmpty) {
-          // Для развернутого swimlane, дети используют свои абсолютные позиции
-          for (int j = node.children!.length - 1; j >= 0; j--) {
-            final child = node.children![j];
-            final childOffset = child.aPosition ?? (nodeOffset + child.position);
-            final childRect = Rect.fromLTWH(childOffset.dx, childOffset.dy, child.size.width, child.size.height);
-
-            if (childRect.contains(worldPos)) {
-              foundNodeWorldPosition = childOffset;
-              return child;
-            }
+      void traverse(List<TableNode> nodeList) {
+        for (final node in nodeList) {
+          // Проверяем, есть ли ID узла в множестве ID тайла
+          if (nodeIdsInTile.contains(node.id)) {
+            result.add(node);
           }
 
-          // Если мы не нашли дочерний узел под курсором, продолжаем с остальными узлами
-          final childNode = findNodeRecursive(node.children!, nodeOffset);
-          if (childNode != null) {
-            return childNode;
+          // Рекурсивно проверяем дочерние узлы
+          if (node.children != null && node.children!.isNotEmpty) {
+            traverse(node.children!);
           }
         }
       }
-      return null;
+
+      traverse(nodes);
+      return result;
     }
 
-    foundNode = findNodeRecursive(state.nodes, state.delta);
+    // Получаем все узлы, принадлежащие текущему тайлу (один проход по всем узлам)
+    final nodesInTile = collectNodesByIds(state.nodes);
+
+    // Ищем узел под курсором среди узлов тайла
+    for (int i = 0; i < nodesInTile.length; i++) {
+      final node = nodesInTile[i];
+
+      // Проверяем, является ли узел выделенным на верхнем слое
+      if (state.nodesIdOnTopLayer.isNotEmpty &&
+          state.nodesSelected.isNotEmpty &&
+          state.nodesSelected.first?.id == node.id) {
+        continue;
+      }
+
+      // Получаем мировую позицию узла
+      final nodeWorldPos = node.aPosition ?? (state.delta + node.position);
+      final nodeRect = Rect.fromLTWH(nodeWorldPos.dx, nodeWorldPos.dy, node.size.width, node.size.height);
+
+      // Проверяем, попадает ли клик в узел
+      if (nodeRect.contains(worldPos)) {
+        foundNode = node;
+        foundNodeWorldPosition = nodeWorldPos;
+        break;
+      }
+
+      // Для развернутых swimlane проверяем дочерние узлы
+      // (дочерние узлы уже включены в nodesInTile благодаря рекурсивному сбору)
+      if (node.qType == 'swimlane' && !(node.isCollapsed ?? false) && node.children != null) {
+        for (int j = node.children!.length - 1; j >= 0; j--) {
+          final child = node.children![j];
+
+          // Проверяем, что дочерний узел действительно принадлежит этому тайлу
+          if (!nodeIdsInTile.contains(child.id)) continue;
+
+          final childWorldPos = child.aPosition ?? (nodeWorldPos + child.position);
+          final childRect = Rect.fromLTWH(childWorldPos.dx, childWorldPos.dy, child.size.width, child.size.height);
+
+          if (childRect.contains(worldPos)) {
+            foundNode = child;
+            foundNodeWorldPosition = childWorldPos;
+            break;
+          }
+        }
+        if (foundNode != null) break;
+      }
+    }
 
     if (foundNode != null && foundNodeWorldPosition != null) {
       // Проверяем клик по иконке swimlane
-      if (foundNode.qType == 'swimlane' && _isSwimlaneIconClicked(foundNode, worldPos, foundNodeWorldPosition!)) {
+      if (foundNode.qType == 'swimlane' && _isSwimlaneIconClicked(foundNode, worldPos, foundNodeWorldPosition)) {
         await _toggleSwimlaneCollapsed(foundNode);
         return;
       }

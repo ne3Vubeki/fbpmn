@@ -62,13 +62,11 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     if (!showHandles) return Container();
 
     // Для группы определяем смещение для маркеров (если есть вложенный узел)
-    double groupOffsetX = 0;
     double groupOffsetY = 0;
 
     if (isGroup && node.children != null && node.children!.isNotEmpty) {
       // Берем первый дочерний узел для определения области маркеров
       final firstChild = node.children!.first;
-      groupOffsetX = firstChild.position.dx * scale;
       groupOffsetY = firstChild.position.dy * scale;
     }
 
@@ -116,6 +114,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   frame + groupOffsetY - lengthArrow / 2,
                   lengthArrow,
                   width,
+                  cursor: SystemMouseCursors.alias, // Курсор для верхнего маркера
                 ),
 
                 _buildSideHandle(
@@ -124,6 +123,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   resizeBoxContainerSize.height - frame - lengthArrow / 2 - groupOffsetY,
                   lengthArrow,
                   width,
+                  cursor: SystemMouseCursors.alias, // Курсор для нижнего маркера
                 ),
               ],
             ),
@@ -137,6 +137,10 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           color: Colors.white,
           colorIcon: Colors.black,
           icon: CanvasIcons.paintBars,
+          cursor: SystemMouseCursors.click, // Курсор для кнопки настроек
+          onTap: () {
+            // TODO: добавить обработчик для кнопки настроек
+          },
         ),
         _buildActionButton(
           left: buttonRight,
@@ -144,6 +148,10 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           size: buttonSize,
           color: Colors.red,
           icon: CanvasIcons.paintDelete,
+          cursor: SystemMouseCursors.click, // Курсор для кнопки удаления
+          onTap: () {
+            // TODO: добавить обработчик для кнопки удаления
+          },
         ),
         _buildResizeButton(
           left: buttonRight,
@@ -164,6 +172,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     required Color color,
     Color colorIcon = Colors.white,
     required void Function(Canvas, Size, Color) icon,
+    MouseCursor? cursor, // Добавлен параметр курсора
     Function()? onTap,
   }) {
     return Positioned(
@@ -172,7 +181,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       width: size,
       height: size,
       child: MouseRegion(
-        cursor: SystemMouseCursors.click,
+        cursor: cursor ?? SystemMouseCursors.click, // Используем переданный курсор или значение по умолчанию
         child: GestureDetector(
           onTap: onTap,
           child: Container(
@@ -244,7 +253,14 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   }
 
   /// Создаёт боковой маркер с увеличенной анимацией при ховере (3x)
-  Widget _buildSideHandle(String handle, double left, double top, double length, double width) {
+  Widget _buildSideHandle(
+    String handle,
+    double left,
+    double top,
+    double length,
+    double width, {
+    MouseCursor? cursor, // Добавлен параметр курсора
+  }) {
     final isHoveredHandle = isHovered[handle] ?? false;
     final hoverAreaSize = length * 3; // Увеличиваем область для ховера в 3 раза
 
@@ -255,6 +271,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       height: hoverAreaSize,
       child: MouseRegion(
         hitTestBehavior: HitTestBehavior.translucent, // Прозрачная область для захвата событий
+        cursor: cursor ?? SystemMouseCursors.resizeUpDown, // Используем переданный курсор или значение по умолчанию
         onEnter: (_) {
           setState(() {
             isHovered[handle] = true;
@@ -335,6 +352,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       left: 0,
       child: MouseRegion(
         hitTestBehavior: HitTestBehavior.translucent,
+        cursor: SystemMouseCursors.basic, // Курсор по умолчанию для области атрибутов
         onHover: (event) {
           final localPos = event.localPosition;
 
@@ -550,6 +568,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
                 child: MouseRegion(
+                  cursor: SystemMouseCursors.alias, // Курсор для левого маркера атрибута
                   onEnter: (_) {
                     setState(() {
                       isHovered['attr_left_${node.id}_$rowIndex'] = true;
@@ -588,6 +607,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
                 child: MouseRegion(
+                  cursor: SystemMouseCursors.alias, // Курсор для правого маркера атрибута
                   onEnter: (_) {
                     setState(() {
                       isHovered['attr_right_${node.id}_$rowIndex'] = true;
