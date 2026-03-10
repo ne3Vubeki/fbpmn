@@ -62,11 +62,13 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     if (!showHandles) return Container();
 
     // Для группы определяем смещение для маркеров (если есть вложенный узел)
+    double groupOffsetX = 0;
     double groupOffsetY = 0;
 
     if (isGroup && node.children != null && node.children!.isNotEmpty) {
       // Берем первый дочерний узел для определения области маркеров
       final firstChild = node.children!.first;
+      groupOffsetX = firstChild.position.dx * scale;
       groupOffsetY = firstChild.position.dy * scale;
     }
 
@@ -125,6 +127,23 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   width,
                   cursor: SystemMouseCursors.alias, // Курсор для нижнего маркера
                 ),
+                _buildSideHandle(
+                  'r',
+                  resizeBoxContainerSize.width - frame - lengthArrow / 2 - groupOffsetX,
+                  frame + groupOffsetY + offset + (node.heightHeader ?? EditorConfig.minHeaderHeight) * scale / 2 - lengthArrow / 2,
+                  lengthArrow,
+                  width,
+                  cursor: SystemMouseCursors.alias, // Курсор для нижнего маркера
+                ),
+                _buildSideHandle(
+                  'l',
+                  frame + groupOffsetX - lengthArrow / 2,
+                  frame + groupOffsetY + offset + (node.heightHeader ?? EditorConfig.minHeaderHeight) * scale / 2 - lengthArrow / 2,
+                  lengthArrow,
+                  width,
+                  cursor: SystemMouseCursors.alias, // Курсор для нижнего маркера
+                ),
+
               ],
             ),
           ),
@@ -290,22 +309,25 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             height: length,
             alignment: Alignment.center,
             // decoration: BoxDecoration(color: Colors.blue.shade900, shape: BoxShape.circle),
-            child: AnimatedScale(
-              scale: isHoveredHandle ? 3.0 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: Container(
-                width: length,
-                height: length,
-                decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                child: isHoveredHandle
-                    ? Center(
-                        child: CustomPaint(
-                          size: Size(length * 0.6, length * 0.6),
-                          painter: _DirectionArrowPainter(direction: handle, color: Colors.white),
-                        ),
-                      )
-                    : null,
+            child: Tooltip(
+              message: 'Создать связь объекта',
+              child: AnimatedScale(
+                scale: isHoveredHandle ? 3.0 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                child: Container(
+                  width: length,
+                  height: length,
+                  decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                  child: isHoveredHandle
+                      ? Center(
+                          child: CustomPaint(
+                            size: Size(length * 0.6, length * 0.6),
+                            painter: _DirectionArrowPainter(direction: handle, color: Colors.white),
+                          ),
+                        )
+                      : null,
+                ),
               ),
             ),
           ),
@@ -343,7 +365,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
     if (nodesToProcess.isEmpty) return Container();
 
-    final headerHeight = EditorConfig.headerHeight;
+    final minHeaderHeight = EditorConfig.minHeaderHeight;
     final circleRadius = length / 2;
     final circleHoverRadius = circleRadius * 3; // Радиус для ховера (увеличенный круг)
 
@@ -370,10 +392,10 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
               final attribute = currentNode.attributes[rowIndex];
               if (attribute.qType != 'attribute') continue;
 
-              final rowHeight = (currentNode.size.height - headerHeight) / currentNode.attributes.length;
+              final rowHeight = (currentNode.size.height - minHeaderHeight) / currentNode.attributes.length;
               final minRowHeight = EditorConfig.minRowHeight;
               final actualRowHeight = math.max(rowHeight, minRowHeight);
-              final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
+              final rowTop = (minHeaderHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
               final rowBottom = rowTop + actualRowHeight * scale;
               final rowHeightScaled = actualRowHeight * scale;
 
@@ -430,7 +452,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
               node,
               nodeSize,
               offset,
-              headerHeight,
+              minHeaderHeight,
               scale,
               length,
             ),
@@ -511,7 +533,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     dynamic mainNode,
     Size mainNodeSize,
     double offset,
-    double headerHeight,
+    double minHeaderHeight,
     double scale,
     double length,
   ) {
@@ -533,10 +555,10 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
         final attribute = node.attributes[rowIndex];
         if (attribute.qType != 'attribute') continue;
 
-        final rowHeight = (node.size.height - headerHeight) / node.attributes.length;
+        final rowHeight = (node.size.height - minHeaderHeight) / node.attributes.length;
         final minRowHeight = EditorConfig.minRowHeight;
         final actualRowHeight = math.max(rowHeight, minRowHeight);
-        final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
+        final rowTop = (minHeaderHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
         final rowHeightScaled = actualRowHeight * scale;
 
         final isHoveredRow =
@@ -563,34 +585,37 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             Positioned(
               left: currentNodeLeft - length / 2, // Смещаем левый кружок вместе с узлом
               top: rowTop + rowHeightScaled / 2 - length / 2,
-              child: AnimatedScale(
-                scale: isHoveredLeft ? 3.0 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.alias, // Курсор для левого маркера атрибута
-                  onEnter: (_) {
-                    setState(() {
-                      isHovered['attr_left_${node.id}_$rowIndex'] = true;
-                    });
-                  },
-                  onExit: (_) {
-                    setState(() {
-                      isHovered['attr_left_${node.id}_$rowIndex'] = false;
-                    });
-                  },
-                  child: Container(
-                    width: length,
-                    height: length,
-                    decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                    child: isHoveredLeft
-                        ? Center(
-                            child: CustomPaint(
-                              size: Size(length * 0.6, length * 0.6),
-                              painter: _DirectionArrowPainter(direction: 'l', color: Colors.white),
-                            ),
-                          )
-                        : null,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.alias, // Курсор для левого маркера атрибута
+                onEnter: (_) {
+                  setState(() {
+                    isHovered['attr_left_${node.id}_$rowIndex'] = true;
+                  });
+                },
+                onExit: (_) {
+                  setState(() {
+                    isHovered['attr_left_${node.id}_$rowIndex'] = false;
+                  });
+                },
+                child: Tooltip(
+                  message: 'Создать связь атрибута',
+                  child: AnimatedScale(
+                    scale: isHoveredLeft ? 3.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: Container(
+                      width: length,
+                      height: length,
+                      decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                      child: isHoveredLeft
+                          ? Center(
+                              child: CustomPaint(
+                                size: Size(length * 0.6, length * 0.6),
+                                painter: _DirectionArrowPainter(direction: 'l', color: Colors.white),
+                              ),
+                            )
+                          : null,
+                    ),
                   ),
                 ),
               ),
@@ -602,34 +627,37 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             Positioned(
               left: currentNodeLeft + currentNodeWidth - length / 2, // Правый край с учетом смещения
               top: rowTop + rowHeightScaled / 2 - length / 2,
-              child: AnimatedScale(
-                scale: isHoveredRight ? 3.0 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.alias, // Курсор для правого маркера атрибута
-                  onEnter: (_) {
-                    setState(() {
-                      isHovered['attr_right_${node.id}_$rowIndex'] = true;
-                    });
-                  },
-                  onExit: (_) {
-                    setState(() {
-                      isHovered['attr_right_${node.id}_$rowIndex'] = false;
-                    });
-                  },
-                  child: Container(
-                    width: length,
-                    height: length,
-                    decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                    child: isHoveredRight
-                        ? Center(
-                            child: CustomPaint(
-                              size: Size(length * 0.6, length * 0.6),
-                              painter: _DirectionArrowPainter(direction: 'r', color: Colors.white),
-                            ),
-                          )
-                        : null,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.alias, // Курсор для правого маркера атрибута
+                onEnter: (_) {
+                  setState(() {
+                    isHovered['attr_right_${node.id}_$rowIndex'] = true;
+                  });
+                },
+                onExit: (_) {
+                  setState(() {
+                    isHovered['attr_right_${node.id}_$rowIndex'] = false;
+                  });
+                },
+                child: Tooltip(
+                  message: 'Создать связь атрибута',
+                  child: AnimatedScale(
+                    scale: isHoveredRight ? 3.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: Container(
+                      width: length,
+                      height: length,
+                      decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                      child: isHoveredRight
+                          ? Center(
+                              child: CustomPaint(
+                                size: Size(length * 0.6, length * 0.6),
+                                painter: _DirectionArrowPainter(direction: 'r', color: Colors.white),
+                              ),
+                            )
+                          : null,
+                    ),
                   ),
                 ),
               ),

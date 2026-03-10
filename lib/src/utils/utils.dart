@@ -117,6 +117,6 @@ class Utils {
   }
 
   static double _calculateMinHeight(TableNode node) {
-    return EditorConfig.headerHeight + (node.attributes.length * EditorConfig.minRowHeight);
+    return EditorConfig.minHeaderHeight + (node.attributes.length * EditorConfig.minRowHeight);
   }
 }

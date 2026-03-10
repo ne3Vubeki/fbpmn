@@ -47,13 +47,13 @@ class NodePainter {
     final attributes = node.attributes;
     if (attributes.isEmpty) return false; // Нет атрибутов - нет переполнения
 
-    final headerHeight = EditorConfig.headerHeight;
-    final rowHeight = (nodeRect.height - headerHeight) / attributes.length;
+    final minHeaderHeight = EditorConfig.minHeaderHeight;
+    final rowHeight = (nodeRect.height - minHeaderHeight) / attributes.length;
     final minRowHeight = EditorConfig.minRowHeight;
     final actualRowHeight = math.max(rowHeight, minRowHeight);
 
     // Вычисляем высоту всего содержимого
-    final contentHeight = headerHeight + actualRowHeight * attributes.length;
+    final contentHeight = minHeaderHeight + actualRowHeight * attributes.length;
 
     // Если высота содержимого больше высоты узла - есть переполнение
     return contentHeight > nodeRect.height;
@@ -224,7 +224,7 @@ class NodePainter {
     final isBO = node.qType == 'bo';
 
     final highlightPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.1)
+      ..color = Colors.blue.withOpacity(0.3)
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
@@ -387,7 +387,7 @@ class NodePainter {
       final isNodeHighlighted = highlightedNodeIds?.contains(currentNode.id) ?? false;
       if (isNodeHighlighted) {
         _drawHighlightOverlay(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
-        _drawSelectionBorder(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
+        // _drawSelectionBorder(canvas: canvas, nodeRect: nodeWorldRect, node: currentNode);
       }
     } else {
       // Для виджета: преобразуем координаты
@@ -472,9 +472,32 @@ class NodePainter {
       return;
     }
 
+    // ПРОПОРЦИОНАЛЬНЫЙ РАСЧЕТ ВЫСОТ ЗАГОЛОВКА И АТРИБУТОВ
+    final minHeaderHeight = EditorConfig.minHeaderHeight;
+    final minRowHeight = EditorConfig.minRowHeight;
+
+    // Общая высота контента (сумма минимальных высот)
+    final totalMinContentHeight = minHeaderHeight + minRowHeight * node.attributes.length;
+
+    // Если реальная высота узла больше минимальной, распределяем пропорционально
+    double headerHeight;
+    double rowHeight;
+
+    if (nodeRect.height > totalMinContentHeight) {
+      // Пропорциональное распределение дополнительного пространства
+      final extraHeight = nodeRect.height - totalMinContentHeight;
+      final headerShare = minHeaderHeight / totalMinContentHeight;
+
+      headerHeight = minHeaderHeight + extraHeight * headerShare;
+      rowHeight = (nodeRect.height - headerHeight) / node.attributes.length;
+    } else {
+      // Если высота меньше или равна минимальной, используем минимальные значения
+      headerHeight = minHeaderHeight;
+      rowHeight = math.max((nodeRect.height - headerHeight) / node.attributes.length, minRowHeight);
+    }
+
     // Рисуем заголовок
     final headerBackgroundColor = node.backgroundColor;
-    final headerHeight = EditorConfig.headerHeight;
     final headerRect = Rect.fromLTWH(nodeRect.left + 1, nodeRect.top + 1, nodeRect.width - 2, headerHeight - 2);
 
     final headerPaint = Paint()
@@ -553,22 +576,21 @@ class NodePainter {
       canvas.restore();
     }
 
-    // Рисуем строки таблицы
-    final rowHeight = (nodeRect.height - headerHeight) / node.attributes.length;
-    final minRowHeight = EditorConfig.minRowHeight;
-    final actualRowHeight = math.max(rowHeight, minRowHeight);
+    /// Сохраняем динамическую высоту заголовка
+    node.heightHeader = headerHeight;
 
+    // Рисуем строки таблицы
     for (int i = 0; i < node.attributes.length; i++) {
       final attribute = node.attributes[i];
-      final topHeight = headerHeight + actualRowHeight * i;
+      final topHeight = headerHeight + rowHeight * i;
       final rowTop = nodeRect.top + topHeight;
-      final rowBottom = rowTop + actualRowHeight;
+      final rowBottom = rowTop + rowHeight;
 
       final double columnSplit = isEnum ? 20.0 : nodeRect.width - 40;
 
       // Сохраняем относительные позицию и размеры атрибутов в мировых координатах
       attribute.position = Offset(0, topHeight * scale);
-      attribute.size = Size(nodeRect.width * scale, actualRowHeight * scale);
+      attribute.size = Size(nodeRect.width * scale, rowHeight * scale);
 
       // Вертикальная граница - будет обрезана маской если выходит за границы
       canvas.drawLine(
@@ -601,10 +623,7 @@ class NodePainter {
         final leftTextMaxWidth = columnSplit - 16;
         if (leftTextMaxWidth >= 1.0) {
           leftTextPainter.layout(maxWidth: leftTextMaxWidth);
-          leftTextPainter.paint(
-            canvas,
-            Offset(nodeRect.left + 8, rowTop + (actualRowHeight - leftTextPainter.height) / 2),
-          );
+          leftTextPainter.paint(canvas, Offset(nodeRect.left + 8, rowTop + (rowHeight - leftTextPainter.height) / 2));
         }
         leftTextPainter.dispose();
       }
@@ -630,7 +649,7 @@ class NodePainter {
           rightTextPainter.layout(maxWidth: rightTextMaxWidth);
           rightTextPainter.paint(
             canvas,
-            Offset(nodeRect.left + columnSplit + 8, rowTop + (actualRowHeight - rightTextPainter.height) / 2),
+            Offset(nodeRect.left + columnSplit + 8, rowTop + (rowHeight - rightTextPainter.height) / 2),
           );
         }
         rightTextPainter.dispose();
@@ -640,7 +659,7 @@ class NodePainter {
       if (attribute.qCompStatus == '6') {
         final lockSize = 16.0;
         final lockX = nodeRect.right - lockSize - 2;
-        final lockY = rowTop + (actualRowHeight - lockSize) / 2;
+        final lockY = rowTop + (rowHeight - lockSize) / 2;
 
         canvas.save();
         canvas.translate(lockX, lockY);
@@ -666,14 +685,14 @@ class NodePainter {
 
   /// Метод для отрисовки заголовка swimlane с иконкой
   void _drawSwimlaneHeader(Canvas canvas, TableNode node, Rect nodeRect, {required bool isCollapsed}) {
-    final headerHeight = EditorConfig.headerHeight;
+    final minHeaderHeight = EditorConfig.minHeaderHeight;
     final iconSize = 16.0;
     final iconMargin = 8.0;
     final textLeftMargin = iconSize + iconMargin * 2;
 
     // ВАЖНО: Заголовок всегда должен быть вверху, независимо от состояния свернутости
     // Используем фиксированную высоту заголовка
-    final actualHeaderHeight = headerHeight;
+    final actualHeaderHeight = minHeaderHeight;
 
     // Рисуем иконку - всегда вверху заголовка
     final iconRect = Rect.fromLTWH(

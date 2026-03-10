@@ -20,7 +20,7 @@ class Node {
     required this.id,
     required this.position,
     this.parent,
-    this.size = const Size(100, EditorConfig.headerHeight),
+    this.size = const Size(100, EditorConfig.minHeaderHeight),
     this.text = 'Node',
     this.isSelected = false,
     this.isChanged = false,

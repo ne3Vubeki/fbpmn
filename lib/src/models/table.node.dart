@@ -17,6 +17,7 @@ class TableNode extends Node {
   final Color backgroundColor;
   final bool? isCollapsed;
 
+  double? heightHeader;
   String? tooltip;
   StreamSubscription<void>? _connectionsSubscription;
 
@@ -62,7 +63,7 @@ class TableNode extends Node {
           final attribute = Attribute.fromJson(attr as Map<String, dynamic>);
 
           if (attribute.position == Offset.zero && attribute.size == Size.zero) {
-            attribute.position = Offset(0, EditorConfig.headerHeight + EditorConfig.minRowHeight * index);
+            attribute.position = Offset(0, EditorConfig.minHeaderHeight + EditorConfig.minRowHeight * index);
             attribute.size = Size(width, EditorConfig.minRowHeight);
           }
 
@@ -77,8 +78,8 @@ class TableNode extends Node {
     // Извлекаем свойство collapsed
     final isCollapsed = object['collapsed'] == '1';
 
-    if (height < EditorConfig.headerHeight) {
-      height = EditorConfig.headerHeight;
+    if (height < EditorConfig.minHeaderHeight) {
+      height = EditorConfig.minHeaderHeight;
     }
 
     // Функция parseColor остается без изменений

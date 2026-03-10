@@ -161,11 +161,10 @@ class ArrowManager extends Manager {
       // Offset sourceCenter = sourceRect.center;
       // Offset targetCenter = targetRect.center;
 
-      Offset sourceCenter = Offset(sourceRect.center.dx, sourceRect.top + EditorConfig.headerHeight / 2);
-      Offset targetCenter = Offset(targetRect.center.dx, targetRect.top + EditorConfig.headerHeight / 2);
+      Offset sourceCenter = Offset(sourceRect.center.dx, sourceRect.top + (sourceNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2);
+      Offset targetCenter = Offset(targetRect.center.dx, targetRect.top + (targetNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2);
 
       final dx = targetCenter.dx - sourceCenter.dx;
-      final dy = targetCenter.dy - sourceCenter.dy;
 
       final sourceWidth = sourceRect.width;
       final sourceHeight = sourceRect.height;
@@ -353,40 +352,6 @@ class ArrowManager extends Manager {
       }
 
       final sidesNodesList = sides.split(':');
-
-      /// Переписываем стороны для атрибутов, если они есть
-      /// Коннекты только с боков
-      // final sourceSide = sidesNodesList[0];
-      // final targetSide = sidesNodesList[1];
-      // if(isSourceAttribute && (sidesNodesList[0] == 'top' || sidesNodesList[0] == 'bottom')) {
-      //   switch(targetSide) {
-      //     case 'left':
-      //       sidesNodesList[0] = dx < 0 ? 'right' : 'left';
-      //     case 'right':
-      //       sidesNodesList[0] = dx < 0 ? 'left' : 'right';
-      //     case 'top':
-      //       sidesNodesList[0] = dx < 0 ? 'left' : 'right';
-      //     case 'bottom':
-      //       sidesNodesList[0] = dx < 0 ? 'right' : 'left';
-      //   }
-      // }
-
-      // if(isTargetAttribute && (sidesNodesList[1] == 'top' || sidesNodesList[1] == 'bottom')) {
-      //   switch(sourceSide) {
-      //     case 'left':
-      //       sidesNodesList[1] = dx > 0 ? 'right' : 'left';
-      //     case 'right':
-      //       sidesNodesList[1] = dx > 0 ? 'left' : 'right';
-      //     case 'top':
-      //       sidesNodesList[1] = dx > 0 ? 'left' : 'right';
-      //     case 'bottom':
-      //       sidesNodesList[1] = dx > 0 ? 'right' : 'left';
-      //   }
-      // }
-
-      // if(isSourceAttribute || isTargetAttribute) {
-      //   sides = sidesNodesList[0] == sidesNodesList[1] ? sidesNodesList.take(2).join(':') : sidesNodesList.join(':');
-      // }
 
       String sidesNodes = sidesNodesList.take(2).join(':');
 
