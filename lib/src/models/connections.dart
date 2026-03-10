@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:fbpmn/src/models/connection.dart';
 
@@ -63,7 +62,7 @@ class Connections {
     }
   }
 
-  Connection? add(String side, String arrowId, Offset position) {
+  Connection? add(String side, String arrowId) {
     final sideProp = get(side);
     final connection = sideProp?.firstWhere(
       (conn) => conn!.id == arrowId,
@@ -114,7 +113,7 @@ class Connections {
       }
     }
 
-    final newConn = Connection(id: arrowId, pos: position);
+    final newConn = Connection(id: arrowId);
 
     // Находим максимальный индекс на стороне
     int maxIndex = -1;

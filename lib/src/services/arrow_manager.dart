@@ -7,6 +7,7 @@ import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../models/attribute.dart';
+import '../models/connection.dart';
 import '../models/table.node.dart';
 import '../models/arrow.dart';
 import 'manager.dart';
@@ -165,6 +166,7 @@ class ArrowManager extends Manager {
       Offset targetCenter = Offset(targetRect.center.dx, targetRect.top + (targetNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2);
 
       final dx = targetCenter.dx - sourceCenter.dx;
+      final dy = targetCenter.dy - sourceCenter.dy;
 
       final sourceWidth = sourceRect.width;
       final sourceHeight = sourceRect.height;
@@ -185,7 +187,48 @@ class ArrowManager extends Manager {
       final isTargetAttribute = targetAttribute != null;
 
       String createSidesForAttribute(String ifST, String ifS, String ifT) {
-        return isSourceAttribute && isTargetAttribute ? ifST : isSourceAttribute ? ifS : isTargetAttribute ? ifT : sides;
+        if(isSourceAttribute && isTargetAttribute) {
+          final startConnections = sourceAttribute.connections;
+          final endConnections = targetAttribute.connections;
+          final sidesNodesList = ifST.split(':');
+          final countSides = [startConnections?.get(sidesNodesList[0])?.length ?? 0, endConnections?.get(sidesNodesList[1])?.length ?? 0];
+
+          for(int i=0; i < countSides.length; i++) {
+            if(countSides[i] > 0) {
+              sidesNodesList[1] = sidesNodesList[i] == 'left' ? 'right' : 'left';
+            }
+          }
+
+          ifST = sidesNodesList.join(':');
+          return ifST;
+        } else if(isSourceAttribute) {
+          final startConnections = sourceAttribute.connections;
+          final sidesNodesList = ifS.split(':');
+          final countSides = [startConnections?.get(sidesNodesList[0])?.length ?? 0];
+
+          for(int i=0; i < countSides.length; i++) {
+            if(countSides[i] > 0) {
+              sidesNodesList[1] = sidesNodesList[i] == 'left' ? 'right' : 'left';
+            }
+          }
+
+          ifS = sidesNodesList.join(':');
+          return ifS;
+        } else if(isTargetAttribute) {
+          final endConnections = targetAttribute.connections;
+          final sidesNodesList = ifT.split(':');
+          final countSides = [endConnections?.get(sidesNodesList[1])?.length ?? 0];
+
+          for(int i=0; i < countSides.length; i++) {
+            if(countSides[i] > 0) {
+              sidesNodesList[1] = sidesNodesList[i] == 'left' ? 'right' : 'left';
+            }
+          }
+
+          ifT = sidesNodesList.join(':');
+          return ifT;
+        }
+        return sides;
       }
 
       Offset startConnectionPoint = Offset.zero;
@@ -199,6 +242,7 @@ class ArrowManager extends Manager {
           break;
         case 'right60':
           sides = 'left:right';
+          sides = createSidesForAttribute('left:right', 'left:right', 'left:right');
           break;
         case 'top60':
           sides = 'bottom:top';
@@ -215,7 +259,8 @@ class ArrowManager extends Manager {
           break;
         case 'right60|top60':
           sides = sourceWidth < sourceHeight ? 'left:top' : 'bottom:right';
-          break;
+          sides = createSidesForAttribute('left:right', 'left:top', 'top:right');
+        break;
         case 'left60|bottom60':
           sides = sourceWidth < sourceHeight ? 'right:bottom' : 'top:left';
           break;
@@ -279,12 +324,12 @@ class ArrowManager extends Manager {
         case 'leftC|bottom':
           sides = sourceTop > targetCenter.dy + halfSizeLimit ? 'top:left' : 'top:top';
           /// Обработка пути для атрибутов
-          sides = isSourceAttribute ? 'right:bottom' : isTargetAttribute ? 'bottom:right:3' : sides;
+          sides = createSidesForAttribute('left:right:4', 'right:bottom', 'bottom:right:3');
           break;
         case 'rightC|bottom':
           sides = sourceTop > targetCenter.dy + halfSizeLimit ? 'top:right' : 'top:top';
           /// Обработка пути для атрибутов
-          sides = isSourceAttribute ? 'right:top:3' : isTargetAttribute ? 'bottom:left:3' : sides;
+          sides = createSidesForAttribute('left:right:4', 'right:top:3', 'bottom:left:3');
           break;
         case 'left|topC':
         case 'left|bottomC':
@@ -357,20 +402,30 @@ class ArrowManager extends Manager {
 
       double startDeltaPos = 0;
       double endDeltaPos = 0;
+      Connection? startConnection;
+      Connection? endConnection;
 
       if(!isSourceAttribute) {
+        /// Создание стартового коннекта для узла
         final startConnections = sourceNode.connections;
-        final startConnection = startConnections?.add(sidesNodesList[0], arrow.id, startConnectionPoint);
+        startConnection = startConnections?.add(sidesNodesList[0], arrow.id);
         startDeltaPos = startConnections?.getSideDelta(sidesNodesList[0], startConnection!) ?? 0;
       } else {
+        /// Создание стартового коннекта для атрибута
+        final startConnections = sourceAttribute.connections;
+        startConnection = startConnections?.add(sidesNodesList[0], arrow.id);
         sourceCenter = Offset(sourceCenter.dx, sourceTop + sourceAttribute.position.dy + sourceAttribute.size.height / 2);
       }
       
       if(!isTargetAttribute) {
+        /// Создание конечного коннекта для узла
         final endConnections = targetNode.connections;
-        final endConnection = endConnections?.add(sidesNodesList[1], arrow.id, endConnectionPoint);
+        endConnection = endConnections?.add(sidesNodesList[1], arrow.id);
         endDeltaPos = endConnections?.getSideDelta(sidesNodesList[1], endConnection!) ?? 0;
       } else {
+        /// Создание конечного коннекта для атрибута
+        final endConnections = targetAttribute.connections;
+        endConnection = endConnections?.add(sidesNodesList[1], arrow.id);
         targetCenter = Offset(targetCenter.dx, targetTop + targetAttribute.position.dy + targetAttribute.size.height / 2);
       }
 
@@ -580,6 +635,11 @@ class ArrowManager extends Manager {
     final dy = end.dy - start.dy;
     final dx2 = dx.abs() / 2;
     final dy2 = dy.abs() / 2;
+
+    /// Fix error sides
+    sides = sides == 'left:left:4' || sides == 'right:right:4' ? sides.substring(0, sides.length - 2) : sides;
+
+    print(sides);
 
     switch (sides) {
       case 'left:right':

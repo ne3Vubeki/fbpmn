@@ -1,5 +1,6 @@
 // Модель атрибута бизнес-объекта
 import 'package:flutter/material.dart';
+import 'connections.dart';
 import 'user_object.dart';
 
 class Attribute {
@@ -14,6 +15,7 @@ class Attribute {
   final String? originalId;
   final String? index;
   final UserObject? userObject;
+  Connections? connections;
   Offset position;
   Size size;
 
@@ -31,20 +33,22 @@ class Attribute {
     this.originalId,
     this.index,
     this.userObject,
-  });
+  }) {
+    connections = Connections();
+  }
 
   factory Attribute.fromJson(Map<String, dynamic> json) {
     // Парсим geometry, если есть
     Offset position = Offset.zero;
     Size size = Size.zero;
-    
+
     if (json.containsKey('geometry')) {
       final geometry = json['geometry'] as Map<String, dynamic>;
       final x = (geometry['x'] as num?)?.toDouble() ?? 0.0;
       final y = (geometry['y'] as num?)?.toDouble() ?? 0.0;
       final width = (geometry['width'] as num?)?.toDouble() ?? 0.0;
       final height = (geometry['height'] as num?)?.toDouble() ?? 0.0;
-      
+
       position = Offset(x, y);
       size = Size(width, height);
     }
@@ -73,12 +77,7 @@ class Attribute {
   }
 
   Map<String, dynamic> toJson() {
-    final json = <String, dynamic>{
-      'id': id,
-      'label': text,
-      'style': style,
-      'qType': qType,
-    };
+    final json = <String, dynamic>{'id': id, 'label': text, 'style': style, 'qType': qType};
 
     if (boAttributeTypeId != null) {
       json['boAttributeTypeId'] = boAttributeTypeId;
@@ -99,7 +98,7 @@ class Attribute {
     if (originalId != null) {
       json['originalId'] = originalId;
     }
-    
+
     if (index != null) {
       json['position'] = index;
     }
@@ -110,12 +109,7 @@ class Attribute {
 
     // Добавляем geometry, если позиция или размер не нулевые
     if (position != Offset.zero || size != Size.zero) {
-      json['geometry'] = {
-        'x': position.dx,
-        'y': position.dy,
-        'width': size.width,
-        'height': size.height,
-      };
+      json['geometry'] = {'x': position.dx, 'y': position.dy, 'width': size.width, 'height': size.height};
     }
 
     return json;

@@ -130,7 +130,11 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 _buildSideHandle(
                   'r',
                   resizeBoxContainerSize.width - frame - lengthArrow / 2 - groupOffsetX,
-                  frame + groupOffsetY + offset + (node.heightHeader ?? EditorConfig.minHeaderHeight) * scale / 2 - lengthArrow / 2,
+                  frame +
+                      groupOffsetY +
+                      offset +
+                      (node.heightHeader ?? EditorConfig.minHeaderHeight) * scale / 2 -
+                      lengthArrow / 2,
                   lengthArrow,
                   width,
                   cursor: SystemMouseCursors.alias, // Курсор для нижнего маркера
@@ -138,12 +142,15 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 _buildSideHandle(
                   'l',
                   frame + groupOffsetX - lengthArrow / 2,
-                  frame + groupOffsetY + offset + (node.heightHeader ?? EditorConfig.minHeaderHeight) * scale / 2 - lengthArrow / 2,
+                  frame +
+                      groupOffsetY +
+                      offset +
+                      (node.heightHeader ?? EditorConfig.minHeaderHeight) * scale / 2 -
+                      lengthArrow / 2,
                   lengthArrow,
                   width,
                   cursor: SystemMouseCursors.alias, // Курсор для нижнего маркера
                 ),
-
               ],
             ),
           ),
@@ -272,25 +279,18 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
   }
 
   /// Создаёт боковой маркер для создания связей узел->
-  Widget _buildSideHandle(
-    String handle,
-    double left,
-    double top,
-    double length,
-    double width, {
-    MouseCursor? cursor, // Добавлен параметр курсора
-  }) {
+  Widget _buildSideHandle(String handle, double left, double top, double length, double width, {MouseCursor? cursor}) {
     final isHoveredHandle = isHovered[handle] ?? false;
     final hoverAreaSize = length * 3; // Увеличиваем область для ховера в 3 раза
 
     return Positioned(
-      left: left - (hoverAreaSize - length) / 2, // Смещаем, чтобы центрировать увеличенную область
+      left: left - (hoverAreaSize - length) / 2,
       top: top - (hoverAreaSize - length) / 2,
       width: hoverAreaSize,
       height: hoverAreaSize,
       child: MouseRegion(
-        hitTestBehavior: HitTestBehavior.translucent, // Прозрачная область для захвата событий
-        cursor: cursor ?? SystemMouseCursors.resizeUpDown, // Используем переданный курсор или значение по умолчанию
+        hitTestBehavior: HitTestBehavior.translucent,
+        cursor: cursor ?? SystemMouseCursors.resizeUpDown,
         onEnter: (_) {
           setState(() {
             isHovered[handle] = true;
@@ -301,16 +301,16 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             isHovered[handle] = false;
           });
         },
-        child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            width: length,
-            height: length,
-            alignment: Alignment.center,
-            // decoration: BoxDecoration(color: Colors.blue.shade900, shape: BoxShape.circle),
-            child: Tooltip(
-              message: 'Создать связь объекта',
+        child: Tooltip(
+          // Tooltip теперь оборачивает всю область
+          message: 'Создать связь объекта',
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              width: length,
+              height: length,
+              alignment: Alignment.center,
               child: AnimatedScale(
                 scale: isHoveredHandle ? 3.0 : 1.0,
                 duration: const Duration(milliseconds: 200),
@@ -538,6 +538,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     double length,
   ) {
     final List<Widget> children = [];
+    final hoverAreaSize = length * 3; // Увеличиваем область для ховера в 3 раза
 
     for (final node in nodesToProcess) {
       // Проверяем наличие атрибутов
@@ -580,13 +581,19 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             ),
           );
 
-          // Левый кружок с учетом смещения по X
+          // Левый кружок с увеличенной областью ховера
           children.add(
             Positioned(
-              left: currentNodeLeft - length / 2, // Смещаем левый кружок вместе с узлом
-              top: rowTop + rowHeightScaled / 2 - length / 2,
+              left:
+                  currentNodeLeft -
+                  length / 2 -
+                  (hoverAreaSize - length) / 2, // Смещение для центрирования увеличенной области
+              top: rowTop + rowHeightScaled / 2 - length / 2 - (hoverAreaSize - length) / 2,
+              width: hoverAreaSize,
+              height: hoverAreaSize,
               child: MouseRegion(
-                cursor: SystemMouseCursors.alias, // Курсор для левого маркера атрибута
+                cursor: SystemMouseCursors.alias,
+                hitTestBehavior: HitTestBehavior.translucent, // Прозрачная область для захвата событий
                 onEnter: (_) {
                   setState(() {
                     isHovered['attr_left_${node.id}_$rowIndex'] = true;
@@ -599,22 +606,24 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 },
                 child: Tooltip(
                   message: 'Создать связь атрибута',
-                  child: AnimatedScale(
-                    scale: isHoveredLeft ? 3.0 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    child: Container(
-                      width: length,
-                      height: length,
-                      decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                      child: isHoveredLeft
-                          ? Center(
-                              child: CustomPaint(
-                                size: Size(length * 0.6, length * 0.6),
-                                painter: _DirectionArrowPainter(direction: 'l', color: Colors.white),
-                              ),
-                            )
-                          : null,
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: isHoveredLeft ? 3.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: Container(
+                        width: length,
+                        height: length,
+                        decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                        child: isHoveredLeft
+                            ? Center(
+                                child: CustomPaint(
+                                  size: Size(length * 0.6, length * 0.6),
+                                  painter: _DirectionArrowPainter(direction: 'l', color: Colors.white),
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
                   ),
                 ),
@@ -622,13 +631,20 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             ),
           );
 
-          // Правый кружок с учетом смещения по X
+          // Правый кружок с увеличенной областью ховера
           children.add(
             Positioned(
-              left: currentNodeLeft + currentNodeWidth - length / 2, // Правый край с учетом смещения
-              top: rowTop + rowHeightScaled / 2 - length / 2,
+              left:
+                  currentNodeLeft +
+                  currentNodeWidth -
+                  length / 2 -
+                  (hoverAreaSize - length) / 2, // Смещение для центрирования увеличенной области
+              top: rowTop + rowHeightScaled / 2 - length / 2 - (hoverAreaSize - length) / 2,
+              width: hoverAreaSize,
+              height: hoverAreaSize,
               child: MouseRegion(
-                cursor: SystemMouseCursors.alias, // Курсор для правого маркера атрибута
+                cursor: SystemMouseCursors.alias,
+                hitTestBehavior: HitTestBehavior.translucent, // Прозрачная область для захвата событий
                 onEnter: (_) {
                   setState(() {
                     isHovered['attr_right_${node.id}_$rowIndex'] = true;
@@ -641,22 +657,24 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 },
                 child: Tooltip(
                   message: 'Создать связь атрибута',
-                  child: AnimatedScale(
-                    scale: isHoveredRight ? 3.0 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    child: Container(
-                      width: length,
-                      height: length,
-                      decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                      child: isHoveredRight
-                          ? Center(
-                              child: CustomPaint(
-                                size: Size(length * 0.6, length * 0.6),
-                                painter: _DirectionArrowPainter(direction: 'r', color: Colors.white),
-                              ),
-                            )
-                          : null,
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: isHoveredRight ? 3.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: Container(
+                        width: length,
+                        height: length,
+                        decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                        child: isHoveredRight
+                            ? Center(
+                                child: CustomPaint(
+                                  size: Size(length * 0.6, length * 0.6),
+                                  painter: _DirectionArrowPainter(direction: 'r', color: Colors.white),
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
                   ),
                 ),
