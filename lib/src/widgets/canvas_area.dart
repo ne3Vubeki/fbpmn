@@ -7,12 +7,15 @@ import 'package:flutter/services.dart';
 
 import '../editor_state.dart';
 import '../models/app.model.dart';
+import '../models/table.node.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
+import '../utils/utils.dart';
 import 'arrows_selected.dart';
 import 'cursor_layer.dart';
 import 'hierarchical_grid.dart';
+import 'node_hover.dart';
 import 'node_selected.dart';
 import 'resize_handles.dart';
 import 'scroll_bar_horizontal.dart';
@@ -52,6 +55,8 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
   
   // Для отслеживания resize handles
   String? _currentResizeHandle;
+  TableNode? _hoveredNode;
+  Offset? _hoveredNodeWorldPosition;
 
   @override
   void initState() {
@@ -116,6 +121,46 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                 child: MouseRegion(
                   onHover: (PointerHoverEvent event) {
                     widget.state.mousePosition = event.localPosition;
+                    final worldPos = Utils.screenToWorld(event.localPosition, widget.state);
+                    final foundNode = widget.nodeManager.findNodeAtWorldPosition(worldPos);
+                    TableNode? nextHoveredNode = foundNode?.node;
+                    Offset? nextHoveredNodeWorldPosition = foundNode?.worldPosition;
+
+                    if (nextHoveredNode == null &&
+                        widget.state.nodesSelected.length == 1 &&
+                        widget.state.nodesSelected.first != null) {
+                      final selectedNode = widget.state.nodesSelected.first!;
+                      final selectedNodeSize = Size(
+                        selectedNode.size.width * widget.state.scale,
+                        selectedNode.size.height * widget.state.scale,
+                      );
+                      final selectedNodeRect = Rect.fromLTWH(
+                        widget.state.selectedNodeOffset.dx,
+                        widget.state.selectedNodeOffset.dy,
+                        selectedNodeSize.width,
+                        selectedNodeSize.height,
+                      );
+
+                      if (selectedNodeRect.contains(event.localPosition)) {
+                        nextHoveredNode = selectedNode;
+                        nextHoveredNodeWorldPosition = selectedNode.aPosition ?? (widget.state.delta + selectedNode.position);
+                      }
+                    }
+
+                    if (_hoveredNode?.id != nextHoveredNode?.id || _hoveredNodeWorldPosition != nextHoveredNodeWorldPosition) {
+                      timeoutSetState(callback: () {
+                        _hoveredNode = nextHoveredNode;
+                        _hoveredNodeWorldPosition = nextHoveredNodeWorldPosition;
+                      });
+                    }
+                  },
+                  onExit: (_) {
+                    if (_hoveredNode != null || _hoveredNodeWorldPosition != null) {
+                      timeoutSetState(callback: () {
+                        _hoveredNode = null;
+                        _hoveredNodeWorldPosition = null;
+                      });
+                    }
                   },
                   child: Listener(
                   onPointerSignal: (pointerSignal) {
@@ -177,6 +222,12 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           inputHandler: widget.inputHandler,
                           tileManager: widget.tileManager,
                           scrollHandler: widget.scrollHandler,
+                        ),
+
+                        NodeHover(
+                          state: widget.state,
+                          node: _hoveredNode,
+                          worldPosition: _hoveredNodeWorldPosition,
                         ),
 
                         // Отображение выделенного узла на верхнем слое
