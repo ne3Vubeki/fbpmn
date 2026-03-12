@@ -84,64 +84,289 @@ class ArrowManager extends Manager {
     // Source находится сторонами за пределами 60px зоны Target
     if (isLeftSide60 || isTopSide60 || isRightSide60 || isBottomSide60) {
       if (isLeftSide60 && isTopSide60) {
-        return _getSidePosition('left60|top60', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'left60|top60',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isRightSide60 && isTopSide60) {
-        return _getSidePosition('right60|top60', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'right60|top60',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isLeftSide60 && isBottomSide60) {
-        return _getSidePosition('left60|bottom60', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'left60|bottom60',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isRightSide60 && isBottomSide60) {
-        return _getSidePosition('right60|bottom60', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'right60|bottom60',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isLeftSide60) {
-        return _getSidePosition('left60', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'left60',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isTopSide60) {
-        return _getSidePosition('top60', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'top60',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isRightSide60) {
-        return _getSidePosition('right60', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'right60',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isBottomSide60) {
-        return _getSidePosition('bottom60', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'bottom60',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       }
     } else
     // Source находится центром за пределами 60px зоны Target
     if (isLeftCenter60 || isTopCenter60 || isRightCenter60 || isBottomCenter60) {
       if (isLeftCenter60 && isTopCenter60) {
-        return _getSidePosition('leftC|topC', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'leftC|topC',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isRightCenter60 && isTopCenter60) {
-        return _getSidePosition('rightC|topC', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'rightC|topC',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isLeftCenter60 && isBottomCenter60) {
-        return _getSidePosition('leftC|bottomC', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'leftC|bottomC',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isRightCenter60 && isBottomCenter60) {
-        return _getSidePosition('rightC|bottomC', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'rightC|bottomC',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isLeftCenter60 && cy > 0) {
-        return _getSidePosition('leftC|top', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'leftC|top',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isRightCenter60 && cy > 0) {
-        return _getSidePosition('rightC|top', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'rightC|top',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isLeftCenter60 && cy <= 0) {
-        return _getSidePosition('leftC|bottom', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'leftC|bottom',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isRightCenter60 && cy <= 0) {
-        return _getSidePosition('rightC|bottom', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'rightC|bottom',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isTopCenter60 && cx > 0) {
-        return _getSidePosition('left|topC', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'left|topC',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isBottomCenter60 && cx > 0) {
-        return _getSidePosition('left|bottomC', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'left|bottomC',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isTopCenter60 && cx <= 0) {
-        return _getSidePosition('right|topC', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'right|topC',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (isBottomCenter60 && cx <= 0) {
-        return _getSidePosition('right|bottomC', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'right|bottomC',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       }
     } else {
       // Source находится центром внутри 60px зоны Target, положение от центра Target
       if (cx > 0 && cy > 0) {
-        return _getSidePosition('left|top', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'left|top',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (cx > 0 && cy <= 0) {
-        return _getSidePosition('left|bottom', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'left|bottom',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (cx <= 0 && cy > 0) {
-        return _getSidePosition('right|top', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'right|top',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       } else if (cx <= 0 && cy <= 0) {
-        return _getSidePosition('right|bottom', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+        return _getSidePosition(
+          'right|bottom',
+          sourceRect,
+          targetRect,
+          sourceNode,
+          targetNode,
+          sourceAttribute,
+          targetAttribute,
+          arrow,
+        );
       }
     }
 
-    return _getSidePosition('error', sourceRect, targetRect, sourceNode, targetNode, sourceAttribute, targetAttribute, arrow);
+    return _getSidePosition(
+      'error',
+      sourceRect,
+      targetRect,
+      sourceNode,
+      targetNode,
+      sourceAttribute,
+      targetAttribute,
+      arrow,
+    );
   }
 
   /// Расчет координат точек соединения
@@ -162,15 +387,20 @@ class ArrowManager extends Manager {
       // Offset sourceCenter = sourceRect.center;
       // Offset targetCenter = targetRect.center;
 
-      Offset sourceCenter = Offset(sourceRect.center.dx, sourceRect.top + (sourceNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2);
-      Offset targetCenter = Offset(targetRect.center.dx, targetRect.top + (targetNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2);
+      Offset sourceCenter = Offset(
+        sourceRect.center.dx,
+        sourceRect.top + (sourceNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2,
+      );
+      Offset targetCenter = Offset(
+        targetRect.center.dx,
+        targetRect.top + (targetNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2,
+      );
 
-      final dx = targetCenter.dx - sourceCenter.dx;
-      final dy = targetCenter.dy - sourceCenter.dy;
+      final dx = targetRect.center.dx - sourceRect.center.dx;
+      final dy = targetRect.center.dy - sourceRect.center.dy;
 
       final sourceWidth = sourceRect.width;
       final sourceHeight = sourceRect.height;
-
 
       // Определяем стороны узлов
       final sourceTop = sourceRect.top;
@@ -186,86 +416,158 @@ class ArrowManager extends Manager {
       final isSourceAttribute = sourceAttribute != null;
       final isTargetAttribute = targetAttribute != null;
 
-      String createSidesForAttribute(String ifST, String ifS, String ifT) {
-        if(isSourceAttribute && isTargetAttribute) {
+      String getSidesForNodeAndAttribute({
+        required String ifNode,
+        required String ifAttrST,
+        required String ifAttrS,
+        required String ifAttrT,
+      }) {
+        if (isSourceAttribute && isTargetAttribute) {
           final startConnections = sourceAttribute.connections;
           final endConnections = targetAttribute.connections;
-          final sidesNodesList = ifST.split(':');
-          final countSides = [startConnections?.get(sidesNodesList[0])?.length ?? 0, endConnections?.get(sidesNodesList[1])?.length ?? 0];
 
-          for(int i=0; i < countSides.length; i++) {
-            if(countSides[i] > 0) {
-              sidesNodesList[1] = sidesNodesList[i] == 'left' ? 'right' : 'left';
-            }
+          startConnections?.remove(arrow.id);
+          endConnections?.remove(arrow.id);
+
+          final matrixSides = ifAttrST.split('|');
+          final sidesList = matrixSides[0].split(':');
+          final countSides =
+              '${startConnections?.get(sidesList[0])?.length ?? 0}:${endConnections?.get(sidesList[1])?.length ?? 0}';
+          switch (countSides) {
+            case '0:0':
+              ifNode = matrixSides[0];
+            case '1:0':
+              ifNode = matrixSides[1];
+            case '0:1':
+              ifNode = matrixSides[2];
+            case '1:1':
+              ifNode = matrixSides[3];
           }
-
-          ifST = sidesNodesList.join(':');
-          return ifST;
-        } else if(isSourceAttribute) {
+          print('(${sourceAttribute.text})--->(${targetAttribute.text}) ... $countSides Sides: $ifNode');
+          final connectSideList = ifNode.split(':');
+          startConnections?.add(connectSideList[0], arrow.id);
+          endConnections?.add(connectSideList[1], arrow.id);
+          return ifNode;
+        } else if (isSourceAttribute) {
           final startConnections = sourceAttribute.connections;
-          final sidesNodesList = ifS.split(':');
-          final countSides = [startConnections?.get(sidesNodesList[0])?.length ?? 0];
 
-          for(int i=0; i < countSides.length; i++) {
-            if(countSides[i] > 0) {
-              sidesNodesList[1] = sidesNodesList[i] == 'left' ? 'right' : 'left';
-            }
+          startConnections?.remove(arrow.id);
+
+          final matrixSides = ifAttrS.split('|');
+          final sidesList = matrixSides[0].split(':');
+
+          final countSide = startConnections?.get(sidesList[0])?.length ?? 0;
+
+          switch (countSide) {
+            case 0:
+              ifNode = matrixSides[0];
+            case 1:
+              ifNode = matrixSides[1];
           }
-
-          ifS = sidesNodesList.join(':');
-          return ifS;
-        } else if(isTargetAttribute) {
+          print('(${sourceAttribute.text})--->(Node}) ... $countSide: Sides: $ifNode');
+          final connectSideList = ifNode.split(':');
+          startConnections?.add(connectSideList[0], arrow.id);
+          return ifNode;
+        } else if (isTargetAttribute) {
           final endConnections = targetAttribute.connections;
-          final sidesNodesList = ifT.split(':');
-          final countSides = [endConnections?.get(sidesNodesList[1])?.length ?? 0];
 
-          for(int i=0; i < countSides.length; i++) {
-            if(countSides[i] > 0) {
-              sidesNodesList[1] = sidesNodesList[i] == 'left' ? 'right' : 'left';
-            }
+          endConnections?.remove(arrow.id);
+
+          final matrixSides = ifAttrT.split('|');
+          final sidesList = matrixSides[0].split(':');
+
+          final countSide = endConnections?.get(sidesList[1])?.length ?? 0;
+
+          switch (countSide) {
+            case 0:
+              ifNode = matrixSides[0];
+            case 1:
+              ifNode = matrixSides[1];
           }
-
-          ifT = sidesNodesList.join(':');
-          return ifT;
+          print('(Node)--->(${targetAttribute.text}) ... :$countSide Sides: $ifNode');
+          final connectSideList = ifNode.split(':');
+          endConnections?.add(connectSideList[1], arrow.id);
+          return ifNode;
         }
-        return sides;
+        return ifNode;
       }
 
       Offset startConnectionPoint = Offset.zero;
       Offset endConnectionPoint = Offset.zero;
 
-      print('Source ${sourceNode.text} position: $position');
+      print('=======================================================================');
+
+      if (isSourceAttribute) {
+        print('Source ${sourceAttribute.text} position: $position');
+      }
+      if (isTargetAttribute) {
+        print('Target ${targetAttribute.text} position: $position');
+      }
 
       switch (position) {
         case 'left60':
-          sides = 'right:left';
+          sides = getSidesForNodeAndAttribute(
+            ifNode: 'right:left',
+            ifAttrST: 'right:left|left:left|right:right|left:right',
+            ifAttrS: 'left:left|right:right',
+            ifAttrT: 'bottom:right|left:left',
+          );
           break;
         case 'right60':
-          sides = 'left:right';
-          sides = createSidesForAttribute('left:right', 'left:right', 'left:right');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: 'left:right',
+            ifAttrST: 'left:right|right:right|left:left|right:left',
+            ifAttrS: 'right:right|left:left',
+            ifAttrT: '${dy < 0 ? 'bottom:left:3' : 'top:left:3'}|right:right',
+          );
           break;
         case 'top60':
-          sides = 'bottom:top';
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute(dx < 0 ? 'left:left' : 'right:right', dx < 0 ? 'left:left' : 'right:right', dx < 0 ? 'left:left' : 'right:right');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: 'bottom:top',
+            ifAttrST: 'left:left|left:left|right:right|left:left',
+            ifAttrS: 'right:right|left:left',
+            ifAttrT: '${dx < 0 ? 'right:right' : 'left:left'}|left:left',
+          );
           break;
         case 'bottom60':
-          sides = 'top:bottom';
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute(dx < 0 ? 'left:left' : 'right:right', dx < 0 ? 'left:left' : 'right:right', dx < 0 ? 'left:left' : 'right:right');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: 'top:bottom',
+            ifAttrST: 'left:left|left:left|right:right|left:left',
+            ifAttrS: 'right:right|left:left',
+            ifAttrT: 'left:left|right:right',
+          );
           break;
         case 'left60|top60':
-          sides = sourceWidth < sourceHeight ? 'right:top' : 'bottom:left';
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sourceWidth < sourceHeight ? 'right:top' : 'bottom:left',
+            ifAttrST: 'right:left|left:left|right:right|left:left',
+            ifAttrS: 'right:top|left:left',
+            ifAttrT: 'bottom:left|right:right',
+          );
           break;
         case 'right60|top60':
-          sides = sourceWidth < sourceHeight ? 'left:top' : 'bottom:right';
-          sides = createSidesForAttribute('left:right', 'left:top', 'top:right');
-        break;
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sourceWidth < sourceHeight ? 'left:top' : 'bottom:right',
+            ifAttrST: 'left:right|right:right|left:left|right:left',
+            ifAttrS: 'left:top|right:right',
+            ifAttrT: 'bottom:right|left:left',
+          );
+          break;
         case 'left60|bottom60':
-          sides = sourceWidth < sourceHeight ? 'right:bottom' : 'top:left';
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sourceWidth < sourceHeight ? 'right:bottom' : 'top:left',
+            ifAttrST: 'right:left|left:left|right:right|left:right',
+            ifAttrS: 'right:bottom|left:left',
+            ifAttrT: 'top:left|right:right',
+          );
           break;
         case 'right60|bottom60':
-          sides = sourceWidth < sourceHeight ? 'left:bottom' : 'top:right';
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sourceWidth < sourceHeight ? 'left:bottom' : 'top:right',
+            ifAttrST: 'left:right|right:right|left:left|right:left',
+            ifAttrS: 'right:top|left:top:3',
+            ifAttrT: 'top:right|left:left',
+          );
           break;
         case 'leftC|topC':
         case 'leftC|bottomC':
@@ -286,8 +588,12 @@ class ArrowManager extends Manager {
               sides = 'bottom:bottom';
             }
           }
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute('right:right', 'right:bottom', 'right:right');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sides,
+            ifAttrST: 'left:left:right:left:4|left:right:4|right:right',
+            ifAttrS: position == 'leftC|topC' ? 'right:top|left:right:4' : 'right:bottom|left:right:4',
+            ifAttrT: position == 'leftC|topC' ? 'top:right:3|left:left' : 'bottom:right:3|left:left',
+          );
           break;
         case 'rightC|topC':
         case 'rightC|bottomC':
@@ -308,36 +614,76 @@ class ArrowManager extends Manager {
               sides = 'bottom:bottom';
             }
           }
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute('left:left', 'left:bottom', 'left:left');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sides,
+            ifAttrST: 'right:right|left:right:4|right:left:4|left:left',
+            ifAttrS: position == 'rightC|topC' ? 'left:top|right:left:4' : 'left:bottom|right:left:4',
+            ifAttrT: position == 'rightC|topC' ? 'top:left:3|right:right' : 'bottom:left:3|right:right',
+          );
           break;
         case 'leftC|top':
-          sides = sourceBottom <= targetCenter.dy - halfSizeLimit ? 'bottom:left' : 'bottom:bottom';
-          /// Обработка пути для атрибутов
-          sides = isSourceAttribute ? 'left:right:4' : isTargetAttribute ? 'left:right:4' : sides;
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sourceBottom <= targetCenter.dy - halfSizeLimit ? 'bottom:left' : 'bottom:bottom',
+            ifAttrST: 'left:right:4|right:right|left:left|right:left:4',
+            ifAttrS: 'left:bottom:3|right:right',
+            ifAttrT: 'top:right:3|top:left:3',
+          );
           break;
         case 'rightC|top':
-          sides = sourceBottom <= targetCenter.dy - halfSizeLimit ? 'bottom:right' : 'bottom:bottom';
-          /// Обработка пути для атрибутов
-          sides = isSourceAttribute ? 'right:right' : isTargetAttribute ? 'bottom:right' : sides;
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sourceBottom <= targetCenter.dy - halfSizeLimit ? 'bottom:right' : 'bottom:bottom',
+            ifAttrST: 'right:left:4|left:left:4|right:right:4|left:right:4',
+            ifAttrS: 'right:bottom:3|left:left',
+            ifAttrT: 'top:left:3|top:right:3',
+          );
           break;
         case 'leftC|bottom':
-          sides = sourceTop > targetCenter.dy + halfSizeLimit ? 'top:left' : 'top:top';
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute('left:right:4', 'right:bottom', 'bottom:right:3');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sourceTop > targetCenter.dy + halfSizeLimit ? 'top:left' : 'top:top',
+            ifAttrST: 'left:right:4|right:right|left:left|right:left:4',
+            ifAttrS: 'left:top:3|right:right',
+            ifAttrT: 'top:right:3|bottom:left:3',
+          );
           break;
         case 'rightC|bottom':
-          sides = sourceTop > targetCenter.dy + halfSizeLimit ? 'top:right' : 'top:top';
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute('left:right:4', 'right:top:3', 'bottom:left:3');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sourceTop > targetCenter.dy + halfSizeLimit ? 'top:right' : 'top:top',
+            ifAttrST: 'right:left:4|left:left:4|right:right:4|left:right:4',
+            ifAttrS: 'right:top:3|left:left',
+            ifAttrT: 'bottom:left:3|bottom:right:3',
+          );
           break;
         case 'left|topC':
+          sides = getSidesForNodeAndAttribute(
+            ifNode: 'left:left',
+            ifAttrST: 'left:right:4|right:right|left:left|right:left:4',
+            ifAttrS: 'left:bottom:3|right:bottom:3',
+            ifAttrT: 'top:right:3|top:left:3',
+          );
+          break;
         case 'left|bottomC':
-          sides = 'left:left';
+          sides = getSidesForNodeAndAttribute(
+            ifNode: 'left:left',
+            ifAttrST: 'left:right:4|right:right|left:left|right:left:4',
+            ifAttrS: 'left:top:3|right:top:3',
+            ifAttrT: 'bottom:right:3|bottom:left:3',
+          );
           break;
         case 'right|topC':
+          sides = getSidesForNodeAndAttribute(
+            ifNode: 'right:right',
+            ifAttrST: 'right:left:4|left:left|right:right|left:right:4',
+            ifAttrS: 'right:bottom:3|left:bottom:3',
+            ifAttrT: 'top:left:3|top:right:3',
+          );
+          break;
         case 'right|bottomC':
-          sides = 'right:right';
+          sides = getSidesForNodeAndAttribute(
+            ifNode: 'right:right',
+            ifAttrST: 'right:left:4|left:left|right:right|left:right:4',
+            ifAttrS: 'right:top:3|left:top:3',
+            ifAttrT: 'bottom:left:3|bottom:right:3',
+          );
           break;
         case 'left|top':
           if (sourceTop < targetTop) {
@@ -349,8 +695,12 @@ class ArrowManager extends Manager {
           } else {
             sides = 'left:top:3';
           }
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute('left:right:4', 'left:top', 'top:right:3');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sides,
+            ifAttrST: 'left:right:4|right:right|left:left|right:left:4',
+            ifAttrS: 'left:bottom:3|right:bottom:3',
+            ifAttrT: 'top:right:3|top:left:3',
+          );
           break;
         case 'right|top':
           if (sourceTop < targetTop) {
@@ -362,9 +712,13 @@ class ArrowManager extends Manager {
           } else {
             sides = 'right:top:3';
           }
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute('right:left:4', 'right:top:3', 'right:left:4');
-        break;
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sides,
+            ifAttrST: 'right:left:4|left:left|right:right|left:right:4',
+            ifAttrS: 'right:bottom:3|left:bottom:3',
+            ifAttrT: 'top:left:3|top:right:3',
+          );
+          break;
         case 'left|bottom':
           if (sourceBottom > targetBottom) {
             sides = 'bottom:right:3';
@@ -375,9 +729,13 @@ class ArrowManager extends Manager {
           } else {
             sides = 'left:bottom:3';
           }
-           /// Обработка пути для атрибутов
-          sides = createSidesForAttribute('left:right:4', 'left:bottom:3', 'left:right:4');
-         break;
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sides,
+            ifAttrST: 'left:right:4|right:right|left:left|right:left:4',
+            ifAttrS: 'left:top:3|right:top:3',
+            ifAttrT: 'bottom:right:3|bottom:left:3',
+          );
+          break;
         case 'right|bottom':
           if (sourceBottom > targetBottom) {
             sides = 'bottom:left:3';
@@ -388,12 +746,23 @@ class ArrowManager extends Manager {
           } else {
             sides = 'right:bottom:3';
           }
-          /// Обработка пути для атрибутов
-          sides = createSidesForAttribute('right:left:4', 'right:bottom:3', 'right:left:4');
+          sides = getSidesForNodeAndAttribute(
+            ifNode: sides,
+            ifAttrST: 'right:left:4|left:left|right:right|left:right:4',
+            ifAttrS: 'right:top:3|left:top:3',
+            ifAttrT: 'bottom:left:3|bottom:right:3',
+          );
           break;
         default:
           sides = 'error';
           break;
+      }
+
+      if (isSourceAttribute) {
+        print('Source ${sourceAttribute.text} postsides: $sides');
+      }
+      if (isTargetAttribute) {
+        print('Target ${targetAttribute.text} postsides: $sides');
       }
 
       final sidesNodesList = sides.split(':');
@@ -405,94 +774,190 @@ class ArrowManager extends Manager {
       Connection? startConnection;
       Connection? endConnection;
 
-      if(!isSourceAttribute) {
+      if (!isSourceAttribute) {
         /// Создание стартового коннекта для узла
         final startConnections = sourceNode.connections;
         startConnection = startConnections?.add(sidesNodesList[0], arrow.id);
         startDeltaPos = startConnections?.getSideDelta(sidesNodesList[0], startConnection!) ?? 0;
       } else {
-        /// Создание стартового коннекта для атрибута
-        final startConnections = sourceAttribute.connections;
-        startConnection = startConnections?.add(sidesNodesList[0], arrow.id);
-        sourceCenter = Offset(sourceCenter.dx, sourceTop + sourceAttribute.position.dy + sourceAttribute.size.height / 2);
+        sourceCenter = Offset(
+          sourceCenter.dx,
+          sourceTop + sourceAttribute.position.dy + sourceAttribute.size.height / 2,
+        );
       }
-      
-      if(!isTargetAttribute) {
+
+      if (!isTargetAttribute) {
         /// Создание конечного коннекта для узла
         final endConnections = targetNode.connections;
         endConnection = endConnections?.add(sidesNodesList[1], arrow.id);
         endDeltaPos = endConnections?.getSideDelta(sidesNodesList[1], endConnection!) ?? 0;
       } else {
-        /// Создание конечного коннекта для атрибута
-        final endConnections = targetAttribute.connections;
-        endConnection = endConnections?.add(sidesNodesList[1], arrow.id);
-        targetCenter = Offset(targetCenter.dx, targetTop + targetAttribute.position.dy + targetAttribute.size.height / 2);
+        targetCenter = Offset(
+          targetCenter.dx,
+          targetTop + targetAttribute.position.dy + targetAttribute.size.height / 2,
+        );
       }
 
       switch (sidesNodes) {
         case 'right:top':
-          startConnectionPoint = Offset(sourceRight + (!isSourceAttribute ? arrowIndent : 0), sourceCenter.dy + startDeltaPos);
-          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetTop - (!isTargetAttribute ? arrowIndent : 0));
+          startConnectionPoint = Offset(
+            sourceRight + (!isSourceAttribute ? arrowIndent : 0),
+            sourceCenter.dy + startDeltaPos,
+          );
+          endConnectionPoint = Offset(
+            targetCenter.dx + endDeltaPos,
+            targetTop - (!isTargetAttribute ? arrowIndent : 0),
+          );
           break;
         case 'right:bottom':
-          startConnectionPoint = Offset(sourceRight + (!isSourceAttribute ? arrowIndent : 0), sourceCenter.dy + startDeltaPos);
-          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + (!isTargetAttribute ? arrowIndent : 0));
+          startConnectionPoint = Offset(
+            sourceRight + (!isSourceAttribute ? arrowIndent : 0),
+            sourceCenter.dy + startDeltaPos,
+          );
+          endConnectionPoint = Offset(
+            targetCenter.dx + endDeltaPos,
+            targetBottom + (!isTargetAttribute ? arrowIndent : 0),
+          );
           break;
         case 'right:left':
-          startConnectionPoint = Offset(sourceRight + (!isSourceAttribute ? arrowIndent : 0), sourceCenter.dy + startDeltaPos);
-          endConnectionPoint = Offset(targetLeft - (!isTargetAttribute ? arrowIndent : 0), targetCenter.dy + endDeltaPos);
+          startConnectionPoint = Offset(
+            sourceRight + (!isSourceAttribute ? arrowIndent : 0),
+            sourceCenter.dy + startDeltaPos,
+          );
+          endConnectionPoint = Offset(
+            targetLeft - (!isTargetAttribute ? arrowIndent : 0),
+            targetCenter.dy + endDeltaPos,
+          );
           break;
         case 'right:right':
-          startConnectionPoint = Offset(sourceRight + (!isSourceAttribute ? arrowIndent : 0), sourceCenter.dy + startDeltaPos);
-          endConnectionPoint = Offset(targetRight + (!isTargetAttribute ? arrowIndent : 0), targetCenter.dy + endDeltaPos);
+          startConnectionPoint = Offset(
+            sourceRight + (!isSourceAttribute ? arrowIndent : 0),
+            sourceCenter.dy + startDeltaPos,
+          );
+          endConnectionPoint = Offset(
+            targetRight + (!isTargetAttribute ? arrowIndent : 0),
+            targetCenter.dy + endDeltaPos,
+          );
           break;
         case 'left:top':
-          startConnectionPoint = Offset(sourceLeft - (!isSourceAttribute ? arrowIndent : 0), sourceCenter.dy + startDeltaPos);
-          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetTop - (!isTargetAttribute ? arrowIndent : 0));
+          startConnectionPoint = Offset(
+            sourceLeft - (!isSourceAttribute ? arrowIndent : 0),
+            sourceCenter.dy + startDeltaPos,
+          );
+          endConnectionPoint = Offset(
+            targetCenter.dx + endDeltaPos,
+            targetTop - (!isTargetAttribute ? arrowIndent : 0),
+          );
           break;
         case 'left:bottom':
-          startConnectionPoint = Offset(sourceLeft - (!isSourceAttribute ? arrowIndent : 0), sourceCenter.dy + startDeltaPos);
-          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + (!isTargetAttribute ? arrowIndent : 0));
+          startConnectionPoint = Offset(
+            sourceLeft - (!isSourceAttribute ? arrowIndent : 0),
+            sourceCenter.dy + startDeltaPos,
+          );
+          endConnectionPoint = Offset(
+            targetCenter.dx + endDeltaPos,
+            targetBottom + (!isTargetAttribute ? arrowIndent : 0),
+          );
           break;
         case 'left:right':
-          startConnectionPoint = Offset(sourceLeft - (!isSourceAttribute ? arrowIndent : 0), sourceCenter.dy + startDeltaPos);
-          endConnectionPoint = Offset(targetRight + (!isTargetAttribute ? arrowIndent : 0), targetCenter.dy + endDeltaPos);
+          startConnectionPoint = Offset(
+            sourceLeft - (!isSourceAttribute ? arrowIndent : 0),
+            sourceCenter.dy + startDeltaPos,
+          );
+          endConnectionPoint = Offset(
+            targetRight + (!isTargetAttribute ? arrowIndent : 0),
+            targetCenter.dy + endDeltaPos,
+          );
           break;
         case 'left:left':
-          startConnectionPoint = Offset(sourceLeft - (!isSourceAttribute ? arrowIndent : 0), sourceCenter.dy + startDeltaPos);
-          endConnectionPoint = Offset(targetLeft - (!isTargetAttribute ? arrowIndent : 0), targetCenter.dy + endDeltaPos);
+          startConnectionPoint = Offset(
+            sourceLeft - (!isSourceAttribute ? arrowIndent : 0),
+            sourceCenter.dy + startDeltaPos,
+          );
+          endConnectionPoint = Offset(
+            targetLeft - (!isTargetAttribute ? arrowIndent : 0),
+            targetCenter.dy + endDeltaPos,
+          );
           break;
         case 'top:bottom':
-          startConnectionPoint = Offset(sourceCenter.dx + startDeltaPos, sourceTop - (!isSourceAttribute ? arrowIndent : 0));
-          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + (!isTargetAttribute ? arrowIndent : 0));
+          startConnectionPoint = Offset(
+            sourceCenter.dx + startDeltaPos,
+            sourceTop - (!isSourceAttribute ? arrowIndent : 0),
+          );
+          endConnectionPoint = Offset(
+            targetCenter.dx + endDeltaPos,
+            targetBottom + (!isTargetAttribute ? arrowIndent : 0),
+          );
           break;
         case 'top:right':
-          startConnectionPoint = Offset(sourceCenter.dx + startDeltaPos, sourceTop - (!isSourceAttribute ? arrowIndent : 0));
-          endConnectionPoint = Offset(targetRight + (!isTargetAttribute ? arrowIndent : 0), targetCenter.dy + endDeltaPos);
+          startConnectionPoint = Offset(
+            sourceCenter.dx + startDeltaPos,
+            sourceTop - (!isSourceAttribute ? arrowIndent : 0),
+          );
+          endConnectionPoint = Offset(
+            targetRight + (!isTargetAttribute ? arrowIndent : 0),
+            targetCenter.dy + endDeltaPos,
+          );
           break;
         case 'top:left':
-          startConnectionPoint = Offset(sourceCenter.dx + startDeltaPos, sourceTop - (!isSourceAttribute ? arrowIndent : 0));
-          endConnectionPoint = Offset(targetLeft - (!isTargetAttribute ? arrowIndent : 0), targetCenter.dy + endDeltaPos);
+          startConnectionPoint = Offset(
+            sourceCenter.dx + startDeltaPos,
+            sourceTop - (!isSourceAttribute ? arrowIndent : 0),
+          );
+          endConnectionPoint = Offset(
+            targetLeft - (!isTargetAttribute ? arrowIndent : 0),
+            targetCenter.dy + endDeltaPos,
+          );
           break;
         case 'top:top':
-          startConnectionPoint = Offset(sourceCenter.dx + startDeltaPos, sourceTop - (!isSourceAttribute ? arrowIndent : 0));
-          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetTop - (!isTargetAttribute ? arrowIndent : 0));
+          startConnectionPoint = Offset(
+            sourceCenter.dx + startDeltaPos,
+            sourceTop - (!isSourceAttribute ? arrowIndent : 0),
+          );
+          endConnectionPoint = Offset(
+            targetCenter.dx + endDeltaPos,
+            targetTop - (!isTargetAttribute ? arrowIndent : 0),
+          );
           break;
         case 'bottom:top':
-          startConnectionPoint = Offset(sourceCenter.dx + startDeltaPos, sourceBottom + (!isSourceAttribute ? arrowIndent : 0));
-          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetTop - (!isTargetAttribute ? arrowIndent : 0));
+          startConnectionPoint = Offset(
+            sourceCenter.dx + startDeltaPos,
+            sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
+          );
+          endConnectionPoint = Offset(
+            targetCenter.dx + endDeltaPos,
+            targetTop - (!isTargetAttribute ? arrowIndent : 0),
+          );
           break;
         case 'bottom:right':
-          startConnectionPoint = Offset(sourceCenter.dx + startDeltaPos, sourceBottom + (!isSourceAttribute ? arrowIndent : 0));
-          endConnectionPoint = Offset(targetRight + (!isTargetAttribute ? arrowIndent : 0), targetCenter.dy + endDeltaPos);
+          startConnectionPoint = Offset(
+            sourceCenter.dx + startDeltaPos,
+            sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
+          );
+          endConnectionPoint = Offset(
+            targetRight + (!isTargetAttribute ? arrowIndent : 0),
+            targetCenter.dy + endDeltaPos,
+          );
           break;
         case 'bottom:left':
-          startConnectionPoint = Offset(sourceCenter.dx + startDeltaPos, sourceBottom + (!isSourceAttribute ? arrowIndent : 0));
-          endConnectionPoint = Offset(targetLeft - (!isTargetAttribute ? arrowIndent : 0), targetCenter.dy + endDeltaPos);
+          startConnectionPoint = Offset(
+            sourceCenter.dx + startDeltaPos,
+            sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
+          );
+          endConnectionPoint = Offset(
+            targetLeft - (!isTargetAttribute ? arrowIndent : 0),
+            targetCenter.dy + endDeltaPos,
+          );
           break;
         case 'bottom:bottom':
-          startConnectionPoint = Offset(sourceCenter.dx + startDeltaPos, sourceBottom + (!isSourceAttribute ? arrowIndent : 0));
-          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + (!isTargetAttribute ? arrowIndent : 0));
+          startConnectionPoint = Offset(
+            sourceCenter.dx + startDeltaPos,
+            sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
+          );
+          endConnectionPoint = Offset(
+            targetCenter.dx + endDeltaPos,
+            targetBottom + (!isTargetAttribute ? arrowIndent : 0),
+          );
           break;
       }
 
@@ -575,6 +1040,8 @@ class ArrowManager extends Manager {
     arrow.coordinates = basePath.coordinates;
     arrow.sides = baseConnectionPoints.sides;
 
+    print('Sides: ${arrow.sides}');
+
     return basePath;
   }
 
@@ -635,11 +1102,6 @@ class ArrowManager extends Manager {
     final dy = end.dy - start.dy;
     final dx2 = dx.abs() / 2;
     final dy2 = dy.abs() / 2;
-
-    /// Fix error sides
-    sides = sides == 'left:left:4' || sides == 'right:right:4' ? sides.substring(0, sides.length - 2) : sides;
-
-    print(sides);
 
     switch (sides) {
       case 'left:right':
@@ -716,6 +1178,13 @@ class ArrowManager extends Manager {
         coordinates.add(Offset(end.dx, start.dy + 60 + dyMin));
         coordinates.add(Offset(end.dx, end.dy));
         break;
+      case 'left:left:3':
+        final dyUp = min(sourceTop, targetTop) - 60;
+        coordinates.add(Offset(start.dx - 60, start.dy));
+        coordinates.add(Offset(start.dx - 60, dyUp));
+        coordinates.add(Offset(end.dx, dyUp));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
       case 'left:top:3':
         final dyUp = min(sourceTop, targetTop) - 60;
         coordinates.add(Offset(start.dx - 60, start.dy));
@@ -724,6 +1193,13 @@ class ArrowManager extends Manager {
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'right:top:3':
+        final dyUp = min(sourceTop, targetTop) - 60;
+        coordinates.add(Offset(start.dx + 60, start.dy));
+        coordinates.add(Offset(start.dx + 60, dyUp));
+        coordinates.add(Offset(end.dx, dyUp));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'right:right:3':
         final dyUp = min(sourceTop, targetTop) - 60;
         coordinates.add(Offset(start.dx + 60, start.dy));
         coordinates.add(Offset(start.dx + 60, dyUp));
@@ -788,12 +1264,28 @@ class ArrowManager extends Manager {
         coordinates.add(Offset(end.dx, targetBottom + 60));
         coordinates.add(Offset(end.dx, end.dy));
         break;
+      case 'top:left:4':
+        final dxRight = max(sourceRight, targetRight) + 60;
+        coordinates.add(Offset(start.dx, start.dy - 60));
+        coordinates.add(Offset(dxRight, start.dy - 60));
+        coordinates.add(Offset(dxRight, targetBottom + 60));
+        coordinates.add(Offset(end.dx, targetBottom + 60));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
       case 'left:right:4':
         final dyDown = max(sourceBottom, targetBottom) + 60;
         coordinates.add(Offset(start.dx - 60, start.dy));
         coordinates.add(Offset(start.dx - 60, dyDown));
         coordinates.add(Offset(end.dx + 60, dyDown));
         coordinates.add(Offset(end.dx + 60, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      case 'left:left:4':
+        final dyDown = max(sourceBottom, targetBottom) + 60;
+        coordinates.add(Offset(start.dx - 60, start.dy));
+        coordinates.add(Offset(start.dx - 60, dyDown));
+        coordinates.add(Offset(end.dx - 60, dyDown));
+        coordinates.add(Offset(end.dx - 60, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
       case 'right:left:4':
@@ -804,7 +1296,15 @@ class ArrowManager extends Manager {
         coordinates.add(Offset(end.dx - 60, end.dy));
         coordinates.add(Offset(end.dx, end.dy));
         break;
-    default:
+      case 'right:right:4':
+        final dyDown = max(sourceBottom, targetBottom) + 60;
+        coordinates.add(Offset(start.dx + 60, start.dy));
+        coordinates.add(Offset(start.dx + 60, dyDown));
+        coordinates.add(Offset(end.dx + 60, dyDown));
+        coordinates.add(Offset(end.dx + 60, end.dy));
+        coordinates.add(Offset(end.dx, end.dy));
+        break;
+      default:
         break;
     }
 
