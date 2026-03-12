@@ -585,137 +585,121 @@ class NodeManager extends Manager {
   Future<void> selectNodeAtPosition(Offset screenPosition, {bool immediateDrag = false}) async {
     final worldPos = Utils.screenToWorld(screenPosition, state);
 
-    // Определяем тайл, в котором произошел клик
-    final tile = tileManager.getTileAtWorldPosition(worldPos);
-    if (tile == null) {
-      // Клик вне области тайлов - обрабатываем как клик по пустой области
+    final nodeHit = findNodeAtWorldPosition(worldPos);
+    if (nodeHit == null) {
       await handleEmptyAreaClick();
       return;
     }
 
-    TableNode? foundNode;
-    Offset? foundNodeWorldPosition;
+    final foundNode = nodeHit.node;
+    final foundNodeWorldPosition = nodeHit.worldPosition;
 
-    // Получаем множество ID узлов в этом тайле для быстрого поиска
-    final nodeIdsInTile = Set<String>.from(tile.nodes);
-
-    // Функция для рекурсивного сбора узлов, чьи ID есть в множестве
-    List<TableNode> collectNodesByIds(List<TableNode> nodes) {
-      final result = <TableNode>[];
-
-      void traverse(List<TableNode> nodeList) {
-        for (final node in nodeList) {
-          // Проверяем, есть ли ID узла в множестве ID тайла
-          if (nodeIdsInTile.contains(node.id)) {
-            result.add(node);
-          }
-
-          // Рекурсивно проверяем дочерние узлы
-          if (node.children != null && node.children!.isNotEmpty) {
-            traverse(node.children!);
-          }
-        }
-      }
-
-      traverse(nodes);
-      return result;
+    // Проверяем клик по иконке swimlane
+    if (foundNode.qType == 'swimlane' && _isSwimlaneIconClicked(foundNode, worldPos, foundNodeWorldPosition)) {
+      await _toggleSwimlaneCollapsed(foundNode);
+      return;
     }
 
-    // Получаем все узлы, принадлежащие текущему тайлу (один проход по всем узлам)
-    final nodesInTile = collectNodesByIds(state.nodes);
+    // Ctrl+клик — добавляем узел в существующее выделение
+    if (state.isCtrlPressed && state.nodesSelected.isNotEmpty) {
+      await _addNodeToSelection(foundNode);
+      return;
+    }
 
-    // Ищем узел под курсором среди узлов тайла
+    if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
+      if (state.nodesSelected.any((n) => n?.id == foundNode.id)) {
+        if (immediateDrag) {
+          startNodeDrag(screenPosition);
+        }
+        return;
+      }
+
+      if (immediateDrag) {
+        if (state.isNodeDragging) {
+          endNodeDrag();
+        }
+
+        // Сохраняем текущий выделенный узел в тайлы
+        await _saveNodeToTiles();
+
+        // Выделяем новый узел
+        await _selectNodeImmediate(foundNode, screenPosition);
+      } else {
+        // Сохраняем текущий выделенный узел в тайлы
+        await _saveNodeToTiles();
+
+        // Выделяем новый узел
+        await _selectNode(foundNode);
+      }
+    } else {
+      if (immediateDrag) {
+        await _selectNodeImmediate(foundNode, screenPosition);
+      } else {
+        await _selectNode(foundNode);
+      }
+    }
+  }
+
+  ({TableNode node, Offset worldPosition})? findNodeAtWorldPosition(Offset worldPos) {
+    final tile = tileManager.getTileAtWorldPosition(worldPos);
+    if (tile == null) {
+      return null;
+    }
+
+    final nodeIdsInTile = Set<String>.from(tile.nodes);
+    final nodesInTile = _collectNodesByIds(state.nodes, nodeIdsInTile);
+
     for (int i = 0; i < nodesInTile.length; i++) {
       final node = nodesInTile[i];
 
-      // Проверяем, является ли узел выделенным на верхнем слое
       if (state.nodesIdOnTopLayer.isNotEmpty &&
           state.nodesSelected.isNotEmpty &&
           state.nodesSelected.first?.id == node.id) {
         continue;
       }
 
-      // Получаем мировую позицию узла
       final nodeWorldPos = node.aPosition ?? (state.delta + node.position);
       final nodeRect = Rect.fromLTWH(nodeWorldPos.dx, nodeWorldPos.dy, node.size.width, node.size.height);
 
-      // Проверяем, попадает ли клик в узел
       if (nodeRect.contains(worldPos)) {
-        foundNode = node;
-        foundNodeWorldPosition = nodeWorldPos;
-        break;
+        return (node: node, worldPosition: nodeWorldPos);
       }
 
-      // Для развернутых swimlane проверяем дочерние узлы
-      // (дочерние узлы уже включены в nodesInTile благодаря рекурсивному сбору)
       if (node.qType == 'swimlane' && !(node.isCollapsed ?? false) && node.children != null) {
         for (int j = node.children!.length - 1; j >= 0; j--) {
           final child = node.children![j];
-
-          // Проверяем, что дочерний узел действительно принадлежит этому тайлу
           if (!nodeIdsInTile.contains(child.id)) continue;
 
           final childWorldPos = child.aPosition ?? (nodeWorldPos + child.position);
           final childRect = Rect.fromLTWH(childWorldPos.dx, childWorldPos.dy, child.size.width, child.size.height);
 
           if (childRect.contains(worldPos)) {
-            foundNode = child;
-            foundNodeWorldPosition = childWorldPos;
-            break;
+            return (node: child, worldPosition: childWorldPos);
           }
         }
-        if (foundNode != null) break;
       }
     }
 
-    if (foundNode != null && foundNodeWorldPosition != null) {
-      // Проверяем клик по иконке swimlane
-      if (foundNode.qType == 'swimlane' && _isSwimlaneIconClicked(foundNode, worldPos, foundNodeWorldPosition)) {
-        await _toggleSwimlaneCollapsed(foundNode);
-        return;
-      }
+    return null;
+  }
 
-      // Ctrl+клик — добавляем узел в существующее выделение
-      if (state.isCtrlPressed && state.nodesSelected.isNotEmpty) {
-        await _addNodeToSelection(foundNode);
-        return;
-      }
+  List<TableNode> _collectNodesByIds(List<TableNode> nodes, Set<String> nodeIds) {
+    final result = <TableNode>[];
 
-      if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
-        if (state.nodesSelected.any((n) => n?.id == foundNode!.id)) {
-          if (immediateDrag) {
-            startNodeDrag(screenPosition);
-          }
-          return;
+    void traverse(List<TableNode> nodeList) {
+      for (final node in nodeList) {
+        if (nodeIds.contains(node.id)) {
+          result.add(node);
         }
 
-        if (immediateDrag) {
-          if (state.isNodeDragging) {
-            endNodeDrag();
-          }
-
-          // Сохраняем текущий выделенный узел в тайлы
-          await _saveNodeToTiles();
-
-          // Выделяем новый узел
-          await _selectNodeImmediate(foundNode, screenPosition);
-        } else {
-          // Сохраняем текущий выделенный узел в тайлы
-          await _saveNodeToTiles();
-
-          // Выделяем новый узел
-          await _selectNode(foundNode);
-        }
-      } else {
-        if (immediateDrag) {
-          await _selectNodeImmediate(foundNode, screenPosition);
-        } else {
-          await _selectNode(foundNode);
+        if (node.children != null && node.children!.isNotEmpty) {
+          traverse(node.children!);
         }
       }
-    } else {
-      await handleEmptyAreaClick();
     }
+
+    traverse(nodes);
+    return result;
   }
 
   // Метод для переключения состояния swimlane

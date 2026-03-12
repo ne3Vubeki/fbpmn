@@ -508,7 +508,7 @@ class ArrowManager extends Manager {
         case 'left60':
           sides = getSidesForNodeAndAttribute(
             ifNode: 'right:left',
-            ifAttrST: 'right:left|left:left|right:right|left:right',
+            ifAttrST: 'right:left|left:left:4|right:right:4|left:right',
             ifAttrS: 'left:left|right:right',
             ifAttrT: 'bottom:right|left:left',
           );
@@ -516,7 +516,7 @@ class ArrowManager extends Manager {
         case 'right60':
           sides = getSidesForNodeAndAttribute(
             ifNode: 'left:right',
-            ifAttrST: 'left:right|right:right|left:left|right:left',
+            ifAttrST: 'left:right|right:right:4|left:left:4|right:left',
             ifAttrS: 'right:right|left:left',
             ifAttrT: '${dy < 0 ? 'bottom:left:3' : 'top:left:3'}|right:right',
           );
@@ -731,7 +731,7 @@ class ArrowManager extends Manager {
           }
           sides = getSidesForNodeAndAttribute(
             ifNode: sides,
-            ifAttrST: 'left:right:4|right:right|left:left|right:left:4',
+            ifAttrST: 'left:right:4|right:right:4|left:left:4|right:left:4',
             ifAttrS: 'left:top:3|right:top:3',
             ifAttrT: 'bottom:right:3|bottom:left:3',
           );
@@ -1553,7 +1553,6 @@ class ArrowManager extends Manager {
     return path;
   }
 
-  /// Найти эффективный узел
   /// Найти эффективный узел
   ({TableNode? node, Attribute? attribute}) _getNodeFromArrow(String nodeId) {
     TableNode? foundNode;
