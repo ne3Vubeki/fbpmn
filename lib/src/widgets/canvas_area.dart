@@ -7,11 +7,9 @@ import 'package:flutter/services.dart';
 
 import '../editor_state.dart';
 import '../models/app.model.dart';
-import '../models/table.node.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
-import '../utils/utils.dart';
 import 'arrows_selected.dart';
 import 'cursor_layer.dart';
 import 'hierarchical_grid.dart';
@@ -55,8 +53,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
   
   // Для отслеживания resize handles
   String? _currentResizeHandle;
-  TableNode? _hoveredNode;
-  Offset? _hoveredNodeWorldPosition;
 
   @override
   void initState() {
@@ -108,8 +104,8 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
           Positioned(
             left: 0,
             top: 0,
-            right: 0, //needsVerticalScrollbar ? 10 : 0,
-            bottom: 0, //needsHorizontalScrollbar ? 10 : 0,
+            right: 0,
+            bottom: 0,
             child: KeyboardListener(
               focusNode: widget.inputHandler.focusNode,
               autofocus: true,
@@ -121,46 +117,10 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                 child: MouseRegion(
                   onHover: (PointerHoverEvent event) {
                     widget.state.mousePosition = event.localPosition;
-                    final worldPos = Utils.screenToWorld(event.localPosition, widget.state);
-                    final foundNode = widget.nodeManager.findNodeAtWorldPosition(worldPos);
-                    TableNode? nextHoveredNode = foundNode?.node;
-                    Offset? nextHoveredNodeWorldPosition = foundNode?.worldPosition;
-
-                    if (nextHoveredNode == null &&
-                        widget.state.nodesSelected.length == 1 &&
-                        widget.state.nodesSelected.first != null) {
-                      final selectedNode = widget.state.nodesSelected.first!;
-                      final selectedNodeSize = Size(
-                        selectedNode.size.width * widget.state.scale,
-                        selectedNode.size.height * widget.state.scale,
-                      );
-                      final selectedNodeRect = Rect.fromLTWH(
-                        widget.state.selectedNodeOffset.dx,
-                        widget.state.selectedNodeOffset.dy,
-                        selectedNodeSize.width,
-                        selectedNodeSize.height,
-                      );
-
-                      if (selectedNodeRect.contains(event.localPosition)) {
-                        nextHoveredNode = selectedNode;
-                        nextHoveredNodeWorldPosition = selectedNode.aPosition ?? (widget.state.delta + selectedNode.position);
-                      }
-                    }
-
-                    if (_hoveredNode?.id != nextHoveredNode?.id || _hoveredNodeWorldPosition != nextHoveredNodeWorldPosition) {
-                      timeoutSetState(callback: () {
-                        _hoveredNode = nextHoveredNode;
-                        _hoveredNodeWorldPosition = nextHoveredNodeWorldPosition;
-                      });
-                    }
+                    widget.nodeManager.onHover(event.localPosition);
                   },
                   onExit: (_) {
-                    if (_hoveredNode != null || _hoveredNodeWorldPosition != null) {
-                      timeoutSetState(callback: () {
-                        _hoveredNode = null;
-                        _hoveredNodeWorldPosition = null;
-                      });
-                    }
+                    widget.nodeManager.clearHoveredNode();
                   },
                   child: Listener(
                   onPointerSignal: (pointerSignal) {
@@ -189,7 +149,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   },
                   onPointerUp: (PointerUpEvent event) {
                     if (widget.nodeManager.isResizing) {
-                      // widget.nodeManager.endResize();
                       _currentResizeHandle = null;
                     } else {
                       widget.inputHandler.handlePanEnd();
@@ -197,7 +156,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   },
                   onPointerCancel: (PointerCancelEvent event) {
                     if (widget.nodeManager.isResizing) {
-                      // widget.nodeManager.endResize();
                       _currentResizeHandle = null;
                     } else {
                       widget.inputHandler.handlePanCancel();
@@ -226,8 +184,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
 
                         NodeHover(
                           state: widget.state,
-                          node: _hoveredNode,
-                          worldPosition: _hoveredNodeWorldPosition,
+                          nodeManager: widget.nodeManager,
                         ),
 
                         // Отображение выделенного узла на верхнем слое

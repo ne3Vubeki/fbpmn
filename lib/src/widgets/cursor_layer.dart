@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../editor_state.dart';
 import '../services/node_manager.dart';
 
@@ -25,6 +24,10 @@ class _CursorLayerState extends State<CursorLayer> {
   MouseCursor _getCursor() {
     if (widget.nodeManager.isResizing && widget.currentResizeHandle != null) {
       return widget.nodeManager.getResizeCursor(widget.currentResizeHandle);
+    }
+
+    if(widget.state.hoveredNode != null) {
+      return SystemMouseCursors.click;
     }
 
     if (widget.state.isShiftPressed && widget.state.isPanning) {

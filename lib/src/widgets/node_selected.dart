@@ -39,9 +39,6 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
     widget.nodeManager.setOnStateUpdate('NodeSelected', () {
       timeoutSetState();
     });
-    // widget.inputHandler.setOnStateUpdate('NodeSelected', () {
-    //   timeoutSetState();
-    // });
   }
 
   @override

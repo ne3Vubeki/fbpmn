@@ -1300,6 +1300,33 @@ class NodeManager extends Manager {
     }
   }
 
+  void onHover(Offset localPosition) {
+    final worldPos = Utils.screenToWorld(localPosition, state);
+    final foundNode = findNodeAtWorldPosition(worldPos);
+    final selectedNode = state.nodesSelected.isNotEmpty ? state.nodesSelected.first : null;
+    TableNode? nextHoveredNode = foundNode?.node;
+
+    // Не показываем ховер над выделенным узлом
+    if (nextHoveredNode?.id == selectedNode?.id) {
+      if (state.hoveredNode != null) {
+        state.hoveredNode = null;
+        onStateUpdate();
+      }
+    }
+    // Для остальных узлов показываем ховер
+    else if (state.hoveredNode?.id != nextHoveredNode?.id) {
+      state.hoveredNode = nextHoveredNode;
+      onStateUpdate();
+    }
+  }
+
+  void clearHoveredNode() {
+    if (state.hoveredNode != null) {
+      state.hoveredNode = null;
+      onStateUpdate();
+    }
+  }
+
   /// Определяет, на каком маркере изменения размера находится курсор
   String? getResizeHandleAtPosition(Offset screenPosition) {
     if (state.nodesSelected.isEmpty) return null;

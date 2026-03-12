@@ -1,51 +1,59 @@
+import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
-import '../models/table.node.dart';
 
-class NodeHover extends StatelessWidget {
+class NodeHover extends StatefulWidget {
   final EditorState state;
-  final TableNode? node;
-  final Offset? worldPosition;
+  final NodeManager nodeManager;
 
-  const NodeHover({
-    super.key,
-    required this.state,
-    required this.node,
-    required this.worldPosition,
-  });
+  const NodeHover({super.key, required this.state, required this.nodeManager});
+
+  @override
+  State<NodeHover> createState() => _NodeHoverState();
+}
+
+class _NodeHoverState extends State<NodeHover> {
+  @override
+  void initState() {
+    super.initState();
+    widget.nodeManager.setOnStateUpdate('NodeHover', () {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (node == null || worldPosition == null) {
+    if (widget.state.hoveredNode == null) {
       return Container();
     }
 
-    final currentNode = node!;
+    final currentNode = widget.state.hoveredNode!;
     final screenTopLeft = Offset(
-      worldPosition!.dx * state.scale + state.offset.dx,
-      worldPosition!.dy * state.scale + state.offset.dy,
+      widget.state.hoveredNode!.aPosition!.dx * widget.state.scale + widget.state.offset.dx,
+      widget.state.hoveredNode!.aPosition!.dy * widget.state.scale + widget.state.offset.dy,
     );
-    final nodeSize = Size(currentNode.size.width * state.scale, currentNode.size.height * state.scale);
+    final nodeSize = Size(currentNode.size.width * widget.state.scale, currentNode.size.height * widget.state.scale);
     final hasAttributes = currentNode.attributes.isNotEmpty;
     final isEnum = currentNode.qType == 'enum';
     final isGroup = currentNode.qType == 'group';
     final isBo = currentNode.qType == 'bo';
     final borderRadius = !isGroup && !isEnum && isBo && hasAttributes
-        ? BorderRadius.circular(8 * state.scale)
+        ? BorderRadius.circular(8 * widget.state.scale)
         : BorderRadius.zero;
 
     return Positioned(
       left: screenTopLeft.dx,
       top: screenTopLeft.dy,
-      child: IgnorePointer(
+      child: MouseRegion(
+        // Меняем курсор на руку при наведении на подсветку
+        cursor: SystemMouseCursors.click, // или SystemMouseCursors.grab
         child: Container(
           width: nodeSize.width,
           height: nodeSize.height,
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.2),
-            borderRadius: borderRadius,
-          ),
+          decoration: BoxDecoration(color: Colors.yellowAccent.withValues(alpha: 0.2), borderRadius: borderRadius),
         ),
       ),
     );
