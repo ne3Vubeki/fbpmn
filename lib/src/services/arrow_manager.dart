@@ -430,13 +430,16 @@ class ArrowManager extends Manager {
     String sides = '';
 
     try {
-      final heightHeader = targetNode?.heightHeader ?? 0;
+      final heightHeader = targetNode?.heightHeader ?? EditorConfig.minHeaderHeight;
 
       Offset sourceCenter = Offset(
         sourceRect.center.dx,
-        sourceRect.top + (sourceNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2,
+        sourceRect.top + heightHeader / 2 - EditorConfig.arrowSelectedWidth / 2,
       );
-      Offset targetCenter = Offset(targetRect.center.dx, targetRect.top + heightHeader / 2);
+      Offset targetCenter = Offset(
+        targetRect.center.dx,
+        targetRect.top + heightHeader / 2 - EditorConfig.arrowSelectedWidth / 2,
+      );
 
       final dx = targetRect.center.dx - sourceRect.center.dx;
       final dy = targetRect.center.dy - sourceRect.center.dy;
@@ -868,160 +871,112 @@ class ArrowManager extends Manager {
             sourceRight + (!isSourceAttribute ? arrowIndent : 0),
             sourceCenter.dy + startDeltaPos,
           );
-          endConnectionPoint = Offset(
-            targetCenter.dx + endDeltaPos,
-            targetTop - targetArrowIndent,
-          );
+          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetTop - targetArrowIndent);
           break;
         case 'right:bottom':
           startConnectionPoint = Offset(
             sourceRight + (!isSourceAttribute ? arrowIndent : 0),
             sourceCenter.dy + startDeltaPos,
           );
-          endConnectionPoint = Offset(
-            targetCenter.dx + endDeltaPos,
-            targetBottom + targetArrowIndent,
-          );
+          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + targetArrowIndent);
           break;
         case 'right:left':
           startConnectionPoint = Offset(
             sourceRight + (!isSourceAttribute ? arrowIndent : 0),
             sourceCenter.dy + startDeltaPos,
           );
-          endConnectionPoint = Offset(
-            targetLeft - targetArrowIndent,
-            targetCenter.dy + endDeltaPos,
-          );
+          endConnectionPoint = Offset(targetLeft - targetArrowIndent, targetCenter.dy + endDeltaPos);
           break;
         case 'right:right':
           startConnectionPoint = Offset(
             sourceRight + (!isSourceAttribute ? arrowIndent : 0),
             sourceCenter.dy + startDeltaPos,
           );
-          endConnectionPoint = Offset(
-            targetRight + targetArrowIndent,
-            targetCenter.dy + endDeltaPos,
-          );
+          endConnectionPoint = Offset(targetRight + targetArrowIndent, targetCenter.dy + endDeltaPos);
           break;
         case 'left:top':
           startConnectionPoint = Offset(
             sourceLeft - (!isSourceAttribute ? arrowIndent : 0),
             sourceCenter.dy + startDeltaPos,
           );
-          endConnectionPoint = Offset(
-            targetCenter.dx + endDeltaPos,
-            targetTop - targetArrowIndent,
-          );
+          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetTop - targetArrowIndent);
           break;
         case 'left:bottom':
           startConnectionPoint = Offset(
             sourceLeft - (!isSourceAttribute ? arrowIndent : 0),
             sourceCenter.dy + startDeltaPos,
           );
-          endConnectionPoint = Offset(
-            targetCenter.dx + endDeltaPos,
-            targetBottom + targetArrowIndent,
-          );
+          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + targetArrowIndent);
           break;
         case 'left:right':
           startConnectionPoint = Offset(
             sourceLeft - (!isSourceAttribute ? arrowIndent : 0),
             sourceCenter.dy + startDeltaPos,
           );
-          endConnectionPoint = Offset(
-            targetRight + targetArrowIndent,
-            targetCenter.dy + endDeltaPos,
-          );
+          endConnectionPoint = Offset(targetRight + targetArrowIndent, targetCenter.dy + endDeltaPos);
           break;
         case 'left:left':
           startConnectionPoint = Offset(
             sourceLeft - (!isSourceAttribute ? arrowIndent : 0),
             sourceCenter.dy + startDeltaPos,
           );
-          endConnectionPoint = Offset(
-            targetLeft - targetArrowIndent,
-            targetCenter.dy + endDeltaPos,
-          );
+          endConnectionPoint = Offset(targetLeft - targetArrowIndent, targetCenter.dy + endDeltaPos);
           break;
         case 'top:bottom':
           startConnectionPoint = Offset(
             sourceCenter.dx + startDeltaPos,
             sourceTop - (!isSourceAttribute ? arrowIndent : 0),
           );
-          endConnectionPoint = Offset(
-            targetCenter.dx + endDeltaPos,
-            targetBottom + targetArrowIndent,
-          );
+          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + targetArrowIndent);
           break;
         case 'top:right':
           startConnectionPoint = Offset(
             sourceCenter.dx + startDeltaPos,
             sourceTop - (!isSourceAttribute ? arrowIndent : 0),
           );
-          endConnectionPoint = Offset(
-            targetRight + targetArrowIndent,
-            targetCenter.dy + endDeltaPos,
-          );
+          endConnectionPoint = Offset(targetRight + targetArrowIndent, targetCenter.dy + endDeltaPos);
           break;
         case 'top:left':
           startConnectionPoint = Offset(
             sourceCenter.dx + startDeltaPos,
             sourceTop - (!isSourceAttribute ? arrowIndent : 0),
           );
-          endConnectionPoint = Offset(
-            targetLeft - targetArrowIndent,
-            targetCenter.dy + endDeltaPos,
-          );
+          endConnectionPoint = Offset(targetLeft - targetArrowIndent, targetCenter.dy + endDeltaPos);
           break;
         case 'top:top':
           startConnectionPoint = Offset(
             sourceCenter.dx + startDeltaPos,
             sourceTop - (!isSourceAttribute ? arrowIndent : 0),
           );
-          endConnectionPoint = Offset(
-            targetCenter.dx + endDeltaPos,
-            targetTop - targetArrowIndent,
-          );
+          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetTop - targetArrowIndent);
           break;
         case 'bottom:top':
           startConnectionPoint = Offset(
             sourceCenter.dx + startDeltaPos,
             sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
           );
-          endConnectionPoint = Offset(
-            targetCenter.dx + endDeltaPos,
-            targetTop - targetArrowIndent,
-          );
+          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetTop - targetArrowIndent);
           break;
         case 'bottom:right':
           startConnectionPoint = Offset(
             sourceCenter.dx + startDeltaPos,
             sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
           );
-          endConnectionPoint = Offset(
-            targetRight + targetArrowIndent,
-            targetCenter.dy + endDeltaPos,
-          );
+          endConnectionPoint = Offset(targetRight + targetArrowIndent, targetCenter.dy + endDeltaPos);
           break;
         case 'bottom:left':
           startConnectionPoint = Offset(
             sourceCenter.dx + startDeltaPos,
             sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
           );
-          endConnectionPoint = Offset(
-            targetLeft - targetArrowIndent,
-            targetCenter.dy + endDeltaPos,
-          );
+          endConnectionPoint = Offset(targetLeft - targetArrowIndent, targetCenter.dy + endDeltaPos);
           break;
         case 'bottom:bottom':
           startConnectionPoint = Offset(
             sourceCenter.dx + startDeltaPos,
             sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
           );
-          endConnectionPoint = Offset(
-            targetCenter.dx + endDeltaPos,
-            targetBottom + targetArrowIndent,
-          );
+          endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + targetArrowIndent);
           break;
       }
 
@@ -1174,7 +1129,7 @@ class ArrowManager extends Manager {
 
     final screenCoordinates = basePath.coordinates.map((point) => Utils.worldToScreen(point, state)).toList();
     String direct = baseConnectionPoints.sides!.split(':')[0];
-    
+
     final screenPaths = _createPath(
       arrow,
       screenCoordinates,

@@ -104,7 +104,7 @@ class ArrowsPainter {
 
     final strokePaint = Paint()
       ..color = Colors.red
-      ..strokeWidth = lineWidth
+      ..strokeWidth = 0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
@@ -139,7 +139,7 @@ class ArrowsPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    canvas.drawCircle(sourcePoint, 5 * scale, sourceCirclePaint);
+    // canvas.drawCircle(sourcePoint, 5 * scale, sourceCirclePaint);
   }
 
   /// Упрощённая отрисовка стрелок (только линии без начальных/конечных объектов)
