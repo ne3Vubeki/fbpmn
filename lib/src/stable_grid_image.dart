@@ -13,7 +13,7 @@ import 'services/tile_manager.dart';
 import 'services/node_manager.dart';
 import 'services/zoom_manager.dart';
 import 'editor_state.dart';
-import 'services/event_manager.dart';
+import 'services/event_service.dart';
 import 'widgets/zoom_container.dart';
 import 'widgets/loading_indicator.dart';
 import 'widgets/canvas_area.dart';
@@ -88,7 +88,7 @@ class _StableGridImageState extends State<StableGridImage> {
       colaLayoutService: _colaLayoutService,
     );
 
-    EventManager(
+    EventService(
       state: _editorState,
       inputHandler: _inputHandler,
       tileManager: _tileManager,

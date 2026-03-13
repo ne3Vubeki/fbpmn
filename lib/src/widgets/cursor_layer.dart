@@ -22,14 +22,6 @@ class CursorLayer extends StatefulWidget {
 
 class _CursorLayerState extends State<CursorLayer> {
   MouseCursor _getCursor() {
-    if (widget.nodeManager.isResizing && widget.currentResizeHandle != null) {
-      return widget.nodeManager.getResizeCursor(widget.currentResizeHandle);
-    }
-
-    if(widget.state.hoveredNode != null) {
-      return SystemMouseCursors.click;
-    }
-
     if (widget.state.isShiftPressed && widget.state.isPanning) {
       return SystemMouseCursors.grabbing;
     }

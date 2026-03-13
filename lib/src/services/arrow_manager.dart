@@ -23,6 +23,11 @@ class ArrowManager extends Manager {
 
   ArrowManager({required this.state});
 
+  Future<void> createArrowFromMap(Map<String, dynamic> arrowMap) async {
+    state.arrowCreated = Arrow.fromJson(arrowMap);
+    onStateUpdate();
+  }
+
   selectAllArrows() {
     final arrowsSelected = getArrowsForNodes(state.nodesSelected.toList()).toSet();
     state.arrowsSelected.addAll(arrowsSelected);
