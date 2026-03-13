@@ -209,16 +209,17 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           inputHandler: widget.inputHandler,
                           scrollHandler: widget.scrollHandler,
                         ),
-
-                        ArrowCreated(
-                          state: widget.state,
-                          arrowManager: widget.arrowManager,
-                        ),
-
+                        
                         // Маркеры изменения размера узла
                         ResizeHandles(
                           state: widget.state,
                           nodeManager: widget.nodeManager,
+                        ),
+
+                        // Отображение создаваемой связи
+                        ArrowCreated(
+                          state: widget.state,
+                          arrowManager: widget.arrowManager,
                         ),
 
                         // Отображение snap-линий при перетаскивании узла
