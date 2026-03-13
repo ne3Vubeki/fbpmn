@@ -3,7 +3,6 @@ import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:flutter/material.dart';
 import '../models/arrow.dart';
 import '../services/arrow_manager.dart';
-import '../services/node_manager.dart';
 
 class ArrowsPainter {
   final List<Arrow?> arrows;
@@ -104,7 +103,7 @@ class ArrowsPainter {
 
     final strokePaint = Paint()
       ..color = Colors.red
-      ..strokeWidth = 0
+      ..strokeWidth = lineWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
@@ -139,7 +138,7 @@ class ArrowsPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    // canvas.drawCircle(sourcePoint, 5 * scale, sourceCirclePaint);
+    canvas.drawCircle(sourcePoint, 5 * scale, sourceCirclePaint);
   }
 
   /// Упрощённая отрисовка стрелок (только линии без начальных/конечных объектов)
