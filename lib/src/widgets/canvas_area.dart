@@ -10,6 +10,7 @@ import '../models/app.model.dart';
 import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
+import 'arrow_created.dart';
 import 'arrows_selected.dart';
 import 'cursor_layer.dart';
 import 'hierarchical_grid.dart';
@@ -117,6 +118,9 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                 child: MouseRegion(
                   onHover: (PointerHoverEvent event) {
                     widget.state.mousePosition = event.localPosition;
+                    if (widget.state.arrowCreated != null) {
+                      widget.arrowManager.onStateUpdate('ArrowCreated');
+                    }
                     widget.nodeManager.onHover(event.localPosition);
                   },
                   onExit: (_) {
@@ -134,6 +138,9 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                   },
                   onPointerMove: (PointerMoveEvent event) {
                     widget.state.mousePosition = event.localPosition;
+                    if (widget.state.arrowCreated != null) {
+                      widget.arrowManager.onStateUpdate();
+                    }
                     if (widget.state.isPanning && widget.state.isShiftPressed) {
                       widget.inputHandler.handlePanUpdate(
                         event.localPosition,
@@ -203,12 +210,17 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           scrollHandler: widget.scrollHandler,
                         ),
 
+
                         // Маркеры изменения размера узла
                         ResizeHandles(
                           state: widget.state,
                           nodeManager: widget.nodeManager,
                         ),
 
+                        ArrowCreated(
+                          state: widget.state,
+                          arrowManager: widget.arrowManager,
+                        ),
                         // Отображение snap-линий при перетаскивании узла
                         SnapLinesOverlay(
                           state: widget.state,

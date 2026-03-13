@@ -1,11 +1,7 @@
-import 'dart:ui';
-
-import 'package:flutter/material.dart';
-
 class Manager {
-  final Map<String, VoidCallback> _onStateUpdate = {};
+  final Map<String, Function> _onStateUpdate = {};
 
-  void setOnStateUpdate(String key, VoidCallback callback) {
+  void setOnStateUpdate(String key, Function callback) {
     _onStateUpdate[key] = callback;
   }
 
@@ -13,11 +9,17 @@ class Manager {
     _onStateUpdate.remove(key);
   }
 
-  void onStateUpdate() {
-    if(_onStateUpdate.keys.isNotEmpty) {
-      for(final key in _onStateUpdate.keys) {
-        // print('Event for $key =================================');
-        _onStateUpdate[key]!();
+  void onStateUpdate([dynamic data]) {
+    if (_onStateUpdate.keys.isNotEmpty) {
+      for (final key in _onStateUpdate.keys) {
+        final callback = _onStateUpdate[key];
+        if (callback == null) continue;
+
+        try {
+          Function.apply(callback, [data]);
+        } on NoSuchMethodError {
+          Function.apply(callback, []);
+        }
       }
     }
   }

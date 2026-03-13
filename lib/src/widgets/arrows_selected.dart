@@ -31,14 +31,11 @@ class _ArrowsSelected extends State<ArrowsSelected>
   @override
   void initState() {
     super.initState();
-    widget.arrowManager.setOnStateUpdate('ArrowsSelected', () {
-      timeoutSetState();
+    widget.arrowManager.setOnStateUpdate('ArrowsSelected', (path) {
+      if(path == null || path == 'ArrowsSelected') timeoutSetState();
     });
-    // widget.inputHandler.setOnStateUpdate('ArrowsSelected', () {
-    //   timeoutSetState();
-    // });
-    widget.scrollHandler.setOnStateUpdate('ArrowsSelected', () {
-      timeoutSetState();
+    widget.scrollHandler.setOnStateUpdate('ArrowsSelected', (path) {
+      if(path == null || path == 'ArrowsSelected') timeoutSetState();
     });
   }
 

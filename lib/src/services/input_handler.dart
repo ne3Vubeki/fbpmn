@@ -137,6 +137,9 @@ class InputHandler extends Manager {
           final node = state.nodesSelected.first!;
           final scaledWidth = node.size.width * state.scale;
           final scaledHeight = node.size.height * state.scale;
+          final handleOffset = NodeManager.resizeHandleOffset * state.scale;
+          final handleLength = NodeManager.arrowHandleWidth * state.scale;
+          final handleHoverAreaSize = handleLength * 3;
 
           // Для раскрытого swimlane используем фактические границы рамки выделения,
           // которые включают в себя детей
@@ -156,7 +159,8 @@ class InputHandler extends Manager {
               scaledWidth + frameOffset * 2,
               scaledHeight + frameOffset * 2,
             );
-            clickedOnSelectedNode = nodeScreenRect.contains(position);
+            final nodeHandleRect = nodeScreenRect.inflate(handleOffset + handleHoverAreaSize / 2);
+            clickedOnSelectedNode = nodeHandleRect.contains(position);
           }
         }
       }

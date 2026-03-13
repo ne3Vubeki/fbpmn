@@ -563,6 +563,7 @@ class NodeManager extends Manager {
     if (isResizing) {
       return;
     }
+    arrowManager.clearCreatedArrow();
     if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
       await _saveNodeToTiles();
     } else {
@@ -1421,7 +1422,8 @@ class NodeManager extends Manager {
     dynamic setState,
   }) {
     final isHoveredHandle = isHovered[handle] ?? false;
-    final hoverAreaSize = length * 3; // Увеличиваем область для ховера в 3 раза
+    final hoverAreaSize = length * 3;
+    final selectedNode = state.nodesSelected.isNotEmpty ? state.nodesSelected.first : null;
 
     return Positioned(
       left: left - (hoverAreaSize - length) / 2,
@@ -1446,31 +1448,43 @@ class NodeManager extends Manager {
           }
         },
         child: Tooltip(
-          // Tooltip теперь оборачивает всю область
           message: 'Создать связь объекта',
-          child: Center(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              width: length,
-              height: length,
-              alignment: Alignment.center,
-              child: AnimatedScale(
-                scale: isHoveredHandle ? 3.0 : 1.0,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: selectedNode == null
+                ? null
+                : () async {
+                    await arrowManager.createArrowFromMap({
+                      'source': selectedNode.id,
+                    });
+                  },
+            child: Center(
+              child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
-                child: Container(
-                  width: length,
-                  height: length,
-                  decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                  child: isHoveredHandle
-                      ? Center(
-                          child: CustomPaint(
-                            size: Size(length * 0.6, length * 0.6),
-                            painter: DirectionArrowPainter(direction: handle, color: Colors.white),
-                          ),
-                        )
-                      : null,
+                width: length,
+                height: length,
+                alignment: Alignment.center,
+                child: AnimatedScale(
+                  scale: isHoveredHandle ? 3.0 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  child: Container(
+                    width: length,
+                    height: length,
+                    decoration: const BoxDecoration(
+                      color: Colors.blue,
+                      shape: BoxShape.circle,
+                    ),
+                    child: isHoveredHandle
+                        ? Center(
+                            child: CustomPaint(
+                              size: Size(length * 0.6, length * 0.6),
+                              painter: DirectionArrowPainter(direction: handle, color: Colors.white),
+                            ),
+                          )
+                        : null,
+                  ),
                 ),
               ),
             ),
@@ -1694,23 +1708,31 @@ class NodeManager extends Manager {
               },
               child: Tooltip(
                 message: 'Создать связь атрибута',
-                child: Center(
-                  child: AnimatedScale(
-                    scale: isHoveredLeft ? 3.0 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    child: Container(
-                      width: length,
-                      height: length,
-                      decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                      child: isHoveredLeft
-                          ? Center(
-                              child: CustomPaint(
-                                size: Size(length * 0.6, length * 0.6),
-                                painter: DirectionArrowPainter(direction: 'l', color: Colors.white),
-                              ),
-                            )
-                          : null,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    await arrowManager.createArrowFromMap({
+                      'source': attribute.id,
+                    });
+                  },
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: isHoveredLeft ? 3.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: Container(
+                        width: length,
+                        height: length,
+                        decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                        child: isHoveredLeft
+                            ? Center(
+                                child: CustomPaint(
+                                  size: Size(length * 0.6, length * 0.6),
+                                  painter: DirectionArrowPainter(direction: 'l', color: Colors.white),
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
                   ),
                 ),
@@ -1742,23 +1764,31 @@ class NodeManager extends Manager {
               },
               child: Tooltip(
                 message: 'Создать связь атрибута',
-                child: Center(
-                  child: AnimatedScale(
-                    scale: isHoveredRight ? 3.0 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    child: Container(
-                      width: length,
-                      height: length,
-                      decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                      child: isHoveredRight
-                          ? Center(
-                              child: CustomPaint(
-                                size: Size(length * 0.6, length * 0.6),
-                                painter: DirectionArrowPainter(direction: 'r', color: Colors.white),
-                              ),
-                            )
-                          : null,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    await arrowManager.createArrowFromMap({
+                      'source': attribute.id,
+                    });
+                  },
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: isHoveredRight ? 3.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: Container(
+                        width: length,
+                        height: length,
+                        decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                        child: isHoveredRight
+                            ? Center(
+                                child: CustomPaint(
+                                  size: Size(length * 0.6, length * 0.6),
+                                  painter: DirectionArrowPainter(direction: 'r', color: Colors.white),
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
                   ),
                 ),

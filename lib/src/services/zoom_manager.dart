@@ -136,7 +136,7 @@ class ZoomManager extends Manager {
     _isLayoutRunning = true;
     onStateUpdate();
 
-    colaLayoutService!.setOnStateUpdate('ZoomManager_Cola', () {
+    colaLayoutService!.setOnStateUpdate('ZoomManager_Cola', ([data]) {
       _isLayoutRunning = colaLayoutService!.isRunning;
       onStateUpdate();
     });

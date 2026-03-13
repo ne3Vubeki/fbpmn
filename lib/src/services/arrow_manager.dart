@@ -3,7 +3,9 @@ import 'dart:ui';
 
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
+import 'package:fbpmn/src/services/id_manager.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
+import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../models/attribute.dart';
@@ -24,7 +26,29 @@ class ArrowManager extends Manager {
   ArrowManager({required this.state});
 
   Future<void> createArrowFromMap(Map<String, dynamic> arrowMap) async {
-    state.arrowCreated = Arrow.fromJson(arrowMap);
+    final sourceId = (arrowMap['source'] as String?) ?? '';
+    if (sourceId.isEmpty) {
+      return;
+    }
+
+    state.arrowCreated = Arrow(
+      id: IDManager().generateNextId(),
+      qType: '',
+      source: sourceId,
+      target: '',
+      style: 'endArrow=block;',
+      powers: [],
+      points: [],
+    );
+    onStateUpdate();
+  }
+
+  void clearCreatedArrow() {
+    if (state.arrowCreated == null) {
+      return;
+    }
+
+    state.arrowCreated = null;
     onStateUpdate();
   }
 
@@ -46,15 +70,22 @@ class ArrowManager extends Manager {
 
   /// Расчет точек соединения для определения стороны
   /// по расположению узлов относительно друг друга
-  ({Offset? end, Offset? start, String? sides}) calculateConnectionPoints(
-    Arrow arrow,
-    Rect sourceRect,
-    Rect targetRect,
-    TableNode sourceNode,
-    TableNode targetNode,
+  ({Offset? end, Offset? start, String? sides}) calculateConnectionPoints({
+    required Arrow arrow,
+    required Rect sourceRect,
+    Rect? targetRect,
+    Offset? targetPoint,
+    required TableNode sourceNode,
+    TableNode? targetNode,
     Attribute? sourceAttribute,
     Attribute? targetAttribute,
-  ) {
+  }) {
+    /// Одно из свойств должно быть заполнено всегда
+    assert(targetRect != null || targetPoint != null);
+
+    final pointRect = const Offset(40, 40);
+    targetRect = targetRect ?? Rect.fromPoints(targetPoint! - pointRect, targetPoint + pointRect);
+
     // Определяем центральные точки узлов
     final sourceCenter = sourceRect.center;
     final targetCenter = targetRect.center;
@@ -380,7 +411,7 @@ class ArrowManager extends Manager {
     Rect sourceRect,
     Rect targetRect,
     TableNode sourceNode,
-    TableNode targetNode,
+    TableNode? targetNode,
     Attribute? sourceAttribute,
     Attribute? targetAttribute,
     Arrow arrow,
@@ -388,18 +419,13 @@ class ArrowManager extends Manager {
     String sides = '';
 
     try {
-      // Определяем центральные точки узлов
-      // Offset sourceCenter = sourceRect.center;
-      // Offset targetCenter = targetRect.center;
+      final heightHeader = targetNode?.heightHeader ?? 0;
 
       Offset sourceCenter = Offset(
         sourceRect.center.dx,
         sourceRect.top + (sourceNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2,
       );
-      Offset targetCenter = Offset(
-        targetRect.center.dx,
-        targetRect.top + (targetNode.heightHeader ?? EditorConfig.minHeaderHeight) / 2,
-      );
+      Offset targetCenter = Offset(targetRect.center.dx, targetRect.top + heightHeader / 2);
 
       final dx = targetRect.center.dx - sourceRect.center.dx;
       final dy = targetRect.center.dy - sourceRect.center.dy;
@@ -426,6 +452,7 @@ class ArrowManager extends Manager {
         required String ifAttrST,
         required String ifAttrS,
         required String ifAttrT,
+        String? ifArrow,
       }) {
         if (isSourceAttribute && isTargetAttribute) {
           final startConnections = sourceAttribute.connections;
@@ -453,7 +480,8 @@ class ArrowManager extends Manager {
           startConnections?.add(connectSideList[0], arrow.id);
           endConnections?.add(connectSideList[1], arrow.id);
           return ifNode;
-        } else if (isSourceAttribute) {
+        }
+        if (isSourceAttribute) {
           final startConnections = sourceAttribute.connections;
 
           startConnections?.remove(arrow.id);
@@ -473,7 +501,8 @@ class ArrowManager extends Manager {
           final connectSideList = ifNode.split(':');
           startConnections?.add(connectSideList[0], arrow.id);
           return ifNode;
-        } else if (isTargetAttribute) {
+        }
+        if (isTargetAttribute) {
           final endConnections = targetAttribute.connections;
 
           endConnections?.remove(arrow.id);
@@ -500,7 +529,9 @@ class ArrowManager extends Manager {
       Offset startConnectionPoint = Offset.zero;
       Offset endConnectionPoint = Offset.zero;
 
-      print('=======================================================================');
+      if (isSourceAttribute || isTargetAttribute) {
+        print('=======================================================================');
+      }
 
       if (isSourceAttribute) {
         print('Source ${sourceAttribute.text} position: $position');
@@ -791,16 +822,18 @@ class ArrowManager extends Manager {
         );
       }
 
-      if (!isTargetAttribute) {
+      if (!isTargetAttribute && targetNode != null) {
         /// Создание конечного коннекта для узла
         final endConnections = targetNode.connections;
         endConnection = endConnections?.add(sidesNodesList[1], arrow.id);
         endDeltaPos = endConnections?.getSideDelta(sidesNodesList[1], endConnection!) ?? 0;
-      } else {
+      } else if (isTargetAttribute) {
         targetCenter = Offset(
           targetCenter.dx,
           targetTop + targetAttribute.position.dy + targetAttribute.size.height / 2,
         );
+      } else {
+        targetCenter = targetRect.center;
       }
 
       switch (sidesNodes) {
@@ -1014,13 +1047,13 @@ class ArrowManager extends Manager {
 
     // Вычисляем точки соединения
     final baseConnectionPoints = calculateConnectionPoints(
-      arrow,
-      sourceRect,
-      targetRect,
-      sourceNode,
-      targetNode,
-      sourceAttr,
-      targetAttr,
+      arrow: arrow,
+      sourceRect: sourceRect,
+      targetRect: targetRect,
+      sourceNode: sourceNode,
+      targetNode: targetNode,
+      sourceAttribute: sourceAttr,
+      targetAttribute: targetAttr,
     );
 
     arrow.aPositionSource = baseConnectionPoints.start!;
@@ -1032,13 +1065,13 @@ class ArrowManager extends Manager {
 
     // Создаем простой ортогональный путь без проверок пересечений
     final basePath = _createSimpleOrthogonalPath(
-      arrow,
-      baseConnectionPoints.start!,
-      baseConnectionPoints.end!,
-      sourceRect,
-      targetRect,
-      baseConnectionPoints.sides!,
-      isTiles,
+      arrow: arrow,
+      start: baseConnectionPoints.start!,
+      end: baseConnectionPoints.end!,
+      sourceRect: sourceRect,
+      targetRect: targetRect,
+      sides: baseConnectionPoints.sides!,
+      isTiles: isTiles,
     );
 
     arrow.paths = basePath.paths;
@@ -1057,6 +1090,73 @@ class ArrowManager extends Manager {
 
     // Преобразуем путь и координаты в экранные координаты
     return _convertPathToScreenCoordinates(arrow, basePath, arrowsRect);
+  }
+
+  ({ArrowPaths paths, List<Offset> coordinates}) getCreatedArrowPath() {
+    final arrow = state.arrowCreated;
+    if (arrow == null) {
+      return (paths: ArrowPaths(path: Path()), coordinates: []);
+    }
+
+    final sourceNodeAndAttr = _getNodeFromArrow(arrow.source);
+    final sourceNode = sourceNodeAndAttr.node;
+    if (sourceNode == null) {
+      return (paths: ArrowPaths(path: Path()), coordinates: []);
+    }
+
+    final sourceAbsolutePos = sourceNode.aPosition ?? (sourceNode.position + state.delta);
+    final targetWorld = Utils.screenToWorld(state.mousePosition, state);
+    final sourceRect = Rect.fromLTWH(
+      sourceNodeAndAttr.attribute == null
+          ? sourceAbsolutePos.dx
+          : sourceAbsolutePos.dx + sourceNodeAndAttr.attribute!.position.dx,
+      sourceNodeAndAttr.attribute == null
+          ? sourceAbsolutePos.dy
+          : sourceAbsolutePos.dy + sourceNodeAndAttr.attribute!.position.dy,
+      sourceNodeAndAttr.attribute == null ? sourceNode.size.width : sourceNodeAndAttr.attribute!.size.width,
+      sourceNodeAndAttr.attribute == null ? sourceNode.size.height : sourceNodeAndAttr.attribute!.size.height,
+    );
+    final targetRect = Rect.fromPoints(targetWorld, targetWorld);
+
+    final baseConnectionPoints = calculateConnectionPoints(
+      arrow: arrow,
+      sourceRect: sourceRect,
+      targetPoint: targetWorld,
+      sourceNode: sourceNode,
+      sourceAttribute: sourceNodeAndAttr.attribute,
+    );
+
+    if (baseConnectionPoints.start == null || baseConnectionPoints.end == null || baseConnectionPoints.sides == null) {
+      return (paths: ArrowPaths(path: Path()), coordinates: []);
+    }
+
+    final basePath = _createSimpleOrthogonalPath(
+      arrow: arrow,
+      start: baseConnectionPoints.start!,
+      end: baseConnectionPoints.end!,
+      sourceRect: sourceRect,
+      targetRect: targetRect,
+      sides: baseConnectionPoints.sides!,
+      isTiles: false,
+    );
+
+    arrow.aPositionSource = baseConnectionPoints.start!;
+    arrow.aPositionTarget = baseConnectionPoints.end!;
+    arrow.coordinates = basePath.coordinates;
+    arrow.paths = basePath.paths;
+    arrow.sides = baseConnectionPoints.sides;
+
+    final screenCoordinates = basePath.coordinates.map((point) => Utils.worldToScreen(point, state)).toList();
+    final screenPaths = _createPath(
+      arrow,
+      screenCoordinates,
+      direct: baseConnectionPoints.sides!,
+      isCurves: state.useCurves,
+      isTiles: false,
+      scale: state.scale,
+    );
+
+    return (paths: screenPaths, coordinates: screenCoordinates);
   }
 
   /// Преобразует путь из мировых координат в экранные
@@ -1079,15 +1179,15 @@ class ArrowManager extends Manager {
   }
 
   /// Создание простого ортогонального пути
-  ({ArrowPaths paths, List<Offset> coordinates}) _createSimpleOrthogonalPath(
-    Arrow arrow,
-    Offset start,
-    Offset end,
-    Rect sourceRect,
-    Rect targetRect,
-    String sides,
-    bool isTiles,
-  ) {
+  ({ArrowPaths paths, List<Offset> coordinates}) _createSimpleOrthogonalPath({
+    required Arrow arrow,
+    required Offset start,
+    required Offset end,
+    required Rect sourceRect,
+    required Rect targetRect,
+    required String sides,
+    required bool isTiles,
+  }) {
     List<Offset> coordinates = [];
 
     // Определяем стороны и размеры узлов

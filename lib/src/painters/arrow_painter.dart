@@ -75,6 +75,48 @@ class ArrowsPainter {
     }
   }
 
+  void paintCreated(Canvas canvas, double scale) {
+    final arrow = arrowManager.state.arrowCreated;
+    if (arrow == null) return;
+
+    final pathWidth = EditorConfig.arrowSelectedPathWidth * scale;
+    final lineWidth = EditorConfig.arrowSelectedWidth * scale;
+
+    final linePaint = Paint()
+      ..color = Colors.red
+      ..strokeWidth = pathWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    final strokePaint = Paint()
+      ..color = Colors.red
+      ..strokeWidth = lineWidth
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    final pathResult = arrowManager.getCreatedArrowPath();
+    if (pathResult.coordinates.length < 2) {
+      return;
+    }
+
+    _drawPaths(
+      canvas,
+      arrow,
+      scale,
+      pathResult.paths,
+      pathResult.coordinates,
+      linePaint,
+      fillPaint,
+      strokePaint,
+      Colors.red,
+      fillArrowHeadsWithColor: true,
+    );
+  }
+
   /// Упрощённая отрисовка стрелок (только линии без начальных/конечных объектов)
   void paintSimplified(Canvas canvas, double scale, Rect arrowsRect) {
     final pathWidth = 2.0 * scale;
@@ -114,6 +156,7 @@ class ArrowsPainter {
     Paint strokePaint,
     Color color, {
     bool isTiles = false,
+    bool fillArrowHeadsWithColor = false,
   }) {
     // 1. Рисуем линию
     canvas.drawPath(paths.path, linePaint);
@@ -134,8 +177,7 @@ class ArrowsPainter {
 
     // 3. Рисуем фигуру в конце (треугольник)
     if (paths.endArrow != null) {
-      // Белый треугольник с черной границей
-      fillPaint.color = Colors.white;
+      fillPaint.color = fillArrowHeadsWithColor ? color : Colors.white;
       canvas.drawPath(paths.endArrow!, fillPaint);
       canvas.drawPath(paths.endArrow!, strokePaint);
     }
