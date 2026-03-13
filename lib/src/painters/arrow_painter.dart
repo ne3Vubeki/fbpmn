@@ -33,7 +33,18 @@ class ArrowsPainter {
       // Получаем полный путь стрелки
       final paths = arrow.paths ?? ArrowPaths(path: Path());
 
-      _drawPaths(canvas, arrow, scale, paths, arrow.coordinates!, linePaint, fillPaint, strokePaint, Colors.black, isTiles: true);
+      _drawPaths(
+        canvas,
+        arrow,
+        scale,
+        paths,
+        arrow.coordinates!,
+        linePaint,
+        fillPaint,
+        strokePaint,
+        Colors.black,
+        isTiles: true,
+      );
     }
   }
 
@@ -186,7 +197,14 @@ class ArrowsPainter {
     _drawPowers(canvas, arrow, coordinates, scale, color, isTiles: isTiles);
   }
 
-  void _drawPowers(Canvas canvas, Arrow arrow, List<Offset> coordinates, double scale, Color color, {bool isTiles = false}) {
+  void _drawPowers(
+    Canvas canvas,
+    Arrow arrow,
+    List<Offset> coordinates,
+    double scale,
+    Color color, {
+    bool isTiles = false,
+  }) {
     final powers = arrow.powers;
     if (powers == null || powers.isEmpty) return;
 
@@ -224,9 +242,8 @@ class ArrowsPainter {
       }
 
       // Вычисляем размер кружка (радиус = половина максимального размера текста + отступ)
-      final circleRadius = (textPainter.width > textPainter.height 
-          ? textPainter.width / 2 
-          : textPainter.height / 2) + circlePadding;
+      final circleRadius =
+          (textPainter.width > textPainter.height ? textPainter.width / 2 : textPainter.height / 2) + circlePadding;
 
       // Вычисляем позицию центра кружка в зависимости от стороны
       Offset circleCenter;
@@ -257,7 +274,7 @@ class ArrowsPainter {
       final circleFillPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.fill;
-      
+
       final circleStrokePaint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke
@@ -267,10 +284,7 @@ class ArrowsPainter {
       canvas.drawCircle(circleCenter, circleRadius, circleStrokePaint);
 
       // Позиция текста - центрируем в кружке
-      final textPosition = Offset(
-        circleCenter.dx - textPainter.width / 2,
-        circleCenter.dy - textPainter.height / 2,
-      );
+      final textPosition = Offset(circleCenter.dx - textPainter.width / 2, circleCenter.dy - textPainter.height / 2);
 
       textPainter.paint(canvas, textPosition);
       textPainter.dispose();

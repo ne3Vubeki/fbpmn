@@ -117,7 +117,7 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _suppressSchemaCallback = true;
     try {
-      await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_5.json');
+      await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_6.json');
       // _shemaManager.createEmptySchema(apply: true);
       _schemaInitialized = true;
     } finally {

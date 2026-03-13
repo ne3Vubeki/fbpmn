@@ -83,7 +83,7 @@ class ArrowManager extends Manager {
     /// Одно из свойств должно быть заполнено всегда
     assert(targetRect != null || targetPoint != null);
 
-    final pointRect = const Offset(40, 40);
+    final pointRect = const Offset(0, 0);
     targetRect = targetRect ?? Rect.fromPoints(targetPoint! - pointRect, targetPoint + pointRect);
 
     // Определяем центральные точки узлов
@@ -1147,10 +1147,12 @@ class ArrowManager extends Manager {
     arrow.sides = baseConnectionPoints.sides;
 
     final screenCoordinates = basePath.coordinates.map((point) => Utils.worldToScreen(point, state)).toList();
+    String direct = baseConnectionPoints.sides!.split(':')[0];
+    
     final screenPaths = _createPath(
       arrow,
       screenCoordinates,
-      direct: baseConnectionPoints.sides!,
+      direct: direct,
       isCurves: state.useCurves,
       isTiles: false,
       scale: state.scale,

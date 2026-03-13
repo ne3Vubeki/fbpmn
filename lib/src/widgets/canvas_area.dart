@@ -210,6 +210,10 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           scrollHandler: widget.scrollHandler,
                         ),
 
+                        ArrowCreated(
+                          state: widget.state,
+                          arrowManager: widget.arrowManager,
+                        ),
 
                         // Маркеры изменения размера узла
                         ResizeHandles(
@@ -217,10 +221,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           nodeManager: widget.nodeManager,
                         ),
 
-                        ArrowCreated(
-                          state: widget.state,
-                          arrowManager: widget.arrowManager,
-                        ),
                         // Отображение snap-линий при перетаскивании узла
                         SnapLinesOverlay(
                           state: widget.state,
