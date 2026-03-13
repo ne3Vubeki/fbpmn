@@ -97,12 +97,16 @@ class ArrowsPainter {
       ..color = Colors.red
       ..strokeWidth = pathWidth
       ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..isAntiAlias = true;
 
     final strokePaint = Paint()
       ..color = Colors.red
       ..strokeWidth = lineWidth
       ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..isAntiAlias = true;
 
     final fillPaint = Paint()
@@ -125,6 +129,7 @@ class ArrowsPainter {
       strokePaint,
       Colors.red,
       fillArrowHeadsWithColor: true,
+      drawEndArrow: false,
     );
   }
 
@@ -168,6 +173,7 @@ class ArrowsPainter {
     Color color, {
     bool isTiles = false,
     bool fillArrowHeadsWithColor = false,
+    bool drawEndArrow = true,
   }) {
     // 1. Рисуем линию
     canvas.drawPath(paths.path, linePaint);
@@ -187,7 +193,7 @@ class ArrowsPainter {
     }
 
     // 3. Рисуем фигуру в конце (треугольник)
-    if (paths.endArrow != null) {
+    if (drawEndArrow && paths.endArrow != null) {
       fillPaint.color = fillArrowHeadsWithColor ? color : Colors.white;
       canvas.drawPath(paths.endArrow!, fillPaint);
       canvas.drawPath(paths.endArrow!, strokePaint);

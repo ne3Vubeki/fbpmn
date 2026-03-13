@@ -44,8 +44,19 @@ class ArrowManager extends Manager {
   }
 
   void clearCreatedArrow() {
-    if (state.arrowCreated == null) {
+    final arrow = state.arrowCreated;
+    if (arrow == null) {
       return;
+    }
+
+    final sourceNodeAndAttr = _getNodeFromArrow(arrow.source);
+    sourceNodeAndAttr.attribute?.connections?.remove(arrow.id);
+    sourceNodeAndAttr.node?.connections?.remove(arrow.id);
+
+    if (arrow.target.isNotEmpty) {
+      final targetNodeAndAttr = _getNodeFromArrow(arrow.target);
+      targetNodeAndAttr.attribute?.connections?.remove(arrow.id);
+      targetNodeAndAttr.node?.connections?.remove(arrow.id);
     }
 
     state.arrowCreated = null;
@@ -454,6 +465,21 @@ class ArrowManager extends Manager {
         required String ifAttrT,
         String? ifArrow,
       }) {
+        String reOrientationEmptyTargetSide(List<String> sides) {
+          if (targetNode != null) {
+            return ifNode;
+          } else {
+            sides[1] = sides[0] == 'left'
+                ? 'right'
+                : sides[0] == 'right'
+                ? 'left'
+                : sides[0] == 'top'
+                ? 'bottom'
+                : sides[1];
+            return sides.take(2).join(':');
+          }
+        }
+
         if (isSourceAttribute && isTargetAttribute) {
           final startConnections = sourceAttribute.connections;
           final endConnections = targetAttribute.connections;
@@ -480,8 +506,7 @@ class ArrowManager extends Manager {
           startConnections?.add(connectSideList[0], arrow.id);
           endConnections?.add(connectSideList[1], arrow.id);
           return ifNode;
-        }
-        if (isSourceAttribute) {
+        } else if (isSourceAttribute) {
           final startConnections = sourceAttribute.connections;
 
           startConnections?.remove(arrow.id);
@@ -500,9 +525,8 @@ class ArrowManager extends Manager {
           print('(${sourceAttribute.text})--->(Node}) ... $countSide: Sides: $ifNode');
           final connectSideList = ifNode.split(':');
           startConnections?.add(connectSideList[0], arrow.id);
-          return ifNode;
-        }
-        if (isTargetAttribute) {
+          return reOrientationEmptyTargetSide(connectSideList);
+        } else if (isTargetAttribute) {
           final endConnections = targetAttribute.connections;
 
           endConnections?.remove(arrow.id);
@@ -523,7 +547,8 @@ class ArrowManager extends Manager {
           endConnections?.add(connectSideList[1], arrow.id);
           return ifNode;
         }
-        return ifNode;
+        final connectSideList = ifNode.split(':');
+        return reOrientationEmptyTargetSide(connectSideList);
       }
 
       Offset startConnectionPoint = Offset.zero;
@@ -807,6 +832,7 @@ class ArrowManager extends Manager {
 
       double startDeltaPos = 0;
       double endDeltaPos = 0;
+      final targetArrowIndent = !isTargetAttribute && targetNode != null ? arrowIndent : 0.0;
       Connection? startConnection;
       Connection? endConnection;
 
@@ -818,7 +844,7 @@ class ArrowManager extends Manager {
       } else {
         sourceCenter = Offset(
           sourceCenter.dx,
-          sourceTop + sourceAttribute.position.dy + sourceAttribute.size.height / 2,
+          sourceTop + (targetNode == null ? 0 : sourceAttribute.position.dy) + sourceAttribute.size.height / 2,
         );
       }
 
@@ -844,7 +870,7 @@ class ArrowManager extends Manager {
           );
           endConnectionPoint = Offset(
             targetCenter.dx + endDeltaPos,
-            targetTop - (!isTargetAttribute ? arrowIndent : 0),
+            targetTop - targetArrowIndent,
           );
           break;
         case 'right:bottom':
@@ -854,7 +880,7 @@ class ArrowManager extends Manager {
           );
           endConnectionPoint = Offset(
             targetCenter.dx + endDeltaPos,
-            targetBottom + (!isTargetAttribute ? arrowIndent : 0),
+            targetBottom + targetArrowIndent,
           );
           break;
         case 'right:left':
@@ -863,7 +889,7 @@ class ArrowManager extends Manager {
             sourceCenter.dy + startDeltaPos,
           );
           endConnectionPoint = Offset(
-            targetLeft - (!isTargetAttribute ? arrowIndent : 0),
+            targetLeft - targetArrowIndent,
             targetCenter.dy + endDeltaPos,
           );
           break;
@@ -873,7 +899,7 @@ class ArrowManager extends Manager {
             sourceCenter.dy + startDeltaPos,
           );
           endConnectionPoint = Offset(
-            targetRight + (!isTargetAttribute ? arrowIndent : 0),
+            targetRight + targetArrowIndent,
             targetCenter.dy + endDeltaPos,
           );
           break;
@@ -884,7 +910,7 @@ class ArrowManager extends Manager {
           );
           endConnectionPoint = Offset(
             targetCenter.dx + endDeltaPos,
-            targetTop - (!isTargetAttribute ? arrowIndent : 0),
+            targetTop - targetArrowIndent,
           );
           break;
         case 'left:bottom':
@@ -894,7 +920,7 @@ class ArrowManager extends Manager {
           );
           endConnectionPoint = Offset(
             targetCenter.dx + endDeltaPos,
-            targetBottom + (!isTargetAttribute ? arrowIndent : 0),
+            targetBottom + targetArrowIndent,
           );
           break;
         case 'left:right':
@@ -903,7 +929,7 @@ class ArrowManager extends Manager {
             sourceCenter.dy + startDeltaPos,
           );
           endConnectionPoint = Offset(
-            targetRight + (!isTargetAttribute ? arrowIndent : 0),
+            targetRight + targetArrowIndent,
             targetCenter.dy + endDeltaPos,
           );
           break;
@@ -913,7 +939,7 @@ class ArrowManager extends Manager {
             sourceCenter.dy + startDeltaPos,
           );
           endConnectionPoint = Offset(
-            targetLeft - (!isTargetAttribute ? arrowIndent : 0),
+            targetLeft - targetArrowIndent,
             targetCenter.dy + endDeltaPos,
           );
           break;
@@ -924,7 +950,7 @@ class ArrowManager extends Manager {
           );
           endConnectionPoint = Offset(
             targetCenter.dx + endDeltaPos,
-            targetBottom + (!isTargetAttribute ? arrowIndent : 0),
+            targetBottom + targetArrowIndent,
           );
           break;
         case 'top:right':
@@ -933,7 +959,7 @@ class ArrowManager extends Manager {
             sourceTop - (!isSourceAttribute ? arrowIndent : 0),
           );
           endConnectionPoint = Offset(
-            targetRight + (!isTargetAttribute ? arrowIndent : 0),
+            targetRight + targetArrowIndent,
             targetCenter.dy + endDeltaPos,
           );
           break;
@@ -943,7 +969,7 @@ class ArrowManager extends Manager {
             sourceTop - (!isSourceAttribute ? arrowIndent : 0),
           );
           endConnectionPoint = Offset(
-            targetLeft - (!isTargetAttribute ? arrowIndent : 0),
+            targetLeft - targetArrowIndent,
             targetCenter.dy + endDeltaPos,
           );
           break;
@@ -954,7 +980,7 @@ class ArrowManager extends Manager {
           );
           endConnectionPoint = Offset(
             targetCenter.dx + endDeltaPos,
-            targetTop - (!isTargetAttribute ? arrowIndent : 0),
+            targetTop - targetArrowIndent,
           );
           break;
         case 'bottom:top':
@@ -964,7 +990,7 @@ class ArrowManager extends Manager {
           );
           endConnectionPoint = Offset(
             targetCenter.dx + endDeltaPos,
-            targetTop - (!isTargetAttribute ? arrowIndent : 0),
+            targetTop - targetArrowIndent,
           );
           break;
         case 'bottom:right':
@@ -973,7 +999,7 @@ class ArrowManager extends Manager {
             sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
           );
           endConnectionPoint = Offset(
-            targetRight + (!isTargetAttribute ? arrowIndent : 0),
+            targetRight + targetArrowIndent,
             targetCenter.dy + endDeltaPos,
           );
           break;
@@ -983,7 +1009,7 @@ class ArrowManager extends Manager {
             sourceBottom + (!isSourceAttribute ? arrowIndent : 0),
           );
           endConnectionPoint = Offset(
-            targetLeft - (!isTargetAttribute ? arrowIndent : 0),
+            targetLeft - targetArrowIndent,
             targetCenter.dy + endDeltaPos,
           );
           break;
@@ -994,7 +1020,7 @@ class ArrowManager extends Manager {
           );
           endConnectionPoint = Offset(
             targetCenter.dx + endDeltaPos,
-            targetBottom + (!isTargetAttribute ? arrowIndent : 0),
+            targetBottom + targetArrowIndent,
           );
           break;
       }
