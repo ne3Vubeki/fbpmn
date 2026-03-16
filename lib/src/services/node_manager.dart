@@ -43,6 +43,7 @@ class NodeManager extends Manager {
   double get framePadding => EditorConfig.framePadding * state.scale; // Отступ рамки от узла
   double get frameBorderWidth => EditorConfig.frameBorderWidth * state.scale; // Толщина рамки
   double get frameTotalOffset => framePadding + frameBorderWidth; // Общий отступ для рамки
+  double get widthBorderCircle => 1 * state.scale; // граница кружков для создания связей
 
   // Константы для маркеров изменения размера
   static const double resizeHandleOffset = 14.0; // Отступ маркеров от узла
@@ -1454,9 +1455,7 @@ class NodeManager extends Manager {
             onTap: selectedNode == null
                 ? null
                 : () async {
-                    await arrowManager.createArrowFromMap({
-                      'source': selectedNode.id,
-                    });
+                    await arrowManager.createArrowFromMap({'source': selectedNode.id}, handle);
                   },
             child: Center(
               child: AnimatedContainer(
@@ -1472,9 +1471,10 @@ class NodeManager extends Manager {
                   child: Container(
                     width: length,
                     height: length,
-                    decoration: const BoxDecoration(
-                      color: Colors.blue,
+                    decoration: BoxDecoration(
+                      color: isHoveredHandle ? Colors.blue : Colors.blue.shade50,
                       shape: BoxShape.circle,
+                      border: Border.all(color: Colors.blue, width: widthBorderCircle),
                     ),
                     child: isHoveredHandle
                         ? Center(
@@ -1527,126 +1527,19 @@ class NodeManager extends Manager {
 
     final minHeaderHeight = EditorConfig.minHeaderHeight;
     final attributeRows = _buildAttributeHighlightRows(nodesToProcess, node, offset, minHeaderHeight, scale);
-    final circleHoverRadius = length * 1.5;
 
     return Positioned(
       top: offset,
       left: 0,
-      child: MouseRegion(
-        hitTestBehavior: HitTestBehavior.translucent,
-        cursor: SystemMouseCursors.basic, // Курсор по умолчанию для области атрибутов
-        onHover: (event) {
-          final localPos = event.localPosition;
-
-          for (final row in attributeRows) {
-            final distToLeft = math.sqrt(
-              math.pow(localPos.dx - row.leftCircleCenterX, 2) + math.pow(localPos.dy - row.circleCenterY, 2),
-            );
-            final distToRight = math.sqrt(
-              math.pow(localPos.dx - row.rightCircleCenterX, 2) + math.pow(localPos.dy - row.circleCenterY, 2),
-            );
-            final inRowArea = localPos.dy >= row.rowTop && localPos.dy <= row.rowBottom;
-            final inRowHorizontalArea = localPos.dx >= row.currentNodeLeft && localPos.dx <= row.rowRight;
-
-            if (distToLeft <= circleHoverRadius) {
-              _updateHoverState(row.node, row.rowIndex, isHovered, setState, left: true, right: false);
-              return;
-            } else if (distToRight <= circleHoverRadius) {
-              _updateHoverState(row.node, row.rowIndex, isHovered, setState, left: false, right: true);
-              return;
-            } else if (inRowArea && inRowHorizontalArea) {
-              _updateHoverState(row.node, row.rowIndex, isHovered, setState, left: false, right: false);
-              return;
-            }
-          }
-
-          _resetHoverState(isHovered, setState);
-        },
-        onExit: (_) {
-          _resetHoverState(isHovered, setState);
-        },
-        child: SizedBox(
-          width: offset * 2 + nodeSize.width,
-          height: nodeSize.height,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: _buildAllAttributesHighlightChildren(attributeRows, length, isHovered, setState),
-          ),
+      child: SizedBox(
+        width: offset * 2 + nodeSize.width,
+        height: nodeSize.height,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: _buildAllAttributesHighlightChildren(attributeRows, length, isHovered, setState),
         ),
       ),
     );
-  }
-
-  /// Вспомогательный метод для обновления состояния hover
-  void _updateHoverState(
-    dynamic currentNode,
-    int rowIndex,
-    Map isHovered,
-    dynamic setState, {
-    required bool left,
-    required bool right,
-  }) {
-    // Обновляем состояние hover для строки
-    if (state.hoveredAttributeRowIndex != rowIndex || state.hoveredAttributeNodeId != currentNode.id) {
-      state.hoveredAttributeRowIndex = rowIndex;
-      state.hoveredAttributeNodeId = currentNode.id;
-      onStateUpdate();
-    }
-
-    final leftKey = 'attr_left_${currentNode.id}_$rowIndex';
-    final rightKey = 'attr_right_${currentNode.id}_$rowIndex';
-
-    bool needsUpdate = false;
-
-    // Сбрасываем старые состояния
-    final keysToRemove = [];
-    for (final key in isHovered.keys) {
-      if (key.startsWith('attr_left_') || key.startsWith('attr_right_')) {
-        if (key != leftKey && key != rightKey) {
-          keysToRemove.add(key);
-        }
-      }
-    }
-    for (final key in keysToRemove) {
-      isHovered.remove(key);
-      needsUpdate = true;
-    }
-
-    if (isHovered[leftKey] != left) {
-      isHovered[leftKey] = left;
-      needsUpdate = true;
-    }
-    if (isHovered[rightKey] != right) {
-      isHovered[rightKey] = right;
-      needsUpdate = true;
-    }
-
-    if (needsUpdate) {
-      setState(() {});
-    }
-  }
-
-  /// Сбрасывает состояние hover
-  void _resetHoverState(Map isHovered, dynamic setState) {
-    state.hoveredAttributeRowIndex = null;
-    state.hoveredAttributeNodeId = null;
-    onStateUpdate();
-
-    bool needsUpdate = false;
-    final keysToRemove = [];
-    for (final key in isHovered.keys) {
-      if (key.startsWith('attr_left_') || key.startsWith('attr_right_')) {
-        keysToRemove.add(key);
-      }
-    }
-    for (final key in keysToRemove) {
-      isHovered.remove(key);
-      needsUpdate = true;
-    }
-
-    if (needsUpdate) {
-      setState(() {});
-    }
   }
 
   /// Создаёт дочерние виджеты кружки с лева и права атрибута для создания связи атрибут->
@@ -1658,148 +1551,145 @@ class NodeManager extends Manager {
   ) {
     final List<Widget> children = [];
     final hoverAreaSize = length * 3; // Увеличиваем область для ховера в 3 раза
+    final createdArrowId = state.arrowCreated?.id;
+
+    bool hasCommittedConnections(Set<dynamic>? sideConnections) {
+      if (sideConnections == null || sideConnections.isEmpty) {
+        return false;
+      }
+
+      for (final connection in sideConnections) {
+        if (connection == null) {
+          continue;
+        }
+        if (createdArrowId != null && connection.id == createdArrowId) {
+          continue;
+        }
+        return true;
+      }
+
+      return false;
+    }
 
     for (final row in attributeRows) {
-      final isHoveredRow =
-          state.hoveredAttributeNodeId == row.node.id && state.hoveredAttributeRowIndex == row.rowIndex;
       final attribute = row.node.attributes[row.rowIndex];
-      final isLeftConnected = (attribute.connections?.length('left') ?? 0) == 1;
-      final isRightConnected = (attribute.connections?.length('right') ?? 0) == 1;
-      final isHoveredLeft = isHovered['attr_left_${row.node.id}_${row.rowIndex}'] ?? false;
-      final isHoveredRight = isHovered['attr_right_${row.node.id}_${row.rowIndex}'] ?? false;
-
-      if (!isHoveredRow) continue;
+      final isLeftConnected = hasCommittedConnections(attribute.connections?.get('left'));
+      final isRightConnected = hasCommittedConnections(attribute.connections?.get('right'));
 
       children.add(
-        Positioned(
-          left: row.currentNodeLeft,
-          top: row.rowTop,
-          child: Container(
-            width: row.currentNodeWidth,
-            height: row.rowHeightScaled,
-            decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2)),
-          ),
+        _buildAttributeConnectionCircle(
+          row: row,
+          side: 'left',
+          centerX: row.leftCircleCenterX,
+          centerY: row.circleCenterY,
+          length: length,
+          hoverAreaSize: hoverAreaSize,
+          isHovered: isHovered,
+          setState: setState,
+          isConnected: isLeftConnected,
+          attributeId: attribute.id,
         ),
       );
 
-      if (!isLeftConnected) {
-        children.add(
-          Positioned(
-            left: row.leftCircleCenterX - hoverAreaSize / 2,
-            top: row.circleCenterY - hoverAreaSize / 2,
-            width: hoverAreaSize,
-            height: hoverAreaSize,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.alias,
-              hitTestBehavior: HitTestBehavior.translucent,
-              onEnter: (_) {
-                if (setState != null) {
-                  setState(() {
-                    isHovered['attr_left_${row.node.id}_${row.rowIndex}'] = true;
-                  });
-                }
-              },
-              onExit: (_) {
-                if (setState != null) {
-                  setState(() {
-                    isHovered['attr_left_${row.node.id}_${row.rowIndex}'] = false;
-                  });
-                }
-              },
-              child: Tooltip(
-                message: 'Создать связь атрибута',
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () async {
-                    await arrowManager.createArrowFromMap({
-                      'source': attribute.id,
-                    });
-                  },
-                  child: Center(
-                    child: AnimatedScale(
-                      scale: isHoveredLeft ? 3.0 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      child: Container(
-                        width: length,
-                        height: length,
-                        decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                        child: isHoveredLeft
-                            ? Center(
-                                child: CustomPaint(
-                                  size: Size(length * 0.6, length * 0.6),
-                                  painter: DirectionArrowPainter(direction: 'l', color: Colors.white),
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-
-      if (!isRightConnected) {
-        children.add(
-          Positioned(
-            left: row.rightCircleCenterX - hoverAreaSize / 2,
-            top: row.circleCenterY - hoverAreaSize / 2,
-            width: hoverAreaSize,
-            height: hoverAreaSize,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.alias,
-              hitTestBehavior: HitTestBehavior.translucent,
-              onEnter: (_) {
-                setState(() {
-                  isHovered['attr_right_${row.node.id}_${row.rowIndex}'] = true;
-                });
-              },
-              onExit: (_) {
-                setState(() {
-                  isHovered['attr_right_${row.node.id}_${row.rowIndex}'] = false;
-                });
-              },
-              child: Tooltip(
-                message: 'Создать связь атрибута',
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () async {
-                    await arrowManager.createArrowFromMap({
-                      'source': attribute.id,
-                    });
-                  },
-                  child: Center(
-                    child: AnimatedScale(
-                      scale: isHoveredRight ? 3.0 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      child: Container(
-                        width: length,
-                        height: length,
-                        decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
-                        child: isHoveredRight
-                            ? Center(
-                                child: CustomPaint(
-                                  size: Size(length * 0.6, length * 0.6),
-                                  painter: DirectionArrowPainter(direction: 'r', color: Colors.white),
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }
+      children.add(
+        _buildAttributeConnectionCircle(
+          row: row,
+          side: 'right',
+          centerX: row.rightCircleCenterX,
+          centerY: row.circleCenterY,
+          length: length,
+          hoverAreaSize: hoverAreaSize,
+          isHovered: isHovered,
+          setState: setState,
+          isConnected: isRightConnected,
+          attributeId: attribute.id,
+        ),
+      );
     }
 
     return children;
+  }
+
+  Widget _buildAttributeConnectionCircle({
+    required AttributeHighlightRow row,
+    required String side,
+    required double centerX,
+    required double centerY,
+    required double length,
+    required double hoverAreaSize,
+    required Map isHovered,
+    required dynamic setState,
+    required bool isConnected,
+    required String attributeId,
+  }) {
+    final GlobalKey<TooltipState> tooltipkey = GlobalKey<TooltipState>();
+    final hoverKey = 'attr_${side}_${row.node.id}_${row.rowIndex}';
+    final isHoveredCircle = isHovered[hoverKey] ?? false;
+    final direction = side == 'left' ? 'l' : 'r';
+    final circleVisual = Center(
+      child: AnimatedScale(
+        scale: !isConnected && isHoveredCircle ? 3.0 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeInOut,
+        child: Container(
+          width: length,
+          height: length,
+          decoration: BoxDecoration(
+            color: isConnected || isHoveredCircle ? Colors.blue : Colors.blue.shade50,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.blue, width: widthBorderCircle),
+          ),
+          child: !isConnected && isHoveredCircle
+              ? Center(
+                  child: CustomPaint(
+                    size: Size(length * 0.6, length * 0.6),
+                    painter: DirectionArrowPainter(direction: direction, color: Colors.white),
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+
+    return Positioned(
+      left: centerX - hoverAreaSize / 2 + widthBorderCircle / 2,
+      top: centerY - hoverAreaSize / 2 + widthBorderCircle / 2,
+      width: hoverAreaSize,
+      height: hoverAreaSize,
+      child: MouseRegion(
+        cursor: isConnected ? SystemMouseCursors.basic : SystemMouseCursors.alias,
+        hitTestBehavior: HitTestBehavior.translucent,
+        onEnter: isConnected
+            ? null
+            : (_) {
+                if (setState != null) {
+                  setState(() {
+                    isHovered[hoverKey] = true;
+                  });
+                }
+              },
+        onExit: isConnected
+            ? null
+            : (_) {
+                if (setState != null) {
+                  setState(() {
+                    isHovered[hoverKey] = false;
+                  });
+                }
+              },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: isConnected
+              ? null
+              : () async {
+                  await arrowManager.createArrowFromMap({'source': attributeId}, direction);
+                },
+          child: isConnected
+              ? circleVisual
+              : Tooltip(key: tooltipkey, message: 'Создать связь атрибута', child: circleVisual),
+        ),
+      ),
+    );
   }
 
   List<AttributeHighlightRow> _buildAttributeHighlightRows(

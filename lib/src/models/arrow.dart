@@ -36,6 +36,7 @@ class Arrow {
     this.points,
     this.aPositionSource = Offset.zero,
     this.aPositionTarget = Offset.zero,
+    this.sides,
   });
 
   factory Arrow.fromJson(Map<String, dynamic> json) {

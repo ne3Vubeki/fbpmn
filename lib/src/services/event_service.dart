@@ -140,7 +140,7 @@ class EventService {
         if (data != null) {
           final payload = data['arrow'];
           if (payload is Map<String, dynamic>) {
-            await arrowManager.createArrowFromMap(payload);
+            // await arrowManager.createArrowFromMap(payload);
           }
         }
         break;

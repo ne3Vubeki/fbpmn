@@ -26,7 +26,7 @@ class ArrowManager extends Manager {
 
   ArrowManager({required this.state});
 
-  Future<void> createArrowFromMap(Map<String, dynamic> arrowMap) async {
+  Future<void> createArrowFromMap(Map<String, dynamic> arrowMap, String startSide) async {
     final sourceId = (arrowMap['source'] as String?) ?? '';
     if (sourceId.isEmpty) {
       return;
@@ -41,6 +41,7 @@ class ArrowManager extends Manager {
       powers: [],
       points: [],
     );
+    state.arrowCreatedStartSide = '${{'l': 'left', 't': 'top', 'r': 'right', 'b': 'bottom'}[startSide]!}:';
     onStateUpdate();
   }
 
@@ -443,8 +444,8 @@ class ArrowManager extends Manager {
         targetRect.top + targetHeightHeader / 2 - EditorConfig.arrowSelectedWidth / 2,
       );
 
-      final dx = targetRect.center.dx - sourceRect.center.dx;
-      final dy = targetRect.center.dy - sourceRect.center.dy;
+      final cx = targetRect.center.dx - sourceRect.center.dx;
+      final cy = targetRect.center.dy - sourceRect.center.dy;
 
       final sourceWidth = sourceRect.width;
       final sourceHeight = sourceRect.height;
@@ -470,21 +471,6 @@ class ArrowManager extends Manager {
         required String ifAttrT,
         String? ifArrow,
       }) {
-        String reOrientationEmptyTargetSide(List<String> sides) {
-          if (targetNode != null) {
-            return ifNode;
-          } else {
-            sides[1] = sides[0] == 'left'
-                ? 'right'
-                : sides[0] == 'right'
-                ? 'left'
-                : sides[0] == 'top'
-                ? 'bottom'
-                : sides[1];
-            return sides.take(2).join(':');
-          }
-        }
-
         if (isSourceAttribute && isTargetAttribute) {
           final startConnections = sourceAttribute.connections;
           final endConnections = targetAttribute.connections;
@@ -511,27 +497,40 @@ class ArrowManager extends Manager {
           startConnections?.add(connectSideList[0], arrow.id);
           endConnections?.add(connectSideList[1], arrow.id);
           return ifNode;
-        } else if (isSourceAttribute) {
+        }
+
+        if (isSourceAttribute) {
           final startConnections = sourceAttribute.connections;
 
           startConnections?.remove(arrow.id);
 
-          final matrixSides = ifAttrS.split('|');
-          final sidesList = matrixSides[0].split(':');
+          if (targetNode != null) {
+            final matrixSides = ifAttrS.split('|');
+            final sidesList = matrixSides[0].split(':');
 
-          final countSide = startConnections?.get(sidesList[0])?.length ?? 0;
+            final countSide = startConnections?.get(sidesList[0])?.length ?? 0;
 
-          switch (countSide) {
-            case 0:
-              ifNode = matrixSides[0];
-            case 1:
-              ifNode = matrixSides[1];
+            switch (countSide) {
+              case 0:
+                ifNode = matrixSides[0];
+              case 1:
+                ifNode = matrixSides[1];
+            }
+            print('(${sourceAttribute.text})--->(Node}) ... $countSide: Sides: $ifNode');
+          } else {
+            final startSide = cx < 0 ? 'left' : 'right';
+            final countSide = startConnections?.get(startSide)?.length ?? 0;
+            ifNode = countSide == 0
+                ? {'left': 'left:right', 'right': 'right:left'}[startSide]!
+                : {'right': 'left:right', 'left': 'right:left'}[startSide]!;
+            print('(${sourceAttribute.text})--->(Arrow}) ... $countSide: Sides: $ifNode');
           }
-          print('(${sourceAttribute.text})--->(Node}) ... $countSide: Sides: $ifNode');
           final connectSideList = ifNode.split(':');
           startConnections?.add(connectSideList[0], arrow.id);
-          return reOrientationEmptyTargetSide(connectSideList);
-        } else if (isTargetAttribute) {
+          return ifNode;
+        }
+
+        if (isTargetAttribute) {
           final endConnections = targetAttribute.connections;
 
           endConnections?.remove(arrow.id);
@@ -552,8 +551,7 @@ class ArrowManager extends Manager {
           endConnections?.add(connectSideList[1], arrow.id);
           return ifNode;
         }
-        final connectSideList = ifNode.split(':');
-        return reOrientationEmptyTargetSide(connectSideList);
+        return ifNode;
       }
 
       Offset startConnectionPoint = Offset.zero;
@@ -569,14 +567,14 @@ class ArrowManager extends Manager {
       if (isTargetAttribute) {
         print('Target ${targetAttribute.text} position: $position');
       }
-
+      print('Start side: ${state.arrowCreatedStartSide}');
       switch (position) {
         case 'left60':
           sides = getSidesForNodeAndAttribute(
             ifNode: 'right:left',
             ifAttrST: 'right:left|left:left:4|right:right:4|left:right',
             ifAttrS: 'left:left|right:right',
-            ifAttrT: 'bottom:right|left:left',
+            ifAttrT: '${cy < 0 ? 'bottom:right:3' : 'top:right:3'}|right:left',
           );
           break;
         case 'right60':
@@ -584,7 +582,7 @@ class ArrowManager extends Manager {
             ifNode: 'left:right',
             ifAttrST: 'left:right|right:right:4|left:left:4|right:left',
             ifAttrS: 'right:right|left:left',
-            ifAttrT: '${dy < 0 ? 'bottom:left:3' : 'top:left:3'}|right:right',
+            ifAttrT: '${cy < 0 ? 'bottom:left:3' : 'top:left:3'}|right:right',
           );
           break;
         case 'top60':
@@ -592,7 +590,7 @@ class ArrowManager extends Manager {
             ifNode: 'bottom:top',
             ifAttrST: 'left:left|left:left|right:right|left:left',
             ifAttrS: 'right:right|left:left',
-            ifAttrT: '${dx < 0 ? 'right:right' : 'left:left'}|left:left',
+            ifAttrT: '${cx < 0 ? 'right:right' : 'left:left'}|left:left',
           );
           break;
         case 'bottom60':
@@ -600,7 +598,7 @@ class ArrowManager extends Manager {
             ifNode: 'top:bottom',
             ifAttrST: 'left:left|left:left|right:right|left:left',
             ifAttrS: 'right:right|left:left',
-            ifAttrT: 'left:left|right:right',
+            ifAttrT: '${cx < 0 ? 'left:left' : 'right:right'}|left:left',
           );
           break;
         case 'left60|top60':
