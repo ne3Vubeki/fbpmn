@@ -20,6 +20,7 @@ class ArrowManager extends Manager {
 
   double get arrowIndent => 12;
   double get createdArrowSourceHandleOffset => 14;
+  double get createdArrowSnapDistance => 24;
   double get sizeLimit => 60;
   double get halfSizeLimit => 30;
   double get defaultArrowRadius => 10;
@@ -63,6 +64,22 @@ class ArrowManager extends Manager {
 
     state.arrowCreated = null;
     onStateUpdate();
+  }
+
+  void updateCreatedArrowTargetSnap(Offset screenPosition) {
+    final arrow = state.arrowCreated;
+    if (arrow == null) {
+      state.mousePosition = screenPosition;
+      return;
+    }
+
+    final snapTarget = _findClosestCreatedArrowSnapTarget(screenPosition, arrow);
+    state.mousePosition = snapTarget?.screenPosition ?? screenPosition;
+    arrow.target = snapTarget?.targetId ?? '';
+    arrow.sides = snapTarget != null
+        ? '${state.arrowCreatedStartSide}${snapTarget.targetSide}'
+        : state.arrowCreatedStartSide;
+    onStateUpdate('ArrowCreated');
   }
 
   selectAllArrows() {
@@ -519,11 +536,16 @@ class ArrowManager extends Manager {
             print('(${sourceAttribute.text})--->(Node}) ... $countSide: Sides: $ifNode');
           } else {
             final startSide = cx < 0 ? 'left' : 'right';
+            final endSide = state.arrowCreated?.sides?.split(':')[1];
             final countSide = startConnections?.get(startSide)?.length ?? 0;
-            ifNode = countSide == 0
-                ? {'left': 'left:right', 'right': 'right:left'}[startSide]!
-                : {'right': 'left:right', 'left': 'right:left'}[startSide]!;
-            print('(${sourceAttribute.text})--->(Arrow}) ... $countSide: Sides: $ifNode');
+            if (state.arrowCreated?.sides == null || endSide == '') {
+              ifNode = countSide == 0
+                  ? {'left': 'left:right', 'right': 'right:left'}[startSide]!
+                  : {'right': 'left:right', 'left': 'right:left'}[startSide]!;
+            } else {
+              ifNode = state.arrowCreated!.sides!;
+            }
+            print('(${sourceAttribute.text})--->(Arrow}) ... $countSide: Sides: $ifNode EndSide: $endSide');
           }
           final connectSideList = ifNode.split(':');
           startConnections?.add(connectSideList[0], arrow.id);
@@ -551,7 +573,19 @@ class ArrowManager extends Manager {
           endConnections?.add(connectSideList[1], arrow.id);
           return ifNode;
         }
-        return ifNode;
+        if (targetNode == null) {
+          final sides = ifNode.split(':');
+          final startSide = sides[0];
+          String? endSide = state.arrowCreated?.sides?.split(':')[1];
+          if (state.arrowCreated?.sides != null && endSide != '') {
+            // endSide = endSide == 'top' || endSide == 'bottom' ? '$endSide:3' : endSide;
+            ifNode = sides.length == 3 ? '$startSide:$endSide:${sides[3]}' : '$startSide:$endSide';
+          }
+          print('(Node)--->(Arrow) ... ifNode: $ifNode CreateArrowSides: ${state.arrowCreated?.sides}');
+          return ifNode;
+        } else {
+          return ifNode;
+        }
       }
 
       Offset startConnectionPoint = Offset.zero;
@@ -567,7 +601,6 @@ class ArrowManager extends Manager {
       if (isTargetAttribute) {
         print('Target ${targetAttribute.text} position: $position');
       }
-      print('Start side: ${state.arrowCreatedStartSide}');
       switch (position) {
         case 'left60':
           sides = getSidesForNodeAndAttribute(
@@ -1717,6 +1750,142 @@ class ArrowManager extends Manager {
     }
 
     return (node: foundNode, attribute: foundAttribute);
+  }
+
+  ({String targetId, Offset screenPosition, String targetSide})? _findClosestCreatedArrowSnapTarget(
+    Offset screenPosition,
+    Arrow arrow,
+  ) {
+    final candidates = <({String targetId, Offset screenPosition, String targetSide, double distance})>[];
+    final scale = state.scale;
+    final snapDistance = createdArrowSnapDistance * scale;
+    final currentArrowId = arrow.id;
+    final sourceId = arrow.source;
+    final sourceNodeId = _getNodeFromArrow(sourceId).node?.id;
+
+    void addCandidate(String targetId, Offset candidateScreenPosition, String targetSide) {
+      if (targetId == sourceId) {
+        return;
+      }
+
+      final distance = (candidateScreenPosition - screenPosition).distance;
+      if (distance > snapDistance) {
+        return;
+      }
+
+      candidates.add((
+        targetId: targetId,
+        screenPosition: candidateScreenPosition,
+        targetSide: targetSide,
+        distance: distance,
+      ));
+    }
+
+    bool hasOccupiedConnections(Attribute attribute, String side) {
+      final sideConnections = attribute.connections?.get(side);
+      if (sideConnections == null || sideConnections.isEmpty) {
+        return false;
+      }
+
+      for (final connection in sideConnections) {
+        if (connection == null) {
+          continue;
+        }
+        if (connection.id == currentArrowId) {
+          continue;
+        }
+        return true;
+      }
+
+      return false;
+    }
+
+    void collectNodeCandidates(List<TableNode> nodes) {
+      for (final node in nodes) {
+        if (node.id == sourceNodeId) {
+          if (node.children != null && node.children!.isNotEmpty) {
+            collectNodeCandidates(node.children!);
+          }
+          continue;
+        }
+
+        final nodeWorldPos = node.aPosition ?? (node.position + state.delta);
+        final nodeScreenTopLeft = Utils.worldToScreen(nodeWorldPos, state);
+        final nodeWidth = node.size.width * scale;
+        final nodeHeight = node.size.height * scale;
+        final headerHeight = (node.heightHeader ?? EditorConfig.minHeaderHeight) * scale;
+        final groupOffsetX = node.qType == 'group' && node.children != null && node.children!.isNotEmpty
+            ? node.children!.first.position.dx * scale
+            : 0.0;
+        final groupOffsetY = node.qType == 'group' && node.children != null && node.children!.isNotEmpty
+            ? node.children!.first.position.dy * scale
+            : 0.0;
+        final nodeConnectorOffset = createdArrowSourceHandleOffset * scale;
+
+        addCandidate(
+          node.id,
+          Offset(nodeScreenTopLeft.dx + nodeWidth / 2, nodeScreenTopLeft.dy - nodeConnectorOffset + groupOffsetY),
+          'top',
+        );
+        addCandidate(
+          node.id,
+          Offset(
+            nodeScreenTopLeft.dx + nodeWidth / 2,
+            nodeScreenTopLeft.dy + nodeHeight + nodeConnectorOffset - groupOffsetY,
+          ),
+          'bottom',
+        );
+        addCandidate(
+          node.id,
+          Offset(
+            nodeScreenTopLeft.dx - nodeConnectorOffset + groupOffsetX,
+            nodeScreenTopLeft.dy + groupOffsetY + headerHeight / 2,
+          ),
+          'left',
+        );
+        addCandidate(
+          node.id,
+          Offset(
+            nodeScreenTopLeft.dx + nodeWidth + nodeConnectorOffset - groupOffsetX,
+            nodeScreenTopLeft.dy + groupOffsetY + headerHeight / 2,
+          ),
+          'right',
+        );
+
+        if (node.qType != 'enum' && node.qType != 'swimlane') {
+          for (final attribute in node.attributes) {
+            final attributeCenterY = nodeScreenTopLeft.dy + (attribute.position.dy + attribute.size.height / 2) * scale;
+            final leftOccupied = hasOccupiedConnections(attribute, 'left');
+            final rightOccupied = hasOccupiedConnections(attribute, 'right');
+
+            if (!leftOccupied) {
+              addCandidate(attribute.id, Offset(nodeScreenTopLeft.dx, attributeCenterY), 'left');
+            }
+
+            if (!rightOccupied) {
+              addCandidate(attribute.id, Offset(nodeScreenTopLeft.dx + nodeWidth, attributeCenterY), 'right');
+            }
+          }
+        }
+
+        if (node.children != null && node.children!.isNotEmpty) {
+          collectNodeCandidates(node.children!);
+        }
+      }
+    }
+
+    collectNodeCandidates(state.nodes);
+    if (state.nodesSelected.isNotEmpty) {
+      collectNodeCandidates(state.nodesSelected.whereType<TableNode>().toList());
+    }
+
+    if (candidates.isEmpty) {
+      return null;
+    }
+
+    candidates.sort((a, b) => a.distance.compareTo(b.distance));
+    final closest = candidates.first;
+    return (targetId: closest.targetId, screenPosition: closest.screenPosition, targetSide: closest.targetSide);
   }
 
   /// Находит все связи, связанные с указанными узлами

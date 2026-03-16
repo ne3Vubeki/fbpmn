@@ -117,9 +117,10 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                 currentResizeHandle: _currentResizeHandle,
                 child: MouseRegion(
                   onHover: (PointerHoverEvent event) {
-                    widget.state.mousePosition = event.localPosition;
                     if (widget.state.arrowCreated != null) {
-                      widget.arrowManager.onStateUpdate('ArrowCreated');
+                      widget.arrowManager.updateCreatedArrowTargetSnap(event.localPosition);
+                    } else {
+                      widget.state.mousePosition = event.localPosition;
                     }
                     widget.nodeManager.onHover(event.localPosition);
                   },
@@ -137,9 +138,10 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                     }
                   },
                   onPointerMove: (PointerMoveEvent event) {
-                    widget.state.mousePosition = event.localPosition;
                     if (widget.state.arrowCreated != null) {
-                      widget.arrowManager.onStateUpdate();
+                      widget.arrowManager.updateCreatedArrowTargetSnap(event.localPosition);
+                    } else {
+                      widget.state.mousePosition = event.localPosition;
                     }
                     if (widget.state.isPanning && widget.state.isShiftPressed) {
                       widget.inputHandler.handlePanUpdate(
@@ -189,10 +191,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           scrollHandler: widget.scrollHandler,
                         ),
 
-                        NodeHover(
-                          state: widget.state,
-                          nodeManager: widget.nodeManager,
-                        ),
 
                         // Отображение выделенного узла на верхнем слое
                         NodeSelected(
@@ -212,6 +210,11 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         
                         // Маркеры изменения размера узла
                         ResizeHandles(
+                          state: widget.state,
+                          nodeManager: widget.nodeManager,
+                        ),
+                        
+                        NodeHover(
                           state: widget.state,
                           nodeManager: widget.nodeManager,
                         ),

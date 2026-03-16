@@ -19,6 +19,21 @@ class ResizeHandles extends StatefulWidget {
 
 class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHandles> {
   Map<String, bool> isHovered = {};
+  String? _lastSelectedNodeId;
+  String? _lastArrowCreatedId;
+
+  void _resetHoverStateIfNeeded() {
+    final selectedNodeId = widget.state.nodesSelected.length == 1 ? widget.state.nodesSelected.first?.id : null;
+    final arrowCreatedId = widget.state.arrowCreated?.id;
+    final shouldReset = _lastSelectedNodeId != selectedNodeId || (_lastArrowCreatedId != null && arrowCreatedId == null);
+
+    if (shouldReset && isHovered.isNotEmpty) {
+      isHovered.clear();
+    }
+
+    _lastSelectedNodeId = selectedNodeId;
+    _lastArrowCreatedId = arrowCreatedId;
+  }
 
   @override
   void initState() {
@@ -30,6 +45,8 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
 
   @override
   Widget build(BuildContext context) {
+    _resetHoverStateIfNeeded();
+
     // Проверяем, есть ли выделенный узел
     if (widget.state.nodesSelected.isEmpty || widget.state.nodesSelected.length > 1) return Container();
 

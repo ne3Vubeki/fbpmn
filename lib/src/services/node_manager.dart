@@ -1310,6 +1310,51 @@ class NodeManager extends Manager {
     final selectedNode = state.nodesSelected.isNotEmpty ? state.nodesSelected.first : null;
     TableNode? nextHoveredNode = foundNode?.node;
 
+    if (state.arrowCreated != null && state.hoveredNode?.aPosition != null) {
+      final hoveredNode = state.hoveredNode!;
+      final scale = state.scale;
+      final offset = resizeHandleOffset * scale;
+      final frame = frameTotalOffset;
+      final hoverPadding = arrowHandleWidth * scale * 3 / 2;
+      final currentOverlayRect = Rect.fromLTWH(
+        hoveredNode.aPosition!.dx * scale + state.offset.dx - offset - frame - hoverPadding,
+        hoveredNode.aPosition!.dy * scale + state.offset.dy - offset - frame - hoverPadding,
+        hoveredNode.size.width * scale + offset * 2 + frame * 2 + hoverPadding * 2,
+        hoveredNode.size.height * scale + offset * 2 + frame * 2 + hoverPadding * 2,
+      );
+
+      if (currentOverlayRect.contains(localPosition)) {
+        nextHoveredNode = hoveredNode;
+      }
+    }
+
+    if (state.arrowCreated != null && nextHoveredNode == null) {
+      final scale = state.scale;
+      final offset = resizeHandleOffset * scale;
+      final frame = frameTotalOffset;
+      final hoverPadding = arrowHandleWidth * scale * 3 / 2;
+      final allNodes = whereAllNodes(state.nodes, (_) => true).whereType<TableNode>().toList();
+
+      for (int i = allNodes.length - 1; i >= 0; i--) {
+        final node = allNodes[i];
+        if (node.id == selectedNode?.id || node.aPosition == null) {
+          continue;
+        }
+
+        final overlayRect = Rect.fromLTWH(
+          node.aPosition!.dx * scale + state.offset.dx - offset - frame - hoverPadding,
+          node.aPosition!.dy * scale + state.offset.dy - offset - frame - hoverPadding,
+          node.size.width * scale + offset * 2 + frame * 2 + hoverPadding * 2,
+          node.size.height * scale + offset * 2 + frame * 2 + hoverPadding * 2,
+        );
+
+        if (overlayRect.contains(localPosition)) {
+          nextHoveredNode = node;
+          break;
+        }
+      }
+    }
+
     // Не показываем ховер над выделенным узлом
     if (nextHoveredNode?.id == selectedNode?.id) {
       if (state.hoveredNode != null) {
@@ -1425,6 +1470,7 @@ class NodeManager extends Manager {
     final isHoveredHandle = isHovered[handle] ?? false;
     final hoverAreaSize = length * 3;
     final selectedNode = state.nodesSelected.isNotEmpty ? state.nodesSelected.first : null;
+    final isSelectedNodeHandleDisabled = state.arrowCreated != null && selectedNode != null;
 
     return Positioned(
       left: left - (hoverAreaSize - length) / 2,
@@ -1433,26 +1479,32 @@ class NodeManager extends Manager {
       height: hoverAreaSize,
       child: MouseRegion(
         hitTestBehavior: HitTestBehavior.translucent,
-        cursor: cursor ?? SystemMouseCursors.resizeUpDown,
-        onEnter: (_) {
-          if (setState != null) {
-            setState(() {
-              isHovered[handle] = true;
-            });
-          }
-        },
-        onExit: (_) {
-          if (setState != null) {
-            setState(() {
-              isHovered[handle] = false;
-            });
-          }
-        },
+        cursor: isSelectedNodeHandleDisabled ? SystemMouseCursors.basic : (cursor ?? SystemMouseCursors.resizeUpDown),
+        onEnter: isSelectedNodeHandleDisabled
+            ? null
+            : (_) {
+                if (setState != null) {
+                  setState(() {
+                    isHovered[handle] = true;
+                  });
+                }
+              },
+        onExit: isSelectedNodeHandleDisabled
+            ? null
+            : (_) {
+                if (setState != null) {
+                  setState(() {
+                    isHovered[handle] = false;
+                  });
+                }
+              },
         child: Tooltip(
           message: 'Создать связь объекта',
+          ignorePointer: true,
+          exitDuration: const Duration(milliseconds: 10),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: selectedNode == null
+            onTap: selectedNode == null || isSelectedNodeHandleDisabled
                 ? null
                 : () async {
                     await arrowManager.createArrowFromMap({'source': selectedNode.id}, handle);
@@ -1465,18 +1517,18 @@ class NodeManager extends Manager {
                 height: length,
                 alignment: Alignment.center,
                 child: AnimatedScale(
-                  scale: isHoveredHandle ? 3.0 : 1.0,
+                  scale: !isSelectedNodeHandleDisabled && isHoveredHandle ? 3.0 : 1.0,
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
                   child: Container(
                     width: length,
                     height: length,
                     decoration: BoxDecoration(
-                      color: isHoveredHandle ? Colors.blue : Colors.blue.shade50,
+                      color: !isSelectedNodeHandleDisabled && isHoveredHandle ? Colors.blue : Colors.blue.shade50,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.blue, width: widthBorderCircle),
                     ),
-                    child: isHoveredHandle
+                    child: !isSelectedNodeHandleDisabled && isHoveredHandle
                         ? Center(
                             child: CustomPaint(
                               size: Size(length * 0.6, length * 0.6),
@@ -1571,10 +1623,18 @@ class NodeManager extends Manager {
       return false;
     }
 
+    bool hasAnyConnections(Set<dynamic>? sideConnections) {
+      return (sideConnections?.isNotEmpty ?? false);
+    }
+
     for (final row in attributeRows) {
       final attribute = row.node.attributes[row.rowIndex];
-      final isLeftConnected = hasCommittedConnections(attribute.connections?.get('left'));
-      final isRightConnected = hasCommittedConnections(attribute.connections?.get('right'));
+      final leftConnections = attribute.connections?.get('left');
+      final rightConnections = attribute.connections?.get('right');
+      final isLeftConnected = hasCommittedConnections(leftConnections);
+      final isRightConnected = hasCommittedConnections(rightConnections);
+      final isLeftHoverDisabled = hasAnyConnections(leftConnections);
+      final isRightHoverDisabled = hasAnyConnections(rightConnections);
 
       children.add(
         _buildAttributeConnectionCircle(
@@ -1587,6 +1647,7 @@ class NodeManager extends Manager {
           isHovered: isHovered,
           setState: setState,
           isConnected: isLeftConnected,
+          isHoverDisabled: isLeftHoverDisabled,
           attributeId: attribute.id,
         ),
       );
@@ -1602,6 +1663,7 @@ class NodeManager extends Manager {
           isHovered: isHovered,
           setState: setState,
           isConnected: isRightConnected,
+          isHoverDisabled: isRightHoverDisabled,
           attributeId: attribute.id,
         ),
       );
@@ -1620,26 +1682,31 @@ class NodeManager extends Manager {
     required Map isHovered,
     required dynamic setState,
     required bool isConnected,
+    required bool isHoverDisabled,
     required String attributeId,
   }) {
     final GlobalKey<TooltipState> tooltipkey = GlobalKey<TooltipState>();
     final hoverKey = 'attr_${side}_${row.node.id}_${row.rowIndex}';
     final isHoveredCircle = isHovered[hoverKey] ?? false;
     final direction = side == 'left' ? 'l' : 'r';
+    final selectedNode = state.nodesSelected.isNotEmpty ? state.nodesSelected.first : null;
+    final isSelectedObjectCircleDisabled = state.arrowCreated != null && selectedNode?.id == row.node.id;
     final circleVisual = Center(
       child: AnimatedScale(
-        scale: !isConnected && isHoveredCircle ? 3.0 : 1.0,
+        scale: !isHoverDisabled && !isSelectedObjectCircleDisabled && isHoveredCircle ? 3.0 : 1.0,
         duration: const Duration(milliseconds: 100),
         curve: Curves.easeInOut,
         child: Container(
           width: length,
           height: length,
           decoration: BoxDecoration(
-            color: isConnected || isHoveredCircle ? Colors.blue : Colors.blue.shade50,
+            color: isConnected || (!isHoverDisabled && !isSelectedObjectCircleDisabled && isHoveredCircle)
+                ? Colors.blue
+                : Colors.blue.shade50,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.blue, width: widthBorderCircle),
           ),
-          child: !isConnected && isHoveredCircle
+          child: !isHoverDisabled && !isSelectedObjectCircleDisabled && isHoveredCircle
               ? Center(
                   child: CustomPaint(
                     size: Size(length * 0.6, length * 0.6),
@@ -1657,9 +1724,9 @@ class NodeManager extends Manager {
       width: hoverAreaSize,
       height: hoverAreaSize,
       child: MouseRegion(
-        cursor: isConnected ? SystemMouseCursors.basic : SystemMouseCursors.alias,
+        cursor: isHoverDisabled || isSelectedObjectCircleDisabled ? SystemMouseCursors.basic : SystemMouseCursors.alias,
         hitTestBehavior: HitTestBehavior.translucent,
-        onEnter: isConnected
+        onEnter: isHoverDisabled || isSelectedObjectCircleDisabled
             ? null
             : (_) {
                 if (setState != null) {
@@ -1668,7 +1735,7 @@ class NodeManager extends Manager {
                   });
                 }
               },
-        onExit: isConnected
+        onExit: isHoverDisabled || isSelectedObjectCircleDisabled
             ? null
             : (_) {
                 if (setState != null) {
@@ -1679,12 +1746,12 @@ class NodeManager extends Manager {
               },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: isConnected
+          onTap: isHoverDisabled || isSelectedObjectCircleDisabled
               ? null
               : () async {
                   await arrowManager.createArrowFromMap({'source': attributeId}, direction);
                 },
-          child: isConnected
+          child: isHoverDisabled || isSelectedObjectCircleDisabled
               ? circleVisual
               : Tooltip(key: tooltipkey, message: 'Создать связь атрибута', child: circleVisual),
         ),

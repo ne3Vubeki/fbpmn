@@ -139,6 +139,11 @@ class ArrowsPainter {
       ..isAntiAlias = true;
 
     canvas.drawCircle(sourcePoint, 5 * scale, sourceCirclePaint);
+
+    if (arrow.target.isNotEmpty) {
+      final targetPoint = pathResult.coordinates.last;
+      canvas.drawCircle(targetPoint, 5 * scale, sourceCirclePaint);
+    }
   }
 
   /// Упрощённая отрисовка стрелок (только линии без начальных/конечных объектов)
