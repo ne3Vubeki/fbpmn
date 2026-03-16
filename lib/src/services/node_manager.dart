@@ -564,7 +564,11 @@ class NodeManager extends Manager {
     if (isResizing) {
       return;
     }
-    arrowManager.clearCreatedArrow();
+    if (state.arrowCreated != null) {
+      arrowManager.clearCreatedArrow();
+      onStateUpdate();
+      return;
+    }
     if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
       await _saveNodeToTiles();
     } else {
@@ -1489,6 +1493,15 @@ class NodeManager extends Manager {
                   });
                 }
               },
+        onHover: isSelectedNodeHandleDisabled
+            ? null
+            : (_) {
+                if (setState != null && isHovered[handle] != true) {
+                  setState(() {
+                    isHovered[handle] = true;
+                  });
+                }
+              },
         onExit: isSelectedNodeHandleDisabled
             ? null
             : (_) {
@@ -1498,49 +1511,81 @@ class NodeManager extends Manager {
                   });
                 }
               },
-        child: Tooltip(
-          message: 'Создать связь объекта',
-          ignorePointer: true,
-          exitDuration: const Duration(milliseconds: 10),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: selectedNode == null || isSelectedNodeHandleDisabled
-                ? null
-                : () async {
-                    await arrowManager.createArrowFromMap({'source': selectedNode.id}, handle);
-                  },
-            child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                width: length,
-                height: length,
-                alignment: Alignment.center,
-                child: AnimatedScale(
-                  scale: !isSelectedNodeHandleDisabled && isHoveredHandle ? 3.0 : 1.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  child: Container(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: selectedNode == null || isSelectedNodeHandleDisabled
+              ? null
+              : () async {
+                  await arrowManager.createArrowFromMap({'source': selectedNode.id}, handle);
+                },
+          child: isSelectedNodeHandleDisabled
+              ? Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
                     width: length,
                     height: length,
-                    decoration: BoxDecoration(
-                      color: !isSelectedNodeHandleDisabled && isHoveredHandle ? Colors.blue : Colors.blue.shade50,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.blue, width: widthBorderCircle),
+                    alignment: Alignment.center,
+                    child: AnimatedScale(
+                      scale: !isSelectedNodeHandleDisabled && isHoveredHandle ? 3.0 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: Container(
+                        width: length,
+                        height: length,
+                        decoration: BoxDecoration(
+                          color: !isSelectedNodeHandleDisabled && isHoveredHandle ? Colors.blue : Colors.blue.shade50,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.blue, width: widthBorderCircle),
+                        ),
+                        child: !isSelectedNodeHandleDisabled && isHoveredHandle
+                            ? Center(
+                                child: CustomPaint(
+                                  size: Size(length * 0.6, length * 0.6),
+                                  painter: DirectionArrowPainter(direction: handle, color: Colors.white),
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
-                    child: !isSelectedNodeHandleDisabled && isHoveredHandle
-                        ? Center(
-                            child: CustomPaint(
-                              size: Size(length * 0.6, length * 0.6),
-                              painter: DirectionArrowPainter(direction: handle, color: Colors.white),
-                            ),
-                          )
-                        : null,
+                  ),
+                )
+              : Tooltip(
+                  message: 'Создать связь объекта',
+                  ignorePointer: true,
+                  exitDuration: const Duration(milliseconds: 10),
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      width: length,
+                      height: length,
+                      alignment: Alignment.center,
+                      child: AnimatedScale(
+                        scale: !isSelectedNodeHandleDisabled && isHoveredHandle ? 3.0 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: Container(
+                          width: length,
+                          height: length,
+                          decoration: BoxDecoration(
+                            color: !isSelectedNodeHandleDisabled && isHoveredHandle ? Colors.blue : Colors.blue.shade50,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.blue, width: widthBorderCircle),
+                          ),
+                          child: !isSelectedNodeHandleDisabled && isHoveredHandle
+                              ? Center(
+                                  child: CustomPaint(
+                                    size: Size(length * 0.6, length * 0.6),
+                                    painter: DirectionArrowPainter(direction: handle, color: Colors.white),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -1730,6 +1775,15 @@ class NodeManager extends Manager {
             ? null
             : (_) {
                 if (setState != null) {
+                  setState(() {
+                    isHovered[hoverKey] = true;
+                  });
+                }
+              },
+        onHover: isHoverDisabled || isSelectedObjectCircleDisabled
+            ? null
+            : (_) {
+                if (setState != null && isHovered[hoverKey] != true) {
                   setState(() {
                     isHovered[hoverKey] = true;
                   });

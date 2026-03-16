@@ -52,7 +52,12 @@ class InputHandler extends Manager {
           toggleTileBorders();
           break;
         case LogicalKeyboardKey.escape:
-          nodeManager.handleEmptyAreaClick();
+          if (state.arrowCreated != null) {
+            arrowManager.clearCreatedArrow();
+            nodeManager.onStateUpdate();
+          } else {
+            nodeManager.handleEmptyAreaClick();
+          }
           break;
       }
     }

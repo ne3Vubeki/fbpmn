@@ -63,6 +63,7 @@ class ArrowManager extends Manager {
     }
 
     state.arrowCreated = null;
+    state.arrowCreatedStartSide = null;
     onStateUpdate();
   }
 
@@ -578,8 +579,8 @@ class ArrowManager extends Manager {
           final startSide = sides[0];
           String? endSide = state.arrowCreated?.sides?.split(':')[1];
           if (state.arrowCreated?.sides != null && endSide != '') {
-            // endSide = endSide == 'top' || endSide == 'bottom' ? '$endSide:3' : endSide;
-            ifNode = sides.length == 3 ? '$startSide:$endSide:${sides[3]}' : '$startSide:$endSide';
+            endSide = (startSide == 'left' || startSide == 'right') && (endSide == 'top' || endSide == 'bottom') ? '$endSide:3' : endSide;
+            ifNode = sides.length == 3 ? '$startSide:$endSide:${sides[2]}' : '$startSide:$endSide';
           }
           print('(Node)--->(Arrow) ... ifNode: $ifNode CreateArrowSides: ${state.arrowCreated?.sides}');
           return ifNode;
