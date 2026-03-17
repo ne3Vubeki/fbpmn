@@ -69,11 +69,6 @@ class ArrowsPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    // Удаляем все коннекты из выбранных узлов для повторного расчета
-    // for (var node in arrowManager.state.nodesSelected) {
-    //   node?.connections?.removeAll();
-    // }
-
     // Рисуем стрелки
     for (final arrow in arrows) {
       if (arrow == null || arrow.source == arrow.target) continue;

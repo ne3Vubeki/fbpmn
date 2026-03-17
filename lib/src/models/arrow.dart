@@ -20,8 +20,9 @@ class Arrow {
 
   Offset aPositionSource;
   Offset aPositionTarget;
-  ArrowPaths? paths;
-  List<Offset>? coordinates;
+  ArrowPaths? paths; // Пути для рисования стрелки
+  List<Rect>? rects; // Прямоугольники для проверки пересечений
+  List<Offset>? coordinates; // Координаты для рисования стрелки
   String? sides;
 
   Arrow({

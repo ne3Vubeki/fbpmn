@@ -203,6 +203,11 @@ class NodeManager extends Manager {
     await _selectNode(node);
   }
 
+  Future<void> confirmDeleteNode(String nodeId) async {
+    final node = getNodeById(state.nodes, nodeId);
+    EventService.apiStatic('confirm_delete_node', {'node': node?.toJson()});
+  }
+
   void _syncNodeToSchema(Map<String, dynamic> nodeMap, TableNode node) {
     final schema = state.schema;
     final objects = List<dynamic>.from(schema['objects'] as List<dynamic>? ?? const []);

@@ -26,10 +26,11 @@ class ArrowManager extends Manager {
   double get sizeLimit => 60;
   double get halfSizeLimit => 30;
   double get defaultArrowRadius => 10;
+  double get arrowPathRectOffset => 5;
 
   ArrowManager({required this.state, required this.schemaManager});
 
-  Future<void> addArrow(Map<String, dynamic> arrowMap) async {
+  Future<void> createArrowFromMap(Map<String, dynamic> arrowMap) async {
     final arrow = Arrow.fromJson(arrowMap);
     state.arrows.add(arrow);
     state.arrowsSelected.add(arrow);
@@ -127,6 +128,43 @@ class ArrowManager extends Manager {
       // Пересчитываем путь стрелки с текущими позициями узлов
       getArrowPathInTile(arrow, state.delta);
     }
+  }
+
+  ({Arrow arrow, Rect rect})? findArrowAtWorldPosition(Offset worldPos) {
+    final tileWorldSize = EditorConfig.tileSize.toDouble();
+    final gridX = (worldPos.dx / tileWorldSize).floor();
+    final gridY = (worldPos.dy / tileWorldSize).floor();
+    final tileLeft = gridX * tileWorldSize;
+    final tileTop = gridY * tileWorldSize;
+    final tileId = '${tileLeft.toInt()}_${tileTop.toInt()}';
+    final tile = state.imageTiles[tileId];
+    if (tile == null) {
+      return null;
+    }
+
+    for (final arrowId in tile.arrows) {
+      if (arrowId == null) continue;
+
+      Arrow? arrow;
+      for (final item in state.arrows) {
+        if (item.id == arrowId) {
+          arrow = item;
+          break;
+        }
+      }
+      if (arrow == null) continue;
+
+      final rects = arrow.rects;
+      if (rects == null || rects.isEmpty) continue;
+
+      for (final rect in rects) {
+        if (rect.contains(worldPos)) {
+          return (arrow: arrow, rect: rect);
+        }
+      }
+    }
+
+    return null;
   }
 
   /// Расчет точек соединения для определения стороны
@@ -1123,12 +1161,11 @@ class ArrowManager extends Manager {
     );
 
     arrow.paths = basePath.paths;
+    arrow.rects = basePath.rects;
     arrow.coordinates = basePath.coordinates;
     arrow.sides = baseConnectionPoints.sides;
 
-    print('Sides: ${arrow.sides}');
-
-    return basePath;
+    return (paths: basePath.paths, coordinates: basePath.coordinates);
   }
 
   /// Получает путь стрелки с учетом выбранных узлов и текущего масштаба
@@ -1192,12 +1229,13 @@ class ArrowManager extends Manager {
     arrow.aPositionTarget = baseConnectionPoints.end!;
     arrow.coordinates = basePath.coordinates;
     arrow.paths = basePath.paths;
+    arrow.rects = basePath.rects;
     arrow.sides = baseConnectionPoints.sides;
 
     final screenCoordinates = basePath.coordinates.map((point) => Utils.worldToScreen(point, state)).toList();
     String direct = baseConnectionPoints.sides!.split(':')[0];
 
-    final screenPaths = _createPath(
+    final screenPathResult = _createPath(
       arrow,
       screenCoordinates,
       direct: direct,
@@ -1206,7 +1244,7 @@ class ArrowManager extends Manager {
       scale: state.scale,
     );
 
-    return (paths: screenPaths, coordinates: screenCoordinates);
+    return (paths: screenPathResult.paths, coordinates: screenCoordinates);
   }
 
   /// Преобразует путь из мировых координат в экранные
@@ -1223,13 +1261,21 @@ class ArrowManager extends Manager {
       screenCoordinates.add(screenCoord);
     }
 
-    final paths = _createPath(arrow, screenCoordinates, scale: state.scale, isTiles: false, isCurves: state.useCurves);
+    final pathResult = _createPath(
+      arrow,
+      screenCoordinates,
+      scale: state.scale,
+      isTiles: false,
+      isCurves: state.useCurves,
+    );
 
-    return (paths: paths, coordinates: screenCoordinates);
+    arrow.rects = pathResult.rects;
+
+    return (paths: pathResult.paths, coordinates: screenCoordinates);
   }
 
   /// Создание простого ортогонального пути
-  ({ArrowPaths paths, List<Offset> coordinates}) _createSimpleOrthogonalPath({
+  ({ArrowPaths paths, List<Offset> coordinates, List<Rect> rects}) _createSimpleOrthogonalPath({
     required Arrow arrow,
     required Offset start,
     required Offset end,
@@ -1464,12 +1510,12 @@ class ArrowManager extends Manager {
     }
 
     String direct = sides.split(':')[0];
-    final paths = _createPath(arrow, coordinates, direct: direct, isCurves: state.useCurves, isTiles: isTiles);
+    final pathResult = _createPath(arrow, coordinates, direct: direct, isCurves: state.useCurves, isTiles: isTiles);
 
-    return (paths: paths, coordinates: coordinates);
+    return (paths: pathResult.paths, coordinates: coordinates, rects: pathResult.rects);
   }
 
-  ArrowPaths _createPath(
+  ({ArrowPaths paths, List<Rect> rects}) _createPath(
     Arrow arrow,
     List<Offset> coordinates, {
     required bool isTiles,
@@ -1479,8 +1525,11 @@ class ArrowManager extends Manager {
   }) {
     final path = Path();
     final baseRadius = defaultArrowRadius * (scale ?? 1);
+    final rects = <Rect>[];
 
-    if (coordinates.isEmpty) return ArrowPaths(path: path);
+    if (coordinates.isEmpty) {
+      return (paths: ArrowPaths(path: path), rects: rects);
+    }
 
     final dx = coordinates.first.dx - coordinates[1].dx;
     final dy = coordinates.first.dy - coordinates[1].dy;
@@ -1528,6 +1577,12 @@ class ArrowManager extends Manager {
       double y1 = current.dy;
       bool clockwise = true;
       Offset endArcPoint;
+
+      if (previous.dy == current.dy) {
+        rects.add(Rect.fromLTRB(min(previous.dx, current.dx), previous.dy - arrowPathRectOffset, max(previous.dx, current.dx), previous.dy + arrowPathRectOffset));
+      } else if (previous.dx == current.dx) {
+        rects.add(Rect.fromLTRB(previous.dx - arrowPathRectOffset, min(previous.dy, current.dy), previous.dx + arrowPathRectOffset, max(previous.dy, current.dy)));
+      }
 
       if (radius == 0) {
         // Добавляем путь до дуги
@@ -1579,6 +1634,13 @@ class ArrowManager extends Manager {
 
     // Добавляем линию к последней точке
     if (len > 1) {
+      final previous = coordinates[len - 2];
+      final current = coordinates.last;
+      if (previous.dy == current.dy) {
+        rects.add(Rect.fromLTRB(min(previous.dx, current.dx), current.dy - arrowPathRectOffset, max(previous.dx, current.dx), current.dy + arrowPathRectOffset));
+      } else if (previous.dx == current.dx) {
+        rects.add(Rect.fromLTRB(current.dx - arrowPathRectOffset, min(previous.dy, current.dy), current.dx + arrowPathRectOffset, max(previous.dy, current.dy)));
+      }
       path.lineTo(coordinates.last.dx, coordinates.last.dy);
     }
 
@@ -1588,7 +1650,10 @@ class ArrowManager extends Manager {
     // Добавляем конечную фигуру для sourceArrow
     final endArrow = _addEndArrowHead(arrow, coordinates, direct, isTiles);
 
-    return ArrowPaths(path: path, startArrow: startArrow, endArrow: endArrow);
+    return (
+      paths: ArrowPaths(path: path, startArrow: startArrow, endArrow: endArrow),
+      rects: rects,
+    );
   }
 
   /// Добавляет фигуру стрелки в начале пути

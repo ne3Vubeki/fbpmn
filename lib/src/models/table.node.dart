@@ -157,6 +157,39 @@ class TableNode extends Node {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{
+      'id': id,
+      'label': text,
+      'qType': qType,
+      'style': style,
+      'geometry': {
+        'x': position.dx,
+        'y': position.dy,
+        'width': size.width,
+        'height': size.height,
+      },
+      'attributes': attributes.map((attribute) => attribute.toJson()).toList(),
+      'children': children?.map((child) => child.toJson()).toList() ?? [],
+    };
+
+    if (qCompStatus != null) {
+      json['qCompStatus'] = qCompStatus;
+    }
+
+    if (tooltip != null) {
+      json['tooltip'] = tooltip;
+    }
+
+    json['collapsed'] = (isCollapsed ?? false) ? '1' : '0';
+
+    for (final entry in objectData.entries) {
+      json.putIfAbsent(entry.key, () => entry.value);
+    }
+
+    return json;
+  }
+
   // Добавляем метод для переключения состояния collapsed
   TableNode toggleCollapsed() {
     return copyWithTable(isCollapsed: !(isCollapsed ?? false));
