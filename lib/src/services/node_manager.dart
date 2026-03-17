@@ -1523,7 +1523,7 @@ class NodeManager extends Manager {
           onTap: effectiveSourceId == null || isSelectedNodeHandleDisabled
               ? null
               : () async {
-                  await arrowManager.createArrowFromMap({'source': effectiveSourceId}, handle);
+                  await arrowManager.startCreateArrowFromMap({'source': effectiveSourceId}, handle);
                 },
           child: isSelectedNodeHandleDisabled
               ? Center(
@@ -1812,7 +1812,7 @@ class NodeManager extends Manager {
           onTap: isHoverDisabled || isSelectedObjectCircleDisabled
               ? null
               : () async {
-                  await arrowManager.createArrowFromMap({'source': attributeId}, direction);
+                  await arrowManager.startCreateArrowFromMap({'source': attributeId}, direction);
                 },
           child: isHoverDisabled || isSelectedObjectCircleDisabled
               ? circleVisual

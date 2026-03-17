@@ -11,6 +11,8 @@ import 'tile_manager.dart';
 import 'zoom_manager.dart';
 
 class EventService {
+  static EventService? _instance;
+
   final EditorState state;
   final InputHandler inputHandler;
   final TileManager tileManager;
@@ -36,6 +38,7 @@ class EventService {
     required this.shemaManager,
     required this.appEvent,
   }) {
+    _instance = this;
     eventStream?.listen((event) {
       if (event == null) return;
 
@@ -48,6 +51,10 @@ class EventService {
 
       api(action, data);
     });
+  }
+
+  static Future<void> apiStatic(String action, Map<String, dynamic>? data) async {
+    await _instance?.api(action, data);
   }
 
   api(String action, Map<String, dynamic>? data) async {

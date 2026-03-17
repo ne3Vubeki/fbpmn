@@ -146,7 +146,7 @@ class _ArrowCreatedState extends State<ArrowCreated> with StateWidget<ArrowCreat
                     widget.state.ignoreNextCreatedArrowCancel = true;
                   },
                   onPointerUp: (_) {
-                    debugPrint('ArrowCreated target hover circle tapped');
+                    widget.arrowManager.confirmCreateArrow(widget.state.arrowCreated!);
                   },
                   child: Center(
                     child: AnimatedContainer(

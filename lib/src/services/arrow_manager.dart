@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
+import 'package:fbpmn/src/services/event_service.dart';
 import 'package:fbpmn/src/services/id_manager.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:fbpmn/src/utils/utils.dart';
@@ -27,7 +28,11 @@ class ArrowManager extends Manager {
 
   ArrowManager({required this.state});
 
-  Future<void> createArrowFromMap(Map<String, dynamic> arrowMap, String startSide) async {
+  Future<void> confirmCreateArrow(Arrow arrow) async {
+    EventService.apiStatic('confirm_create_arrow', {'arrow': arrow.toJson()});
+  }
+
+  Future<void> startCreateArrowFromMap(Map<String, dynamic> arrowMap, String startSide) async {
     final sourceId = (arrowMap['source'] as String?) ?? '';
     if (sourceId.isEmpty) {
       return;
@@ -40,7 +45,6 @@ class ArrowManager extends Manager {
       target: '',
       style: 'endArrow=block;',
       powers: [],
-      points: [],
     );
     state.arrowCreatedStartSide = '${{'l': 'left', 't': 'top', 'r': 'right', 'b': 'bottom'}[startSide]!}:';
     onStateUpdate();

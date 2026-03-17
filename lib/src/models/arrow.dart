@@ -17,7 +17,6 @@ class Arrow {
   String? targetArrow; // тип стрелки
 
   List<Power>? powers; // Опционально
-  List<Map<String, dynamic>>? points; // Опционально
 
   Offset aPositionSource;
   Offset aPositionTarget;
@@ -33,7 +32,6 @@ class Arrow {
     required this.style,
     this.paths,
     this.powers,
-    this.points,
     this.aPositionSource = Offset.zero,
     this.aPositionTarget = Offset.zero,
     this.sides,
@@ -43,7 +41,6 @@ class Arrow {
     final powers = (json['powers'] as List<dynamic>? ?? [])
         .map((e) => Power.fromJson(e as Map<String, dynamic>))
         .toList();
-    final points = (json['points'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
 
     final arrow = Arrow(
       id: json['id'] as String,
@@ -78,10 +75,35 @@ class Arrow {
     if (powers.isNotEmpty) {
       arrow.powers = powers;
     }
-    if (points.isNotEmpty) {
-      arrow.points = points;
-    }
     return arrow;
+  }
+
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{
+      'id': id,
+      'qType': qType,
+      'source': source,
+      'target': target,
+      'style': style,
+    };
+
+    if (sourceCache != null) {
+      json['sourceCache'] = sourceCache;
+    }
+    if (sourceArrow != null) {
+      json['sourceArrow'] = sourceArrow;
+    }
+    if (targetCache != null) {
+      json['targetCache'] = targetCache;
+    }
+    if (targetArrow != null) {
+      json['targetArrow'] = targetArrow;
+    }
+    if (powers != null && powers!.isNotEmpty) {
+      json['powers'] = powers!.map((power) => power.toJson()).toList();
+    }
+
+    return json;
   }
 
   Arrow copyWith({
@@ -91,7 +113,6 @@ class Arrow {
     String? target,
     String? style,
     List<Power>? powers,
-    List<Map<String, dynamic>>? points,
   }) {
     return Arrow(
       id: id ?? this.id,
@@ -100,7 +121,6 @@ class Arrow {
       target: target ?? this.target,
       style: style ?? this.style,
       powers: powers ?? this.powers,
-      points: points ?? this.points,
     );
   }
 }

@@ -119,6 +119,16 @@ class InputHandler extends Manager {
       _panStartMousePosition = position;
       onStateUpdate();
     } else {
+      if (state.arrowCreated != null) {
+        final worldPos = Utils.screenToWorld(position, state);
+        final nodeHit = nodeManager.findNodeAtWorldPosition(worldPos);
+        if (nodeHit == null) {
+          nodeManager.handleEmptyAreaClick();
+        }
+        _focusNode.requestFocus();
+        return;
+      }
+
       bool clickedOnSelectedNode = false;
 
       if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
