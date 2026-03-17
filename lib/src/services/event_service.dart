@@ -124,6 +124,10 @@ class EventService {
       /// Создающие|удаляющие события
       case 'schema_create':
         shemaManager.createEmptySchema();
+        appEvent?.emitToJs(action: action, data: {'schema': state.schema});
+        break;
+      case 'schema_update':
+        appEvent?.emitToJs(action: action, data: {'schema': state.schema});
         break;
       case 'schema_upload':
         if (data != null) {
@@ -133,6 +137,7 @@ class EventService {
       case 'schema_url':
         if (data != null) {
           await shemaManager.resolveSchema(allowHttpLoad: true, filePath: data['filePath'] as String);
+          appEvent?.emitToJs(action: action, data: {'schema': shemaManager.schema});
         }
         break;
       case 'node_create':
@@ -147,7 +152,7 @@ class EventService {
         if (data != null) {
           final payload = data['arrow'];
           if (payload is Map<String, dynamic>) {
-            // await arrowManager.createArrowFromMap(payload);
+            await arrowManager.addArrow(payload);
           }
         }
         break;

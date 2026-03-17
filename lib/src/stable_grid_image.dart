@@ -51,16 +51,16 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _editorState = EditorState(widget.properties);
 
-    _shemaManager = ShemaManager();
+    _shemaManager = ShemaManager(state: _editorState);
     _initializeEmptySchemaOnFirstLaunch();
 
     _idManager = IDManager();
 
-    _arrowManager = ArrowManager(state: _editorState);
+    _arrowManager = ArrowManager(state: _editorState, schemaManager: _shemaManager);
 
     _tileManager = TileManager(state: _editorState, arrowManager: _arrowManager);
 
-    _nodeManager = NodeManager(state: _editorState, tileManager: _tileManager, arrowManager: _arrowManager);
+    _nodeManager = NodeManager(state: _editorState, schemaManager: _shemaManager, tileManager: _tileManager, arrowManager: _arrowManager);
 
     _scrollHandler = ScrollHandler(state: _editorState, nodeManager: _nodeManager);
 
@@ -117,8 +117,8 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _suppressSchemaCallback = true;
     try {
-      await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_5.json');
-      // _shemaManager.createEmptySchema(apply: true);
+      // await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_5.json');
+      _shemaManager.createEmptySchema(apply: true);
       _schemaInitialized = true;
     } finally {
       _suppressSchemaCallback = false;

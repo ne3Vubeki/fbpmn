@@ -53,7 +53,7 @@ class InputHandler extends Manager {
           break;
         case LogicalKeyboardKey.escape:
           if (state.arrowCreated != null) {
-            arrowManager.clearCreatedArrow();
+            arrowManager.clearStartCreatedArrow();
             nodeManager.onStateUpdate();
           } else {
             nodeManager.handleEmptyAreaClick();

@@ -35,6 +35,8 @@ class Arrow {
     this.aPositionSource = Offset.zero,
     this.aPositionTarget = Offset.zero,
     this.sides,
+    this.sourceArrow,
+    this.targetArrow,
   });
 
   factory Arrow.fromJson(Map<String, dynamic> json) {
@@ -48,6 +50,8 @@ class Arrow {
       source: json['source'] as String,
       target: json['target'] as String,
       style: json['style'] as String? ?? '',
+      sourceArrow: json['sourceArrow'] as String?,
+      targetArrow: json['targetArrow'] as String?,
     );
 
     // определяем по стилям окончание стрелок
@@ -113,6 +117,8 @@ class Arrow {
     String? target,
     String? style,
     List<Power>? powers,
+    String? sourceArrow,
+    String? targetArrow,
   }) {
     return Arrow(
       id: id ?? this.id,
@@ -121,6 +127,8 @@ class Arrow {
       target: target ?? this.target,
       style: style ?? this.style,
       powers: powers ?? this.powers,
+      sourceArrow: sourceArrow ?? this.sourceArrow,
+      targetArrow: targetArrow ?? this.targetArrow,
     );
   }
 }

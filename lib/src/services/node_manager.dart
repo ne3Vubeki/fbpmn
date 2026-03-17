@@ -4,8 +4,10 @@ import 'package:fbpmn/src/models/attribute_highlight_row.dart';
 import 'package:fbpmn/src/models/snap_line.dart';
 import 'package:fbpmn/src/painters/direction_arrow_painter.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
+import 'package:fbpmn/src/services/event_service.dart';
 import 'package:fbpmn/src/services/manager.dart';
 import 'package:fbpmn/src/services/performance_tracker.dart';
+import 'package:fbpmn/src/services/shema_manager.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -19,6 +21,7 @@ class NodeManager extends Manager {
   final EditorState state;
   final TileManager tileManager;
   final ArrowManager arrowManager;
+  final ShemaManager schemaManager;
 
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
@@ -51,7 +54,12 @@ class NodeManager extends Manager {
   static const double arrowHandleWidth = 8.0; // Длина линий маркера
   static const double resizeHandleBorderWidth = 2; // Толщина линий маркера
 
-  NodeManager({required this.state, required this.tileManager, required this.arrowManager});
+  NodeManager({
+    required this.state,
+    required this.tileManager,
+    required this.arrowManager,
+    required this.schemaManager,
+  });
 
   static List<TableNode?> whereAllNodes(List<TableNode?> nodes, Function test) {
     List<TableNode?> testNodes = [];
@@ -187,9 +195,44 @@ class NodeManager extends Manager {
     // после чего переводится в верхний слой стандартной логикой выделения.
     if (!state.nodes.any((n) => n.id == node.id)) {
       state.nodes.add(node);
+      _syncNodeToSchema(nodeMap, node);
     }
 
+    EventService.apiStatic('schema_update', {'schema': state.schema});
+
     await _selectNode(node);
+  }
+
+  void _syncNodeToSchema(Map<String, dynamic> nodeMap, TableNode node) {
+    final schema = state.schema;
+    final objects = List<dynamic>.from(schema['objects'] as List<dynamic>? ?? const []);
+    final objectJson = Map<String, dynamic>.from(nodeMap.isNotEmpty ? nodeMap : node.objectData);
+    final geometry = Map<String, dynamic>.from(objectJson['geometry'] as Map<String, dynamic>? ?? const {});
+
+    geometry['x'] = node.position.dx;
+    geometry['y'] = node.position.dy;
+    geometry['width'] = node.size.width;
+    geometry['height'] = node.size.height;
+
+    objectJson['geometry'] = geometry;
+    objectJson['id'] = node.id;
+    objectJson['label'] = node.text;
+    objectJson['qType'] = node.qType;
+    objectJson['style'] = node.style;
+
+    final existingIndex = objects.indexWhere((item) => item is Map && item['id']?.toString() == node.id);
+    if (existingIndex >= 0) {
+      objects[existingIndex] = objectJson;
+    } else {
+      objects.add(objectJson);
+    }
+
+    final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
+    metadata['objects'] = objects.length;
+
+    schema['objects'] = objects;
+    schema['metadata'] = metadata;
+    state.schema = Map<String, dynamic>.from(schema);
   }
 
   // Обновление позиции РАМКИ на основе позиции УЗЛА
@@ -569,7 +612,7 @@ class NodeManager extends Manager {
         state.ignoreNextCreatedArrowCancel = false;
         return;
       }
-      arrowManager.clearCreatedArrow();
+      arrowManager.clearStartCreatedArrow();
       onStateUpdate();
       return;
     }
@@ -1742,7 +1785,8 @@ class NodeManager extends Manager {
     final isHoveredCircle = isHovered[hoverKey] ?? false;
     final direction = side == 'left' ? 'l' : 'r';
     final createdArrowSourceId = state.arrowCreated?.source;
-    final isSelectedObjectCircleDisabled = createdArrowSourceId != null &&
+    final isSelectedObjectCircleDisabled =
+        createdArrowSourceId != null &&
         (createdArrowSourceId == row.node.id ||
             row.node.attributes.any((attribute) => attribute.id == createdArrowSourceId));
     final circleVisual = Center(
@@ -1838,15 +1882,37 @@ class NodeManager extends Manager {
       final nodeOffsetX = node == mainNode ? 0.0 : node.position.dx * scale;
       final currentNodeWidth = node.size.width * scale;
       final currentNodeLeft = offset + nodeOffsetX;
-      final rowHeight = (node.size.height - minHeaderHeight) / node.attributes.length;
-      final actualRowHeight = math.max(rowHeight, EditorConfig.minRowHeight);
+      final isGroup = node.qType == 'group';
+      final totalMinContentHeight = minHeaderHeight + EditorConfig.minRowHeight * node.attributes.length;
+
+      double headerHeight;
+      double actualRowHeight;
+
+      if (!isGroup) {
+        if (node.size.height > totalMinContentHeight) {
+          final extraHeight = node.size.height - totalMinContentHeight;
+          final headerShare = minHeaderHeight / totalMinContentHeight;
+          headerHeight = minHeaderHeight + extraHeight * headerShare;
+          actualRowHeight = (node.size.height - headerHeight) / node.attributes.length;
+        } else {
+          headerHeight = minHeaderHeight;
+          actualRowHeight = math.max(
+            (node.size.height - headerHeight) / node.attributes.length,
+            EditorConfig.minRowHeight,
+          );
+        }
+      } else {
+        headerHeight = minHeaderHeight;
+        actualRowHeight = EditorConfig.minRowHeight;
+      }
+
       final rowHeightScaled = actualRowHeight * scale;
 
       for (int rowIndex = 0; rowIndex < node.attributes.length; rowIndex++) {
         final attribute = node.attributes[rowIndex];
         if (attribute.qType != 'attribute') continue;
 
-        final rowTop = (minHeaderHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
+        final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
         rows.add(
           AttributeHighlightRow(
             node: node,

@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
 import 'package:fbpmn/src/services/event_service.dart';
-import 'package:fbpmn/src/services/id_manager.dart';
+import 'package:fbpmn/src/services/shema_manager.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/cupertino.dart';
@@ -18,6 +18,7 @@ import 'manager.dart';
 /// Сервис для управления и расчета соединений стрелок
 class ArrowManager extends Manager {
   final EditorState state;
+  final ShemaManager schemaManager;
 
   double get arrowIndent => 12;
   double get createdArrowSourceHandleOffset => 14;
@@ -26,7 +27,39 @@ class ArrowManager extends Manager {
   double get halfSizeLimit => 30;
   double get defaultArrowRadius => 10;
 
-  ArrowManager({required this.state});
+  ArrowManager({required this.state, required this.schemaManager});
+
+  Future<void> addArrow(Map<String, dynamic> arrowMap) async {
+    final arrow = Arrow.fromJson(arrowMap);
+    state.arrows.add(arrow);
+    state.arrowsSelected.add(arrow);
+    _syncArrowToSchema(arrowMap, arrow);
+    clearStartCreatedArrow();
+    EventService.apiStatic('schema_update', {'schema': state.schema});
+
+    onStateUpdate('update_arrows');
+  }
+
+  void _syncArrowToSchema(Map<String, dynamic> arrowMap, Arrow arrow) {
+    final schema = state.schema;
+    final arrows = List<dynamic>.from(schema['arrows'] as List<dynamic>? ?? const []);
+    final arrowJson = Map<String, dynamic>.from(arrowMap.isNotEmpty ? arrowMap : arrow.toJson());
+    final arrowId = arrowJson['id']?.toString() ?? arrow.id;
+
+    final existingIndex = arrows.indexWhere((item) => item is Map && item['id']?.toString() == arrowId);
+    if (existingIndex >= 0) {
+      arrows[existingIndex] = arrowJson;
+    } else {
+      arrows.add(arrowJson);
+    }
+
+    final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
+    metadata['arrows'] = arrows.length;
+
+    schema['arrows'] = arrows;
+    schema['metadata'] = metadata;
+    state.schema = Map<String, dynamic>.from(schema);
+  }
 
   Future<void> confirmCreateArrow(Arrow arrow) async {
     EventService.apiStatic('confirm_create_arrow', {'arrow': arrow.toJson()});
@@ -38,19 +71,12 @@ class ArrowManager extends Manager {
       return;
     }
 
-    state.arrowCreated = Arrow(
-      id: IDManager().generateNextId(),
-      qType: '',
-      source: sourceId,
-      target: '',
-      style: 'endArrow=block;',
-      powers: [],
-    );
+    state.arrowCreated = Arrow(id: '', qType: '', source: sourceId, target: '', style: '');
     state.arrowCreatedStartSide = '${{'l': 'left', 't': 'top', 'r': 'right', 'b': 'bottom'}[startSide]!}:';
     onStateUpdate();
   }
 
-  void clearCreatedArrow() {
+  void clearStartCreatedArrow() {
     final arrow = state.arrowCreated;
     if (arrow == null) {
       return;
@@ -583,7 +609,9 @@ class ArrowManager extends Manager {
           final startSide = sides[0];
           String? endSide = state.arrowCreated?.sides?.split(':')[1];
           if (state.arrowCreated?.sides != null && endSide != '') {
-            endSide = (startSide == 'left' || startSide == 'right') && (endSide == 'top' || endSide == 'bottom') ? '$endSide:3' : endSide;
+            endSide = (startSide == 'left' || startSide == 'right') && (endSide == 'top' || endSide == 'bottom')
+                ? '$endSide:3'
+                : endSide;
             ifNode = sides.length == 3 ? '$startSide:$endSide:${sides[2]}' : '$startSide:$endSide';
           }
           print('(Node)--->(Arrow) ... ifNode: $ifNode CreateArrowSides: ${state.arrowCreated?.sides}');
@@ -1834,7 +1862,8 @@ class ArrowManager extends Manager {
 
       String? parentId = node.parent;
       while (parentId != null) {
-        final parentNode = findNodeById(parentId, state.nodes) ??
+        final parentNode =
+            findNodeById(parentId, state.nodes) ??
             findNodeById(parentId, state.nodesSelected.whereType<TableNode>().toList());
         if (parentNode == null) {
           break;

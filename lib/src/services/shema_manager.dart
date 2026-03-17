@@ -1,25 +1,28 @@
 import 'dart:convert';
 
+import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:http/http.dart' as http;
 
 import 'manager.dart';
 
 class ShemaManager extends Manager {
-  ShemaManager({Map<String, dynamic>? initialSchema}) {
+  final EditorState state;
+
+  ShemaManager({required this.state, Map<String, dynamic>? initialSchema}) {
     if (initialSchema != null) {
-      _schema = _normalizeSchema(initialSchema);
+      state.schema = _normalizeSchema(initialSchema);
+    } else if (state.schema.isEmpty) {
+      state.schema = _defaultEmptySchema();
     }
   }
 
-  Map<String, dynamic> _schema = _defaultEmptySchema();
-
-  Map<String, dynamic> get schema => _cloneMap(_schema);
+  Map<String, dynamic> get schema => _cloneMap(state.schema.isEmpty ? _defaultEmptySchema() : state.schema);
 
   Map<String, dynamic> createEmptySchema({bool apply = true}) {
     final empty = _defaultEmptySchema();
     if (apply) {
-      _schema = empty;
+      state.schema = _cloneMap(empty);
       onStateUpdate();
     }
     return _cloneMap(empty);
@@ -35,7 +38,7 @@ class ShemaManager extends Manager {
     final normalized = _normalizeSchema(parsed);
 
     if (apply) {
-      _schema = normalized;
+      state.schema = _cloneMap(normalized);
       onStateUpdate();
     }
 
@@ -49,14 +52,14 @@ class ShemaManager extends Manager {
 
   void updateSchema(Map<String, dynamic> schemaPatch, {bool merge = true}) {
     final normalizedPatch = _normalizeSchema(schemaPatch);
-
-    _schema = merge ? _deepMerge(_schema, normalizedPatch) : normalizedPatch;
-    _schema = _normalizeSchema(_schema);
+    final currentSchema = schema;
+    final updatedSchema = merge ? _deepMerge(currentSchema, normalizedPatch) : normalizedPatch;
+    state.schema = _normalizeSchema(updatedSchema);
     onStateUpdate();
   }
 
   String exportSchema({bool pretty = true}) {
-    final normalized = _normalizeSchema(_schema);
+    final normalized = _normalizeSchema(schema);
     return _encodeSchema(normalized, pretty: pretty);
   }
 
@@ -101,7 +104,7 @@ class ShemaManager extends Manager {
   }
 
   void resetToDefaultEmptySchema() {
-    _schema = _defaultEmptySchema();
+    state.schema = _defaultEmptySchema();
     onStateUpdate();
   }
 
