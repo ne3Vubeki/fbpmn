@@ -18,6 +18,38 @@ class NodeHover extends StatefulWidget {
 class _NodeHoverState extends State<NodeHover> {
   final Map<String, bool> isHovered = {};
 
+  TableNode? _findNodeById(String nodeId, List<TableNode> nodes) {
+    for (final node in nodes) {
+      if (node.id == nodeId) {
+        return node;
+      }
+      final children = node.children;
+      if (children != null && children.isNotEmpty) {
+        final found = _findNodeById(nodeId, children);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
+  bool _shouldIgnoreHoverNode(TableNode node) {
+    String? parentId = node.parent;
+    while (parentId != null) {
+      final parentNode = _findNodeById(parentId, widget.state.nodes);
+      if (parentNode == null) {
+        break;
+      }
+      if (parentNode.qType == 'swimlane' && (parentNode.isCollapsed ?? false)) {
+        return true;
+      }
+      parentId = parentNode.parent;
+    }
+
+    return false;
+  }
+
   bool _hasCommittedConnections(Set<dynamic>? sideConnections) {
     final createdArrowId = widget.state.arrowCreated?.id;
     if (sideConnections == null || sideConnections.isEmpty) {
@@ -183,6 +215,9 @@ class _NodeHoverState extends State<NodeHover> {
     }
 
     final currentNode = widget.state.hoveredNode!;
+    if (_shouldIgnoreHoverNode(currentNode)) {
+      return Container();
+    }
     final screenTopLeft = Offset(
       widget.state.hoveredNode!.aPosition!.dx * widget.state.scale + widget.state.offset.dx,
       widget.state.hoveredNode!.aPosition!.dy * widget.state.scale + widget.state.offset.dy,
@@ -195,7 +230,7 @@ class _NodeHoverState extends State<NodeHover> {
     final scale = widget.state.scale;
     final offset = NodeManager.resizeHandleOffset * scale;
     final lengthArrow = NodeManager.arrowHandleWidth * scale;
-    final width = NodeManager.resizeHandleBorderWidth.toDouble();
+    final width = widget.nodeManager.widthBorderCircle;
     final frame = widget.nodeManager.frameTotalOffset;
     final hoverPadding = lengthArrow * 3 / 2;
     final borderRadius = !isGroup && !isEnum && isBo && hasAttributes
@@ -261,40 +296,41 @@ class _NodeHoverState extends State<NodeHover> {
                 ),
               ),
               if (showArrowCreatedHoverWidgets) ...[
-                Positioned(
-                  left: hoverPadding,
-                  top: hoverPadding,
-                  child: SizedBox(
-                    width: overlaySize.width,
-                    height: overlaySize.height,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        ...(!isEnum && currentNode.qType != 'swimlane')
-                            ? _buildStaticAttributeCircles(
-                                currentNode: currentNode,
-                                offset: offset,
-                                frame: frame,
-                                scale: scale,
-                                length: lengthArrow,
-                                width: width,
-                              )
-                            : [],
-                        ..._buildStaticNodeSideCircles(
-                          currentNode: currentNode,
-                          overlaySize: overlaySize,
-                          offset: offset,
-                          frame: frame,
-                          groupOffsetX: groupOffsetX,
-                          groupOffsetY: groupOffsetY,
-                          scale: scale,
-                          length: lengthArrow,
-                          width: width,
-                        ),
-                      ],
+                if (currentNode.qType != 'swimlane')
+                  Positioned(
+                    left: hoverPadding,
+                    top: hoverPadding,
+                    child: SizedBox(
+                      width: overlaySize.width,
+                      height: overlaySize.height,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ...(!isEnum && currentNode.qType != 'swimlane')
+                              ? _buildStaticAttributeCircles(
+                                  currentNode: currentNode,
+                                  offset: offset,
+                                  frame: frame,
+                                  scale: scale,
+                                  length: lengthArrow,
+                                  width: width,
+                                )
+                              : [],
+                          ..._buildStaticNodeSideCircles(
+                            currentNode: currentNode,
+                            overlaySize: overlaySize,
+                            offset: offset,
+                            frame: frame,
+                            groupOffsetX: groupOffsetX,
+                            groupOffsetY: groupOffsetY,
+                            scale: scale,
+                            length: lengthArrow,
+                            width: width,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ],
           ),

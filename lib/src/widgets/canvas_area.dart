@@ -191,6 +191,10 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           scrollHandler: widget.scrollHandler,
                         ),
 
+                        NodeHover(
+                          state: widget.state,
+                          nodeManager: widget.nodeManager,
+                        ),
 
                         // Отображение выделенного узла на верхнем слое
                         NodeSelected(
@@ -214,11 +218,6 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           nodeManager: widget.nodeManager,
                         ),
                         
-                        NodeHover(
-                          state: widget.state,
-                          nodeManager: widget.nodeManager,
-                        ),
-
                         // Отображение создаваемой связи
                         ArrowCreated(
                           state: widget.state,

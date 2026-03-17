@@ -452,18 +452,17 @@ class NodePainter {
     required double scale,
   }) {
     final isSwimlane = node.qType == 'swimlane';
+    final isEnum = node.qType == 'enum';
+    final isGroup = node.qType == 'group';
+    final isBO = node.qType == 'bo';
     // Проверяем, является ли узел свернутым
     final isCollapsed = node.isCollapsed ?? false;
 
     // Для swimlane
-    if (node.qType == 'swimlane') {
+    if (isSwimlane) {
       _drawSwimlaneContent(canvas, node, nodeRect, isCollapsed: isCollapsed);
       return;
     }
-
-    final isEnum = node.qType == 'enum';
-    final isGroup = node.qType == 'group';
-    final isBO = node.qType == 'bo';
 
     // Для swimlane в раскрытом состоянии
     if (isSwimlane && !isCollapsed) {
@@ -483,17 +482,22 @@ class NodePainter {
     double headerHeight;
     double rowHeight;
 
-    if (nodeRect.height > totalMinContentHeight) {
-      // Пропорциональное распределение дополнительного пространства
-      final extraHeight = nodeRect.height - totalMinContentHeight;
-      final headerShare = minHeaderHeight / totalMinContentHeight;
+    if (!isGroup) {
+      if (nodeRect.height > totalMinContentHeight) {
+        // Пропорциональное распределение дополнительного пространства
+        final extraHeight = nodeRect.height - totalMinContentHeight;
+        final headerShare = minHeaderHeight / totalMinContentHeight;
 
-      headerHeight = minHeaderHeight + extraHeight * headerShare;
-      rowHeight = (nodeRect.height - headerHeight) / node.attributes.length;
+        headerHeight = minHeaderHeight + extraHeight * headerShare;
+        rowHeight = (nodeRect.height - headerHeight) / node.attributes.length;
+      } else {
+        // Если высота меньше или равна минимальной, используем минимальные значения
+        headerHeight = minHeaderHeight;
+        rowHeight = math.max((nodeRect.height - headerHeight) / node.attributes.length, minRowHeight);
+      }
     } else {
-      // Если высота меньше или равна минимальной, используем минимальные значения
       headerHeight = minHeaderHeight;
-      rowHeight = math.max((nodeRect.height - headerHeight) / node.attributes.length, minRowHeight);
+      rowHeight = minRowHeight;
     }
 
     // Рисуем заголовок

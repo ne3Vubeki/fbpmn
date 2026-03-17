@@ -13,11 +13,7 @@ class ArrowCreated extends StatefulWidget {
   final EditorState state;
   final ArrowManager arrowManager;
 
-  const ArrowCreated({
-    super.key,
-    required this.state,
-    required this.arrowManager,
-  });
+  const ArrowCreated({super.key, required this.state, required this.arrowManager});
 
   @override
   State<ArrowCreated> createState() => _ArrowCreatedState();
@@ -30,7 +26,7 @@ class _ArrowCreatedState extends State<ArrowCreated> with StateWidget<ArrowCreat
   void initState() {
     super.initState();
     widget.arrowManager.setOnStateUpdate('ArrowCreated', (path) {
-      if(path == null || path == 'ArrowCreated') timeoutSetState();
+      if (path == null || path == 'ArrowCreated') timeoutSetState();
     });
   }
 
@@ -107,7 +103,7 @@ class _ArrowCreatedState extends State<ArrowCreated> with StateWidget<ArrowCreat
 
     final scale = widget.state.scale;
     final length = NodeManager.arrowHandleWidth * scale;
-    final borderWidth = NodeManager.resizeHandleBorderWidth.toDouble();
+    final borderWidth = NodeManager.resizeHandleBorderWidth * scale;
     final hoverAreaSize = length * 3;
     final pathResult = widget.arrowManager.getCreatedArrowPath();
     final hasTargetHandle = arrow.target.isNotEmpty && pathResult.coordinates.isNotEmpty;
@@ -121,10 +117,7 @@ class _ArrowCreatedState extends State<ArrowCreated> with StateWidget<ArrowCreat
           IgnorePointer(
             child: RepaintBoundary(
               child: CustomPaint(
-                painter: _ArrowCreatedPainter(
-                  scale: scale,
-                  arrowManager: widget.arrowManager,
-                ),
+                painter: _ArrowCreatedPainter(scale: scale, arrowManager: widget.arrowManager),
               ),
             ),
           ),
@@ -147,33 +140,42 @@ class _ArrowCreatedState extends State<ArrowCreated> with StateWidget<ArrowCreat
                     _isTargetHovered = false;
                   });
                 },
-                child: Center(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    width: length,
-                    height: length,
-                    alignment: Alignment.center,
-                    child: AnimatedScale(
-                      scale: _isTargetHovered ? 3.0 : 1.0,
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: (_) {
+                    widget.state.ignoreNextCreatedArrowCancel = true;
+                  },
+                  onPointerUp: (_) {
+                    debugPrint('ArrowCreated target hover circle tapped');
+                  },
+                  child: Center(
+                    child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeInOut,
-                      child: Container(
-                        width: length,
-                        height: length,
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.red, width: borderWidth),
+                      width: length,
+                      height: length,
+                      alignment: Alignment.center,
+                      child: AnimatedScale(
+                        scale: _isTargetHovered ? 3.0 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: Container(
+                          width: length,
+                          height: length,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.red, width: borderWidth),
+                          ),
+                          child: _isTargetHovered
+                              ? Center(
+                                  child: CustomPaint(
+                                    size: Size(length * 0.6, length * 0.6),
+                                    painter: DirectionArrowPainter(direction: targetDirection, color: Colors.white),
+                                  ),
+                                )
+                              : null,
                         ),
-                        child: _isTargetHovered
-                            ? Center(
-                                child: CustomPaint(
-                                  size: Size(length * 0.6, length * 0.6),
-                                  painter: DirectionArrowPainter(direction: targetDirection, color: Colors.white),
-                                ),
-                              )
-                            : null,
                       ),
                     ),
                   ),
@@ -190,10 +192,7 @@ class _ArrowCreatedPainter extends CustomPainter {
   final double scale;
   final ArrowManager arrowManager;
 
-  const _ArrowCreatedPainter({
-    required this.scale,
-    required this.arrowManager,
-  });
+  const _ArrowCreatedPainter({required this.scale, required this.arrowManager});
 
   @override
   void paint(Canvas canvas, Size size) {

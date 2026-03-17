@@ -4,7 +4,6 @@ import '../editor_state.dart';
 import '../services/node_manager.dart';
 import '../utils/editor_config.dart';
 import 'state_widget.dart';
-import '../utils/canvas_icons.dart';
 
 /// Виджет для отображения маркеров изменения размера узла
 class ResizeHandles extends StatefulWidget {
@@ -89,6 +88,8 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
       groupOffsetY = firstChild.position.dy * scale;
     }
 
+    final groupSourceId = isGroup && node.children != null && node.children!.isNotEmpty ? node.children!.first.id : null;
+
     // Позиция кнопки относительно контейнера
     final buttonTop = containerTop - buttonSize / 2;
     final buttonLeft = containerLeft - buttonSize / 2;
@@ -143,6 +144,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                   isHovered,
+                  sourceId: groupSourceId,
                   cursor: SystemMouseCursors.alias,
                   setState: setState,
                 ),
@@ -154,6 +156,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                   isHovered,
+                  sourceId: groupSourceId,
                   cursor: SystemMouseCursors.alias,
                   setState: setState,
                 ),
@@ -168,6 +171,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                   isHovered,
+                  sourceId: groupSourceId,
                   cursor: SystemMouseCursors.alias,
                   setState: setState,
                 ),
@@ -182,6 +186,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                   lengthArrow,
                   width,
                   isHovered,
+                  sourceId: groupSourceId,
                   cursor: SystemMouseCursors.alias,
                   setState: setState,
                 ),
@@ -196,7 +201,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           size: buttonSize,
           color: Colors.white,
           colorIcon: Colors.black,
-          icon: CanvasIcons.paintBars,
+          icon: Icons.settings_outlined,
           cursor: SystemMouseCursors.click, // Курсор для кнопки настроек
           tooltip: 'Настроить объект',
           onTap: () {
@@ -208,7 +213,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
           top: buttonTop,
           size: buttonSize,
           color: Colors.red,
-          icon: CanvasIcons.paintDelete,
+          icon: Icons.delete_outlined,
           cursor: SystemMouseCursors.click, // Курсор для кнопки удаления
           tooltip: 'Удалить объект',
           onTap: () {
@@ -233,7 +238,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
     required double size,
     required Color color,
     Color colorIcon = Colors.white,
-    required void Function(Canvas, Size, Color) icon,
+    required dynamic icon,
     MouseCursor? cursor,
     String? tooltip,
     Function()? onTap,
@@ -258,10 +263,12 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
             child: Tooltip(
               message: tooltip,
               child: Center(
-                child: CustomPaint(
-                  size: Size(size * 0.5, size * 0.5),
-                  painter: IconPainter(painter: icon, color: colorIcon),
-                ),
+                child: icon is IconData
+                    ? Icon(icon, size: size * 0.5, color: colorIcon)
+                    : CustomPaint(
+                        size: Size(size * 0.5, size * 0.5),
+                        painter: IconPainter(painter: icon as void Function(Canvas, Size, Color), color: colorIcon),
+                      ),
               ),
             ),
           ),
@@ -309,10 +316,7 @@ class _ResizeHandlesState extends State<ResizeHandles> with StateWidget<ResizeHa
                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))],
               ),
               child: Center(
-                child: CustomPaint(
-                  size: Size(size * 0.5, size * 0.5),
-                  painter: IconPainter(painter: CanvasIcons.paintResize, color: colorIcon),
-                ),
+                child: Icon(Icons.zoom_out_map_outlined, size: size * 0.5, color: colorIcon),
               ),
             ),
           ),

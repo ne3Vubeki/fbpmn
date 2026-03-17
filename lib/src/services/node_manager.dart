@@ -565,6 +565,10 @@ class NodeManager extends Manager {
       return;
     }
     if (state.arrowCreated != null) {
+      if (state.ignoreNextCreatedArrowCancel) {
+        state.ignoreNextCreatedArrowCancel = false;
+        return;
+      }
       arrowManager.clearCreatedArrow();
       onStateUpdate();
       return;
@@ -1468,13 +1472,16 @@ class NodeManager extends Manager {
     double length,
     double width,
     Map isHovered, {
+    String? sourceId,
     MouseCursor? cursor,
     dynamic setState,
   }) {
     final isHoveredHandle = isHovered[handle] ?? false;
     final hoverAreaSize = length * 3;
+    final createdArrowSourceId = state.arrowCreated?.source;
     final selectedNode = state.nodesSelected.isNotEmpty ? state.nodesSelected.first : null;
-    final isSelectedNodeHandleDisabled = state.arrowCreated != null && selectedNode != null;
+    final effectiveSourceId = sourceId ?? selectedNode?.id;
+    final isSelectedNodeHandleDisabled = createdArrowSourceId != null && effectiveSourceId == createdArrowSourceId;
 
     return Positioned(
       left: left - (hoverAreaSize - length) / 2,
@@ -1513,10 +1520,10 @@ class NodeManager extends Manager {
               },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: selectedNode == null || isSelectedNodeHandleDisabled
+          onTap: effectiveSourceId == null || isSelectedNodeHandleDisabled
               ? null
               : () async {
-                  await arrowManager.createArrowFromMap({'source': selectedNode.id}, handle);
+                  await arrowManager.createArrowFromMap({'source': effectiveSourceId}, handle);
                 },
           child: isSelectedNodeHandleDisabled
               ? Center(
@@ -1734,8 +1741,10 @@ class NodeManager extends Manager {
     final hoverKey = 'attr_${side}_${row.node.id}_${row.rowIndex}';
     final isHoveredCircle = isHovered[hoverKey] ?? false;
     final direction = side == 'left' ? 'l' : 'r';
-    final selectedNode = state.nodesSelected.isNotEmpty ? state.nodesSelected.first : null;
-    final isSelectedObjectCircleDisabled = state.arrowCreated != null && selectedNode?.id == row.node.id;
+    final createdArrowSourceId = state.arrowCreated?.source;
+    final isSelectedObjectCircleDisabled = createdArrowSourceId != null &&
+        (createdArrowSourceId == row.node.id ||
+            row.node.attributes.any((attribute) => attribute.id == createdArrowSourceId));
     final circleVisual = Center(
       child: AnimatedScale(
         scale: !isHoverDisabled && !isSelectedObjectCircleDisabled && isHoveredCircle ? 3.0 : 1.0,

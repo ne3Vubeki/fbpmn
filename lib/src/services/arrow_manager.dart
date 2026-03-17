@@ -1801,8 +1801,58 @@ class ArrowManager extends Manager {
       return false;
     }
 
+    TableNode? findNodeById(String nodeId, List<TableNode> nodes) {
+      for (final node in nodes) {
+        if (node.id == nodeId) {
+          return node;
+        }
+
+        final children = node.children;
+        if (children != null && children.isNotEmpty) {
+          final found = findNodeById(nodeId, children);
+          if (found != null) {
+            return found;
+          }
+        }
+      }
+
+      return null;
+    }
+
+    bool isSnapDisabledForNode(TableNode node) {
+      if (node.qType == 'group' && node.children != null && node.children!.isNotEmpty) {
+        return true;
+      }
+
+      if (node.qType == 'swimlane' && (node.parent == null || (node.isCollapsed ?? false))) {
+        return true;
+      }
+
+      String? parentId = node.parent;
+      while (parentId != null) {
+        final parentNode = findNodeById(parentId, state.nodes) ??
+            findNodeById(parentId, state.nodesSelected.whereType<TableNode>().toList());
+        if (parentNode == null) {
+          break;
+        }
+        if (parentNode.qType == 'swimlane' && (parentNode.isCollapsed ?? false)) {
+          return true;
+        }
+        parentId = parentNode.parent;
+      }
+
+      return false;
+    }
+
     void collectNodeCandidates(List<TableNode> nodes) {
       for (final node in nodes) {
+        if (isSnapDisabledForNode(node)) {
+          if (node.children != null && node.children!.isNotEmpty) {
+            collectNodeCandidates(node.children!);
+          }
+          continue;
+        }
+
         if (node.id == sourceNodeId) {
           if (node.children != null && node.children!.isNotEmpty) {
             collectNodeCandidates(node.children!);
