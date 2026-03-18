@@ -195,17 +195,58 @@ class NodeManager extends Manager {
     // после чего переводится в верхний слой стандартной логикой выделения.
     if (!state.nodes.any((n) => n.id == node.id)) {
       state.nodes.add(node);
+      state.nodesSelected.add(node);
       _syncNodeToSchema(nodeMap, node);
     }
 
-    EventService.apiStatic('schema_update', {'schema': state.schema});
+        
+    await EventService.apiStatic('schema_update', {'schema': state.schema});
+
+    print('Add node: ${node.text} All nodes: ${state.nodes.length} Schema: ${state.schema}');
 
     await _selectNode(node);
   }
 
   Future<void> confirmDeleteNode(String nodeId) async {
-    final node = getNodeById(state.nodes, nodeId);
-    EventService.apiStatic('confirm_delete_node', {'node': node?.toJson()});
+    print('deleteNode: $nodeId All nodes: ${state.nodes.length}, nodesSelected: ${state.nodesSelected.length} Schema: ${state.schema}');
+    final node = getNodeById(state.nodesSelected.toList(), nodeId);
+    EventService.apiStatic('confirm_delete_node', {
+      'node': node?.toJson(),
+      'arrows': state.arrowsSelected.map((arrow) => arrow?.toJson()).toList(),
+    });
+  }
+
+  Future<void> deleteSelectedNode() async {
+    if (state.nodesSelected.isEmpty || state.nodesSelected.first == null) {
+      return;
+    }
+
+    final node = state.nodesSelected.first!;
+    final nodeId = node.id;
+
+    if (state.hoveredNode?.id == nodeId) {
+      state.hoveredNode = null;
+    }
+
+    node.isSelected = false;
+    _removeNodeFromNodesList(node);
+    state.nodesSelected.clear();
+    state.nodesIdOnTopLayer = state.nodesIdOnTopLayer.replaceAll(nodeId, '');
+
+    state.selectedNodeOffset = Offset.zero;
+    state.originalNodePosition = Offset.zero;
+    state.isNodeDragging = false;
+
+    state.highlightedNodeIds.remove(nodeId);
+    _removeNodeFromSchema(nodeId);
+
+    EventService.apiStatic('schema_update', {'schema': state.schema});
+
+    await arrowManager.deleteSelectedArrows();
+
+    await tileManager.updateTilesAfterNodeChange();
+
+    onStateUpdate();
   }
 
   void _syncNodeToSchema(Map<String, dynamic> nodeMap, TableNode node) {
@@ -231,6 +272,20 @@ class NodeManager extends Manager {
     } else {
       objects.add(objectJson);
     }
+
+    final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
+    metadata['objects'] = objects.length;
+
+    schema['objects'] = objects;
+    schema['metadata'] = metadata;
+    state.schema = Map<String, dynamic>.from(schema);
+  }
+
+  void _removeNodeFromSchema(String nodeId) {
+    final schema = state.schema;
+    final objects = List<dynamic>.from(schema['objects'] as List<dynamic>? ?? const []);
+
+    objects.removeWhere((item) => item is Map && item['id']?.toString() == nodeId);
 
     final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
     metadata['objects'] = objects.length;

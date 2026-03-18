@@ -148,6 +148,14 @@ class EventService {
           }
         }
         break;
+      case 'node_delete':
+        if (data != null) {
+          final nodeId = data['nodeId'];
+          if (nodeId is String && state.nodesSelected.any((node) => node?.id == nodeId)) {
+            await nodeManager.deleteSelectedNode();
+          }
+        }
+        break;
       case 'arrow_create':
         if (data != null) {
           final payload = data['arrow'];

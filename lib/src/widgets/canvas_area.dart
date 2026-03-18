@@ -219,7 +219,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                           inputHandler: widget.inputHandler,
                           scrollHandler: widget.scrollHandler,
                         ),
-                        
+
                         // Маркеры изменения размера узла
                         NodeConfig(
                           state: widget.state,

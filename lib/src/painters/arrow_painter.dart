@@ -86,7 +86,7 @@ class ArrowsPainter {
     final lineWidth = EditorConfig.arrowSelectedWidth * scale;
 
     final linePaint = Paint()
-      ..color = Colors.blue //Colors.yellowAccent.withValues(alpha: 0.5)
+      ..color = Colors.yellowAccent.withValues(alpha: 0.5)
       ..strokeWidth = pathWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -94,7 +94,7 @@ class ArrowsPainter {
       ..isAntiAlias = true;
 
     final strokePaint = Paint()
-      ..color = Colors.blue //Colors.yellowAccent.withValues(alpha: 0.5)
+      ..color = Colors.yellowAccent.withValues(alpha: 0.5)
       ..strokeWidth = lineWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -112,7 +112,7 @@ class ArrowsPainter {
       final pathResult = arrowManager.getArrowPathWithSelectedNodes(hoverArrow, arrowsRect);
       final paths = pathResult.paths;
 
-      _drawPaths(canvas, hoverArrow, scale, paths, pathResult.coordinates, linePaint, fillPaint, strokePaint, Colors.blue); //Colors.yellowAccent.withValues(alpha: 0.5));
+      _drawPaths(canvas, hoverArrow, scale, paths, pathResult.coordinates, linePaint, fillPaint, strokePaint, Colors.yellowAccent.withValues(alpha: 0.5));
     }
   }
 

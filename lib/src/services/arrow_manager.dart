@@ -42,6 +42,36 @@ class ArrowManager extends Manager {
     onStateUpdate('update_arrows');
   }
 
+  Future<void> deleteSelectedArrows() async {
+    final arrowsToDelete = state.arrowsSelected.whereType<Arrow>().toList();
+    if (arrowsToDelete.isEmpty) {
+      return;
+    }
+
+    final arrowIds = arrowsToDelete.map((arrow) => arrow.id).toList();
+
+    for (final arrow in arrowsToDelete) {
+      _removeArrowConnections(arrow);
+    }
+
+    state.arrows.removeWhere((arrow) => arrowIds.contains(arrow.id));
+    state.arrowsSelected.clear();
+
+    if (state.hoveredArrow != null && arrowIds.contains(state.hoveredArrow!.id)) {
+      state.hoveredArrow = null;
+    }
+
+    if (state.arrowCreated != null && arrowIds.contains(state.arrowCreated!.id)) {
+      clearStartCreatedArrow();
+    }
+
+    _removeArrowsFromSchema(arrowIds);
+
+    EventService.apiStatic('schema_update', {'schema': state.schema});
+
+    onStateUpdate();
+  }
+
   void _syncArrowToSchema(Map<String, dynamic> arrowMap, Arrow arrow) {
     final schema = state.schema;
     final arrows = List<dynamic>.from(schema['arrows'] as List<dynamic>? ?? const []);
@@ -61,6 +91,32 @@ class ArrowManager extends Manager {
     schema['arrows'] = arrows;
     schema['metadata'] = metadata;
     state.schema = Map<String, dynamic>.from(schema);
+  }
+
+  void _removeArrowsFromSchema(List<String> arrowIds) {
+    final schema = state.schema;
+    final arrows = List<dynamic>.from(schema['arrows'] as List<dynamic>? ?? const []);
+
+    arrows.removeWhere((item) => item is Map && arrowIds.contains(item['id']?.toString()));
+
+    final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
+    metadata['arrows'] = arrows.length;
+
+    schema['arrows'] = arrows;
+    schema['metadata'] = metadata;
+    state.schema = Map<String, dynamic>.from(schema);
+  }
+
+  void _removeArrowConnections(Arrow arrow) {
+    final sourceNodeAndAttr = _getNodeFromArrow(arrow.source);
+    sourceNodeAndAttr.attribute?.connections?.remove(arrow.id);
+    sourceNodeAndAttr.node?.connections?.remove(arrow.id);
+
+    if (arrow.target.isNotEmpty) {
+      final targetNodeAndAttr = _getNodeFromArrow(arrow.target);
+      targetNodeAndAttr.attribute?.connections?.remove(arrow.id);
+      targetNodeAndAttr.node?.connections?.remove(arrow.id);
+    }
   }
 
   Future<void> confirmCreateArrow(Arrow arrow) async {
@@ -556,7 +612,7 @@ class ArrowManager extends Manager {
       final cy = targetRect.center.dy - sourceRect.center.dy;
 
       final sourceWidth = sourceRect.width;
-      final sourceHeight = sourceRect.height;
+      final sourceHeight = sourceHeightHeader;
 
       // Определяем стороны узлов
       final sourceTop = sourceRect.top;
