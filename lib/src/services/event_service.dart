@@ -94,6 +94,12 @@ class EventService {
       case 'curves_off':
         zoomManager.offCurves();
         break;
+      case 'only_connectors_on':
+        tileManager.onOnlyConnectors();
+        break;
+      case 'only_connectors_off':
+        tileManager.offOnlyConnectors();
+        break;
 
       /// События настройки редактора
       case 'configuration_editor_changed':

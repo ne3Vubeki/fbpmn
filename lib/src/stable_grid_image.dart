@@ -1,6 +1,5 @@
 import 'package:fbpmn/src/models/app.model.dart';
 import 'package:fbpmn/src/services/cola_layout_service.dart';
-import 'package:fbpmn/src/services/id_manager.dart';
 import 'package:fbpmn/src/services/shema_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -36,7 +35,6 @@ class _StableGridImageState extends State<StableGridImage> {
   late NodeManager _nodeManager;
   late ArrowManager _arrowManager;
   late ColaLayoutService _colaLayoutService;
-  late IDManager _idManager;
   late ZoomManager _zoomManager;
   late ShemaManager _shemaManager;
 
@@ -53,8 +51,6 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _shemaManager = ShemaManager(state: _editorState);
     _initializeEmptySchemaOnFirstLaunch();
-
-    _idManager = IDManager();
 
     _arrowManager = ArrowManager(state: _editorState, schemaManager: _shemaManager);
 
@@ -155,7 +151,6 @@ class _StableGridImageState extends State<StableGridImage> {
       final double dx = ((metadata['dx'] as num?) ?? 0).toDouble();
       final double dy = ((metadata['dy'] as num?) ?? 0).toDouble();
 
-      _idManager.initializeFromJson(diagram);
       _editorState.delta = Offset(dx, dy);
 
       if (objects.isNotEmpty) {
@@ -197,7 +192,6 @@ class _StableGridImageState extends State<StableGridImage> {
       }
     } catch (e) {
       _shemaManager.resetToDefaultEmptySchema();
-      _idManager.initializeFromJson(_shemaManager.schema);
       _editorState.delta = Offset.zero;
     } finally {
       _editorState.isLoading = false;

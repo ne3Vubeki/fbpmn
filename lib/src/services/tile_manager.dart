@@ -909,6 +909,16 @@ class TileManager extends Manager {
     onStateUpdate();
   }
 
+  Future<void> onOnlyConnectors() async {
+    state.onlyConnectors = true;
+    await updateTilesAfterNodeChange();
+  }
+
+  Future<void> offOnlyConnectors() async {
+    state.onlyConnectors = false;
+    await updateTilesAfterNodeChange();
+  }
+
   /// Обновление тайла со ВСЕМИ узлами и стрелками
   Future<void> updateTileWithAllContent(ImageTile tile) async {
     try {

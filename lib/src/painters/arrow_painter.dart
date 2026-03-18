@@ -12,7 +12,7 @@ class ArrowsPainter {
 
   void drawArrowsInTile({required Canvas canvas, required Offset baseOffset, required double scale}) {
     final linePaint = Paint()
-      ..color = Colors.black
+      ..color = arrowManager.onlyConnectors ? Colors.black.withValues(alpha: 0.1) : Colors.black
       ..strokeWidth = EditorConfig.arrowTileWidth / scale
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
@@ -82,11 +82,11 @@ class ArrowsPainter {
   }
 
   void paintHover(Canvas canvas, double scale, Rect arrowsRect) {
-    final pathWidth = EditorConfig.arrowSelectedPathWidth * scale;
-    final lineWidth = EditorConfig.arrowSelectedWidth * scale;
+    final pathWidth = (!arrowManager.onlyConnectors ? EditorConfig.arrowSelectedPathWidth : 2) * scale;
+    final lineWidth = (!arrowManager.onlyConnectors ? EditorConfig.arrowSelectedWidth : 2) * scale;
 
     final linePaint = Paint()
-      ..color = Colors.yellowAccent.withValues(alpha: 0.5)
+      ..color = !arrowManager.onlyConnectors ? Colors.yellowAccent.withValues(alpha: 0.5) : Colors.black
       ..strokeWidth = pathWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -94,7 +94,7 @@ class ArrowsPainter {
       ..isAntiAlias = true;
 
     final strokePaint = Paint()
-      ..color = Colors.yellowAccent.withValues(alpha: 0.5)
+      ..color = !arrowManager.onlyConnectors ? Colors.yellowAccent.withValues(alpha: 0.5) : Colors.black
       ..strokeWidth = lineWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -112,7 +112,17 @@ class ArrowsPainter {
       final pathResult = arrowManager.getArrowPathWithSelectedNodes(hoverArrow, arrowsRect);
       final paths = pathResult.paths;
 
-      _drawPaths(canvas, hoverArrow, scale, paths, pathResult.coordinates, linePaint, fillPaint, strokePaint, Colors.yellowAccent.withValues(alpha: 0.5));
+      _drawPaths(
+        canvas,
+        hoverArrow,
+        scale,
+        paths,
+        pathResult.coordinates,
+        linePaint,
+        fillPaint,
+        strokePaint,
+        !arrowManager.onlyConnectors ? Colors.yellowAccent.withValues(alpha: 0.5) : Colors.black,
+      );
     }
   }
 
@@ -202,7 +212,22 @@ class ArrowsPainter {
     bool fillArrowHeadsWithColor = false,
     bool drawEndArrow = true,
   }) {
-    // 1. Рисуем линию
+    arrowManager.onlyConnectors
+        ? _drawPowerConnectorLines(
+            canvas,
+            arrow,
+            coordinates,
+            scale,
+            Paint()
+              ..color = Colors.black
+              ..strokeWidth = EditorConfig.arrowTileWidth / scale
+              ..style = PaintingStyle.stroke
+              ..isAntiAlias = true,
+            isTiles: isTiles,
+            hasStartFigure: paths.startArrow != null,
+          )
+        : null;
+
     canvas.drawPath(paths.path, linePaint);
 
     // 2. Рисуем фигуру в начале (ромб)
@@ -230,6 +255,98 @@ class ArrowsPainter {
     _drawPowers(canvas, arrow, coordinates, scale, color, isTiles: isTiles);
   }
 
+  void _drawPowerConnectorLines(
+    Canvas canvas,
+    Arrow arrow,
+    List<Offset> coordinates,
+    double scale,
+    Paint linePaint, {
+    bool isTiles = false,
+    bool hasStartFigure = false,
+  }) {
+    if (coordinates.length < 2) {
+      return;
+    }
+
+    final connectorPaint = Paint()
+      ..color = linePaint.color
+      ..strokeWidth = linePaint.strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = linePaint.strokeCap
+      ..strokeJoin = linePaint.strokeJoin
+      ..blendMode = linePaint.blendMode
+      ..filterQuality = linePaint.filterQuality
+      ..imageFilter = linePaint.imageFilter
+      ..invertColors = linePaint.invertColors
+      ..isAntiAlias = linePaint.isAntiAlias
+      ..maskFilter = linePaint.maskFilter
+      ..shader = linePaint.shader;
+
+    final powers = arrow.powers;
+    final hasSourcePower = powers?.any((power) => power.value.isNotEmpty && power.side == '-1') ?? false;
+    final hasTargetPower = powers?.any((power) => power.value.isNotEmpty && power.side != '-1') ?? false;
+
+    if (!hasStartFigure && !hasSourcePower) {
+      final sourceGeometry = _getDefaultSourcePowerGeometry(
+        arrow,
+        coordinates,
+        scale,
+        linePaint.color,
+        isTiles: isTiles,
+      );
+      if (sourceGeometry != null) {
+        final lineEnd = _getCircleEdgePoint(
+          sourceGeometry.circleCenter,
+          sourceGeometry.circleRadius,
+          sourceGeometry.side,
+        );
+        canvas.drawLine(sourceGeometry.position, lineEnd, connectorPaint);
+      }
+    }
+
+    if (!hasTargetPower) {
+      final targetGeometry = _getDefaultTargetPowerGeometry(
+        arrow,
+        coordinates,
+        scale,
+        linePaint.color,
+        isTiles: isTiles,
+      );
+      if (targetGeometry != null) {
+        final lineEnd = _getCircleEdgePoint(
+          targetGeometry.circleCenter,
+          targetGeometry.circleRadius,
+          targetGeometry.side,
+        );
+        canvas.drawLine(targetGeometry.position, lineEnd, connectorPaint);
+      }
+    }
+
+    if (powers == null || powers.isEmpty) {
+      return;
+    }
+
+    for (final power in powers) {
+      if (power.value.isEmpty) continue;
+
+      final geometry = _getPowerGeometry(
+        arrow,
+        power.value,
+        power.side,
+        coordinates,
+        scale,
+        linePaint.color,
+        isTiles: isTiles,
+      );
+
+      if (geometry == null) continue;
+
+      final lineEnd = _getCircleEdgePoint(geometry.circleCenter, geometry.circleRadius, geometry.side);
+
+      canvas.drawLine(geometry.position, lineEnd, connectorPaint);
+    }
+  }
+
   void _drawPowers(
     Canvas canvas,
     Arrow arrow,
@@ -243,65 +360,15 @@ class ArrowsPainter {
 
     if (coordinates.length < 2) return;
 
-    final sides = arrow.sides;
-    final sidesParts = sides?.split(':') ?? ['', ''];
-    final sourceSide = sidesParts.isNotEmpty ? sidesParts[0] : '';
-    final targetSide = sidesParts.length > 1 ? sidesParts[1] : '';
-
-    final double padding = 14.0 * scale;
-    final double fontSize = 8.0 * scale;
-    final double circlePadding = 1.0 * scale;
-
     for (final power in powers) {
       if (power.value.isEmpty) continue;
 
-      final textStyle = TextStyle(color: color, fontSize: fontSize, fontWeight: FontWeight.w500);
+      final geometry = _getPowerGeometry(arrow, power.value, power.side, coordinates, scale, color, isTiles: isTiles);
+      if (geometry == null) continue;
 
-      final textSpan = TextSpan(text: power.value, style: textStyle);
-      final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
-      textPainter.layout();
-
-      Offset position;
-      String currentSide;
-
-      if (power.side == '-1') {
-        // Начало связи (source)
-        position = isTiles ? coordinates.first * scale : coordinates.first;
-        currentSide = sourceSide;
-      } else {
-        // Конец связи (target)
-        position = isTiles ? coordinates.last * scale : coordinates.last;
-        currentSide = targetSide;
-      }
-
-      // Вычисляем размер кружка (радиус = половина максимального размера текста + отступ)
-      final circleRadius =
-          (textPainter.width > textPainter.height ? textPainter.width / 2 : textPainter.height / 2) + circlePadding;
-
-      // Вычисляем позицию центра кружка в зависимости от стороны
-      Offset circleCenter;
-
-      switch (currentSide) {
-        case 'left':
-          // Связь выходит/входит слева - кружок слева от точки
-          circleCenter = Offset(position.dx - padding - circleRadius, position.dy);
-          break;
-        case 'right':
-          // Связь выходит/входит справа - кружок справа от точки
-          circleCenter = Offset(position.dx + padding + circleRadius, position.dy);
-          break;
-        case 'top':
-          // Связь выходит/входит сверху - кружок над точкой
-          circleCenter = Offset(position.dx, position.dy - padding - circleRadius);
-          break;
-        case 'bottom':
-          // Связь выходит/входит снизу - кружок под точкой
-          circleCenter = Offset(position.dx, position.dy + padding + circleRadius);
-          break;
-        default:
-          // Fallback: центрируем по вертикали
-          circleCenter = Offset(position.dx + padding + circleRadius, position.dy);
-      }
+      final textPainter = geometry.textPainter;
+      final circleRadius = geometry.circleRadius;
+      final circleCenter = geometry.circleCenter;
 
       // Рисуем белый кружок с границей
       final circleFillPaint = Paint()
@@ -321,6 +388,112 @@ class ArrowsPainter {
 
       textPainter.paint(canvas, textPosition);
       textPainter.dispose();
+    }
+  }
+
+  ({TextPainter textPainter, Offset position, String side, double circleRadius, Offset circleCenter})?
+  _getPowerGeometry(
+    Arrow arrow,
+    String powerValue,
+    String powerSide,
+    List<Offset> coordinates,
+    double scale,
+    Color color, {
+    bool isTiles = false,
+  }) {
+    if (coordinates.length < 2 || powerValue.isEmpty) {
+      return null;
+    }
+
+    final sides = arrow.sides;
+    final sidesParts = sides?.split(':') ?? ['', ''];
+    final sourceSide = sidesParts.isNotEmpty ? sidesParts[0] : '';
+    final targetSide = sidesParts.length > 1 ? sidesParts[1] : '';
+
+    final double padding = 14.0 * scale;
+    final double fontSize = 8.0 * scale;
+    final double circlePadding = 1.0 * scale;
+
+    final textStyle = TextStyle(color: color, fontSize: fontSize, fontWeight: FontWeight.w500);
+    final textSpan = TextSpan(text: powerValue, style: textStyle);
+    final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
+    textPainter.layout();
+
+    late final Offset position;
+    late final String currentSide;
+
+    if (powerSide == '-1') {
+      position = isTiles ? coordinates.first * scale : coordinates.first;
+      currentSide = sourceSide;
+    } else {
+      position = isTiles ? coordinates.last * scale : coordinates.last;
+      currentSide = targetSide;
+    }
+
+    final circleRadius =
+        (textPainter.width > textPainter.height ? textPainter.width / 2 : textPainter.height / 2) + circlePadding;
+
+    late final Offset circleCenter;
+    switch (currentSide) {
+      case 'left':
+        circleCenter = Offset(position.dx - padding - circleRadius, position.dy);
+        break;
+      case 'right':
+        circleCenter = Offset(position.dx + padding + circleRadius, position.dy);
+        break;
+      case 'top':
+        circleCenter = Offset(position.dx, position.dy - padding - circleRadius);
+        break;
+      case 'bottom':
+        circleCenter = Offset(position.dx, position.dy + padding + circleRadius);
+        break;
+      default:
+        circleCenter = Offset(position.dx + padding + circleRadius, position.dy);
+    }
+
+    return (
+      textPainter: textPainter,
+      position: position,
+      side: currentSide,
+      circleRadius: circleRadius,
+      circleCenter: circleCenter,
+    );
+  }
+
+  ({TextPainter textPainter, Offset position, String side, double circleRadius, Offset circleCenter})?
+  _getDefaultTargetPowerGeometry(
+    Arrow arrow,
+    List<Offset> coordinates,
+    double scale,
+    Color color, {
+    bool isTiles = false,
+  }) {
+    return _getPowerGeometry(arrow, 'M', '1', coordinates, scale, color, isTiles: isTiles);
+  }
+
+  ({TextPainter textPainter, Offset position, String side, double circleRadius, Offset circleCenter})?
+  _getDefaultSourcePowerGeometry(
+    Arrow arrow,
+    List<Offset> coordinates,
+    double scale,
+    Color color, {
+    bool isTiles = false,
+  }) {
+    return _getPowerGeometry(arrow, 'M', '-1', coordinates, scale, color, isTiles: isTiles);
+  }
+
+  Offset _getCircleEdgePoint(Offset circleCenter, double circleRadius, String side) {
+    switch (side) {
+      case 'left':
+        return Offset(circleCenter.dx - circleRadius, circleCenter.dy);
+      case 'right':
+        return Offset(circleCenter.dx + circleRadius, circleCenter.dy);
+      case 'top':
+        return Offset(circleCenter.dx, circleCenter.dy - circleRadius);
+      case 'bottom':
+        return Offset(circleCenter.dx, circleCenter.dy + circleRadius);
+      default:
+        return Offset(circleCenter.dx + circleRadius, circleCenter.dy);
     }
   }
 

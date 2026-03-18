@@ -36,6 +36,8 @@ class EditorState {
           if (value is bool) showPerformance = value;
         case 'showThumbnail':
           if (value is bool) showThumbnail = value;
+        case 'onlyConnectors':
+          if (value is bool) onlyConnectors = value;
       }
     });
   }
@@ -192,6 +194,9 @@ class EditorState {
 
   /// Отображать ли границы тайлов (для отладки).
   bool showTileBorders = true;
+
+  /// Отображать только коннекторы.
+  bool onlyConnectors = true;
 
   // ---------------------------------------------------------------------------
   // Прочие флаги состояния

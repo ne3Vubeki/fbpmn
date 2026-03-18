@@ -28,6 +28,7 @@ class ArrowManager extends Manager {
   double get halfSizeLimit => 30;
   double get defaultArrowRadius => 10;
   double get arrowPathRectOffset => 5;
+  bool get onlyConnectors => state.onlyConnectors;
 
   ArrowManager({required this.state, required this.schemaManager});
 
