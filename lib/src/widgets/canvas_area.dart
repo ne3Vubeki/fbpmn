@@ -11,6 +11,7 @@ import '../services/input_handler.dart';
 import '../services/node_manager.dart';
 import '../services/scroll_handler.dart';
 import 'arrow_created.dart';
+import 'arrow_hover.dart';
 import 'arrows_selected.dart';
 import 'cursor_layer.dart';
 import 'hierarchical_grid.dart';
@@ -123,9 +124,11 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                       widget.state.mousePosition = event.localPosition;
                     }
                     widget.nodeManager.onHover(event.localPosition);
+                    widget.arrowManager.onHover(event.localPosition, widget.tileManager);
                   },
                   onExit: (_) {
                     widget.nodeManager.clearHoveredNode();
+                    widget.arrowManager.clearHoveredArrow();
                   },
                   child: Listener(
                   onPointerSignal: (pointerSignal) {
@@ -194,6 +197,11 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         NodeHover(
                           state: widget.state,
                           nodeManager: widget.nodeManager,
+                        ),
+
+                        ArrowHover(
+                          state: widget.state,
+                          arrowManager: widget.arrowManager,
                         ),
 
                         // Отображение выделенного узла на верхнем слое

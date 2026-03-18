@@ -5,6 +5,7 @@ import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
 import 'package:fbpmn/src/services/event_service.dart';
 import 'package:fbpmn/src/services/shema_manager.dart';
+import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/cupertino.dart';
@@ -130,14 +131,8 @@ class ArrowManager extends Manager {
     }
   }
 
-  ({Arrow arrow, Rect rect})? findArrowAtWorldPosition(Offset worldPos) {
-    final tileWorldSize = EditorConfig.tileSize.toDouble();
-    final gridX = (worldPos.dx / tileWorldSize).floor();
-    final gridY = (worldPos.dy / tileWorldSize).floor();
-    final tileLeft = gridX * tileWorldSize;
-    final tileTop = gridY * tileWorldSize;
-    final tileId = '${tileLeft.toInt()}_${tileTop.toInt()}';
-    final tile = state.imageTiles[tileId];
+  ({Arrow arrow, Rect rect})? findArrowAtWorldPosition(Offset worldPos, TileManager tileManager) {
+    final tile = tileManager.getTileAtWorldPosition(worldPos);
     if (tile == null) {
       return null;
     }
@@ -165,6 +160,33 @@ class ArrowManager extends Manager {
     }
 
     return null;
+  }
+
+  void onHover(Offset localPosition, TileManager tileManager) {
+    final worldPos = Utils.screenToWorld(localPosition, state);
+    final foundArrow = findArrowAtWorldPosition(worldPos, tileManager);
+    final selectedArrow = state.arrowsSelected.isNotEmpty ? state.arrowsSelected.first : null;
+    final nextHoveredArrow = foundArrow?.arrow;
+
+    if (nextHoveredArrow?.id == selectedArrow?.id) {
+      if (state.hoveredArrow != null) {
+        state.hoveredArrow = null;
+        onStateUpdate();
+      }
+      return;
+    }
+
+    if (state.hoveredArrow?.id != nextHoveredArrow?.id) {
+      state.hoveredArrow = nextHoveredArrow;
+      onStateUpdate();
+    }
+  }
+
+  void clearHoveredArrow() {
+    if (state.hoveredArrow != null) {
+      state.hoveredArrow = null;
+      onStateUpdate();
+    }
   }
 
   /// Расчет точек соединения для определения стороны

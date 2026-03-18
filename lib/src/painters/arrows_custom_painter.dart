@@ -13,6 +13,7 @@ class ArrowsCustomPainter extends CustomPainter {
   final double areaNodes;
   /// Упрощённый режим отрисовки (только линии без начальных/конечных объектов) для Cola анимации
   final bool simplifiedMode;
+  final bool hoverMode;
 
   ArrowsCustomPainter({
     required this.arrows,
@@ -23,6 +24,7 @@ class ArrowsCustomPainter extends CustomPainter {
     required this.arrowManager,
     required this.areaNodes,
     this.simplifiedMode = false,
+    this.hoverMode = false,
   });
 
   @override
@@ -38,7 +40,9 @@ class ArrowsCustomPainter extends CustomPainter {
 
     // Рисуем стрелки
     final painter = ArrowsPainter(arrows: arrows, arrowManager: arrowManager);
-    if (simplifiedMode) {
+    if (hoverMode) {
+      painter.paintHover(canvas, scale, arrowsRect);
+    } else if (simplifiedMode) {
       painter.paintSimplified(canvas, scale, arrowsRect);
     } else {
       painter.paint(canvas, scale, arrowsRect);

@@ -81,6 +81,41 @@ class ArrowsPainter {
     }
   }
 
+  void paintHover(Canvas canvas, double scale, Rect arrowsRect) {
+    final pathWidth = EditorConfig.arrowSelectedPathWidth * scale;
+    final lineWidth = EditorConfig.arrowSelectedWidth * scale;
+
+    final linePaint = Paint()
+      ..color = Colors.blue //Colors.yellowAccent.withValues(alpha: 0.5)
+      ..strokeWidth = pathWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
+
+    final strokePaint = Paint()
+      ..color = Colors.blue //Colors.yellowAccent.withValues(alpha: 0.5)
+      ..strokeWidth = lineWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
+
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    for (final arrow in arrows) {
+      if (arrow == null || arrow.source == arrow.target) continue;
+
+      final hoverArrow = arrow.copyWith();
+      final pathResult = arrowManager.getArrowPathWithSelectedNodes(hoverArrow, arrowsRect);
+      final paths = pathResult.paths;
+
+      _drawPaths(canvas, hoverArrow, scale, paths, pathResult.coordinates, linePaint, fillPaint, strokePaint, Colors.blue); //Colors.yellowAccent.withValues(alpha: 0.5));
+    }
+  }
+
   void paintCreated(Canvas canvas, double scale) {
     final arrow = arrowManager.state.arrowCreated;
     if (arrow == null) return;
@@ -127,18 +162,7 @@ class ArrowsPainter {
       drawEndArrow: false,
     );
 
-    final sourcePoint = pathResult.coordinates.first;
-    final sourceCirclePaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-
-    canvas.drawCircle(sourcePoint, 5 * scale, sourceCirclePaint);
-
-    if (arrow.target.isNotEmpty) {
-      final targetPoint = pathResult.coordinates.last;
-      canvas.drawCircle(targetPoint, 5 * scale, sourceCirclePaint);
-    }
+    _drawEndpointCircles(canvas, pathResult.coordinates, scale, Colors.red, drawTarget: arrow.target.isNotEmpty);
   }
 
   /// Упрощённая отрисовка стрелок (только линии без начальных/конечных объектов)
@@ -150,11 +174,6 @@ class ArrowsPainter {
       ..strokeWidth = pathWidth
       ..style = PaintingStyle.stroke
       ..isAntiAlias = true;
-
-    // Удаляем все коннекты из выбранных узлов для повторного расчета
-    // for (var node in arrowManager.state.nodesSelected) {
-    //   node?.connections?.removeAll();
-    // }
 
     // Рисуем только линии стрелок
     for (final arrow in arrows) {
@@ -302,6 +321,29 @@ class ArrowsPainter {
 
       textPainter.paint(canvas, textPosition);
       textPainter.dispose();
+    }
+  }
+
+  void _drawEndpointCircles(
+    Canvas canvas,
+    List<Offset> coordinates,
+    double scale,
+    Color color, {
+    bool drawTarget = true,
+  }) {
+    if (coordinates.isEmpty) {
+      return;
+    }
+
+    final circlePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    canvas.drawCircle(coordinates.first, 5 * scale, circlePaint);
+
+    if (drawTarget && coordinates.length > 1) {
+      canvas.drawCircle(coordinates.last, 5 * scale, circlePaint);
     }
   }
 }

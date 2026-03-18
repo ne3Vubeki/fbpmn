@@ -161,6 +161,9 @@ class EditorState {
   /// Множество выделенных стрелок.
   final Set<Arrow?> arrowsSelected = {};
 
+  /// Стрелка под курсором.
+  Arrow? hoveredArrow;
+
   /// Создаваемая стрелка.
   Arrow? arrowCreated;
 

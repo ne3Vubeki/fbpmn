@@ -1,5 +1,6 @@
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/models/table.node.dart';
+import 'package:fbpmn/src/widgets/state_widget.dart';
 import 'package:flutter/material.dart';
 
 import '../editor_state.dart';
@@ -15,7 +16,7 @@ class NodeHover extends StatefulWidget {
   State<NodeHover> createState() => _NodeHoverState();
 }
 
-class _NodeHoverState extends State<NodeHover> {
+class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
   final Map<String, bool> isHovered = {};
 
   TableNode? _findNodeById(String nodeId, List<TableNode> nodes) {
@@ -202,9 +203,7 @@ class _NodeHoverState extends State<NodeHover> {
   void initState() {
     super.initState();
     widget.nodeManager.setOnStateUpdate('NodeHover', () {
-      if (mounted) {
-        setState(() {});
-      }
+      timeoutSetState();
     });
   }
 
