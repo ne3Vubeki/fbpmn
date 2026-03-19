@@ -223,9 +223,9 @@ class EditorState {
   /// Отображать ли панель производительности (FPS и прочее).
   bool showPerformance = false;
 
-  bool autoLayoutUseCola = false;
+  bool autoLayoutUseCola = true;
 
-  String autoLayoutPreset = AutoLayoutPresetId.aggressiveDense;
+  String autoLayoutPreset = AutoLayoutPresetId.current;
 
   AutoLayoutSettings get autoLayoutSettings => AutoLayoutPresets.byId(autoLayoutPreset);
 }

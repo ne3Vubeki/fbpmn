@@ -60,9 +60,10 @@ class EventService {
   api(String action, Map<String, dynamic>? data) async {
     switch (action) {
       /// События запуска алгоритмов
+      case 'run_occupancy':
       case 'run_cola':
         await colaLayoutService.runAutoLayout();
-        appEvent?.emitToJs(action: 'finish_cola');
+        appEvent?.emitToJs(action: 'finish_$action');
         break;
       case 'thunbnail_on':
         zoomManager.onThumbnail();
@@ -121,6 +122,15 @@ class EventService {
                 break;
               case 'showThumbnail':
                 entry.value == true ? zoomManager.onThumbnail() : zoomManager.offThumbnail();
+                break;
+              case 'onlyConnectors':
+                entry.value == true ? tileManager.onOnlyConnectors() : tileManager.offOnlyConnectors();
+                break;
+              case 'autoLayoutUseCola':
+                state.autoLayoutUseCola = entry.value;
+                break;
+              case 'autoLayoutPreset':
+                state.autoLayoutPreset = entry.value;
                 break;
             }
           }

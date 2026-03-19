@@ -432,7 +432,12 @@ class ColaLayoutService extends Manager {
       _startPositionAnimation();
     }
 
-    await _positionAnimationCompleter!.future;
+    final positionAnimationCompleter = _positionAnimationCompleter;
+    if (positionAnimationCompleter == null) {
+      return;
+    }
+
+    await positionAnimationCompleter.future;
   }
 
   void _applyTargetPositionsImmediately() {
