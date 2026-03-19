@@ -632,13 +632,6 @@ class ColaLayoutService extends Manager {
       }
     }
 
-    occupancy = _buildOccupancyMap();
-    stats = _collectCollisionStats(occupancy);
-
-    print(
-      'Cola repair: iterations=$executedIterations, moved=$movedNodes, remaining=${stats.hardCollisionNodeCount}',
-    );
-
     return _RepairReport(
       iterations: executedIterations,
       movedNodes: movedNodes,
@@ -740,7 +733,7 @@ class ColaLayoutService extends Manager {
   }) {
     final node = _nodesList[nodeIndex];
     final currentPosition = _targetPositions[nodeIndex] ?? node.aPosition ?? Offset.zero;
-    final baseStep = max(node.size.width, node.size.height) / 2 + _nodeClearance(node) + 20;
+    final baseStep = max(18.0, (max(node.size.width, node.size.height) / 2 + _nodeClearance(node) + 20) * 0.4);
     _CandidateResult? bestResult;
     final prioritizedAngles = _buildPrioritizedAngles(node, currentPosition);
 
@@ -785,8 +778,8 @@ class ColaLayoutService extends Manager {
       currentPosition.dx + node.size.width / 2,
       currentPosition.dy + node.size.height / 2,
     );
-    final toCenter = _distributionCenter - nodeCenter;
-    final baseAngle = toCenter.distance <= 0.001 ? 0.0 : atan2(toCenter.dy, toCenter.dx);
+    final fromCenter = nodeCenter - _distributionCenter;
+    final baseAngle = fromCenter.distance <= 0.001 ? 0.0 : atan2(fromCenter.dy, fromCenter.dx);
 
     final prioritized = <double>[];
     final seen = <int>{};

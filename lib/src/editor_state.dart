@@ -44,6 +44,8 @@ class EditorState {
           if (value is bool) autoLayoutUseCola = value;
         case 'autoLayoutPreset':
           if (value is String) autoLayoutPreset = value;
+        case 'selectAndHide':
+          if (value is bool) selectAndHide = value;
       }
     });
   }
@@ -203,6 +205,9 @@ class EditorState {
 
   /// Отображать только коннекторы.
   bool onlyConnectors = false;
+
+  /// Режим который при выборе узла скрывает остальные не подсвеченные узлы и связи
+  bool selectAndHide = false;
 
   // ---------------------------------------------------------------------------
   // Прочие флаги состояния
