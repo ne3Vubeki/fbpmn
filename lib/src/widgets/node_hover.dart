@@ -1,4 +1,5 @@
 import 'package:fbpmn/src/services/node_manager.dart';
+import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/widgets/state_widget.dart';
 import 'package:flutter/material.dart';
@@ -9,8 +10,9 @@ import '../utils/editor_config.dart';
 class NodeHover extends StatefulWidget {
   final EditorState state;
   final NodeManager nodeManager;
+  final ScrollHandler scrollHandler;
 
-  const NodeHover({super.key, required this.state, required this.nodeManager});
+  const NodeHover({super.key, required this.state, required this.nodeManager, required this.scrollHandler});
 
   @override
   State<NodeHover> createState() => _NodeHoverState();
@@ -203,6 +205,9 @@ class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
   void initState() {
     super.initState();
     widget.nodeManager.setOnStateUpdate('NodeHover', () {
+      timeoutSetState();
+    });
+    widget.scrollHandler.setOnStateUpdate('NodeHover', () {
       timeoutSetState();
     });
   }
