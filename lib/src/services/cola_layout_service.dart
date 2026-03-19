@@ -208,6 +208,16 @@ class ColaLayoutService extends Manager {
     // Включаем предотвращение перекрытий — это создаёт силу отталкивания
     _layout!.setAvoidOverlaps(true);
 
+    // Ограничиваем раскладку текущими динамическими размерами холста
+    final layoutBounds = _getDynamicCanvasBounds();
+    _layout!.addPageBoundary(
+      xMin: layoutBounds.left,
+      xMax: layoutBounds.right,
+      yMin: layoutBounds.top,
+      yMax: layoutBounds.bottom,
+      weight: 100,
+    );
+
     // Настраиваем параметры сходимости
     _layout!.setConvergence(tolerance: 0.001, maxIterations: 300);
 
@@ -286,7 +296,10 @@ class ColaLayoutService extends Manager {
 
       // Позиция из Cola - это центр узла, преобразуем в левый верхний угол
       // Добавляем коррекцию для сохранения центра масс
-      final newWorldPosition = Offset(pos.x + offsetX - node.size.width / 2, pos.y + offsetY - node.size.height / 2);
+      final newWorldPosition = _constrainNodeToCanvas(
+        node,
+        Offset(pos.x + offsetX - node.size.width / 2, pos.y + offsetY - node.size.height / 2),
+      );
 
       _targetPositions[i] = newWorldPosition;
 
@@ -543,8 +556,11 @@ class ColaLayoutService extends Manager {
         final displacement = entry.value;
         final currentPos = _targetPositions[nodeIndex];
         if (currentPos == null) continue;
-        
-        final newPos = Offset(currentPos.dx + displacement.dx, currentPos.dy + displacement.dy);
+
+        final newPos = _constrainNodeToCanvas(
+          _nodesList[nodeIndex],
+          Offset(currentPos.dx + displacement.dx, currentPos.dy + displacement.dy),
+        );
         _targetPositions[nodeIndex] = newPos;
         _initialPositions[nodeIndex] = newPos;
       }
@@ -760,8 +776,11 @@ class ColaLayoutService extends Manager {
         final displacement = entry.value;
         final currentPos = _targetPositions[nodeIndex];
         if (currentPos == null) continue;
-        
-        final newPos = Offset(currentPos.dx + displacement.dx, currentPos.dy + displacement.dy);
+
+        final newPos = _constrainNodeToCanvas(
+          _nodesList[nodeIndex],
+          Offset(currentPos.dx + displacement.dx, currentPos.dy + displacement.dy),
+        );
         _targetPositions[nodeIndex] = newPos;
         _initialPositions[nodeIndex] = newPos;
       }
@@ -801,6 +820,26 @@ class ColaLayoutService extends Manager {
       hasOverlap: hasOverlap,
       overlapX: hasOverlap ? overlapX : 0,
       overlapY: hasOverlap ? overlapY : 0,
+    );
+  }
+
+  Rect _getDynamicCanvasBounds() {
+    return Rect.fromLTWH(
+      0,
+      0,
+      scrollHandler.dynamicCanvasWidth,
+      scrollHandler.dynamicCanvasHeight,
+    );
+  }
+
+  Offset _constrainNodeToCanvas(TableNode node, Offset worldPosition) {
+    final bounds = _getDynamicCanvasBounds();
+    final maxX = max(bounds.left, bounds.right - node.size.width);
+    final maxY = max(bounds.top, bounds.bottom - node.size.height);
+
+    return Offset(
+      worldPosition.dx.clamp(bounds.left, maxX),
+      worldPosition.dy.clamp(bounds.top, maxY),
     );
   }
 

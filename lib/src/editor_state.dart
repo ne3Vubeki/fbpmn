@@ -196,7 +196,7 @@ class EditorState {
   bool showTileBorders = true;
 
   /// Отображать только коннекторы.
-  bool onlyConnectors = true;
+  bool onlyConnectors = false;
 
   // ---------------------------------------------------------------------------
   // Прочие флаги состояния
