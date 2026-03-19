@@ -9,6 +9,7 @@ import 'package:fbpmn/src/services/manager.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
+import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 
 class ColaLayoutService extends Manager {
@@ -414,13 +415,9 @@ class ColaLayoutService extends Manager {
     // Пересчитываем пути связей с НОВЫМИ позициями
     arrowManager.recalculateSelectedArrows();
 
-    // Проверяем, пересекают ли связи узлы
-    final hasEdgeIntersections = _checkEdgeNodeIntersections();
+    final repairReport = _repairLayoutCollisions(maxIterations: 8);
 
-    // Проверяем, пересекаются ли узлы друг с другом (минимальный зазор 40px)
-    final hasNodeOverlaps = _checkNodeOverlaps(minGap: 40.0);
-
-    if ((hasEdgeIntersections || hasNodeOverlaps) && _currentIdealEdgeLength < 800) {
+    if (repairReport.hasHardCollisions && _currentIdealEdgeLength < 800) {
       // Увеличиваем idealEdgeLength и перезапускаем
       _currentIdealEdgeLength += 75;
       // Освобождаем текущий layout
@@ -471,356 +468,313 @@ class ColaLayoutService extends Manager {
     }
   }
 
-  /// Проверяет пересечение связей с узлами и смещает узлы
-  /// Логика: для каждого узла с пересечениями ищем оптимальный угол смещения (0°-360° с шагом 10°)
-  /// от центра узла, проверяя будущую позицию на отсутствие пересечений
-  bool _checkEdgeNodeIntersections() {
-    // Строим маппинг: id ребёнка -> id родителя
-    final Map<String, String> childToParent = {};
-    for (final node in _nodesList) {
-      if (node.children != null && node.children!.isNotEmpty) {
-        for (final child in node.children!) {
-          childToParent[child.id] = node.id;
+  _RepairReport _repairLayoutCollisions({required int maxIterations}) {
+    var occupancy = _buildOccupancyMap();
+    var stats = _collectCollisionStats(occupancy);
+
+    if (!stats.hasHardCollisions) {
+      return _RepairReport(iterations: 0, movedNodes: 0, hasHardCollisions: false);
+    }
+
+    int movedNodes = 0;
+    int executedIterations = 0;
+
+    for (int iteration = 0; iteration < maxIterations; iteration++) {
+      occupancy = _buildOccupancyMap();
+      stats = _collectCollisionStats(occupancy);
+      if (!stats.hasHardCollisions) {
+        break;
+      }
+
+      executedIterations = iteration + 1;
+      bool movedInIteration = false;
+      final nodeOrder = stats.nodeScores.entries.toList()
+        ..sort((a, b) => b.value.totalScore.compareTo(a.value.totalScore));
+
+      for (final entry in nodeOrder) {
+        occupancy = _buildOccupancyMap();
+        final currentStats = _collectCollisionStats(occupancy);
+        final currentScore = currentStats.nodeScores[entry.key];
+        if (currentScore == null || !currentScore.hasHardCollisions) {
+          continue;
         }
+
+        final bestCandidate = _findBestPositionByRings(
+          nodeIndex: entry.key,
+          occupancy: occupancy,
+          currentScore: currentScore,
+        );
+
+        if (bestCandidate == null) {
+          continue;
+        }
+
+        _targetPositions[entry.key] = bestCandidate.position;
+        _initialPositions[entry.key] = bestCandidate.position;
+        movedNodes++;
+        movedInIteration = true;
+
+        final node = _nodesList[entry.key];
+        nodeManager.updateNodePositionForLayout(node, bestCandidate.position);
+        _animatedPositions[entry.key] = bestCandidate.position;
+        arrowManager.recalculateSelectedArrows();
+      }
+
+      occupancy = _buildOccupancyMap();
+      stats = _collectCollisionStats(occupancy);
+      if (!movedInIteration || !stats.hasHardCollisions) {
+        break;
       }
     }
 
-    // Собираем все сегменты связей для проверки пересечений
-    final List<_EdgeSegment> allEdgeSegments = [];
+    occupancy = _buildOccupancyMap();
+    stats = _collectCollisionStats(occupancy);
+
+    print(
+      'Cola repair: iterations=$executedIterations, moved=$movedNodes, remaining=${stats.hardCollisionNodeCount}',
+    );
+
+    return _RepairReport(
+      iterations: executedIterations,
+      movedNodes: movedNodes,
+      hasHardCollisions: stats.hasHardCollisions,
+    );
+  }
+
+  _OccupancyMap _buildOccupancyMap() {
+    final childToParent = _buildChildToParentMap();
+    final nodeRects = <_OccupiedNodeRect>[];
+    final arrowRects = <_OccupiedArrowRect>[];
+
+    for (int i = 0; i < _nodesList.length; i++) {
+      final node = _nodesList[i];
+      final position = _targetPositions[i] ?? node.aPosition;
+      if (position == null) {
+        continue;
+      }
+
+      nodeRects.add(_OccupiedNodeRect(
+        nodeIndex: i,
+        rect: _buildNodeOccupiedRect(node, position),
+      ));
+    }
+
     for (final arrow in state.arrowsSelected) {
       if (arrow == null) continue;
-      final virtualSource = childToParent[arrow.source] ?? arrow.source;
-      final virtualTarget = childToParent[arrow.target] ?? arrow.target;
-      final sourceIndex = _nodeIndexMap[virtualSource];
-      final targetIndex = _nodeIndexMap[virtualTarget];
+
+      final incidentNodeIndices = <int>{};
+      final sourceId = childToParent[arrow.source] ?? arrow.source;
+      final targetId = childToParent[arrow.target] ?? arrow.target;
+      final sourceIndex = _nodeIndexMap[sourceId];
+      final targetIndex = _nodeIndexMap[targetId];
+      if (sourceIndex != null) incidentNodeIndices.add(sourceIndex);
+      if (targetIndex != null) incidentNodeIndices.add(targetIndex);
+
+      final rects = arrow.rects;
+      if (rects != null && rects.isNotEmpty) {
+        for (final rect in rects) {
+          arrowRects.add(_OccupiedArrowRect(
+            rect: _expandRect(rect, 8),
+            incidentNodeIndices: incidentNodeIndices,
+          ));
+        }
+        continue;
+      }
+
       final coordinates = arrow.coordinates;
       if (coordinates == null || coordinates.length < 2) continue;
-      
-      for (int seg = 0; seg < coordinates.length - 1; seg++) {
-        allEdgeSegments.add(_EdgeSegment(
-          p1: coordinates[seg],
-          p2: coordinates[seg + 1],
-          sourceIndex: sourceIndex,
-          targetIndex: targetIndex,
+      for (int i = 0; i < coordinates.length - 1; i++) {
+        final p1 = coordinates[i];
+        final p2 = coordinates[i + 1];
+        arrowRects.add(_OccupiedArrowRect(
+          rect: _segmentToRect(p1, p2, 12),
+          incidentNodeIndices: incidentNodeIndices,
         ));
       }
     }
 
-    // Находим узлы с пересечениями и вычисляем оптимальное смещение
-    final Map<int, Offset> totalDisplacements = {};
-    
+    return _OccupancyMap(nodeRects: nodeRects, arrowRects: arrowRects);
+  }
+
+  Map<String, String> _buildChildToParentMap() {
+    final childToParent = <String, String>{};
+    for (final node in _nodesList) {
+      if (node.children == null || node.children!.isEmpty) continue;
+      for (final child in node.children!) {
+        childToParent[child.id] = node.id;
+      }
+    }
+    return childToParent;
+  }
+
+  _CollisionStats _collectCollisionStats(_OccupancyMap occupancy) {
+    final nodeScores = <int, _CandidateScore>{};
     for (int i = 0; i < _nodesList.length; i++) {
       final node = _nodesList[i];
-      final nodePos = _targetPositions[i] ?? node.aPosition;
-      if (nodePos == null) continue;
-      
-      final minGap = (node.qType == 'group' || node.qType == 'swimlane') ? 30.0 : 10.0;
-      
-      // Проверяем текущую позицию на пересечения
-      final currentIntersections = _countEdgeIntersections(i, nodePos, node.size, minGap, allEdgeSegments);
-      if (currentIntersections == 0) continue;
-      
-      // Вычисляем необходимое расстояние смещения
-      final moveDistance = (node.size.width + node.size.height) / 2 + minGap + 10;
-      
-      // Ищем оптимальный угол смещения (0°-360° с шагом 10°)
-      Offset bestDisplacement = Offset.zero;
-      int bestIntersections = currentIntersections;
-      
-      for (int angleDeg = 0; angleDeg < 360; angleDeg += 10) {
-        final angleRad = angleDeg * pi / 180;
-        final dx = cos(angleRad) * moveDistance;
-        final dy = sin(angleRad) * moveDistance;
-        final testPos = Offset(nodePos.dx + dx, nodePos.dy + dy);
-        
-        final testIntersections = _countEdgeIntersections(i, testPos, node.size, minGap, allEdgeSegments);
-        
-        if (testIntersections < bestIntersections) {
-          bestIntersections = testIntersections;
-          bestDisplacement = Offset(dx, dy);
-          
-          // Если нашли позицию без пересечений — сразу берём её
-          if (testIntersections == 0) break;
-        }
-      }
-      
-      if (bestDisplacement != Offset.zero) {
-        totalDisplacements[i] = bestDisplacement;
-      }
-    }
-    
-    // Применяем смещения
-    if (totalDisplacements.isNotEmpty) {
-      for (final entry in totalDisplacements.entries) {
-        final nodeIndex = entry.key;
-        final displacement = entry.value;
-        final currentPos = _targetPositions[nodeIndex];
-        if (currentPos == null) continue;
-
-        final newPos = _constrainNodeToCanvas(
-          _nodesList[nodeIndex],
-          Offset(currentPos.dx + displacement.dx, currentPos.dy + displacement.dy),
-        );
-        _targetPositions[nodeIndex] = newPos;
-        _initialPositions[nodeIndex] = newPos;
-      }
-      return true;
-    }
-    
-    return false;
-  }
-  
-  /// Подсчитывает количество пересечений узла с сегментами связей
-  int _countEdgeIntersections(
-    int nodeIndex,
-    Offset nodePos,
-    Size nodeSize,
-    double minGap,
-    List<_EdgeSegment> edgeSegments,
-  ) {
-    final nodeRect = Rect.fromLTWH(
-      nodePos.dx - minGap,
-      nodePos.dy - minGap,
-      nodeSize.width + minGap * 2,
-      nodeSize.height + minGap * 2,
-    );
-    
-    int count = 0;
-    for (final segment in edgeSegments) {
-      // Пропускаем связи, где этот узел является source или target
-      if (segment.sourceIndex == nodeIndex || segment.targetIndex == nodeIndex) continue;
-      
-      if (_lineIntersectsRect(segment.p1, segment.p2, nodeRect)) {
-        count++;
-      }
-    }
-    return count;
-  }
-
-  /// Проверяет, пересекает ли отрезок прямоугольник
-  bool _lineIntersectsRect(Offset p1, Offset p2, Rect rect) {
-    // Проверяем, находятся ли обе точки с одной стороны прямоугольника
-    if (p1.dx < rect.left && p2.dx < rect.left) return false;
-    if (p1.dx > rect.right && p2.dx > rect.right) return false;
-    if (p1.dy < rect.top && p2.dy < rect.top) return false;
-    if (p1.dy > rect.bottom && p2.dy > rect.bottom) return false;
-
-    // Проверяем пересечение с каждой стороной прямоугольника
-    final topLeft = Offset(rect.left, rect.top);
-    final topRight = Offset(rect.right, rect.top);
-    final bottomLeft = Offset(rect.left, rect.bottom);
-    final bottomRight = Offset(rect.right, rect.bottom);
-
-    if (_segmentsIntersect(p1, p2, topLeft, topRight)) return true;
-    if (_segmentsIntersect(p1, p2, topRight, bottomRight)) return true;
-    if (_segmentsIntersect(p1, p2, bottomRight, bottomLeft)) return true;
-    if (_segmentsIntersect(p1, p2, bottomLeft, topLeft)) return true;
-
-    // Проверяем, находится ли одна из точек внутри прямоугольника
-    if (rect.contains(p1) || rect.contains(p2)) return true;
-
-    return false;
-  }
-
-  /// Проверяет пересечение двух отрезков
-  bool _segmentsIntersect(Offset a1, Offset a2, Offset b1, Offset b2) {
-    final d1 = _crossProduct(b2 - b1, a1 - b1);
-    final d2 = _crossProduct(b2 - b1, a2 - b1);
-    final d3 = _crossProduct(a2 - a1, b1 - a1);
-    final d4 = _crossProduct(a2 - a1, b2 - a1);
-
-    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
-      return true;
-    }
-
-    // Проверяем коллинеарные случаи
-    if (d1 == 0 && _onSegment(b1, a1, b2)) return true;
-    if (d2 == 0 && _onSegment(b1, a2, b2)) return true;
-    if (d3 == 0 && _onSegment(a1, b1, a2)) return true;
-    if (d4 == 0 && _onSegment(a1, b2, a2)) return true;
-
-    return false;
-  }
-
-  /// Векторное произведение
-  double _crossProduct(Offset a, Offset b) {
-    return a.dx * b.dy - a.dy * b.dx;
-  }
-
-  /// Проверяет, лежит ли точка q на отрезке pr
-  bool _onSegment(Offset p, Offset q, Offset r) {
-    return q.dx <= (p.dx > r.dx ? p.dx : r.dx) &&
-        q.dx >= (p.dx < r.dx ? p.dx : r.dx) &&
-        q.dy <= (p.dy > r.dy ? p.dy : r.dy) &&
-        q.dy >= (p.dy < r.dy ? p.dy : r.dy);
-  }
-
-  /// Проверяет пересечение узлов друг с другом и смещает их
-  /// Логика: для каждой пары пересекающихся узлов ищем оптимальный угол смещения
-  /// в сегменте ±90° от линии центров с шагом 10°
-  bool _checkNodeOverlaps({required double minGap}) {
-    final Map<int, Offset> totalDisplacements = {};
-    
-    for (int i = 0; i < _nodesList.length; i++) {
-      final nodeA = _nodesList[i];
-      final posA = _targetPositions[i] ?? nodeA.aPosition;
-      if (posA == null) continue;
-
-      // Для group/swimlane увеличиваем отступ
-      final isLargeNodeA = (nodeA.qType == 'group' || nodeA.qType == 'swimlane');
-      final paddingA = isLargeNodeA ? 20.0 : 0.0;
-      
-      // Прямоугольник узла A с учётом padding
-      final rectA = Rect.fromLTWH(
-        posA.dx - paddingA,
-        posA.dy - paddingA,
-        nodeA.size.width + paddingA * 2,
-        nodeA.size.height + paddingA * 2,
+      final position = _targetPositions[i] ?? node.aPosition;
+      if (position == null) continue;
+      nodeScores[i] = _evaluateCandidatePosition(
+        nodeIndex: i,
+        position: position,
+        occupancy: occupancy,
+        anchorPosition: position,
       );
-      
-      // Центр узла A
-      final centerA = Offset(posA.dx + nodeA.size.width / 2, posA.dy + nodeA.size.height / 2);
-
-      for (int j = i + 1; j < _nodesList.length; j++) {
-        final nodeB = _nodesList[j];
-        final posB = _targetPositions[j] ?? nodeB.aPosition;
-        if (posB == null) continue;
-
-        // Для group/swimlane увеличиваем отступ
-        final isLargeNodeB = (nodeB.qType == 'group' || nodeB.qType == 'swimlane');
-        final paddingB = isLargeNodeB ? 20.0 : 0.0;
-        
-        // Прямоугольник узла B с учётом padding
-        final rectB = Rect.fromLTWH(
-          posB.dx - paddingB,
-          posB.dy - paddingB,
-          nodeB.size.width + paddingB * 2,
-          nodeB.size.height + paddingB * 2,
-        );
-        
-        // Центр узла B
-        final centerB = Offset(posB.dx + nodeB.size.width / 2, posB.dy + nodeB.size.height / 2);
-
-        // Для пар group/swimlane используем увеличенный минимальный зазор
-        final effectiveMinGap = (isLargeNodeA || isLargeNodeB) ? minGap + 30.0 : minGap;
-
-        // Вычисляем реальное перекрытие (с учётом minGap)
-        final overlapInfo = _calculateOverlap(rectA, rectB, effectiveMinGap);
-        
-        if (!overlapInfo.hasOverlap) continue;
-        
-        // Вычисляем базовый угол от A к B
-        final dirAtoB = Offset(centerB.dx - centerA.dx, centerB.dy - centerA.dy);
-        final baseAngle = atan2(dirAtoB.dy, dirAtoB.dx);
-        
-        // Вычисляем необходимое расстояние смещения
-        final moveDistance = max(overlapInfo.overlapX, overlapInfo.overlapY) / 2 + 10;
-        
-        // Ищем оптимальный угол в сегменте ±90° от линии центров (с шагом 10°)
-        Offset bestDisplacementA = Offset.zero;
-        Offset bestDisplacementB = Offset.zero;
-        double bestOverlap = overlapInfo.overlapX + overlapInfo.overlapY;
-        
-        for (int angleDelta = -90; angleDelta <= 90; angleDelta += 10) {
-          final testAngle = baseAngle + (angleDelta * pi / 180);
-          
-          // Узел A смещается в противоположном направлении
-          final dxA = -cos(testAngle) * moveDistance;
-          final dyA = -sin(testAngle) * moveDistance;
-          final testPosA = Offset(posA.dx + dxA, posA.dy + dyA);
-          
-          // Узел B смещается в направлении угла
-          final dxB = cos(testAngle) * moveDistance;
-          final dyB = sin(testAngle) * moveDistance;
-          final testPosB = Offset(posB.dx + dxB, posB.dy + dyB);
-          
-          // Проверяем перекрытие в новых позициях
-          final testRectA = Rect.fromLTWH(
-            testPosA.dx - paddingA,
-            testPosA.dy - paddingA,
-            nodeA.size.width + paddingA * 2,
-            nodeA.size.height + paddingA * 2,
-          );
-          final testRectB = Rect.fromLTWH(
-            testPosB.dx - paddingB,
-            testPosB.dy - paddingB,
-            nodeB.size.width + paddingB * 2,
-            nodeB.size.height + paddingB * 2,
-          );
-          
-          final testOverlapInfo = _calculateOverlap(testRectA, testRectB, effectiveMinGap);
-          final testOverlapSum = testOverlapInfo.overlapX + testOverlapInfo.overlapY;
-          
-          if (testOverlapSum < bestOverlap) {
-            bestOverlap = testOverlapSum;
-            bestDisplacementA = Offset(dxA, dyA);
-            bestDisplacementB = Offset(dxB, dyB);
-            
-            // Если нашли позицию без перекрытия — сразу берём её
-            if (!testOverlapInfo.hasOverlap) break;
-          }
-        }
-        
-        if (bestDisplacementA != Offset.zero || bestDisplacementB != Offset.zero) {
-          // Накапливаем смещения
-          totalDisplacements[i] = (totalDisplacements[i] ?? Offset.zero) + bestDisplacementA;
-          totalDisplacements[j] = (totalDisplacements[j] ?? Offset.zero) + bestDisplacementB;
-        }
-      }
     }
-    
-    // Применяем смещения
-    if (totalDisplacements.isNotEmpty) {
-      for (final entry in totalDisplacements.entries) {
-        final nodeIndex = entry.key;
-        final displacement = entry.value;
-        final currentPos = _targetPositions[nodeIndex];
-        if (currentPos == null) continue;
 
-        final newPos = _constrainNodeToCanvas(
-          _nodesList[nodeIndex],
-          Offset(currentPos.dx + displacement.dx, currentPos.dy + displacement.dy),
-        );
-        _targetPositions[nodeIndex] = newPos;
-        _initialPositions[nodeIndex] = newPos;
-      }
-      return true;
-    }
-    
-    return false;
+    final hardCollisionNodeCount = nodeScores.values.where((score) => score.hasHardCollisions).length;
+    return _CollisionStats(
+      nodeScores: nodeScores,
+      hardCollisionNodeCount: hardCollisionNodeCount,
+    );
   }
-  
-  /// Вычисляет перекрытие между двумя прямоугольниками с учётом минимального зазора
-  /// Возвращает величину перекрытия по X и Y (положительные значения = есть перекрытие)
-  ({bool hasOverlap, double overlapX, double overlapY}) _calculateOverlap(Rect a, Rect b, double minGap) {
-    // Расширяем прямоугольники на minGap/2 с каждой стороны
-    final expandedA = Rect.fromLTRB(
-      a.left - minGap / 2,
-      a.top - minGap / 2,
-      a.right + minGap / 2,
-      a.bottom + minGap / 2,
+
+  _CandidateResult? _findBestPositionByRings({
+    required int nodeIndex,
+    required _OccupancyMap occupancy,
+    required _CandidateScore currentScore,
+  }) {
+    final node = _nodesList[nodeIndex];
+    final currentPosition = _targetPositions[nodeIndex] ?? node.aPosition;
+    if (currentPosition == null) {
+      return null;
+    }
+
+    final baseStep = max(node.size.width, node.size.height) / 2 + _nodeClearance(node) + 20;
+    _CandidateResult? bestResult;
+
+    for (int ring = 1; ring <= 8; ring++) {
+      final radius = baseStep * ring;
+      for (int angleDeg = 0; angleDeg < 360; angleDeg += 15) {
+        final angle = angleDeg * pi / 180;
+        final candidatePosition = _constrainNodeToCanvas(
+          node,
+          Offset(
+            currentPosition.dx + cos(angle) * radius,
+            currentPosition.dy + sin(angle) * radius,
+          ),
+        );
+
+        final candidateScore = _evaluateCandidatePosition(
+          nodeIndex: nodeIndex,
+          position: candidatePosition,
+          occupancy: occupancy,
+          anchorPosition: currentPosition,
+        );
+
+        if (!_isScoreBetter(candidateScore, currentScore)) {
+          continue;
+        }
+
+        if (bestResult == null || _isScoreBetter(candidateScore, bestResult.score)) {
+          bestResult = _CandidateResult(position: candidatePosition, score: candidateScore);
+        }
+      }
+
+      if (bestResult != null && !bestResult.score.hasHardCollisions) {
+        break;
+      }
+    }
+
+    return bestResult;
+  }
+
+  _CandidateScore _evaluateCandidatePosition({
+    required int nodeIndex,
+    required Offset position,
+    required _OccupancyMap occupancy,
+    required Offset anchorPosition,
+  }) {
+    final node = _nodesList[nodeIndex];
+    final candidateRect = _buildNodeOccupiedRect(node, position);
+    double nodeOverlapArea = 0;
+    double arrowOverlapArea = 0;
+    int nodeOverlapCount = 0;
+    int arrowOverlapCount = 0;
+
+    for (final occupiedNode in occupancy.nodeRects) {
+      if (occupiedNode.nodeIndex == nodeIndex) continue;
+      final overlapArea = _overlapArea(candidateRect, occupiedNode.rect);
+      if (overlapArea > 0) {
+        nodeOverlapArea += overlapArea;
+        nodeOverlapCount++;
+      }
+    }
+
+    for (final occupiedArrow in occupancy.arrowRects) {
+      if (occupiedArrow.incidentNodeIndices.contains(nodeIndex)) continue;
+      final overlapArea = _overlapArea(candidateRect, occupiedArrow.rect);
+      if (overlapArea > 0) {
+        arrowOverlapArea += overlapArea;
+        arrowOverlapCount++;
+      }
+    }
+
+    final distancePenalty = (position - anchorPosition).distance;
+    final totalScore =
+        nodeOverlapArea * 1000 +
+        arrowOverlapArea * 700 +
+        nodeOverlapCount * 5000 +
+        arrowOverlapCount * 2500 +
+        distancePenalty;
+
+    return _CandidateScore(
+      nodeOverlapArea: nodeOverlapArea,
+      arrowOverlapArea: arrowOverlapArea,
+      nodeOverlapCount: nodeOverlapCount,
+      arrowOverlapCount: arrowOverlapCount,
+      distancePenalty: distancePenalty,
+      totalScore: totalScore,
     );
-    final expandedB = Rect.fromLTRB(
-      b.left - minGap / 2,
-      b.top - minGap / 2,
-      b.right + minGap / 2,
-      b.bottom + minGap / 2,
+  }
+
+  bool _isScoreBetter(_CandidateScore candidate, _CandidateScore baseline) {
+    if (candidate.totalScore >= baseline.totalScore) {
+      return false;
+    }
+
+    if (candidate.hardCollisionCount > baseline.hardCollisionCount) {
+      return false;
+    }
+
+    return true;
+  }
+
+  Rect _buildNodeOccupiedRect(TableNode node, Offset position) {
+    final baseRect = Utils.calculateNodeRect(node: node, position: position);
+    final clearance = _nodeClearance(node);
+    return _expandRect(baseRect, clearance);
+  }
+
+  double _nodeClearance(TableNode node) {
+    return (node.qType == 'group' || node.qType == 'swimlane') ? 30.0 : 12.0;
+  }
+
+  Rect _expandRect(Rect rect, double padding) {
+    return Rect.fromLTRB(
+      rect.left - padding,
+      rect.top - padding,
+      rect.right + padding,
+      rect.bottom + padding,
     );
-    
-    // Вычисляем перекрытие по X
-    final overlapX = min(expandedA.right, expandedB.right) - max(expandedA.left, expandedB.left);
-    
-    // Вычисляем перекрытие по Y
-    final overlapY = min(expandedA.bottom, expandedB.bottom) - max(expandedA.top, expandedB.top);
-    
-    // Есть перекрытие если оба значения > 0
-    final hasOverlap = overlapX > 0 && overlapY > 0;
-    
-    return (
-      hasOverlap: hasOverlap,
-      overlapX: hasOverlap ? overlapX : 0,
-      overlapY: hasOverlap ? overlapY : 0,
+  }
+
+  Rect _segmentToRect(Offset p1, Offset p2, double thickness) {
+    final half = thickness / 2;
+    return Rect.fromLTRB(
+      min(p1.dx, p2.dx) - half,
+      min(p1.dy, p2.dy) - half,
+      max(p1.dx, p2.dx) + half,
+      max(p1.dy, p2.dy) + half,
     );
+  }
+
+  double _overlapArea(Rect a, Rect b) {
+    final overlapWidth = min(a.right, b.right) - max(a.left, b.left);
+    final overlapHeight = min(a.bottom, b.bottom) - max(a.top, b.top);
+    if (overlapWidth <= 0 || overlapHeight <= 0) {
+      return 0;
+    }
+    return overlapWidth * overlapHeight;
   }
 
   Rect _getDynamicCanvasBounds() {
@@ -903,17 +857,75 @@ class ColaLayoutService extends Manager {
   }
 }
 
-/// Вспомогательный класс для хранения сегмента связи
-class _EdgeSegment {
-  final Offset p1;
-  final Offset p2;
-  final int? sourceIndex;
-  final int? targetIndex;
-  
-  _EdgeSegment({
-    required this.p1,
-    required this.p2,
-    this.sourceIndex,
-    this.targetIndex,
+class _RepairReport {
+  final int iterations;
+  final int movedNodes;
+  final bool hasHardCollisions;
+
+  const _RepairReport({
+    required this.iterations,
+    required this.movedNodes,
+    required this.hasHardCollisions,
   });
+}
+
+class _CollisionStats {
+  final Map<int, _CandidateScore> nodeScores;
+  final int hardCollisionNodeCount;
+
+  const _CollisionStats({
+    required this.nodeScores,
+    required this.hardCollisionNodeCount,
+  });
+
+  bool get hasHardCollisions => hardCollisionNodeCount > 0;
+}
+
+class _CandidateResult {
+  final Offset position;
+  final _CandidateScore score;
+
+  const _CandidateResult({required this.position, required this.score});
+}
+
+class _CandidateScore {
+  final double nodeOverlapArea;
+  final double arrowOverlapArea;
+  final int nodeOverlapCount;
+  final int arrowOverlapCount;
+  final double distancePenalty;
+  final double totalScore;
+
+  const _CandidateScore({
+    required this.nodeOverlapArea,
+    required this.arrowOverlapArea,
+    required this.nodeOverlapCount,
+    required this.arrowOverlapCount,
+    required this.distancePenalty,
+    required this.totalScore,
+  });
+
+  bool get hasHardCollisions => hardCollisionCount > 0;
+  int get hardCollisionCount => nodeOverlapCount + arrowOverlapCount;
+}
+
+class _OccupancyMap {
+  final List<_OccupiedNodeRect> nodeRects;
+  final List<_OccupiedArrowRect> arrowRects;
+
+  const _OccupancyMap({required this.nodeRects, required this.arrowRects});
+}
+
+class _OccupiedNodeRect {
+  final int nodeIndex;
+  final Rect rect;
+
+  const _OccupiedNodeRect({required this.nodeIndex, required this.rect});
+}
+
+class _OccupiedArrowRect {
+  final Rect rect;
+  final Set<int> incidentNodeIndices;
+
+  const _OccupiedArrowRect({required this.rect, required this.incidentNodeIndices});
 }
