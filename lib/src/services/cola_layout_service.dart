@@ -50,14 +50,21 @@ class ColaLayoutService extends Manager {
   /// Целевые позиции узлов (из Cola)
   final Map<int, Offset> _targetPositions = {};
 
+  final Map<int, int> _nodeConnectionCounts = {};
+
+  int _maxNodeConnections = 1;
+
+  Offset _distributionCenter = Offset.zero;
+
   /// Флаг активной анимации
   bool _isAnimating = false;
 
-  /// Флаг завершения расчёта Cola (анимация может продолжаться)
-  bool _colaCompleted = false;
-
   /// Completer для ожидания завершения раскладки
   Completer<void>? _layoutCompleter;
+
+  Completer<void>? _positionAnimationCompleter;
+
+  bool _finishAfterCurrentAnimation = false;
 
   ColaLayoutService({
     required this.state,
@@ -80,18 +87,17 @@ class ColaLayoutService extends Manager {
     _initialPositions.clear(); // Очищаем начальные позиции
     _animatedPositions.clear(); // Очищаем анимированные позиции
     _targetPositions.clear(); // Очищаем целевые позиции
+    _nodeConnectionCounts.clear();
+    _maxNodeConnections = 1;
+    _distributionCenter = Offset.zero;
     _isAnimating = false;
-    _colaCompleted = false; // Сбрасываем флаг завершения Cola
+    _finishAfterCurrentAnimation = false;
+    _positionAnimationCompleter = null;
     onStateUpdate();
 
     try {
       // 0. Сворачиваем все развернутые swimlane узлы перед запуском Cola
       await _collapseExpandedSwimlanes();
-
-      // 1. Инициализируем Cola если нужно
-      if (!ColaInterop.isReady) {
-        await ColaInterop.init();
-      }
 
       // 2. Включаем loading indicator
       state.isLoading = true;
@@ -115,17 +121,33 @@ class ColaLayoutService extends Manager {
       // 5. Строим виртуальный список связей (дети заменены на родителей)
       _buildVirtualEdges();
 
+      // 5.1 Собираем degree узлов и фиксируем центр текущей схемы до перераспределения
+      _buildNodeConnectionCounts();
+      _captureDistributionCenter();
+
+      // 5.2 Инициализируем стартовые и целевые позиции текущим расположением
+      _seedCurrentPositions();
+
       // 6. Удаляем все тайлы (используем метод TileManager)
       tileManager.disposeTiles();
 
       // 7. Переносим все связи в arrowsSelected (используем метод ArrowManager)
       arrowManager.selectAllArrows();
 
-      // 8. Создаем Cola layout
-      _createColaLayout();
+      if (state.autoLayoutUseCola) {
+        // 8. Инициализируем Cola если нужно
+        if (!ColaInterop.isReady) {
+          await ColaInterop.init();
+        }
 
-      // 8. Запускаем анимированную раскладку
-      _runAnimatedLayout();
+        // 9. Создаем Cola layout
+        _createColaLayout();
+
+        // 10. Запускаем анимированную раскладку
+        _runAnimatedLayout();
+      } else {
+        await _runRepairOnlyLayout();
+      }
       
       // Ожидаем завершения раскладки
       await _layoutCompleter!.future;
@@ -199,6 +221,57 @@ class ColaLayoutService extends Manager {
     print('Cola: создано ${_virtualEdges.length} виртуальных связей из ${state.arrows.length} оригинальных');
   }
 
+  void _buildNodeConnectionCounts() {
+    _nodeConnectionCounts.clear();
+    for (int i = 0; i < _nodesList.length; i++) {
+      _nodeConnectionCounts[i] = 0;
+    }
+
+    for (final edge in _virtualEdges) {
+      final sourceIndex = _nodeIndexMap[edge.source];
+      final targetIndex = _nodeIndexMap[edge.target];
+      if (sourceIndex != null) {
+        _nodeConnectionCounts[sourceIndex] = (_nodeConnectionCounts[sourceIndex] ?? 0) + 1;
+      }
+      if (targetIndex != null) {
+        _nodeConnectionCounts[targetIndex] = (_nodeConnectionCounts[targetIndex] ?? 0) + 1;
+      }
+    }
+
+    final values = _nodeConnectionCounts.values;
+    _maxNodeConnections = values.isEmpty ? 1 : max(1, values.reduce(max));
+  }
+
+  void _captureDistributionCenter() {
+    if (_nodesList.isEmpty) {
+      _distributionCenter = Offset.zero;
+      return;
+    }
+
+    double sumX = 0;
+    double sumY = 0;
+    int count = 0;
+
+    for (final node in _nodesList) {
+      final position = node.aPosition ?? (state.delta + node.position);
+      sumX += position.dx + node.size.width / 2;
+      sumY += position.dy + node.size.height / 2;
+      count++;
+    }
+
+    _distributionCenter = count == 0 ? Offset.zero : Offset(sumX / count, sumY / count);
+  }
+
+  void _seedCurrentPositions() {
+    for (int i = 0; i < _nodesList.length; i++) {
+      final node = _nodesList[i];
+      final position = _constrainNodeToCanvas(node, node.aPosition ?? (state.delta + node.position));
+      _initialPositions[i] = position;
+      _targetPositions[i] = position;
+      _animatedPositions[i] = position;
+    }
+  }
+
   void _createColaLayout() {
     final nodeCount = _nodesList.length;
 
@@ -263,6 +336,15 @@ class ColaLayoutService extends Manager {
     _animator!.start();
   }
 
+  Future<void> _runRepairOnlyLayout() async {
+    arrowManager.recalculateSelectedArrows();
+    final repairReport = await _repairLayoutCollisions(maxIterations: 8);
+    print(
+      'Repair-only: iterations=${repairReport.iterations}, moved=${repairReport.movedNodes}, remaining=${repairReport.hasHardCollisions}',
+    );
+    await _finishLayout();
+  }
+
   void _onLayoutTick(List<NodePosition> positions) {
     // Вычисляем смещение центра масс относительно начального
     double newSumX = 0;
@@ -319,37 +401,77 @@ class ColaLayoutService extends Manager {
 
   /// Запускает анимацию интерполяции позиций узлов
   void _startPositionAnimation() {
+    if (_isAnimating) {
+      return;
+    }
     _isAnimating = true;
     _animatePositions();
+  }
+
+  Future<void> _animateToTargetsAndWait({bool finishAfter = false}) async {
+    if (!_isRunning) {
+      return;
+    }
+
+    _finishAfterCurrentAnimation = finishAfter;
+
+    if (skipAnimation || !state.autoLayoutAnimateRepair) {
+      _applyTargetPositionsImmediately();
+      if (finishAfter) {
+        await _finishLayout();
+      }
+      return;
+    }
+
+    if (_positionAnimationCompleter == null || _positionAnimationCompleter!.isCompleted) {
+      _positionAnimationCompleter = Completer<void>();
+    }
+
+    if (!_isAnimating) {
+      _startPositionAnimation();
+    }
+
+    await _positionAnimationCompleter!.future;
+  }
+
+  void _applyTargetPositionsImmediately() {
+    for (int i = 0; i < _nodesList.length; i++) {
+      final target = _targetPositions[i];
+      if (target == null) continue;
+      final node = _nodesList[i];
+      _animatedPositions[i] = target;
+      nodeManager.updateNodePositionForLayout(node, target);
+    }
+
+    arrowManager.recalculateSelectedArrows();
+    arrowManager.onStateUpdate();
+    nodeManager.onStateUpdate();
+    onStateUpdate();
+  }
+
+  void _completeAnimationCycle() {
+    if (_positionAnimationCompleter != null && !_positionAnimationCompleter!.isCompleted) {
+      _positionAnimationCompleter!.complete();
+    }
+    _positionAnimationCompleter = null;
   }
 
   /// Анимирует перемещение узлов к целевым позициям
   void _animatePositions() {
     if (!_isRunning) {
       _isAnimating = false;
+      _completeAnimationCycle();
       return;
     }
 
     // Если анимация отключена — сразу устанавливаем конечные позиции
     if (skipAnimation) {
-      for (int i = 0; i < _nodesList.length; i++) {
-        final target = _targetPositions[i];
-        if (target == null) continue;
-        final node = _nodesList[i];
-        _animatedPositions[i] = target;
-        nodeManager.updateNodePositionForLayout(node, target);
-      }
-      
-      // Пересчитываем координаты стрелок
-      arrowManager.recalculateSelectedArrows();
-      arrowManager.onStateUpdate();
-      nodeManager.onStateUpdate();
-      onStateUpdate();
-      
+      _applyTargetPositionsImmediately();
       _isAnimating = false;
-      if (_colaCompleted) {
-        print('Cola: анимация пропущена, завершаем раскладку');
-        _finishLayout();
+      _completeAnimationCycle();
+      if (_finishAfterCurrentAnimation) {
+        _finishAfterCurrentAnimation = false;
+        unawaited(_finishLayout());
       }
       return;
     }
@@ -394,30 +516,26 @@ class ColaLayoutService extends Manager {
     } else {
       _isAnimating = false;
 
-      // Если Cola уже завершила расчёт, завершаем раскладку
-      if (_colaCompleted) {
-        _finishLayout();
+      _completeAnimationCycle();
+
+      if (_finishAfterCurrentAnimation) {
+        _finishAfterCurrentAnimation = false;
+        unawaited(_finishLayout());
       }
     }
   }
 
   void _onLayoutComplete() {
-    // ВАЖНО: Обновляем позиции узлов до ЦЕЛЕВЫХ перед проверкой пересечений
-    // Иначе recalculateSelectedArrows() использует старые позиции
-    for (int i = 0; i < _nodesList.length; i++) {
-      final target = _targetPositions[i];
-      if (target == null) continue;
-      final node = _nodesList[i];
-      nodeManager.updateNodePositionForLayout(node, target);
-      _animatedPositions[i] = target;
-    }
-    
-    // Пересчитываем пути связей с НОВЫМИ позициями
-    arrowManager.recalculateSelectedArrows();
+    unawaited(_handleLayoutComplete());
+  }
 
-    final repairReport = _repairLayoutCollisions(maxIterations: 8);
+  Future<void> _handleLayoutComplete() async {
+    await _animateToTargetsAndWait();
+    _applyTargetPositionsImmediately();
 
-    if (repairReport.hasHardCollisions && _currentIdealEdgeLength < 800) {
+    final repairReport = await _repairLayoutCollisions(maxIterations: 8);
+
+    if (repairReport.hasHardCollisions && _currentIdealEdgeLength < 800 && state.autoLayoutUseCola) {
       // Увеличиваем idealEdgeLength и перезапускаем
       _currentIdealEdgeLength += 75;
       // Освобождаем текущий layout
@@ -446,7 +564,6 @@ class ColaLayoutService extends Manager {
       _runAnimatedLayout();
     } else {
       print('Cola: расчёт завершён');
-      _colaCompleted = true;
 
       // Освобождаем Cola layout
       _layout?.dispose();
@@ -455,20 +572,15 @@ class ColaLayoutService extends Manager {
 
       // При skipAnimation=true сразу показываем конечные позиции
       if (skipAnimation) {
-        // Обновляем UI с конечными позициями
-        arrowManager.onStateUpdate();
-        nodeManager.onStateUpdate();
-        onStateUpdate();
-        _finishLayout();
+        _applyTargetPositionsImmediately();
+        await _finishLayout();
       } else if (!_isAnimating) {
-        // Если анимация уже завершена, завершаем раскладку
-        _finishLayout();
+        await _finishLayout();
       }
-      // Иначе анимация сама вызовет _finishLayout когда достигнет целей
     }
   }
 
-  _RepairReport _repairLayoutCollisions({required int maxIterations}) {
+  Future<_RepairReport> _repairLayoutCollisions({required int maxIterations}) async {
     var occupancy = _buildOccupancyMap();
     var stats = _collectCollisionStats(occupancy);
 
@@ -489,7 +601,18 @@ class ColaLayoutService extends Manager {
       executedIterations = iteration + 1;
       bool movedInIteration = false;
       final nodeOrder = stats.nodeScores.entries.toList()
-        ..sort((a, b) => b.value.totalScore.compareTo(a.value.totalScore));
+        ..sort((a, b) {
+          final hardCompare = b.value.hardCollisionCount.compareTo(a.value.hardCollisionCount);
+          if (hardCompare != 0) return hardCompare;
+
+          final connectionCompare = (_nodeConnectionCounts[b.key] ?? 0).compareTo(_nodeConnectionCounts[a.key] ?? 0);
+          if (connectionCompare != 0) return connectionCompare;
+
+          final centerCompare = a.value.centerDistance.compareTo(b.value.centerDistance);
+          if (centerCompare != 0) return centerCompare;
+
+          return b.value.totalScore.compareTo(a.value.totalScore);
+        });
 
       for (final entry in nodeOrder) {
         occupancy = _buildOccupancyMap();
@@ -515,9 +638,14 @@ class ColaLayoutService extends Manager {
         movedInIteration = true;
 
         final node = _nodesList[entry.key];
-        nodeManager.updateNodePositionForLayout(node, bestCandidate.position);
-        _animatedPositions[entry.key] = bestCandidate.position;
-        arrowManager.recalculateSelectedArrows();
+
+        if (skipAnimation || !state.autoLayoutAnimateRepair) {
+          nodeManager.updateNodePositionForLayout(node, bestCandidate.position);
+          _animatedPositions[entry.key] = bestCandidate.position;
+          arrowManager.recalculateSelectedArrows();
+        } else {
+          await _animateToTargetsAndWait();
+        }
       }
 
       occupancy = _buildOccupancyMap();
@@ -709,22 +837,37 @@ class ColaLayoutService extends Manager {
       }
     }
 
+    final nodeCenter = Offset(position.dx + node.size.width / 2, position.dy + node.size.height / 2);
+    final centerDistance = (nodeCenter - _distributionCenter).distance;
     final distancePenalty = (position - anchorPosition).distance;
+    final centerPenalty = centerDistance * _centerAffinity(nodeIndex);
     final totalScore =
         nodeOverlapArea * 1000 +
         arrowOverlapArea * 700 +
         nodeOverlapCount * 5000 +
         arrowOverlapCount * 2500 +
-        distancePenalty;
+        distancePenalty +
+        centerPenalty;
 
     return _CandidateScore(
       nodeOverlapArea: nodeOverlapArea,
       arrowOverlapArea: arrowOverlapArea,
       nodeOverlapCount: nodeOverlapCount,
       arrowOverlapCount: arrowOverlapCount,
+      centerDistance: centerDistance,
+      centerPenalty: centerPenalty,
       distancePenalty: distancePenalty,
       totalScore: totalScore,
     );
+  }
+
+  double _centerAffinity(int nodeIndex) {
+    final connectionRatio = (_nodeConnectionCounts[nodeIndex] ?? 0) / _maxNodeConnections;
+    if (!state.autoLayoutCenterByConnectivity) {
+      return 1.2;
+    }
+
+    return 1.4 + connectionRatio * 4.0;
   }
 
   bool _isScoreBetter(_CandidateScore candidate, _CandidateScore baseline) {
@@ -827,6 +970,9 @@ class ColaLayoutService extends Manager {
     _nodeIndexMap.clear();
     _animatedPositions.clear();
     _targetPositions.clear();
+    _nodeConnectionCounts.clear();
+    _positionAnimationCompleter = null;
+    _finishAfterCurrentAnimation = false;
     
     // Обновляем скролбары
     // scrollHandler.updateScrollControllers();
@@ -893,6 +1039,8 @@ class _CandidateScore {
   final double arrowOverlapArea;
   final int nodeOverlapCount;
   final int arrowOverlapCount;
+  final double centerDistance;
+  final double centerPenalty;
   final double distancePenalty;
   final double totalScore;
 
@@ -901,6 +1049,8 @@ class _CandidateScore {
     required this.arrowOverlapArea,
     required this.nodeOverlapCount,
     required this.arrowOverlapCount,
+    required this.centerDistance,
+    required this.centerPenalty,
     required this.distancePenalty,
     required this.totalScore,
   });

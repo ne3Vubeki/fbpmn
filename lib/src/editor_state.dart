@@ -38,6 +38,12 @@ class EditorState {
           if (value is bool) showThumbnail = value;
         case 'onlyConnectors':
           if (value is bool) onlyConnectors = value;
+        case 'autoLayoutUseCola':
+          if (value is bool) autoLayoutUseCola = value;
+        case 'autoLayoutAnimateRepair':
+          if (value is bool) autoLayoutAnimateRepair = value;
+        case 'autoLayoutCenterByConnectivity':
+          if (value is bool) autoLayoutCenterByConnectivity = value;
       }
     });
   }
@@ -216,4 +222,10 @@ class EditorState {
 
   /// Отображать ли панель производительности (FPS и прочее).
   bool showPerformance = false;
+
+  bool autoLayoutUseCola = true;
+
+  bool autoLayoutAnimateRepair = true;
+
+  bool autoLayoutCenterByConnectivity = true;
 }
