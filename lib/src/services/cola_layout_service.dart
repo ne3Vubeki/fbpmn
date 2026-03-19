@@ -39,7 +39,7 @@ class ColaLayoutService extends Manager {
 
   // Параметры анимации перемещения узлов
   /// Скорость анимации (0.0 - 1.0). 1.0 = мгновенное перемещение, 0.1 = медленная анимация
-  double animationSpeed = 0.15;
+  double animationSpeed = 0.4;
   
   /// Отключить анимацию и показать только конечный результат
   bool skipAnimation = false;
@@ -93,6 +93,7 @@ class ColaLayoutService extends Manager {
     _isAnimating = false;
     _finishAfterCurrentAnimation = false;
     _positionAnimationCompleter = null;
+    animationSpeed = state.autoLayoutSettings.animationSpeed.clamp(0.2, 0.95);
     onStateUpdate();
 
     try {
@@ -415,7 +416,7 @@ class ColaLayoutService extends Manager {
 
     _finishAfterCurrentAnimation = finishAfter;
 
-    if (skipAnimation || !state.autoLayoutAnimateRepair) {
+    if (skipAnimation || !state.autoLayoutSettings.animateRepair) {
       _applyTargetPositionsImmediately();
       if (finishAfter) {
         await _finishLayout();
@@ -512,7 +513,7 @@ class ColaLayoutService extends Manager {
 
     // Продолжаем анимацию если не все узлы достигли цели
     if (!allReached) {
-      Future.delayed(const Duration(milliseconds: 16), _animatePositions);
+      Future.delayed(const Duration(milliseconds: 8), _animatePositions);
     } else {
       _isAnimating = false;
 
@@ -533,50 +534,21 @@ class ColaLayoutService extends Manager {
     await _animateToTargetsAndWait();
     _applyTargetPositionsImmediately();
 
-    final repairReport = await _repairLayoutCollisions(maxIterations: 8);
+    await _repairLayoutCollisions(maxIterations: 8);
 
-    if (repairReport.hasHardCollisions && _currentIdealEdgeLength < 800 && state.autoLayoutUseCola) {
-      // Увеличиваем idealEdgeLength и перезапускаем
-      _currentIdealEdgeLength += 75;
-      // Освобождаем текущий layout
-      _layout?.dispose();
-      _layout = null;
-      _animator = null;
+    print('Cola: расчёт завершён');
 
-      // Обновляем начальные позиции на текущие целевые С НОВЫМИ ТОЛЧКАМИ
-      // Это помогает выйти из локального минимума
-      final rng = Random(DateTime.now().millisecondsSinceEpoch);
-      for (int i = 0; i < _nodesList.length; i++) {
-        if (_targetPositions.containsKey(i)) {
-          final targetPos = _targetPositions[i]!;
-          final node = _nodesList[i];
-          // Для group/swimlane используем более сильные толчки (±150px)
-          final isLargeNode = (node.qType == 'group' || node.qType == 'swimlane');
-          final jitterMagnitude = isLargeNode ? 300.0 : 100.0;
-          final jitterX = (rng.nextDouble() - 0.5) * jitterMagnitude;
-          final jitterY = (rng.nextDouble() - 0.5) * jitterMagnitude;
-          _initialPositions[i] = Offset(targetPos.dx + jitterX, targetPos.dy + jitterY);
-        }
-      }
+    // Освобождаем Cola layout
+    _layout?.dispose();
+    _layout = null;
+    _animator = null;
 
-      // Перезапускаем с новыми параметрами
-      _createColaLayout();
-      _runAnimatedLayout();
-    } else {
-      print('Cola: расчёт завершён');
-
-      // Освобождаем Cola layout
-      _layout?.dispose();
-      _layout = null;
-      _animator = null;
-
-      // При skipAnimation=true сразу показываем конечные позиции
-      if (skipAnimation) {
-        _applyTargetPositionsImmediately();
-        await _finishLayout();
-      } else if (!_isAnimating) {
-        await _finishLayout();
-      }
+    // При skipAnimation=true сразу показываем конечные позиции
+    if (skipAnimation) {
+      _applyTargetPositionsImmediately();
+      await _finishLayout();
+    } else if (!_isAnimating) {
+      await _finishLayout();
     }
   }
 
@@ -639,7 +611,7 @@ class ColaLayoutService extends Manager {
 
         final node = _nodesList[entry.key];
 
-        if (skipAnimation || !state.autoLayoutAnimateRepair) {
+        if (skipAnimation || !state.autoLayoutSettings.animateRepair) {
           nodeManager.updateNodePositionForLayout(node, bestCandidate.position);
           _animatedPositions[entry.key] = bestCandidate.position;
           arrowManager.recalculateSelectedArrows();
@@ -840,13 +812,14 @@ class ColaLayoutService extends Manager {
     final nodeCenter = Offset(position.dx + node.size.width / 2, position.dy + node.size.height / 2);
     final centerDistance = (nodeCenter - _distributionCenter).distance;
     final distancePenalty = (position - anchorPosition).distance;
-    final centerPenalty = centerDistance * _centerAffinity(nodeIndex);
+    final settings = state.autoLayoutSettings;
+    final centerPenalty = centerDistance * _centerAffinity(nodeIndex) * settings.centerWeight;
     final totalScore =
-        nodeOverlapArea * 1000 +
-        arrowOverlapArea * 700 +
-        nodeOverlapCount * 5000 +
-        arrowOverlapCount * 2500 +
-        distancePenalty +
+        nodeOverlapArea * settings.nodeOverlapAreaWeight +
+        arrowOverlapArea * settings.arrowOverlapAreaWeight +
+        nodeOverlapCount * settings.nodeOverlapCountWeight +
+        arrowOverlapCount * settings.arrowOverlapCountWeight +
+        distancePenalty * settings.distanceWeight +
         centerPenalty;
 
     return _CandidateScore(
@@ -863,7 +836,7 @@ class ColaLayoutService extends Manager {
 
   double _centerAffinity(int nodeIndex) {
     final connectionRatio = (_nodeConnectionCounts[nodeIndex] ?? 0) / _maxNodeConnections;
-    if (!state.autoLayoutCenterByConnectivity) {
+    if (!state.autoLayoutSettings.centerByConnectivity) {
       return 1.2;
     }
 

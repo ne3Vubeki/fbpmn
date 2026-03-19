@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'utils/auto_layout_presets.dart';
+
 import 'models/image_tile.dart';
 import 'models/snap_line.dart';
 import 'models/table.node.dart';
@@ -40,10 +42,8 @@ class EditorState {
           if (value is bool) onlyConnectors = value;
         case 'autoLayoutUseCola':
           if (value is bool) autoLayoutUseCola = value;
-        case 'autoLayoutAnimateRepair':
-          if (value is bool) autoLayoutAnimateRepair = value;
-        case 'autoLayoutCenterByConnectivity':
-          if (value is bool) autoLayoutCenterByConnectivity = value;
+        case 'autoLayoutPreset':
+          if (value is String) autoLayoutPreset = value;
       }
     });
   }
@@ -225,7 +225,7 @@ class EditorState {
 
   bool autoLayoutUseCola = true;
 
-  bool autoLayoutAnimateRepair = true;
+  String autoLayoutPreset = AutoLayoutPresetId.current;
 
-  bool autoLayoutCenterByConnectivity = true;
+  AutoLayoutSettings get autoLayoutSettings => AutoLayoutPresets.byId(autoLayoutPreset);
 }
