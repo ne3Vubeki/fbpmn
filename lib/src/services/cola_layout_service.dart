@@ -734,18 +734,14 @@ class ColaLayoutService extends Manager {
     required _CandidateScore currentScore,
   }) {
     final node = _nodesList[nodeIndex];
-    final currentPosition = _targetPositions[nodeIndex] ?? node.aPosition;
-    if (currentPosition == null) {
-      return null;
-    }
-
+    final currentPosition = _targetPositions[nodeIndex] ?? node.aPosition ?? Offset.zero;
     final baseStep = max(node.size.width, node.size.height) / 2 + _nodeClearance(node) + 20;
     _CandidateResult? bestResult;
+    final prioritizedAngles = _buildPrioritizedAngles(node, currentPosition);
 
     for (int ring = 1; ring <= 8; ring++) {
       final radius = baseStep * ring;
-      for (int angleDeg = 0; angleDeg < 360; angleDeg += 15) {
-        final angle = angleDeg * pi / 180;
+      for (final angle in prioritizedAngles) {
         final candidatePosition = _constrainNodeToCanvas(
           node,
           Offset(
@@ -776,6 +772,42 @@ class ColaLayoutService extends Manager {
     }
 
     return bestResult;
+  }
+
+  List<double> _buildPrioritizedAngles(TableNode node, Offset currentPosition) {
+    const int angleStep = 15;
+    final nodeCenter = Offset(
+      currentPosition.dx + node.size.width / 2,
+      currentPosition.dy + node.size.height / 2,
+    );
+    final toCenter = _distributionCenter - nodeCenter;
+    final baseAngle = toCenter.distance <= 0.001 ? 0.0 : atan2(toCenter.dy, toCenter.dx);
+
+    final prioritized = <double>[];
+    final seen = <int>{};
+
+    void addAngle(int degrees) {
+      final normalized = ((degrees % 360) + 360) % 360;
+      if (seen.add(normalized)) {
+        prioritized.add(normalized * pi / 180);
+      }
+    }
+
+    final baseDegrees = (baseAngle * 180 / pi).round();
+
+    for (int offset = 0; offset <= 45; offset += angleStep) {
+      addAngle(baseDegrees + offset);
+      if (offset != 0) {
+        addAngle(baseDegrees - offset);
+      }
+    }
+
+    for (int offset = 60; offset <= 180; offset += angleStep) {
+      addAngle(baseDegrees + offset);
+      addAngle(baseDegrees - offset);
+    }
+
+    return prioritized;
   }
 
   _CandidateScore _evaluateCandidatePosition({
