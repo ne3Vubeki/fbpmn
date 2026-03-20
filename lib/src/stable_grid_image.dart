@@ -56,6 +56,12 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _tileManager = TileManager(state: _editorState, arrowManager: _arrowManager);
 
+    _tileManager.setOnStateUpdate('StableGridImage_ProcessOverlay', () {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
     _nodeManager = NodeManager(state: _editorState, schemaManager: _shemaManager, tileManager: _tileManager, arrowManager: _arrowManager);
 
     _scrollHandler = ScrollHandler(state: _editorState, nodeManager: _nodeManager);
@@ -113,8 +119,8 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _suppressSchemaCallback = true;
     try {
-      await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_2.json');
-      // _shemaManager.createEmptySchema(apply: true);
+      // await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_2.json');
+      _shemaManager.createEmptySchema(apply: true);
       _schemaInitialized = true;
     } finally {
       _suppressSchemaCallback = false;
@@ -304,6 +310,31 @@ class _StableGridImageState extends State<StableGridImage> {
 
             // Индикатор загрузки
             LoadingIndicator(state: _editorState, tileManager: _tileManager),
+
+            if (_editorState.currentLayoutProcess.isNotEmpty)
+              Positioned(
+                left: 12,
+                top: 12,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: Text(
+                        _editorState.currentLayoutProcess,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },

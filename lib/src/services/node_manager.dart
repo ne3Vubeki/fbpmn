@@ -598,19 +598,19 @@ class NodeManager extends Manager {
     // Очищаем подсветку ПЕРЕД перерисовкой тайлов
     state.highlightedNodeIds.clear();
 
-    await tileManager.updateTilesAfterNodeChange();
-
-    // Пересчитываем абсолютные позиции для всех узлов
-    for (final node in state.nodes) {
-      node.initializeAbsolutePositions(state.delta);
-    }
-
     state.isNodeDragging = false;
     state.nodesIdOnTopLayer = '';
     state.nodesSelected.clear();
     state.arrowsSelected.clear();
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
+
+    await tileManager.updateTilesAfterNodeChange();
+
+    // Пересчитываем абсолютные позиции для всех узлов
+    for (final node in state.nodes) {
+      node.initializeAbsolutePositions(state.delta);
+    }
 
     tracker.endDeselect();
 
@@ -679,6 +679,8 @@ class NodeManager extends Manager {
     if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
       await _saveNodeToTiles();
     } else {
+      final shouldRedrawTiles = state.selectAndHide || state.highlightedNodeIds.isNotEmpty || state.nodesSelected.isNotEmpty;
+
       _deselectAllNodes();
       state.nodesSelected.clear();
       state.arrowsSelected.clear();
@@ -686,6 +688,9 @@ class NodeManager extends Manager {
       // Очищаем подсветку и перерисовываем тайлы
       if (state.highlightedNodeIds.isNotEmpty) {
         state.highlightedNodeIds.clear();
+      }
+
+      if (shouldRedrawTiles) {
         await tileManager.updateTilesAfterNodeChange();
       }
 

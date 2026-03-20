@@ -129,6 +129,9 @@ class EventService {
               case 'autoLayoutUseCola':
                 state.autoLayoutUseCola = entry.value;
                 break;
+              case 'autoLayoutReorderByConnectors':
+                state.autoLayoutReorderByConnectors = entry.value;
+                break;
               case 'autoLayoutPreset':
                 state.autoLayoutPreset = entry.value;
                 break;

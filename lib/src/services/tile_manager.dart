@@ -23,6 +23,8 @@ class TileManager extends Manager {
   final NodeRenderer _nodeRenderer = NodeRenderer();
   bool _isCreatingTiles = false;
   bool _pendingTilesUpdate = false;
+  bool _lastSelectAndHideApplied = false;
+  Set<String> _lastHighlightedNodeIds = <String>{};
 
   final bool _waitForUI = false;
 
@@ -89,7 +91,12 @@ class TileManager extends Manager {
       if (parentNode.qType == 'group') {
         // Для group: закрашиваем родителя и вложенный узел
         connectedIds.add(parentNode.id);
-        // connectedIds.add(nodeId);
+        connectedIds.add(nodeId);
+        if (parentNode.children != null) {
+          for (final child in parentNode.children!) {
+            connectedIds.add(child.id);
+          }
+        }
       } else if (parentNode.qType == 'swimlane') {
         // Для swimlane: если раскрыт - только родитель, если свернут - родитель и вложенные
         if (parentNode.isCollapsed == true) {
@@ -185,6 +192,29 @@ class TileManager extends Manager {
     }
   }
 
+  Set<String> _getCurrentHighlightedNodeIds() {
+    return state.highlightedNodeIds.isNotEmpty ? {...state.highlightedNodeIds} : getConnectedNodeIds(state.nodesSelected);
+  }
+
+  Set<String> _getVisibleNodeIdsForSelectAndHide() {
+    final visibleNodeIds = <String>{};
+
+    for (final node in state.nodesSelected) {
+      if (node == null) continue;
+      visibleNodeIds.add(node.id);
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          visibleNodeIds.add(child.id);
+        }
+      }
+    }
+
+    visibleNodeIds.addAll(state.highlightedNodeIds);
+    return visibleNodeIds;
+  }
+
+  bool get _shouldApplySelectAndHide => state.selectAndHide && state.nodesSelected.isNotEmpty;
+
   Future<void> createTiledImage(
     List<TableNode?> nodes,
     List<Arrow?> arrows, {
@@ -198,8 +228,13 @@ class TileManager extends Manager {
     _isCreatingTiles = true;
     _pendingTilesUpdate = false;
     try {
+      final currentHighlightedNodeIds = _getCurrentHighlightedNodeIds();
+      final applySelectAndHide = _shouldApplySelectAndHide;
+      final forceFullRedraw = applySelectAndHide || _lastSelectAndHideApplied != applySelectAndHide;
+      _lastSelectAndHideApplied = applySelectAndHide;
+
       // Очищаем старые данные только при полном пересоздании
-      if (!isUpdate) {
+      if (!isUpdate || forceFullRedraw) {
         await _disposeTiles();
       }
 
@@ -210,10 +245,16 @@ class TileManager extends Manager {
       }
 
       // Создаем тайлы только там где изменялись узлы или стрелки
-      final tiles = await _createTilesForContent(nodes, arrows, isUpdate: isUpdate, isToggleSwimlane: isToggleSwimlane);
+      final tiles = await _createTilesForContent(
+        nodes,
+        arrows,
+        isUpdate: forceFullRedraw ? false : isUpdate,
+        isToggleSwimlane: isToggleSwimlane,
+        highlightedNodeIds: currentHighlightedNodeIds,
+      );
       state.updatedImageTileIds.addAll(tiles.map((tile) => tile.id));
 
-      if (isUpdate) {
+      if (isUpdate && !forceFullRedraw) {
         /// перезапись измененных тайлов
         for (final tile in tiles) {
           final tileId = tile.id;
@@ -244,6 +285,8 @@ class TileManager extends Manager {
           }
         }
       }
+
+      _lastHighlightedNodeIds = currentHighlightedNodeIds;
     } catch (e) {
       print('Ошибка в createTiledImage: $e');
     } finally {
@@ -274,6 +317,7 @@ class TileManager extends Manager {
     List<Arrow?> allArrows, {
     bool isUpdate = true,
     bool isToggleSwimlane = false,
+    Set<String> highlightedNodeIds = const <String>{},
   }) async {
     final Map<String, List<TableNode?>> mapNodesInTile = {}; // узлы для создаваемых тайлов
     final Map<String, List<Arrow?>> mapArrowsInTile = {}; // связи для создаваемых тайлов
@@ -480,9 +524,7 @@ class TileManager extends Manager {
 
     final List<ImageTile> tiles = [];
     int counterUpdatedTiles = 0;
-    final highlightedNodeIds = state.highlightedNodeIds.isNotEmpty
-        ? state.highlightedNodeIds
-        : getConnectedNodeIds(state.nodesSelected);
+    final previousHighlightedNodeIds = _lastHighlightedNodeIds;
 
     /// удаление удаленных тайлов
     final keysToRemove = state.imageTiles.entries
@@ -508,12 +550,14 @@ class TileManager extends Manager {
       if (existingTile != null) {
         final changedNodeIds = nodesInTile.map((n) => n?.id).toSet();
         final isSelectedNodesHighLighted = changedNodeIds.any((id) => highlightedNodeIds.contains(id));
+        final wasSelectedNodesHighLighted = changedNodeIds.any((id) => previousHighlightedNodeIds.contains(id));
 
         final changedArrowIds = arrowsInTile.map((a) => a?.id).toSet();
         final ischangedArrowsChanged = changedArrowIds.any((id) => changedArrows.contains(id));
 
         if (!ischangedArrowsChanged &&
             !isSelectedNodesHighLighted &&
+            !wasSelectedNodesHighLighted &&
             existingTile.nodes.length == changedNodeIds.length &&
             existingTile.arrows.length == changedArrowIds.length &&
             existingTile.nodes.containsAll(changedNodeIds) &&
@@ -859,22 +903,54 @@ class TileManager extends Manager {
           ..blendMode = BlendMode.src,
       );
 
+      final selectAndHideVisibleNodeIds = _shouldApplySelectAndHide ? _getVisibleNodeIdsForSelectAndHide() : <String>{};
+
       if (nodesInTile.isNotEmpty) {
         // ВАЖНО: Сортируем узлы так, чтобы swimlane были после своих детей
         final sortedNodes = _sortNodesWithSwimlaneLast(nodesInTile);
-        _nodeRenderer.drawRootNodesToTile(
-          canvas: canvas,
-          nodes: sortedNodes,
-          tileBounds: tileBounds,
-          delta: state.delta,
-          highlightedNodeIds: state.highlightedNodeIds,
-        );
+        if (_shouldApplySelectAndHide) {
+          for (final node in sortedNodes) {
+            if (node == null) continue;
+
+            final isVisibleNode = selectAndHideVisibleNodeIds.contains(node.id);
+            canvas.saveLayer(
+              tileBounds,
+              Paint()..color = Colors.white.withValues(alpha: isVisibleNode ? 1.0 : 0.12),
+            );
+            _nodeRenderer.drawRootNodesToTile(
+              canvas: canvas,
+              nodes: [node],
+              tileBounds: tileBounds,
+              delta: state.delta,
+              highlightedNodeIds: state.highlightedNodeIds,
+            );
+            canvas.restore();
+          }
+        } else {
+          _nodeRenderer.drawRootNodesToTile(
+            canvas: canvas,
+            nodes: sortedNodes,
+            tileBounds: tileBounds,
+            delta: state.delta,
+            highlightedNodeIds: state.highlightedNodeIds,
+          );
+        }
       }
 
       // Рисуем стрелки, если они есть (используем ArrowTilePainter)
       if (arrowsInTile.isNotEmpty) {
-        final arrowsPainter = ArrowsPainter(arrows: arrowsInTile, arrowManager: arrowManager);
-        arrowsPainter.drawArrowsInTile(canvas: canvas, baseOffset: state.delta, scale: scale);
+        if (_shouldApplySelectAndHide) {
+          canvas.saveLayer(
+            tileBounds,
+            Paint()..color = Colors.white.withValues(alpha: 0.12),
+          );
+          final arrowsPainter = ArrowsPainter(arrows: arrowsInTile, arrowManager: arrowManager);
+          arrowsPainter.drawArrowsInTile(canvas: canvas, baseOffset: state.delta, scale: scale);
+          canvas.restore();
+        } else {
+          final arrowsPainter = ArrowsPainter(arrows: arrowsInTile, arrowManager: arrowManager);
+          arrowsPainter.drawArrowsInTile(canvas: canvas, baseOffset: state.delta, scale: scale);
+        }
       }
 
       final picture = recorder.endRecording();

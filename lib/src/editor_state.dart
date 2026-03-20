@@ -46,6 +46,8 @@ class EditorState {
           if (value is String) autoLayoutPreset = value;
         case 'selectAndHide':
           if (value is bool) selectAndHide = value;
+        case 'autoLayoutReorderByConnectors':
+          if (value is bool) autoLayoutReorderByConnectors = value;
       }
     });
   }
@@ -229,6 +231,10 @@ class EditorState {
   bool showPerformance = false;
 
   bool autoLayoutUseCola = true;
+
+  bool autoLayoutReorderByConnectors = true;
+
+  String currentLayoutProcess = '';
 
   String autoLayoutPreset = AutoLayoutPresetId.current;
 

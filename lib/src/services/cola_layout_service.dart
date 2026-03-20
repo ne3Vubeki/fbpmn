@@ -52,6 +52,10 @@ class ColaLayoutService extends Manager {
 
   final Map<int, int> _nodeConnectionCounts = {};
 
+  final Map<int, int> _nodeSourceConnectionCounts = {};
+
+  final Map<int, int> _nodeTargetConnectionCounts = {};
+
   int _maxNodeConnections = 1;
 
   Offset _distributionCenter = Offset.zero;
@@ -74,6 +78,15 @@ class ColaLayoutService extends Manager {
     required this.scrollHandler,
   });
 
+  void _setCurrentLayoutProcess(String value) {
+    if (state.currentLayoutProcess == value) {
+      return;
+    }
+    state.currentLayoutProcess = value;
+    tileManager.onStateUpdate();
+    onStateUpdate();
+  }
+
   Future<void> runAutoLayout() async {
     if (_isRunning) return;
     if (state.nodes.isEmpty) return;
@@ -88,6 +101,8 @@ class ColaLayoutService extends Manager {
     _animatedPositions.clear(); // Очищаем анимированные позиции
     _targetPositions.clear(); // Очищаем целевые позиции
     _nodeConnectionCounts.clear();
+    _nodeSourceConnectionCounts.clear();
+    _nodeTargetConnectionCounts.clear();
     _maxNodeConnections = 1;
     _distributionCenter = Offset.zero;
     _isAnimating = false;
@@ -145,8 +160,10 @@ class ColaLayoutService extends Manager {
         _createColaLayout();
 
         // 10. Запускаем анимированную раскладку
+        _setCurrentLayoutProcess('run process: cola');
         _runAnimatedLayout();
       } else {
+        _setCurrentLayoutProcess(state.autoLayoutReorderByConnectors ? 'run process: connector repair' : 'run process: repair');
         await _runRepairOnlyLayout();
       }
       
@@ -224,8 +241,12 @@ class ColaLayoutService extends Manager {
 
   void _buildNodeConnectionCounts() {
     _nodeConnectionCounts.clear();
+    _nodeSourceConnectionCounts.clear();
+    _nodeTargetConnectionCounts.clear();
     for (int i = 0; i < _nodesList.length; i++) {
       _nodeConnectionCounts[i] = 0;
+      _nodeSourceConnectionCounts[i] = 0;
+      _nodeTargetConnectionCounts[i] = 0;
     }
 
     for (final edge in _virtualEdges) {
@@ -233,10 +254,35 @@ class ColaLayoutService extends Manager {
       final targetIndex = _nodeIndexMap[edge.target];
       if (sourceIndex != null) {
         _nodeConnectionCounts[sourceIndex] = (_nodeConnectionCounts[sourceIndex] ?? 0) + 1;
+        _nodeSourceConnectionCounts[sourceIndex] = (_nodeSourceConnectionCounts[sourceIndex] ?? 0) + 1;
       }
       if (targetIndex != null) {
         _nodeConnectionCounts[targetIndex] = (_nodeConnectionCounts[targetIndex] ?? 0) + 1;
+        _nodeTargetConnectionCounts[targetIndex] = (_nodeTargetConnectionCounts[targetIndex] ?? 0) + 1;
       }
+    }
+
+    for (int i = 0; i < _nodesList.length; i++) {
+      final node = _nodesList[i];
+      if (node.qType != 'group' || node.children == null || node.children!.isEmpty) {
+        continue;
+      }
+
+      int sourceCount = 0;
+      int targetCount = 0;
+      final childIds = node.children!.map((child) => child.id).toSet();
+      for (final arrow in state.arrows) {
+        if (childIds.contains(arrow.source)) {
+          sourceCount++;
+        }
+        if (childIds.contains(arrow.target)) {
+          targetCount++;
+        }
+      }
+
+      _nodeSourceConnectionCounts[i] = sourceCount;
+      _nodeTargetConnectionCounts[i] = targetCount;
+      _nodeConnectionCounts[i] = sourceCount + targetCount;
     }
 
     final values = _nodeConnectionCounts.values;
@@ -539,6 +585,7 @@ class ColaLayoutService extends Manager {
     await _animateToTargetsAndWait();
     _applyTargetPositionsImmediately();
 
+    _setCurrentLayoutProcess(state.autoLayoutReorderByConnectors ? 'run process: connector repair' : 'run process: repair');
     await _repairLayoutCollisions(maxIterations: 8);
 
     print('Cola: расчёт завершён');
@@ -733,9 +780,9 @@ class ColaLayoutService extends Manager {
   }) {
     final node = _nodesList[nodeIndex];
     final currentPosition = _targetPositions[nodeIndex] ?? node.aPosition ?? Offset.zero;
-    final baseStep = max(18.0, (max(node.size.width, node.size.height) / 2 + _nodeClearance(node) + 20) * 0.4);
+    final baseStep = max(24.0, (max(node.size.width, node.size.height) / 2 + _nodeClearance(node) + 20) * 0.4);
     _CandidateResult? bestResult;
-    final prioritizedAngles = _buildPrioritizedAngles(node, currentPosition);
+    final prioritizedAngles = _buildPrioritizedAngles(nodeIndex, node, currentPosition);
 
     for (int ring = 1; ring <= 8; ring++) {
       final radius = baseStep * ring;
@@ -772,14 +819,14 @@ class ColaLayoutService extends Manager {
     return bestResult;
   }
 
-  List<double> _buildPrioritizedAngles(TableNode node, Offset currentPosition) {
+  List<double> _buildPrioritizedAngles(int nodeIndex, TableNode node, Offset currentPosition) {
     const int angleStep = 15;
     final nodeCenter = Offset(
       currentPosition.dx + node.size.width / 2,
       currentPosition.dy + node.size.height / 2,
     );
-    final fromCenter = nodeCenter - _distributionCenter;
-    final baseAngle = fromCenter.distance <= 0.001 ? 0.0 : atan2(fromCenter.dy, fromCenter.dx);
+    final baseVector = _resolveRepairPriorityVector(nodeIndex, node, nodeCenter);
+    final baseAngle = baseVector.distance <= 0.001 ? 0.0 : atan2(baseVector.dy, baseVector.dx);
 
     final prioritized = <double>[];
     final seen = <int>{};
@@ -806,6 +853,27 @@ class ColaLayoutService extends Manager {
     }
 
     return prioritized;
+  }
+
+  Offset _resolveRepairPriorityVector(int nodeIndex, TableNode node, Offset nodeCenter) {
+    if (state.autoLayoutReorderByConnectors) {
+      if (node.qType == 'swimlane') {
+        return const Offset(1, 1);
+      }
+
+      final sourceCount = _nodeSourceConnectionCounts[nodeIndex] ?? 0;
+      final targetCount = _nodeTargetConnectionCounts[nodeIndex] ?? 0;
+
+      if (sourceCount > targetCount) {
+        return const Offset(-1, -1);
+      }
+
+      if (targetCount > sourceCount) {
+        return const Offset(1, 1);
+      }
+    }
+
+    return nodeCenter - _distributionCenter;
   }
 
   _CandidateScore _evaluateCandidatePosition({
@@ -966,6 +1034,7 @@ class ColaLayoutService extends Manager {
     // Выключаем loading indicator и режим автораскладки
     state.isLoading = false;
     state.isAutoLayoutMode = false;
+    state.currentLayoutProcess = '';
     _isRunning = false;
     _isAnimating = false;
 
@@ -974,6 +1043,8 @@ class ColaLayoutService extends Manager {
     _animatedPositions.clear();
     _targetPositions.clear();
     _nodeConnectionCounts.clear();
+    _nodeSourceConnectionCounts.clear();
+    _nodeTargetConnectionCounts.clear();
     _positionAnimationCompleter = null;
     _finishAfterCurrentAnimation = false;
     
