@@ -6,9 +6,9 @@ import 'package:fbpmn/src/models/power.dart';
 
 class Arrow {
   final String id;
-  final String qType; // arrowObject, qRelationship, qEdgeToJson
-  final String style;
 
+  String qType; // arrowObject, qRelationship, qEdgeToJson
+  String style;
   String source; // ID источника
   String? sourceCache; // ID источника кеш
   String? sourceArrow; // тип стрелки

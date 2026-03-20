@@ -63,30 +63,36 @@ class _ArrowHoverState extends State<ArrowHover> with StateWidget<ArrowHover> {
       child: MouseRegion(
         opaque: true,
         cursor: SystemMouseCursors.click,
-        child: Container(
-          width: arrowsSize.width,
-          height: arrowsSize.height,
-          margin: EdgeInsets.all(widget.arrowManager.arrowPathRectOffset * widget.state.scale),
-          child: Stack(
-            children: [
-              IgnorePointer(
-                child: RepaintBoundary(
-                  child: CustomPaint(
-                    size: arrowsSize,
-                    painter: ArrowsCustomPainter(
-                      arrows: [arrow],
-                      scale: widget.state.scale,
-                      arrowsSize: arrowsSize,
-                      arrowsRect: boundingRect,
-                      nodeOffset: Offset.zero,
-                      arrowManager: widget.arrowManager,
-                      areaNodes: 0,
-                      hoverMode: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            widget.arrowManager.selectArrow(arrow);
+          },
+          child: Container(
+            width: arrowsSize.width,
+            height: arrowsSize.height,
+            margin: EdgeInsets.all(widget.arrowManager.arrowPathRectOffset * widget.state.scale),
+            child: Stack(
+              children: [
+                IgnorePointer(
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      size: arrowsSize,
+                      painter: ArrowsCustomPainter(
+                        arrows: [arrow],
+                        scale: widget.state.scale,
+                        arrowsSize: arrowsSize,
+                        arrowsRect: boundingRect,
+                        nodeOffset: Offset.zero,
+                        arrowManager: widget.arrowManager,
+                        areaNodes: 0,
+                        hoverMode: true,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

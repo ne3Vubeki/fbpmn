@@ -176,6 +176,9 @@ class EditorState {
   /// Стрелка под курсором.
   Arrow? hoveredArrow;
 
+  /// Нужно ли проигнорировать следующий pointer down на канвасе.
+  bool ignoreNextCanvasPointerDown = false;
+
   /// Создаваемая стрелка.
   Arrow? arrowCreated;
 

@@ -43,11 +43,98 @@ class ArrowManager extends Manager {
     onStateUpdate('update_arrows');
   }
 
-  Future<void> confirmDeleteNode(Arrow arrow) async {
-    // TODO: добавить обработчик для подтверждения удаления узла
+  Future<void> configArrowFromMap(Map<String, dynamic> arrowMap) async {
+    final arrowId = arrowMap['id'] as String?;
+    if (arrowId == null || arrowId.isEmpty) {
+      return;
+    }
+
+    final currentArrow = state.arrows.where((arrow) => arrow.id == arrowId).firstOrNull;
+    if (currentArrow == null) {
+      return;
+    }
+
+    final updatedArrow = Arrow.fromJson(arrowMap);
+
+    print(updatedArrow);
+
+    currentArrow.qType = updatedArrow.qType;
+    currentArrow.sourceArrow = updatedArrow.sourceArrow;
+    currentArrow.targetArrow = updatedArrow.targetArrow;
+    currentArrow.powers = updatedArrow.powers;
+
+    _syncArrowToSchema(arrowMap, currentArrow);
+    EventService.apiStatic('schema_update', {'schema': state.schema});
+
+    final selectedArrow = state.arrowsSelected.whereType<Arrow>().firstWhere(
+      (arrow) => arrow.id == arrowId,
+      orElse: () => currentArrow,
+    );
+    if (state.arrowsSelected.contains(selectedArrow)) {
+      state.arrowsSelected
+        ..remove(selectedArrow)
+        ..add(currentArrow);
+    }
+
+    if (state.hoveredArrow?.id == arrowId) {
+      state.hoveredArrow = currentArrow;
+    }
+
+    if (state.arrowCreated?.id == arrowId) {
+      state.arrowCreated = currentArrow;
+    }
+
+    onStateUpdate('update_arrows');
   }
 
-  Future<void> deleteSelectedArrows() async {
+  Future<void> confirmDeleteArrow(Arrow arrow) async {
+    EventService.apiStatic('confirm_delete_arrow', {
+      'arrow': arrow.toJson(),
+    });
+  }
+
+  Future<void> confirmConfigArrow(Arrow arrow) async {
+    EventService.apiStatic('confirm_config_arrow', {
+      'arrow': arrow.toJson(),
+    });
+  }
+
+  void _clearNodeSelectionState() {
+    void deselectNodeRecursive(TableNode node) {
+      node.isSelected = false;
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          deselectNodeRecursive(child);
+        }
+      }
+    }
+
+    for (final node in state.nodesSelected.whereType<TableNode>()) {
+      deselectNodeRecursive(node);
+    }
+
+    for (final node in state.nodes) {
+      deselectNodeRecursive(node);
+    }
+  }
+
+  void selectArrow(Arrow arrow) {
+    _clearNodeSelectionState();
+    state.nodesSelected.clear();
+    state.nodesIdOnTopLayer = '';
+    state.selectedNodeOffset = Offset.zero;
+    state.originalNodePosition = Offset.zero;
+    state.isNodeDragging = false;
+    state.hoveredNode = null;
+    state.highlightedNodeIds.clear();
+    state.arrowsSelected
+      ..clear()
+      ..add(arrow);
+    state.hoveredArrow = null;
+    onStateUpdate();
+  }
+
+  Future<void> deleteSelectedArrows([TileManager? tileManager]) async {
     final arrowsToDelete = state.arrowsSelected.whereType<Arrow>().toList();
     if (arrowsToDelete.isEmpty) {
       return;
@@ -73,6 +160,8 @@ class ArrowManager extends Manager {
     _removeArrowsFromSchema(arrowIds);
 
     EventService.apiStatic('schema_update', {'schema': state.schema});
+
+    await tileManager?.updateTilesAfterNodeChange();
 
     onStateUpdate();
   }

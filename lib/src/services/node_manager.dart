@@ -679,11 +679,16 @@ class NodeManager extends Manager {
     if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
       await _saveNodeToTiles();
     } else {
-      final shouldRedrawTiles = state.selectAndHide || state.highlightedNodeIds.isNotEmpty || state.nodesSelected.isNotEmpty;
+      final shouldRedrawTiles =
+          state.selectAndHide ||
+          state.highlightedNodeIds.isNotEmpty ||
+          state.nodesSelected.isNotEmpty ||
+          state.arrowsSelected.isNotEmpty;
 
       _deselectAllNodes();
       state.nodesSelected.clear();
       state.arrowsSelected.clear();
+      state.hoveredArrow = null;
 
       // Очищаем подсветку и перерисовываем тайлы
       if (state.highlightedNodeIds.isNotEmpty) {

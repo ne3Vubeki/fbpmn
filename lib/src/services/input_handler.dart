@@ -129,6 +129,13 @@ class InputHandler extends Manager {
         return;
       }
 
+      final hoveredArrow = state.hoveredArrow;
+      if (hoveredArrow != null) {
+        arrowManager.selectArrow(hoveredArrow);
+        _focusNode.requestFocus();
+        return;
+      }
+
       bool clickedOnSelectedNode = false;
 
       if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {

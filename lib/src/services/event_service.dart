@@ -183,9 +183,26 @@ class EventService {
           }
         }
         break;
+      case 'arrow_config':
+        if (data != null) {
+          final payload = data['arrow'];
+          if (payload is Map<String, dynamic>) {
+            await arrowManager.configArrowFromMap(payload);
+          }
+        }
+        break;
+      case 'arrow_delete':
+        if (data != null) {
+          final arrowId = data['arrowId'];
+          if (arrowId is String && state.arrowsSelected.any((node) => node?.id == arrowId)) {
+            await arrowManager.deleteSelectedArrows(tileManager);
+          }
+        }
+        break;
 
       /// Подтверждающие события
       case 'confirm_create_arrow':
+      case 'confirm_config_arrow':
       case 'confirm_delete_arrow':
       case 'confirm_delete_node':
         appEvent?.emitToJs(action: action, data: data);

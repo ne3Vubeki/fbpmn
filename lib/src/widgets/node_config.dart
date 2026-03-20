@@ -213,7 +213,7 @@ class _NodeConfigState extends State<NodeConfig> with StateWidget<NodeConfig> {
           top: buttonTop,
           size: buttonSize,
           color: Colors.red,
-          icon: Icons.delete_outlined,
+          icon: Icons.delete_forever_outlined,
           cursor: SystemMouseCursors.click, // Курсор для кнопки удаления
           tooltip: 'Удалить объект',
           onTap: () {

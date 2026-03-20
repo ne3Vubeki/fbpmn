@@ -157,6 +157,10 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                     }
                   },
                   onPointerDown: (PointerDownEvent event) {
+                      if (widget.state.ignoreNextCanvasPointerDown) {
+                        widget.state.ignoreNextCanvasPointerDown = false;
+                        return;
+                      }
                       widget.inputHandler.handlePanStart(event.localPosition);
                   },
                   onPointerUp: (PointerUpEvent event) {
