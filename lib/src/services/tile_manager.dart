@@ -298,6 +298,56 @@ class TileManager extends Manager {
     }
   }
 
+  Future<void> recreateTiles({List<String>? nodeIds, List<String>? arrowIds}) async {
+    final hasNodeIds = nodeIds != null && nodeIds.isNotEmpty;
+    final hasArrowIds = arrowIds != null && arrowIds.isNotEmpty;
+
+    if (!hasNodeIds && !hasArrowIds) {
+      await updateTilesAfterNodeChange(isUpdate: false);
+      onStateUpdate();
+      return;
+    }
+
+    final matchedTiles = state.imageTiles.entries
+        .where(
+          (entry) =>
+              (hasNodeIds && nodeIds.any((id) => entry.value.nodes.contains(id))) ||
+              (hasArrowIds && arrowIds.any((id) => entry.value.arrows.contains(id))),
+        )
+        .map((entry) => entry.value)
+        .toList();
+
+    for (final tile in matchedTiles) {
+      final tileId = tile.id;
+      final bounds = tile.bounds;
+      final nodesInTile = NodeManager.whereAllNodes(state.nodes, (node) => tile.nodes.contains(node.id));
+      final arrowsInTile = state.arrows.where((arrow) => tile.arrows.contains(arrow.id)).toList();
+
+      for (final arrow in arrowsInTile) {
+        arrowManager.getArrowPathInTile(
+          arrow,
+          state.delta,
+          isTiles: true,
+        );
+      }
+
+      final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
+      if (newTile != null) {
+        try {
+          state.imageTiles[tileId]?.image.dispose();
+        } catch (e) {
+          print('Warning: Error disposing tile image: $e');
+        }
+        state.imageTiles[tileId] = newTile;
+        state.updatedImageTileIds.add(tileId);
+      } else if (nodesInTile.isEmpty && arrowsInTile.isEmpty) {
+        await _removeTile(tileId);
+      }
+    }
+
+    onStateUpdate();
+  }
+
   // Создание начальных тайлов
   Future<void> _createInitialTiles() async {
     // Создаем 4 тайла для начальной видимой области
@@ -974,14 +1024,8 @@ class TileManager extends Manager {
 
   // Пересоздаем тайлы с выбранными узлами, их опонентами и связями
   Future<void> updateTilesAfterNodeChange({bool isUpdate = true, bool isToggleSwimlane = false}) async {
-    // state.isLoading = true;
-    // onStateUpdate();
-    // await Future.delayed(const Duration(milliseconds: 100));
-
     await createTiledImage(state.nodes, state.arrows, isUpdate: isUpdate, isToggleSwimlane: isToggleSwimlane);
 
-    // Уведомляем об изменении
-    // state.isLoading = false;
     onStateUpdate();
   }
 

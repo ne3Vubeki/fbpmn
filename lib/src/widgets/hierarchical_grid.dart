@@ -40,15 +40,6 @@ class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<Hi
   @override
   void initState() {
     super.initState();
-    // widget.nodeManager.setOnStateUpdate('HierarchicalGrid', () {
-    //   timeoutSetState(
-    //     duration: Duration(milliseconds: 200),
-    //     callback: () {
-    //       print('Event HierarchicalGrid: NodeManager');
-    //     },
-    //     timer: _nodeEventTimer,
-    //   );
-    // });
     widget.tileManager.setOnStateUpdate('HierarchicalGrid', () {
       timeoutSetState(
         callback: () {

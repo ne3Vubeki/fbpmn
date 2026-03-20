@@ -43,60 +43,61 @@ class ArrowManager extends Manager {
     onStateUpdate('update_arrows');
   }
 
-  Future<void> configArrowFromMap(Map<String, dynamic> arrowMap) async {
+  Future<void> configArrowFromMap(Map<String, dynamic> arrowMap, [TileManager? tileManager]) async {
     final arrowId = arrowMap['id'] as String?;
     if (arrowId == null || arrowId.isEmpty) {
       return;
     }
 
-    final currentArrow = state.arrows.where((arrow) => arrow.id == arrowId).firstOrNull;
-    if (currentArrow == null) {
-      return;
-    }
-
     final updatedArrow = Arrow.fromJson(arrowMap);
 
-    print(updatedArrow);
+    final wasSelected = state.arrowsSelected.whereType<Arrow>().any((arrow) => arrow.id == arrowId);
+    final wasHovered = state.hoveredArrow?.id == arrowId;
+    final wasCreated = state.arrowCreated?.id == arrowId;
 
-    currentArrow.qType = updatedArrow.qType;
-    currentArrow.sourceArrow = updatedArrow.sourceArrow;
-    currentArrow.targetArrow = updatedArrow.targetArrow;
-    currentArrow.powers = updatedArrow.powers;
+    state.arrows.removeWhere((arrow) => arrow.id == arrowId);
+    state.arrows.add(updatedArrow);
 
-    _syncArrowToSchema(arrowMap, currentArrow);
+    state.arrowsSelected.removeWhere((arrow) => arrow?.id == arrowId);
+    if (wasSelected) {
+      state.arrowsSelected.add(updatedArrow);
+    }
+
+    if (wasHovered) {
+      state.hoveredArrow = updatedArrow;
+    }
+
+    if (wasCreated) {
+      state.arrowCreated = updatedArrow;
+    }
+
+    _syncArrowToSchema(updatedArrow.toJson(), updatedArrow);
     EventService.apiStatic('schema_update', {'schema': state.schema});
 
-    final selectedArrow = state.arrowsSelected.whereType<Arrow>().firstWhere(
-      (arrow) => arrow.id == arrowId,
-      orElse: () => currentArrow,
+    await tileManager?.recreateTiles(
+      arrowIds: state.arrowsSelected.whereType<Arrow>().map((arrow) => arrow.id).toList(),
     );
-    if (state.arrowsSelected.contains(selectedArrow)) {
-      state.arrowsSelected
-        ..remove(selectedArrow)
-        ..add(currentArrow);
-    }
-
-    if (state.hoveredArrow?.id == arrowId) {
-      state.hoveredArrow = currentArrow;
-    }
-
-    if (state.arrowCreated?.id == arrowId) {
-      state.arrowCreated = currentArrow;
-    }
 
     onStateUpdate('update_arrows');
   }
 
   Future<void> confirmDeleteArrow(Arrow arrow) async {
-    EventService.apiStatic('confirm_delete_arrow', {
-      'arrow': arrow.toJson(),
-    });
+    EventService.apiStatic('confirm_delete_arrow', {'arrow': arrow.toJson()});
   }
 
   Future<void> confirmConfigArrow(Arrow arrow) async {
     EventService.apiStatic('confirm_config_arrow', {
       'arrow': arrow.toJson(),
     });
+    // EventService.apiStatic('arrow_config', {
+    //   'arrow': {
+    //     'id': "1768315075764",
+    //     'qType': "qRelationship",
+    //     'source': "1768315075755_status",
+    //     'target': "1768315075756_status",
+    //     'targetArrow': "block",
+    //   },
+    // });
   }
 
   void _clearNodeSelectionState() {
@@ -1314,12 +1315,12 @@ class ArrowManager extends Manager {
       targetAttribute: targetAttr,
     );
 
-    arrow.aPositionSource = baseConnectionPoints.start!;
-    arrow.aPositionTarget = baseConnectionPoints.end!;
-
     if (baseConnectionPoints.start == null || baseConnectionPoints.end == null) {
       return (paths: ArrowPaths(path: Path()), coordinates: []);
     }
+
+    arrow.aPositionSource = baseConnectionPoints.start!;
+    arrow.aPositionTarget = baseConnectionPoints.end!;
 
     // Создаем простой ортогональный путь без проверок пересечений
     final basePath = _createSimpleOrthogonalPath(
@@ -1751,9 +1752,23 @@ class ArrowManager extends Manager {
       Offset endArcPoint;
 
       if (previous.dy == current.dy) {
-        rects.add(Rect.fromLTRB(min(previous.dx, current.dx), previous.dy - arrowPathRectOffset, max(previous.dx, current.dx), previous.dy + arrowPathRectOffset));
+        rects.add(
+          Rect.fromLTRB(
+            min(previous.dx, current.dx),
+            previous.dy - arrowPathRectOffset,
+            max(previous.dx, current.dx),
+            previous.dy + arrowPathRectOffset,
+          ),
+        );
       } else if (previous.dx == current.dx) {
-        rects.add(Rect.fromLTRB(previous.dx - arrowPathRectOffset, min(previous.dy, current.dy), previous.dx + arrowPathRectOffset, max(previous.dy, current.dy)));
+        rects.add(
+          Rect.fromLTRB(
+            previous.dx - arrowPathRectOffset,
+            min(previous.dy, current.dy),
+            previous.dx + arrowPathRectOffset,
+            max(previous.dy, current.dy),
+          ),
+        );
       }
 
       if (radius == 0) {
@@ -1809,9 +1824,23 @@ class ArrowManager extends Manager {
       final previous = coordinates[len - 2];
       final current = coordinates.last;
       if (previous.dy == current.dy) {
-        rects.add(Rect.fromLTRB(min(previous.dx, current.dx), current.dy - arrowPathRectOffset, max(previous.dx, current.dx), current.dy + arrowPathRectOffset));
+        rects.add(
+          Rect.fromLTRB(
+            min(previous.dx, current.dx),
+            current.dy - arrowPathRectOffset,
+            max(previous.dx, current.dx),
+            current.dy + arrowPathRectOffset,
+          ),
+        );
       } else if (previous.dx == current.dx) {
-        rects.add(Rect.fromLTRB(current.dx - arrowPathRectOffset, min(previous.dy, current.dy), current.dx + arrowPathRectOffset, max(previous.dy, current.dy)));
+        rects.add(
+          Rect.fromLTRB(
+            current.dx - arrowPathRectOffset,
+            min(previous.dy, current.dy),
+            current.dx + arrowPathRectOffset,
+            max(previous.dy, current.dy),
+          ),
+        );
       }
       path.lineTo(coordinates.last.dx, coordinates.last.dy);
     }
@@ -1822,10 +1851,7 @@ class ArrowManager extends Manager {
     // Добавляем конечную фигуру для sourceArrow
     final endArrow = _addEndArrowHead(arrow, coordinates, direct, isTiles);
 
-    return (
-      paths: ArrowPaths(path: path, startArrow: startArrow, endArrow: endArrow),
-      rects: rects,
-    );
+    return (paths: ArrowPaths(path: path, startArrow: startArrow, endArrow: endArrow), rects: rects);
   }
 
   /// Добавляет фигуру стрелки в начале пути

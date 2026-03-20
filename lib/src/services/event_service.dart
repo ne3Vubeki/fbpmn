@@ -187,7 +187,7 @@ class EventService {
         if (data != null) {
           final payload = data['arrow'];
           if (payload is Map<String, dynamic>) {
-            await arrowManager.configArrowFromMap(payload);
+            await arrowManager.configArrowFromMap(payload, tileManager);
           }
         }
         break;
