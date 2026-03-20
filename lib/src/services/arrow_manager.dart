@@ -43,6 +43,10 @@ class ArrowManager extends Manager {
     onStateUpdate('update_arrows');
   }
 
+  Future<void> confirmDeleteNode(Arrow arrow) async {
+    // TODO: добавить обработчик для подтверждения удаления узла
+  }
+
   Future<void> deleteSelectedArrows() async {
     final arrowsToDelete = state.arrowsSelected.whereType<Arrow>().toList();
     if (arrowsToDelete.isEmpty) {

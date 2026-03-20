@@ -1,8 +1,8 @@
-import 'package:fbpmn/src/painters/icon_painter.dart';
 import 'package:flutter/material.dart';
 import '../editor_state.dart';
 import '../services/node_manager.dart';
 import '../utils/editor_config.dart';
+import 'config_action_button.dart';
 import 'state_widget.dart';
 
 /// Виджет для отображения маркеров изменения размера узла
@@ -115,7 +115,7 @@ class _NodeConfigState extends State<NodeConfig> with StateWidget<NodeConfig> {
                       width: resizeBoxContainerSize.width - frame * 2,
                       height: resizeBoxContainerSize.height - frame * 2,
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.2),
+                        color: Colors.blue.withValues(alpha: 0.2),
                         borderRadius: isGroup || isEnum || !hasAttributes
                             ? BorderRadius.zero
                             : BorderRadius.circular(12 * scale),
@@ -195,7 +195,7 @@ class _NodeConfigState extends State<NodeConfig> with StateWidget<NodeConfig> {
           ),
         ),
 
-        _buildActionButton(
+        ConfigActionButton(
           left: buttonLeft,
           top: buttonTop,
           size: buttonSize,
@@ -208,7 +208,7 @@ class _NodeConfigState extends State<NodeConfig> with StateWidget<NodeConfig> {
             // TODO: добавить обработчик для кнопки настроек
           },
         ),
-        _buildActionButton(
+        ConfigActionButton(
           left: buttonRight,
           top: buttonTop,
           size: buttonSize,
@@ -228,52 +228,6 @@ class _NodeConfigState extends State<NodeConfig> with StateWidget<NodeConfig> {
           colorIcon: Colors.black,
         ),
       ],
-    );
-  }
-
-  /// Создаёт круглую кнопку по углам узла
-  Widget _buildActionButton({
-    required double left,
-    required double top,
-    required double size,
-    required Color color,
-    Color colorIcon = Colors.white,
-    required dynamic icon,
-    MouseCursor? cursor,
-    String? tooltip,
-    Function()? onTap,
-  }) {
-    return Positioned(
-      left: left,
-      top: top,
-      width: size,
-      height: size,
-      child: MouseRegion(
-        cursor: cursor ?? SystemMouseCursors.click, // Используем переданный курсор или значение по умолчанию
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))],
-            ),
-            child: Tooltip(
-              message: tooltip,
-              child: Center(
-                child: icon is IconData
-                    ? Icon(icon, size: size * 0.5, color: colorIcon)
-                    : CustomPaint(
-                        size: Size(size * 0.5, size * 0.5),
-                        painter: IconPainter(painter: icon as void Function(Canvas, Size, Color), color: colorIcon),
-                      ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -313,7 +267,7 @@ class _NodeConfigState extends State<NodeConfig> with StateWidget<NodeConfig> {
               decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))],
               ),
               child: Center(
                 child: Icon(Icons.zoom_out_map_outlined, size: size * 0.5, color: colorIcon),

@@ -224,20 +224,19 @@ class NodeManager extends Manager {
     final node = state.nodesSelected.first!;
     final nodeId = node.id;
 
-    if (state.hoveredNode?.id == nodeId) {
-      state.hoveredNode = null;
-    }
+    _deselectAllNodes();
+    state.hoveredNode = null;
 
-    node.isSelected = false;
     _removeNodeFromNodesList(node);
     state.nodesSelected.clear();
+    state.arrowsSelected.clear();
     state.nodesIdOnTopLayer = state.nodesIdOnTopLayer.replaceAll(nodeId, '');
 
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
     state.isNodeDragging = false;
 
-    state.highlightedNodeIds.remove(nodeId);
+    state.highlightedNodeIds.clear();
     _removeNodeFromSchema(nodeId);
 
     EventService.apiStatic('schema_update', {'schema': state.schema});
@@ -247,6 +246,7 @@ class NodeManager extends Manager {
     await tileManager.updateTilesAfterNodeChange();
 
     onStateUpdate();
+    arrowManager.onStateUpdate();
   }
 
   void _syncNodeToSchema(Map<String, dynamic> nodeMap, TableNode node) {
