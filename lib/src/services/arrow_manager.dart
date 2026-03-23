@@ -162,11 +162,35 @@ class ArrowManager extends Manager {
 
     _removeArrowsFromSchema(arrowIds);
 
+    if (tileManager != null) {
+      compactAllConnections();
+    }
+
     tileManager != null ? EventService.apiStatic('schema_update') : null;
 
     await tileManager?.updateTilesAfterNodeChange();
 
     onStateUpdate();
+  }
+
+  void compactAllConnections() {
+    void compactNodeRecursive(TableNode node) {
+      node.connections?.compactAll();
+
+      for (final attribute in node.attributes) {
+        attribute.connections?.compactAll();
+      }
+
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          compactNodeRecursive(child);
+        }
+      }
+    }
+
+    for (final node in state.nodes) {
+      compactNodeRecursive(node);
+    }
   }
 
   void _syncArrowToSchema(Map<String, dynamic> arrowMap, Arrow arrow) {

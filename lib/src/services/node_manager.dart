@@ -235,6 +235,8 @@ class NodeManager extends Manager {
 
     await arrowManager.deleteSelectedArrows();
 
+    arrowManager.compactAllConnections();
+
     await EventService.apiStatic('schema_update');
 
     await tileManager.updateTilesAfterNodeChange();
@@ -555,6 +557,8 @@ class NodeManager extends Manager {
     state.arrowsSelected.clear();
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
+
+    arrowManager.compactAllConnections();
 
     await tileManager.updateTilesAfterNodeChange();
 

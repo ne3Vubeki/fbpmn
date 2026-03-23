@@ -37,12 +37,37 @@ class Connections {
     return sideProp?.length ?? 0;
   }
 
+  void _compactSideConnections(Set<Connection?> sideConnections) {
+    if (sideConnections.isEmpty) {
+      return;
+    }
+
+    final sortedList = sideConnections.toList();
+    sortedList.sort((a, b) => (a?.index ?? 0).compareTo(b?.index ?? 0));
+
+    for (int i = 0; i < sortedList.length; i++) {
+      sortedList[i]!.index = i;
+    }
+
+    sideConnections
+      ..clear()
+      ..addAll(sortedList);
+  }
+
+  void compactAll() {
+    _compactSideConnections(top!);
+    _compactSideConnections(right!);
+    _compactSideConnections(bottom!);
+    _compactSideConnections(left!);
+  }
+
   remove(String arrowId) {
     final oldLength = top!.length + right!.length + bottom!.length + left!.length;
     top = top!.where((connect) => connect!.id != arrowId).toSet();
     right = right!.where((connect) => connect!.id != arrowId).toSet();
     bottom = bottom!.where((connect) => connect!.id != arrowId).toSet();
     left = left!.where((connect) => connect!.id != arrowId).toSet();
+
     final newLength = top!.length + right!.length + bottom!.length + left!.length;
     
     if (oldLength != newLength) {
@@ -96,35 +121,25 @@ class Connections {
               left = filtered;
               break;
           }
-          
-          // Пересчитываем индексы на стороне, откуда удалили коннект
-          if (filtered.isNotEmpty) {
-            final sortedList = filtered.toList();
-            sortedList.sort((a, b) => a!.index!.compareTo(b!.index!));
-            
-            for (int i = 0; i < sortedList.length; i++) {
-              sortedList[i]!.index = i;
-            }
-            
-            filtered.clear();
-            filtered.addAll(sortedList);
-          }
         }
       }
     }
 
     final newConn = Connection(id: arrowId);
 
-    // Находим максимальный индекс на стороне
-    int maxIndex = -1;
-    for (final conn in sideProp!.toList()) {
-      if (conn != null && conn.index != null && conn.index! > maxIndex) {
-        maxIndex = conn.index!;
-      }
+    final existingIndexes = sideProp!
+        .whereType<Connection>()
+        .map((conn) => conn.index)
+        .whereType<int>()
+        .toSet();
+
+    int nextIndex = 0;
+
+    while (existingIndexes.contains(nextIndex)) {
+      nextIndex++;
     }
 
-    // Новый коннект всегда добавляется в конец
-    newConn.index = maxIndex + 1;
+    newConn.index = nextIndex;
     sideProp.add(newConn);
 
     final sidePropList = sideProp.toList();
@@ -138,8 +153,7 @@ class Connections {
   }
 
   double getSideDelta(String side, Connection connection) {
-    final sideProp = get(side);
-    final n = sideProp?.toList().indexOf(connection) ?? 0;
+    final n = connection.index ?? 0;
     if (n == 0) return 0;
     int sign = (n % 2 == 0) ? -1 : 1;
     int multiplier = ((n + 1) ~/ 2);

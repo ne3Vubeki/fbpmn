@@ -92,14 +92,8 @@ class Arrow {
       'style': style,
     };
 
-    if (sourceCache != null) {
-      json['sourceCache'] = sourceCache;
-    }
     if (sourceArrow != null) {
       json['sourceArrow'] = sourceArrow;
-    }
-    if (targetCache != null) {
-      json['targetCache'] = targetCache;
     }
     if (targetArrow != null) {
       json['targetArrow'] = targetArrow;
