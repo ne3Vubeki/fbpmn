@@ -53,7 +53,7 @@ class EventService {
     });
   }
 
-  static Future<void> apiStatic(String action, Map<String, dynamic>? data) async {
+  static Future<void> apiStatic(String action, [Map<String, dynamic>? data]) async {
     await _instance?.api(action, data);
   }
 
@@ -146,7 +146,7 @@ class EventService {
         appEvent?.emitToJs(action: action, data: {'schema': state.schema});
         break;
       case 'schema_update':
-        appEvent?.emitToJs(action: action, data: {'schema': state.schema});
+        appEvent?.emitToJs(action: action, data: state.schema);
         break;
       case 'schema_upload':
         if (data != null) {

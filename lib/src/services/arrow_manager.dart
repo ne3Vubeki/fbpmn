@@ -37,8 +37,10 @@ class ArrowManager extends Manager {
     state.arrows.add(arrow);
     state.arrowsSelected.add(arrow);
     _syncArrowToSchema(arrowMap, arrow);
+
     clearStartCreatedArrow();
-    EventService.apiStatic('schema_update', {'schema': state.schema});
+
+    EventService.apiStatic('schema_update');
 
     onStateUpdate('update_arrows');
   }
@@ -72,7 +74,7 @@ class ArrowManager extends Manager {
     }
 
     _syncArrowToSchema(updatedArrow.toJson(), updatedArrow);
-    EventService.apiStatic('schema_update', {'schema': state.schema});
+    EventService.apiStatic('schema_update');
 
     await tileManager?.recreateTiles(
       arrowIds: state.arrowsSelected.whereType<Arrow>().map((arrow) => arrow.id).toList(),
@@ -160,7 +162,7 @@ class ArrowManager extends Manager {
 
     _removeArrowsFromSchema(arrowIds);
 
-    EventService.apiStatic('schema_update', {'schema': state.schema});
+    tileManager != null ? EventService.apiStatic('schema_update') : null;
 
     await tileManager?.updateTilesAfterNodeChange();
 

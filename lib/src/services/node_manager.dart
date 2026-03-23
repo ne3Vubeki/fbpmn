@@ -196,14 +196,8 @@ class NodeManager extends Manager {
     if (!state.nodes.any((n) => n.id == node.id)) {
       state.nodes.add(node);
       state.nodesSelected.add(node);
-      _syncNodeToSchema(nodeMap, node);
     }
-
-        
-    await EventService.apiStatic('schema_update', {'schema': state.schema});
-
-    print('Add node: ${node.text} All nodes: ${state.nodes.length} Schema: ${state.schema}');
-
+      
     await _selectNode(node);
   }
 
@@ -222,14 +216,15 @@ class NodeManager extends Manager {
     }
 
     final node = state.nodesSelected.first!;
+    final nodeIdsToDelete = _collectNodeIds(node);
     final nodeId = node.id;
 
     _deselectAllNodes();
     state.hoveredNode = null;
 
     _removeNodeFromNodesList(node);
+    _removeNodesFromSchema(nodeIdsToDelete);
     state.nodesSelected.clear();
-    state.arrowsSelected.clear();
     state.nodesIdOnTopLayer = state.nodesIdOnTopLayer.replaceAll(nodeId, '');
 
     state.selectedNodeOffset = Offset.zero;
@@ -237,62 +232,15 @@ class NodeManager extends Manager {
     state.isNodeDragging = false;
 
     state.highlightedNodeIds.clear();
-    _removeNodeFromSchema(nodeId);
-
-    EventService.apiStatic('schema_update', {'schema': state.schema});
 
     await arrowManager.deleteSelectedArrows();
+
+    await EventService.apiStatic('schema_update');
 
     await tileManager.updateTilesAfterNodeChange();
 
     onStateUpdate();
     arrowManager.onStateUpdate();
-  }
-
-  void _syncNodeToSchema(Map<String, dynamic> nodeMap, TableNode node) {
-    final schema = state.schema;
-    final objects = List<dynamic>.from(schema['objects'] as List<dynamic>? ?? const []);
-    final objectJson = Map<String, dynamic>.from(nodeMap.isNotEmpty ? nodeMap : node.objectData);
-    final geometry = Map<String, dynamic>.from(objectJson['geometry'] as Map<String, dynamic>? ?? const {});
-
-    geometry['x'] = node.position.dx;
-    geometry['y'] = node.position.dy;
-    geometry['width'] = node.size.width;
-    geometry['height'] = node.size.height;
-
-    objectJson['geometry'] = geometry;
-    objectJson['id'] = node.id;
-    objectJson['label'] = node.text;
-    objectJson['qType'] = node.qType;
-    objectJson['style'] = node.style;
-
-    final existingIndex = objects.indexWhere((item) => item is Map && item['id']?.toString() == node.id);
-    if (existingIndex >= 0) {
-      objects[existingIndex] = objectJson;
-    } else {
-      objects.add(objectJson);
-    }
-
-    final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
-    metadata['objects'] = objects.length;
-
-    schema['objects'] = objects;
-    schema['metadata'] = metadata;
-    state.schema = Map<String, dynamic>.from(schema);
-  }
-
-  void _removeNodeFromSchema(String nodeId) {
-    final schema = state.schema;
-    final objects = List<dynamic>.from(schema['objects'] as List<dynamic>? ?? const []);
-
-    objects.removeWhere((item) => item is Map && item['id']?.toString() == nodeId);
-
-    final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
-    metadata['objects'] = objects.length;
-
-    schema['objects'] = objects;
-    schema['metadata'] = metadata;
-    state.schema = Map<String, dynamic>.from(schema);
   }
 
   // Обновление позиции РАМКИ на основе позиции УЗЛА
@@ -412,8 +360,6 @@ class NodeManager extends Manager {
 
       // Сохраняем начальные параметры рамки при первом вычислении
       _initialSwimlaneBounds = Rect.fromLTWH(minX, minY, maxX - minX, maxY - minY);
-
-      print('Двигается весь swimlane');
 
       _initialFramePadding = state.framePadding;
     }
@@ -588,12 +534,17 @@ class NodeManager extends Manager {
     final tracker = PerformanceTracker();
     tracker.startDeselect();
 
+    final selectedNodes = state.nodesSelected.whereType<TableNode>().toList();
+
     // Обрабатываем все выделенные узлы
     for (final node in state.nodesSelected) {
       if (node == null) continue;
 
       _saveOneNodeBack(node);
     }
+
+    _syncNodesToSchema(selectedNodes);
+    await EventService.apiStatic('schema_update');
 
     // Очищаем подсветку ПЕРЕД перерисовкой тайлов
     state.highlightedNodeIds.clear();
@@ -658,6 +609,68 @@ class NodeManager extends Manager {
     }
   }
 
+  void _syncNodesToSchema(List<TableNode> nodes) {
+    if (nodes.isEmpty) {
+      return;
+    }
+
+    final schema = Map<String, dynamic>.from(state.schema);
+    final objects = List<dynamic>.from(schema['objects'] as List<dynamic>? ?? const []);
+
+    for (final node in nodes) {
+      final nodeJson = node.toJson();
+      final nodeId = nodeJson['id']?.toString() ?? node.id;
+      final existingIndex = objects.indexWhere((item) => item is Map && item['id']?.toString() == nodeId);
+
+      if (existingIndex >= 0) {
+        objects[existingIndex] = nodeJson;
+      } else {
+        objects.add(nodeJson);
+      }
+    }
+
+    final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
+    metadata['dx'] = state.delta.dx;
+    metadata['dy'] = state.delta.dy;
+    metadata['objects'] = objects.length;
+
+    schema['objects'] = objects;
+    schema['metadata'] = metadata;
+    state.schema = schema;
+  }
+
+  List<String> _collectNodeIds(TableNode node) {
+    final ids = <String>[node.id];
+
+    if (node.children != null && node.children!.isNotEmpty) {
+      for (final child in node.children!) {
+        ids.addAll(_collectNodeIds(child));
+      }
+    }
+
+    return ids;
+  }
+
+  void _removeNodesFromSchema(List<String> nodeIds) {
+    if (nodeIds.isEmpty) {
+      return;
+    }
+
+    final schema = Map<String, dynamic>.from(state.schema);
+    final objects = List<dynamic>.from(schema['objects'] as List<dynamic>? ?? const []);
+
+    objects.removeWhere((item) => item is Map && nodeIds.contains(item['id']?.toString()));
+
+    final metadata = Map<String, dynamic>.from(schema['metadata'] as Map<String, dynamic>? ?? const {});
+    metadata['dx'] = state.delta.dx;
+    metadata['dy'] = state.delta.dy;
+    metadata['objects'] = objects.length;
+
+    schema['objects'] = objects;
+    schema['metadata'] = metadata;
+    state.schema = schema;
+  }
+
   // Метод для поиска родителя swimlane
   TableNode? _findParentExpandedSwimlaneNode(TableNode node) {
     return state.nodes.firstWhereOrNull((n) => n.id == node.parent);
@@ -689,6 +702,8 @@ class NodeManager extends Manager {
       state.nodesSelected.clear();
       state.arrowsSelected.clear();
       state.hoveredArrow = null;
+
+      await EventService.apiStatic('schema_update');
 
       // Очищаем подсветку и перерисовываем тайлы
       if (state.highlightedNodeIds.isNotEmpty) {
