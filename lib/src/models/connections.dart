@@ -68,6 +68,11 @@ class Connections {
     bottom = bottom!.where((connect) => connect!.id != arrowId).toSet();
     left = left!.where((connect) => connect!.id != arrowId).toSet();
 
+    _compactSideConnections(top!);
+    _compactSideConnections(right!);
+    _compactSideConnections(bottom!);
+    _compactSideConnections(left!);
+
     final newLength = top!.length + right!.length + bottom!.length + left!.length;
     
     if (oldLength != newLength) {
@@ -110,15 +115,19 @@ class Connections {
           switch (otherSide) {
             case 'top':
               top = filtered;
+              _compactSideConnections(top!);
               break;
             case 'right':
               right = filtered;
+              _compactSideConnections(right!);
               break;
             case 'bottom':
               bottom = filtered;
+              _compactSideConnections(bottom!);
               break;
             case 'left':
               left = filtered;
+              _compactSideConnections(left!);
               break;
           }
         }
