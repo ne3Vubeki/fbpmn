@@ -49,15 +49,17 @@ class EventService {
       final dynamic rawData = event.getDataDart();
       final Map<String, dynamic>? data = rawData is Map<String, dynamic> ? rawData : null;
 
-      api(action, data);
+      apiIN(action, data);
     });
   }
 
-  static Future<void> apiStatic(String action, [Map<String, dynamic>? data]) async {
-    await _instance?.api(action, data);
+  /// Static метод для отправки событий в родительское приложение
+  static Future<void> apiStatic(String action, String printMessage, [Map<String, dynamic>? data]) async {
+    await _instance?.apiOUT(action, data);
   }
 
-  api(String action, Map<String, dynamic>? data) async {
+  /// События для обработки в данном приложении
+  apiIN(String action, Map<String, dynamic>? data) async {
     switch (action) {
       /// События запуска алгоритмов
       case 'run_occupancy':
@@ -101,6 +103,9 @@ class EventService {
       case 'only_connectors_off':
         tileManager.offOnlyConnectors();
         break;
+      case 'auto_fit_and_center_schema':
+        scrollHandler.autoFitAndCenterNodes();
+        break;
 
       /// События настройки редактора
       case 'configuration_editor_changed':
@@ -140,7 +145,7 @@ class EventService {
         }
         break;
 
-      /// Создающие|удаляющие события
+      /// События для схемы
       case 'schema_create':
         shemaManager.createEmptySchema();
         appEvent?.emitToJs(action: action, data: {'schema': state.schema});
@@ -156,9 +161,18 @@ class EventService {
       case 'schema_url':
         if (data != null) {
           await shemaManager.resolveSchema(allowHttpLoad: true, filePath: data['filePath'] as String);
-          appEvent?.emitToJs(action: action, data: {'schema': shemaManager.schema});
+          appEvent?.emitToJs(action: 'schema_upload', data: shemaManager.schema);
         }
         break;
+
+      /// События для истории
+      case 'history_apply':
+        if (data != null) {
+          shemaManager.createSchemaFromStringWithoutViewportUpdate(data['schema'] as String);
+        }
+        break;
+
+      /// События для узлов
       case 'node_create':
         if (data != null) {
           final payload = data['node'];
@@ -175,6 +189,8 @@ class EventService {
           }
         }
         break;
+
+      /// События для стрелок
       case 'arrow_create':
         if (data != null) {
           final payload = data['arrow'];
@@ -198,6 +214,24 @@ class EventService {
             await arrowManager.deleteSelectedArrows(tileManager);
           }
         }
+        break;
+
+      /// Подтверждающие события
+      case 'confirm_create_arrow':
+      case 'confirm_config_arrow':
+      case 'confirm_delete_arrow':
+      case 'confirm_delete_node':
+        appEvent?.emitToJs(action: action, data: data);
+        break;
+    }
+  }
+
+  /// События для отправки в родительское приложение
+  apiOUT(String action, Map<String, dynamic>? data) async {
+    switch (action) {
+      // Событие обновления схемы для родительского приложения
+      case 'schema_update':
+        appEvent?.emitToJs(action: action, data: state.schema);
         break;
 
       /// Подтверждающие события

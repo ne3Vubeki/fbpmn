@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/arrow_paths.dart';
+import 'package:fbpmn/src/models/connections.dart';
 import 'package:fbpmn/src/services/event_service.dart';
 import 'package:fbpmn/src/services/shema_manager.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
@@ -24,10 +25,11 @@ class ArrowManager extends Manager {
   double get arrowIndent => 12;
   double get createdArrowSourceHandleOffset => 14;
   double get createdArrowSnapDistance => 24;
-  double get sizeLimit => 60;
   double get halfSizeLimit => 30;
   double get defaultArrowRadius => 10;
   double get arrowPathRectOffset => 5;
+  double get minOffsetFronNode => 60;
+
   bool get onlyConnectors => state.onlyConnectors;
 
   ArrowManager({required this.state, required this.schemaManager});
@@ -40,7 +42,7 @@ class ArrowManager extends Manager {
 
     clearStartCreatedArrow();
 
-    EventService.apiStatic('schema_update');
+    EventService.apiStatic('schema_update', 'ArrowManager.createArrowFromMap');
 
     onStateUpdate('update_arrows');
   }
@@ -74,7 +76,7 @@ class ArrowManager extends Manager {
     }
 
     _syncArrowToSchema(updatedArrow.toJson(), updatedArrow);
-    EventService.apiStatic('schema_update');
+    EventService.apiStatic('schema_update', 'ArrowManager.configArrowFromMap');
 
     await tileManager?.recreateTiles(
       arrowIds: state.arrowsSelected.whereType<Arrow>().map((arrow) => arrow.id).toList(),
@@ -84,13 +86,11 @@ class ArrowManager extends Manager {
   }
 
   Future<void> confirmDeleteArrow(Arrow arrow) async {
-    EventService.apiStatic('confirm_delete_arrow', {'arrow': arrow.toJson()});
+    EventService.apiStatic('confirm_delete_arrow', 'ArrowManager.confirmDeleteArrow', {'arrow': arrow.toJson()});
   }
 
   Future<void> confirmConfigArrow(Arrow arrow) async {
-    EventService.apiStatic('confirm_config_arrow', {
-      'arrow': arrow.toJson(),
-    });
+    EventService.apiStatic('confirm_config_arrow', 'ArrowManager.confirmConfigArrow', {'arrow': arrow.toJson()});
     // EventService.apiStatic('arrow_config', {
     //   'arrow': {
     //     'id': "1768315075764",
@@ -166,7 +166,7 @@ class ArrowManager extends Manager {
       compactAllConnections();
     }
 
-    tileManager != null ? EventService.apiStatic('schema_update') : null;
+    tileManager != null ? EventService.apiStatic('schema_update', 'ArrowManager.deleteSelectedArrows') : null;
 
     await tileManager?.updateTilesAfterNodeChange();
 
@@ -174,11 +174,49 @@ class ArrowManager extends Manager {
   }
 
   void compactAllConnections() {
+    void reorderConnections(Connections? connections) {
+      if (connections == null) {
+        return;
+      }
+
+      for (final side in ['top', 'right', 'bottom', 'left']) {
+        final sideConnections = connections.get(side);
+        if (sideConnections == null || sideConnections.isEmpty) {
+          continue;
+        }
+
+        final arrowOrder = <String, int>{};
+        for (int i = 0; i < state.arrows.length; i++) {
+          arrowOrder[state.arrows[i].id] = i;
+        }
+
+        final sortedList = sideConnections.toList();
+        sortedList.sort((a, b) {
+          final leftOrder = arrowOrder[a?.id] ?? 1 << 30;
+          final rightOrder = arrowOrder[b?.id] ?? 1 << 30;
+
+          if (leftOrder != rightOrder) {
+            return leftOrder.compareTo(rightOrder);
+          }
+
+          return (a?.index ?? 0).compareTo(b?.index ?? 0);
+        });
+
+        for (int i = 0; i < sortedList.length; i++) {
+          sortedList[i]!.index = i;
+        }
+
+        sideConnections
+          ..clear()
+          ..addAll(sortedList);
+      }
+    }
+
     void compactNodeRecursive(TableNode node) {
-      node.connections?.compactAll();
+      reorderConnections(node.connections);
 
       for (final attribute in node.attributes) {
-        attribute.connections?.compactAll();
+        reorderConnections(attribute.connections);
       }
 
       if (node.children != null && node.children!.isNotEmpty) {
@@ -241,7 +279,7 @@ class ArrowManager extends Manager {
   }
 
   Future<void> confirmCreateArrow(Arrow arrow) async {
-    EventService.apiStatic('confirm_create_arrow', {'arrow': arrow.toJson()});
+    EventService.apiStatic('confirm_create_arrow', 'ArrowManager.confirmCreateArrow', {'arrow': arrow.toJson()});
   }
 
   Future<void> startCreateArrowFromMap(Map<String, dynamic> arrowMap, String startSide) async {
@@ -1485,6 +1523,117 @@ class ArrowManager extends Manager {
   }) {
     List<Offset> coordinates = [];
 
+    void addCoordinate(Offset coordinate) {
+      if (coordinates.isNotEmpty) {
+        final previousCoordinate = coordinates.last;
+        final tileWorldSize = EditorConfig.tileSize.toDouble();
+        final tileIds = <String>[];
+        String segmentDirections = '';
+
+        String generateTileId(double left, double top) {
+          return '${left.toInt()}:${top.toInt()}';
+        }
+
+        if (previousCoordinate.dx == coordinate.dx) {
+          segmentDirections = 'vertical';
+
+          final gridYStart = (min(previousCoordinate.dy, coordinate.dy) / tileWorldSize).floor();
+          final gridYEnd = (max(previousCoordinate.dy, coordinate.dy) / tileWorldSize).ceil();
+          final gridX = (coordinate.dx / tileWorldSize).floor();
+
+          for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            tileIds.add(generateTileId(left, top));
+          }
+        } else {
+          segmentDirections = 'horizontal';
+
+          final gridXStart = (min(previousCoordinate.dx, coordinate.dx) / tileWorldSize).floor();
+          final gridXEnd = (max(previousCoordinate.dx, coordinate.dx) / tileWorldSize).ceil();
+          final gridY = (coordinate.dy / tileWorldSize).floor();
+
+          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
+            final left = gridX * tileWorldSize;
+            final top = gridY * tileWorldSize;
+            tileIds.add(generateTileId(left, top));
+          }
+        }
+
+        final currentSegmentRect = segmentDirections == 'vertical'
+            ? Rect.fromLTRB(
+                coordinate.dx - arrowPathRectOffset,
+                min(previousCoordinate.dy, coordinate.dy),
+                coordinate.dx + arrowPathRectOffset,
+                max(previousCoordinate.dy, coordinate.dy),
+              )
+            : Rect.fromLTRB(
+                min(previousCoordinate.dx, coordinate.dx),
+                coordinate.dy - arrowPathRectOffset,
+                max(previousCoordinate.dx, coordinate.dx),
+                coordinate.dy + arrowPathRectOffset,
+              );
+
+        final Iterable<Arrow> candidateArrows = state.imageTiles.isEmpty
+            ? state.arrows
+            : (() {
+                final candidateArrowIds = <String>{};
+                for (final tileId in tileIds) {
+                  final imageTile = state.imageTiles[tileId];
+                  if (imageTile == null) {
+                    continue;
+                  }
+                  candidateArrowIds.addAll(imageTile.arrows.whereType<String>());
+                }
+                return state.arrows.where((item) => candidateArrowIds.contains(item.id));
+              })();
+
+        for (final candidateArrow in candidateArrows) {
+          if (candidateArrow.id == arrow.id) {
+            continue;
+          }
+
+          if (candidateArrow.coordinates == null || candidateArrow.coordinates!.length < 2) {
+            continue;
+          }
+
+          final candidateCoordinates = candidateArrow.coordinates!;
+          final hasIntersection = Iterable.generate(candidateCoordinates.length - 1).any((index) {
+            final candidateStart = candidateCoordinates[index];
+            final candidateEnd = candidateCoordinates[index + 1];
+            final candidateDirection = candidateStart.dx == candidateEnd.dx ? 'vertical' : 'horizontal';
+
+            if (candidateDirection != segmentDirections) {
+              return false;
+            }
+
+            final candidateSegmentRect = candidateDirection == 'vertical'
+                ? Rect.fromLTRB(
+                    candidateEnd.dx - arrowPathRectOffset,
+                    min(candidateStart.dy, candidateEnd.dy),
+                    candidateEnd.dx + arrowPathRectOffset,
+                    max(candidateStart.dy, candidateEnd.dy),
+                  )
+                : Rect.fromLTRB(
+                    min(candidateStart.dx, candidateEnd.dx),
+                    candidateEnd.dy - arrowPathRectOffset,
+                    max(candidateStart.dx, candidateEnd.dx),
+                    candidateEnd.dy + arrowPathRectOffset,
+                  );
+
+            return candidateSegmentRect.overlaps(currentSegmentRect);
+          });
+
+          if (hasIntersection) {
+            print('Пересечение с связью ${candidateArrow.id}');
+          }
+        }
+
+      }
+
+      coordinates.add(coordinate);
+    }
+
     // Определяем стороны и размеры узлов
     final sourceTop = sourceRect.top;
     final sourceBottom = sourceRect.bottom;
@@ -1496,7 +1645,7 @@ class ArrowManager extends Manager {
     final targetLeft = targetRect.left;
     final targetRight = targetRect.right;
 
-    coordinates.add(Offset(start.dx, start.dy));
+    addCoordinate(Offset(start.dx, start.dy));
 
     final dx = end.dx - start.dx;
     final dy = end.dy - start.dy;
@@ -1506,203 +1655,203 @@ class ArrowManager extends Manager {
     switch (sides) {
       case 'left:right':
         if (dy2 != 0) {
-          coordinates.add(Offset(start.dx - dx2, start.dy));
-          coordinates.add(Offset(start.dx - dx2, end.dy));
-          coordinates.add(Offset(end.dx, end.dy));
+          addCoordinate(Offset(start.dx - dx2, start.dy));
+          addCoordinate(Offset(start.dx - dx2, end.dy));
+          addCoordinate(Offset(end.dx, end.dy));
         } else {
-          coordinates.add(Offset(end.dx, end.dy));
+          addCoordinate(Offset(end.dx, end.dy));
         }
         break;
       case 'right:left':
         if (dy2 != 0) {
-          coordinates.add(Offset(start.dx + dx2, start.dy));
-          coordinates.add(Offset(start.dx + dx2, end.dy));
-          coordinates.add(Offset(end.dx, end.dy));
+          addCoordinate(Offset(start.dx + dx2, start.dy));
+          addCoordinate(Offset(start.dx + dx2, end.dy));
+          addCoordinate(Offset(end.dx, end.dy));
         } else {
-          coordinates.add(Offset(end.dx, end.dy));
+          addCoordinate(Offset(end.dx, end.dy));
         }
         break;
       case 'top:bottom':
         if (dx2 != 0) {
-          coordinates.add(Offset(start.dx, start.dy - dy2));
-          coordinates.add(Offset(end.dx, start.dy - dy2));
-          coordinates.add(Offset(end.dx, end.dy));
+          addCoordinate(Offset(start.dx, start.dy - dy2));
+          addCoordinate(Offset(end.dx, start.dy - dy2));
+          addCoordinate(Offset(end.dx, end.dy));
         } else {
-          coordinates.add(Offset(end.dx, end.dy));
+          addCoordinate(Offset(end.dx, end.dy));
         }
         break;
       case 'bottom:top':
         if (dx2 != 0) {
-          coordinates.add(Offset(start.dx, start.dy + dy2));
-          coordinates.add(Offset(end.dx, start.dy + dy2));
-          coordinates.add(Offset(end.dx, end.dy));
+          addCoordinate(Offset(start.dx, start.dy + dy2));
+          addCoordinate(Offset(end.dx, start.dy + dy2));
+          addCoordinate(Offset(end.dx, end.dy));
         } else {
-          coordinates.add(Offset(end.dx, end.dy));
+          addCoordinate(Offset(end.dx, end.dy));
         }
         break;
       case 'left:top':
       case 'right:top':
       case 'left:bottom':
       case 'right:bottom':
-        coordinates.add(Offset(end.dx, start.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        addCoordinate(Offset(end.dx, start.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'top:left':
       case 'top:right':
       case 'bottom:left':
       case 'bottom:right':
-        coordinates.add(Offset(start.dx, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        addCoordinate(Offset(start.dx, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'left:left':
         final dxMin = dx > 0 ? 0 : dx;
-        coordinates.add(Offset(start.dx - 60 + dxMin, start.dy));
-        coordinates.add(Offset(start.dx - 60 + dxMin, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        addCoordinate(Offset(start.dx - minOffsetFronNode + dxMin, start.dy));
+        addCoordinate(Offset(start.dx - minOffsetFronNode + dxMin, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'right:right':
         final dxMin = dx > 0 ? dx : 0;
-        coordinates.add(Offset(start.dx + 60 + dxMin, start.dy));
-        coordinates.add(Offset(start.dx + 60 + dxMin, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        addCoordinate(Offset(start.dx + minOffsetFronNode + dxMin, start.dy));
+        addCoordinate(Offset(start.dx + minOffsetFronNode + dxMin, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'top:top':
         final dyMin = dy > 0 ? 0 : dy;
-        coordinates.add(Offset(start.dx, start.dy - 60 + dyMin));
-        coordinates.add(Offset(end.dx, start.dy - 60 + dyMin));
-        coordinates.add(Offset(end.dx, end.dy));
+        addCoordinate(Offset(start.dx, start.dy - minOffsetFronNode + dyMin));
+        addCoordinate(Offset(end.dx, start.dy - minOffsetFronNode + dyMin));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'bottom:bottom':
         final dyMin = dy > 0 ? dy : 0;
-        coordinates.add(Offset(start.dx, start.dy + 60 + dyMin));
-        coordinates.add(Offset(end.dx, start.dy + 60 + dyMin));
-        coordinates.add(Offset(end.dx, end.dy));
+        addCoordinate(Offset(start.dx, start.dy + minOffsetFronNode + dyMin));
+        addCoordinate(Offset(end.dx, start.dy + minOffsetFronNode + dyMin));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'left:left:3':
-        final dyUp = min(sourceTop, targetTop) - 60;
-        coordinates.add(Offset(start.dx - 60, start.dy));
-        coordinates.add(Offset(start.dx - 60, dyUp));
-        coordinates.add(Offset(end.dx, dyUp));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyUp = min(sourceTop, targetTop) - minOffsetFronNode;
+        addCoordinate(Offset(start.dx - minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx - minOffsetFronNode, dyUp));
+        addCoordinate(Offset(end.dx, dyUp));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'left:top:3':
-        final dyUp = min(sourceTop, targetTop) - 60;
-        coordinates.add(Offset(start.dx - 60, start.dy));
-        coordinates.add(Offset(start.dx - 60, dyUp));
-        coordinates.add(Offset(end.dx, dyUp));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyUp = min(sourceTop, targetTop) - minOffsetFronNode;
+        addCoordinate(Offset(start.dx - minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx - minOffsetFronNode, dyUp));
+        addCoordinate(Offset(end.dx, dyUp));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'right:top:3':
-        final dyUp = min(sourceTop, targetTop) - 60;
-        coordinates.add(Offset(start.dx + 60, start.dy));
-        coordinates.add(Offset(start.dx + 60, dyUp));
-        coordinates.add(Offset(end.dx, dyUp));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyUp = min(sourceTop, targetTop) - minOffsetFronNode;
+        addCoordinate(Offset(start.dx + minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx + minOffsetFronNode, dyUp));
+        addCoordinate(Offset(end.dx, dyUp));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'right:right:3':
-        final dyUp = min(sourceTop, targetTop) - 60;
-        coordinates.add(Offset(start.dx + 60, start.dy));
-        coordinates.add(Offset(start.dx + 60, dyUp));
-        coordinates.add(Offset(end.dx, dyUp));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyUp = min(sourceTop, targetTop) - minOffsetFronNode;
+        addCoordinate(Offset(start.dx + minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx + minOffsetFronNode, dyUp));
+        addCoordinate(Offset(end.dx, dyUp));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'left:bottom:3':
-        final dyDown = max(sourceBottom, targetBottom) + 60;
-        coordinates.add(Offset(start.dx - 60, start.dy));
-        coordinates.add(Offset(start.dx - 60, dyDown));
-        coordinates.add(Offset(end.dx, dyDown));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyDown = max(sourceBottom, targetBottom) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx - minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx - minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx, dyDown));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'right:bottom:3':
-        final dyDown = max(sourceBottom, targetBottom) + 60;
-        coordinates.add(Offset(start.dx + 60, start.dy));
-        coordinates.add(Offset(start.dx + 60, dyDown));
-        coordinates.add(Offset(end.dx, dyDown));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyDown = max(sourceBottom, targetBottom) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx + minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx + minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx, dyDown));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'top:left:3':
-        final dyLeft = min(sourceLeft, targetLeft) - 60;
-        coordinates.add(Offset(start.dx, start.dy - 60));
-        coordinates.add(Offset(dyLeft, start.dy - 60));
-        coordinates.add(Offset(dyLeft, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyLeft = min(sourceLeft, targetLeft) - minOffsetFronNode;
+        addCoordinate(Offset(start.dx, start.dy - minOffsetFronNode));
+        addCoordinate(Offset(dyLeft, start.dy - minOffsetFronNode));
+        addCoordinate(Offset(dyLeft, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'bottom:left:3':
-        final dyLeft = min(sourceLeft, targetLeft) - 60;
-        coordinates.add(Offset(start.dx, start.dy + 60));
-        coordinates.add(Offset(dyLeft, start.dy + 60));
-        coordinates.add(Offset(dyLeft, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyLeft = min(sourceLeft, targetLeft) - minOffsetFronNode;
+        addCoordinate(Offset(start.dx, start.dy + minOffsetFronNode));
+        addCoordinate(Offset(dyLeft, start.dy + minOffsetFronNode));
+        addCoordinate(Offset(dyLeft, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'top:right:3':
-        final dyRight = max(sourceRight, targetRight) + 60;
-        coordinates.add(Offset(start.dx, start.dy - 60));
-        coordinates.add(Offset(dyRight, start.dy - 60));
-        coordinates.add(Offset(dyRight, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyRight = max(sourceRight, targetRight) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx, start.dy - minOffsetFronNode));
+        addCoordinate(Offset(dyRight, start.dy - minOffsetFronNode));
+        addCoordinate(Offset(dyRight, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'bottom:right:3':
-        final dyRight = max(sourceRight, targetRight) + 60;
-        coordinates.add(Offset(start.dx, start.dy + 60));
-        coordinates.add(Offset(dyRight, start.dy + 60));
-        coordinates.add(Offset(dyRight, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyRight = max(sourceRight, targetRight) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx, start.dy + minOffsetFronNode));
+        addCoordinate(Offset(dyRight, start.dy + minOffsetFronNode));
+        addCoordinate(Offset(dyRight, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'bottom:top:4':
-        final dxRight = max(sourceRight, targetRight) + 60;
-        coordinates.add(Offset(start.dx, start.dy + 60));
-        coordinates.add(Offset(dxRight, start.dy + 60));
-        coordinates.add(Offset(dxRight, targetTop - 60));
-        coordinates.add(Offset(end.dx, targetTop - 60));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dxRight = max(sourceRight, targetRight) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx, start.dy + minOffsetFronNode));
+        addCoordinate(Offset(dxRight, start.dy + minOffsetFronNode));
+        addCoordinate(Offset(dxRight, targetTop - minOffsetFronNode));
+        addCoordinate(Offset(end.dx, targetTop - minOffsetFronNode));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'top:bottom:4':
-        final dxRight = max(sourceRight, targetRight) + 60;
-        coordinates.add(Offset(start.dx, start.dy - 60));
-        coordinates.add(Offset(dxRight, start.dy - 60));
-        coordinates.add(Offset(dxRight, targetBottom + 60));
-        coordinates.add(Offset(end.dx, targetBottom + 60));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dxRight = max(sourceRight, targetRight) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx, start.dy - minOffsetFronNode));
+        addCoordinate(Offset(dxRight, start.dy - minOffsetFronNode));
+        addCoordinate(Offset(dxRight, targetBottom + minOffsetFronNode));
+        addCoordinate(Offset(end.dx, targetBottom + minOffsetFronNode));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'top:left:4':
-        final dxRight = max(sourceRight, targetRight) + 60;
-        coordinates.add(Offset(start.dx, start.dy - 60));
-        coordinates.add(Offset(dxRight, start.dy - 60));
-        coordinates.add(Offset(dxRight, targetBottom + 60));
-        coordinates.add(Offset(end.dx, targetBottom + 60));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dxRight = max(sourceRight, targetRight) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx, start.dy - minOffsetFronNode));
+        addCoordinate(Offset(dxRight, start.dy - minOffsetFronNode));
+        addCoordinate(Offset(dxRight, targetBottom + minOffsetFronNode));
+        addCoordinate(Offset(end.dx, targetBottom + minOffsetFronNode));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'left:right:4':
-        final dyDown = max(sourceBottom, targetBottom) + 60;
-        coordinates.add(Offset(start.dx - 60, start.dy));
-        coordinates.add(Offset(start.dx - 60, dyDown));
-        coordinates.add(Offset(end.dx + 60, dyDown));
-        coordinates.add(Offset(end.dx + 60, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyDown = max(sourceBottom, targetBottom) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx - minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx - minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx + minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx + minOffsetFronNode, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'left:left:4':
-        final dyDown = max(sourceBottom, targetBottom) + 60;
-        coordinates.add(Offset(start.dx - 60, start.dy));
-        coordinates.add(Offset(start.dx - 60, dyDown));
-        coordinates.add(Offset(end.dx - 60, dyDown));
-        coordinates.add(Offset(end.dx - 60, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyDown = max(sourceBottom, targetBottom) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx - minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx - minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx - minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx - minOffsetFronNode, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'right:left:4':
-        final dyDown = max(sourceBottom, targetBottom) + 60;
-        coordinates.add(Offset(start.dx + 60, start.dy));
-        coordinates.add(Offset(start.dx + 60, dyDown));
-        coordinates.add(Offset(end.dx - 60, dyDown));
-        coordinates.add(Offset(end.dx - 60, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyDown = max(sourceBottom, targetBottom) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx + minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx + minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx - minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx - minOffsetFronNode, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       case 'right:right:4':
-        final dyDown = max(sourceBottom, targetBottom) + 60;
-        coordinates.add(Offset(start.dx + 60, start.dy));
-        coordinates.add(Offset(start.dx + 60, dyDown));
-        coordinates.add(Offset(end.dx + 60, dyDown));
-        coordinates.add(Offset(end.dx + 60, end.dy));
-        coordinates.add(Offset(end.dx, end.dy));
+        final dyDown = max(sourceBottom, targetBottom) + minOffsetFronNode;
+        addCoordinate(Offset(start.dx + minOffsetFronNode, start.dy));
+        addCoordinate(Offset(start.dx + minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx + minOffsetFronNode, dyDown));
+        addCoordinate(Offset(end.dx + minOffsetFronNode, end.dy));
+        addCoordinate(Offset(end.dx, end.dy));
         break;
       default:
         break;

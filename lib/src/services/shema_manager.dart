@@ -45,6 +45,18 @@ class ShemaManager extends Manager {
     return _cloneMap(normalized);
   }
 
+  Map<String, dynamic> createSchemaFromStringWithoutViewportUpdate(String schemaString, {bool apply = true}) {
+    final parsed = decodeSchemaString(schemaString);
+    final normalized = _normalizeSchema(parsed);
+
+    if (apply) {
+      state.schema = _cloneMap(normalized);
+      onStateUpdate('preserve_viewport');
+    }
+
+    return _cloneMap(normalized);
+  }
+
   void updateSchemaFromString(String schemaString, {bool merge = true}) {
     final parsed = decodeSchemaString(schemaString);
     updateSchema(parsed, merge: merge);

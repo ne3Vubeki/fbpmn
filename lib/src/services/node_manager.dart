@@ -204,7 +204,7 @@ class NodeManager extends Manager {
   Future<void> confirmDeleteNode(String nodeId) async {
     print('deleteNode: $nodeId All nodes: ${state.nodes.length}, nodesSelected: ${state.nodesSelected.length} Schema: ${state.schema}');
     final node = getNodeById(state.nodesSelected.toList(), nodeId);
-    EventService.apiStatic('confirm_delete_node', {
+    EventService.apiStatic('confirm_delete_node', 'NodeManager.confirmDeleteNode', {
       'node': node?.toJson(),
       'arrows': state.arrowsSelected.map((arrow) => arrow?.toJson()).toList(),
     });
@@ -237,7 +237,7 @@ class NodeManager extends Manager {
 
     arrowManager.compactAllConnections();
 
-    await EventService.apiStatic('schema_update');
+    await EventService.apiStatic('schema_update', 'NodeManager.deleteSelectedNode');
 
     await tileManager.updateTilesAfterNodeChange();
 
@@ -546,7 +546,7 @@ class NodeManager extends Manager {
     }
 
     _syncNodesToSchema(selectedNodes);
-    await EventService.apiStatic('schema_update');
+    await EventService.apiStatic('schema_update', 'NodeManager._saveNodeToTiles');
 
     // Очищаем подсветку ПЕРЕД перерисовкой тайлов
     state.highlightedNodeIds.clear();
@@ -707,7 +707,7 @@ class NodeManager extends Manager {
       state.arrowsSelected.clear();
       state.hoveredArrow = null;
 
-      await EventService.apiStatic('schema_update');
+      // await EventService.apiStatic('schema_update', 'NodeManager.handleEmptyAreaClick');
 
       // Очищаем подсветку и перерисовываем тайлы
       if (state.highlightedNodeIds.isNotEmpty) {

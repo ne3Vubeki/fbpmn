@@ -103,9 +103,9 @@ class _StableGridImageState extends State<StableGridImage> {
       appEvent: widget.appEvent,
     );
 
-    _shemaManager.setOnStateUpdate('StableGridImage', () {
+    _shemaManager.setOnStateUpdate('StableGridImage', ([data]) {
       if (_suppressSchemaCallback) return;
-      _reinitializeFromSchema(_shemaManager.schema);
+      _reinitializeFromSchema(_shemaManager.schema, preserveViewport: data == 'preserve_viewport');
     });
 
     // Инициализация (запускаем после загрузки схемы)
@@ -131,15 +131,23 @@ class _StableGridImageState extends State<StableGridImage> {
   Future<void> _yieldToUi() => Future<void>.delayed(Duration.zero);
 
   Future<void> _initEditor() async {
+    await _initEditorInternal(preserveViewport: false);
+  }
+
+  Future<void> _initEditorInternal({required bool preserveViewport}) async {
     if (_isEditorInitializing) {
       _hasPendingReinitialize = true;
       return;
     }
 
     _isEditorInitializing = true;
+    final previousScale = _editorState.scale;
+    final previousOffset = _editorState.offset;
     _clearEditorData();
     _scrollHandler.resetCanvasSizeToDefault();
-    await _zoomManager.resetZoom();
+    if (!preserveViewport) {
+      await _zoomManager.resetZoom();
+    }
     _editorState.isLoading = true;
     _tileManager.onStateUpdate();
     if (mounted) {
@@ -211,16 +219,28 @@ class _StableGridImageState extends State<StableGridImage> {
 
       if (_hasPendingReinitialize) {
         _hasPendingReinitialize = false;
-        _reinitializeFromSchema(_shemaManager.schema);
+        _reinitializeFromSchema(_shemaManager.schema, preserveViewport: preserveViewport);
       }
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollHandler.autoFitAndCenterNodes();
-    });
+    if (preserveViewport) {
+      _editorState.scale = previousScale;
+      _editorState.offset = previousOffset;
+      _scrollHandler.updateScrollControllers();
+      _zoomManager.onStateUpdate();
+      _scrollHandler.onStateUpdate();
+      _tileManager.onStateUpdate();
+      if (mounted) {
+        setState(() {});
+      }
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollHandler.autoFitAndCenterNodes();
+      });
+    }
   }
 
-  Future<void> _reinitializeFromSchema(Map<String, dynamic> schema) async {
+  Future<void> _reinitializeFromSchema(Map<String, dynamic> schema, {bool preserveViewport = false}) async {
     if (_isEditorInitializing) {
       _hasPendingReinitialize = true;
       return;
@@ -234,7 +254,7 @@ class _StableGridImageState extends State<StableGridImage> {
       _suppressSchemaCallback = false;
     }
 
-    await _initEditor();
+    await _initEditorInternal(preserveViewport: preserveViewport);
   }
 
   void _clearEditorData() {
