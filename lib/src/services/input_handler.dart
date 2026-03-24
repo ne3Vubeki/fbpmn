@@ -131,7 +131,9 @@ class InputHandler extends Manager {
 
       final hoveredArrow = state.hoveredArrow;
       if (hoveredArrow != null) {
-        arrowManager.selectArrow(hoveredArrow);
+        nodeManager.commitNodeSelectionBeforeArrowSelection().then((_) {
+          arrowManager.selectArrow(hoveredArrow);
+        });
         _focusNode.requestFocus();
         return;
       }

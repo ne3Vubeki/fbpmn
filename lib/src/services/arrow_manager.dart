@@ -995,7 +995,7 @@ class ArrowManager extends Manager {
           }
           sides = getSidesForNodeAndAttribute(
             ifNode: sides,
-            ifAttrST: 'left:left:right:left:4|left:right:4|right:right',
+            ifAttrST: 'left:left|right:left:4|left:right:4|right:right',
             ifAttrS: position == 'leftC|topC' ? 'right:top|left:right:4' : 'right:bottom|left:right:4',
             ifAttrT: position == 'leftC|topC' ? 'top:right:3|left:left' : 'bottom:right:3|left:left',
           );
@@ -1524,113 +1524,6 @@ class ArrowManager extends Manager {
     List<Offset> coordinates = [];
 
     void addCoordinate(Offset coordinate) {
-      if (coordinates.isNotEmpty) {
-        final previousCoordinate = coordinates.last;
-        final tileWorldSize = EditorConfig.tileSize.toDouble();
-        final tileIds = <String>[];
-        String segmentDirections = '';
-
-        String generateTileId(double left, double top) {
-          return '${left.toInt()}:${top.toInt()}';
-        }
-
-        if (previousCoordinate.dx == coordinate.dx) {
-          segmentDirections = 'vertical';
-
-          final gridYStart = (min(previousCoordinate.dy, coordinate.dy) / tileWorldSize).floor();
-          final gridYEnd = (max(previousCoordinate.dy, coordinate.dy) / tileWorldSize).ceil();
-          final gridX = (coordinate.dx / tileWorldSize).floor();
-
-          for (int gridY = gridYStart; gridY < gridYEnd; gridY++) {
-            final left = gridX * tileWorldSize;
-            final top = gridY * tileWorldSize;
-            tileIds.add(generateTileId(left, top));
-          }
-        } else {
-          segmentDirections = 'horizontal';
-
-          final gridXStart = (min(previousCoordinate.dx, coordinate.dx) / tileWorldSize).floor();
-          final gridXEnd = (max(previousCoordinate.dx, coordinate.dx) / tileWorldSize).ceil();
-          final gridY = (coordinate.dy / tileWorldSize).floor();
-
-          for (int gridX = gridXStart; gridX < gridXEnd; gridX++) {
-            final left = gridX * tileWorldSize;
-            final top = gridY * tileWorldSize;
-            tileIds.add(generateTileId(left, top));
-          }
-        }
-
-        final currentSegmentRect = segmentDirections == 'vertical'
-            ? Rect.fromLTRB(
-                coordinate.dx - arrowPathRectOffset,
-                min(previousCoordinate.dy, coordinate.dy),
-                coordinate.dx + arrowPathRectOffset,
-                max(previousCoordinate.dy, coordinate.dy),
-              )
-            : Rect.fromLTRB(
-                min(previousCoordinate.dx, coordinate.dx),
-                coordinate.dy - arrowPathRectOffset,
-                max(previousCoordinate.dx, coordinate.dx),
-                coordinate.dy + arrowPathRectOffset,
-              );
-
-        final Iterable<Arrow> candidateArrows = state.imageTiles.isEmpty
-            ? state.arrows
-            : (() {
-                final candidateArrowIds = <String>{};
-                for (final tileId in tileIds) {
-                  final imageTile = state.imageTiles[tileId];
-                  if (imageTile == null) {
-                    continue;
-                  }
-                  candidateArrowIds.addAll(imageTile.arrows.whereType<String>());
-                }
-                return state.arrows.where((item) => candidateArrowIds.contains(item.id));
-              })();
-
-        for (final candidateArrow in candidateArrows) {
-          if (candidateArrow.id == arrow.id) {
-            continue;
-          }
-
-          if (candidateArrow.coordinates == null || candidateArrow.coordinates!.length < 2) {
-            continue;
-          }
-
-          final candidateCoordinates = candidateArrow.coordinates!;
-          final hasIntersection = Iterable.generate(candidateCoordinates.length - 1).any((index) {
-            final candidateStart = candidateCoordinates[index];
-            final candidateEnd = candidateCoordinates[index + 1];
-            final candidateDirection = candidateStart.dx == candidateEnd.dx ? 'vertical' : 'horizontal';
-
-            if (candidateDirection != segmentDirections) {
-              return false;
-            }
-
-            final candidateSegmentRect = candidateDirection == 'vertical'
-                ? Rect.fromLTRB(
-                    candidateEnd.dx - arrowPathRectOffset,
-                    min(candidateStart.dy, candidateEnd.dy),
-                    candidateEnd.dx + arrowPathRectOffset,
-                    max(candidateStart.dy, candidateEnd.dy),
-                  )
-                : Rect.fromLTRB(
-                    min(candidateStart.dx, candidateEnd.dx),
-                    candidateEnd.dy - arrowPathRectOffset,
-                    max(candidateStart.dx, candidateEnd.dx),
-                    candidateEnd.dy + arrowPathRectOffset,
-                  );
-
-            return candidateSegmentRect.overlaps(currentSegmentRect);
-          });
-
-          if (hasIntersection) {
-            print('Пересечение с связью ${candidateArrow.id}');
-          }
-        }
-
-      }
-
       coordinates.add(coordinate);
     }
 

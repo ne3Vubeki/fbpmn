@@ -5,6 +5,7 @@ import 'package:fbpmn/src/cola/cola_interop.dart';
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
+import 'package:fbpmn/src/services/event_service.dart';
 import 'package:fbpmn/src/services/manager.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/services/scroll_handler.dart';
@@ -1026,10 +1027,12 @@ class ColaLayoutService extends Manager {
     // Пересчитываем размер холста на основе новых позиций узлов
     // ВАЖНО: делаем это ДО saveAllNodesAfterLayout, так как этот метод
     // изменяет state.delta и пересчитывает aPosition
-    // scrollHandler.calculateCanvasSizeFromNodes(state.nodes);
+    scrollHandler.calculateCanvasSizeFromNodes(state.nodes);
 
     // Сохраняем узлы обратно в тайлы (используем метод NodeManager)
     await nodeManager.saveAllNodesAfterLayout();
+
+    await EventService.apiStatic('schema_update', 'ColaLayoutService._finishLayout');
 
     // Выключаем loading indicator и режим автораскладки
     state.isLoading = false;
@@ -1063,16 +1066,16 @@ class ColaLayoutService extends Manager {
     }
   }
 
-  void stopLayout() {
+  Future<void> stopLayout() async {
     if (_isRunning) {
       _animator?.stop();
-      _finishLayout();
+      await _finishLayout();
     }
   }
 
   @override
   void dispose() {
-    stopLayout();
+    unawaited(stopLayout());
     super.dispose();
   }
 }

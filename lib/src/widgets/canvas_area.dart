@@ -207,6 +207,7 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         ArrowHover(
                           state: widget.state,
                           arrowManager: widget.arrowManager,
+                          nodeManager: widget.nodeManager,
                           scrollHandler: widget.scrollHandler,
                         ),
 

@@ -372,6 +372,8 @@ class NodeManager extends Manager {
     tracker.startSelect();
 
     _deselectAllNodes();
+    state.arrowsSelected.clear(); // Очистить выделение связи при выборе узла
+    state.hoveredArrow = null;
 
     node.isSelected = true;
     state.nodesSelected.add(node);
@@ -412,6 +414,8 @@ class NodeManager extends Manager {
     tracker.startSelect();
 
     _deselectAllNodes();
+    state.arrowsSelected.clear();
+    state.hoveredArrow = null;
 
     node.isSelected = true;
     state.nodesSelected.add(node);
@@ -446,6 +450,9 @@ class NodeManager extends Manager {
   Future<void> _addNodeToSelection(TableNode node) async {
     // Проверяем, не выделен ли уже этот узел
     if (state.nodesSelected.any((n) => n?.id == node.id)) return;
+
+    state.arrowsSelected.clear();
+    state.hoveredArrow = null;
 
     node.isSelected = true;
     state.nodesSelected.add(node);
@@ -568,6 +575,37 @@ class NodeManager extends Manager {
     }
 
     tracker.endDeselect();
+
+    onStateUpdate();
+    arrowManager.onStateUpdate();
+  }
+
+  Future<void> commitNodeSelectionBeforeArrowSelection() async {
+    if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
+      await _saveNodeToTiles();
+      return;
+    }
+
+    final shouldRedrawTiles =
+        state.selectAndHide ||
+        state.highlightedNodeIds.isNotEmpty ||
+        state.nodesSelected.isNotEmpty;
+
+    _deselectAllNodes();
+    state.nodesSelected.clear();
+    state.nodesIdOnTopLayer = '';
+    state.selectedNodeOffset = Offset.zero;
+    state.originalNodePosition = Offset.zero;
+    state.isNodeDragging = false;
+    state.hoveredNode = null;
+
+    if (state.highlightedNodeIds.isNotEmpty) {
+      state.highlightedNodeIds.clear();
+    }
+
+    if (shouldRedrawTiles) {
+      await tileManager.updateTilesAfterNodeChange();
+    }
 
     onStateUpdate();
     arrowManager.onStateUpdate();
@@ -1076,6 +1114,8 @@ class NodeManager extends Manager {
       }
       node.isSelected = false;
     }
+
+    _syncNodesToSchema(state.nodes);
 
     // Очищаем выделение
     state.nodesSelected.clear();

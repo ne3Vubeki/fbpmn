@@ -1,4 +1,5 @@
 import 'package:fbpmn/src/services/arrow_manager.dart';
+import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 import 'package:fbpmn/src/widgets/state_widget.dart';
@@ -10,9 +11,16 @@ import '../painters/arrows_custom_painter.dart';
 class ArrowHover extends StatefulWidget {
   final EditorState state;
   final ArrowManager arrowManager;
+  final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
 
-  const ArrowHover({super.key, required this.state, required this.arrowManager, required this.scrollHandler});
+  const ArrowHover({
+    super.key,
+    required this.state,
+    required this.arrowManager,
+    required this.nodeManager,
+    required this.scrollHandler,
+  });
 
   @override
   State<ArrowHover> createState() => _ArrowHoverState();
@@ -65,7 +73,8 @@ class _ArrowHoverState extends State<ArrowHover> with StateWidget<ArrowHover> {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () {
+          onTap: () async {
+            await widget.nodeManager.commitNodeSelectionBeforeArrowSelection();
             widget.arrowManager.selectArrow(arrow);
           },
           child: Container(
