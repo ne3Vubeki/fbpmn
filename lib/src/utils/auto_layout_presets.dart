@@ -84,6 +84,12 @@ class AutoLayoutSettings {
   /// Максимум по смыслу: чем выше значение, тем активнее алгоритм стягивает схему к центру.
   final double centerWeight;
 
+  final double connectedNodeDistanceWeight;
+
+  final double connectedNodeDirectionWeight;
+
+  final double attributeClusterWeight;
+
   const AutoLayoutSettings({
     required this.animateRepair,
     required this.centerByConnectivity,
@@ -94,6 +100,9 @@ class AutoLayoutSettings {
     required this.arrowOverlapCountWeight,
     required this.distanceWeight,
     required this.centerWeight,
+    required this.connectedNodeDistanceWeight,
+    required this.connectedNodeDirectionWeight,
+    required this.attributeClusterWeight,
   });
 }
 
@@ -115,6 +124,9 @@ class AutoLayoutPresets {
       arrowOverlapCountWeight: 2500.0,
       distanceWeight: 1.0,
       centerWeight: 1.0,
+      connectedNodeDistanceWeight: 0.42,
+      connectedNodeDirectionWeight: 0.2,
+      attributeClusterWeight: 0.24,
     ),
 
     /// Более плотный профиль с усиленным приоритетом устранения конфликтов.
@@ -134,6 +146,9 @@ class AutoLayoutPresets {
       arrowOverlapCountWeight: 3400.0,
       distanceWeight: 1.35,
       centerWeight: 1.35,
+      connectedNodeDistanceWeight: 0.68,
+      connectedNodeDirectionWeight: 0.34,
+      attributeClusterWeight: 0.44,
     ),
 
     /// Самый агрессивный профиль для максимально плотной доводки схемы.
@@ -156,6 +171,9 @@ class AutoLayoutPresets {
       arrowOverlapCountWeight: 6800.0,
       distanceWeight: 0.18,
       centerWeight: 3.6,
+      connectedNodeDistanceWeight: 1.1,
+      connectedNodeDirectionWeight: 0.58,
+      attributeClusterWeight: 0.82,
     ),
   };
 

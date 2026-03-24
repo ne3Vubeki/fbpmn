@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:fbpmn/src/cola/cola_interop.dart';
 import 'package:fbpmn/src/editor_state.dart';
+import 'package:fbpmn/src/models/attribute.dart';
 import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/event_service.dart';
@@ -59,6 +60,12 @@ class ColaLayoutService extends Manager {
 
   int _maxNodeConnections = 1;
 
+  final Map<int, Set<int>> _adjacentNodeIndices = {};
+
+  final Map<int, Set<String>> _nodeAttributeClusterKeys = {};
+
+  final Map<String, Set<int>> _attributeClusterNodeIndices = {};
+
   Offset _distributionCenter = Offset.zero;
 
   /// Флаг активной анимации
@@ -104,6 +111,9 @@ class ColaLayoutService extends Manager {
     _nodeConnectionCounts.clear();
     _nodeSourceConnectionCounts.clear();
     _nodeTargetConnectionCounts.clear();
+    _adjacentNodeIndices.clear();
+    _nodeAttributeClusterKeys.clear();
+    _attributeClusterNodeIndices.clear();
     _maxNodeConnections = 1;
     _distributionCenter = Offset.zero;
     _isAnimating = false;
@@ -140,6 +150,7 @@ class ColaLayoutService extends Manager {
 
       // 5.1 Собираем degree узлов и фиксируем центр текущей схемы до перераспределения
       _buildNodeConnectionCounts();
+      _buildTopologyMetadata();
       _captureDistributionCenter();
 
       // 5.2 Инициализируем стартовые и целевые позиции текущим расположением
@@ -308,6 +319,71 @@ class ColaLayoutService extends Manager {
     }
 
     _distributionCenter = count == 0 ? Offset.zero : Offset(sumX / count, sumY / count);
+  }
+
+  void _buildTopologyMetadata() {
+    _adjacentNodeIndices.clear();
+    _nodeAttributeClusterKeys.clear();
+    _attributeClusterNodeIndices.clear();
+
+    for (int i = 0; i < _nodesList.length; i++) {
+      _adjacentNodeIndices[i] = <int>{};
+      final clusterKeys = _buildAttributeClusterKeys(_nodesList[i]);
+      _nodeAttributeClusterKeys[i] = clusterKeys;
+      for (final key in clusterKeys) {
+        _attributeClusterNodeIndices.putIfAbsent(key, () => <int>{}).add(i);
+      }
+    }
+
+    for (final edge in _virtualEdges) {
+      final sourceIndex = _nodeIndexMap[edge.source];
+      final targetIndex = _nodeIndexMap[edge.target];
+      if (sourceIndex == null || targetIndex == null) {
+        continue;
+      }
+      _adjacentNodeIndices[sourceIndex]?.add(targetIndex);
+      _adjacentNodeIndices[targetIndex]?.add(sourceIndex);
+    }
+  }
+
+  Set<String> _buildAttributeClusterKeys(TableNode node) {
+    final keys = <String>{
+      'qType:${node.qType.toLowerCase()}',
+    };
+
+    if ((node.parent ?? '').isNotEmpty) {
+      keys.add('parent:${node.parent}');
+    }
+
+    for (final attribute in node.attributes) {
+      final normalizedKeys = _buildNormalizedAttributeKeys(attribute);
+      keys.addAll(normalizedKeys);
+    }
+
+    return keys;
+  }
+
+  Set<String> _buildNormalizedAttributeKeys(Attribute attribute) {
+    final keys = <String>{
+      'attr_qType:${attribute.qType.toLowerCase()}',
+    };
+
+    final qAttributeType = attribute.qAttributeType?.trim().toLowerCase();
+    if (qAttributeType != null && qAttributeType.isNotEmpty) {
+      keys.add('attr_kind:$qAttributeType');
+    }
+
+    final boAttributeTypeId = attribute.boAttributeTypeId?.trim().toLowerCase();
+    if (boAttributeTypeId != null && boAttributeTypeId.isNotEmpty) {
+      keys.add('attr_type:$boAttributeTypeId');
+    }
+
+    final normalizedText = attribute.text.trim().toLowerCase();
+    if (normalizedText.isNotEmpty) {
+      keys.add('attr_text:$normalizedText');
+    }
+
+    return keys;
   }
 
   void _seedCurrentPositions() {
@@ -812,6 +888,28 @@ class ColaLayoutService extends Manager {
         }
       }
 
+      final supplementalCandidates = _buildSupplementalCandidatePositions(
+        nodeIndex: nodeIndex,
+        currentPosition: currentPosition,
+        radius: radius,
+      );
+      for (final candidatePosition in supplementalCandidates) {
+        final candidateScore = _evaluateCandidatePosition(
+          nodeIndex: nodeIndex,
+          position: candidatePosition,
+          occupancy: occupancy,
+          anchorPosition: currentPosition,
+        );
+
+        if (!_isScoreBetter(candidateScore, currentScore)) {
+          continue;
+        }
+
+        if (bestResult == null || _isScoreBetter(candidateScore, bestResult.score)) {
+          bestResult = _CandidateResult(position: candidatePosition, score: candidateScore);
+        }
+      }
+
       if (bestResult != null && !bestResult.score.hasHardCollisions) {
         break;
       }
@@ -877,6 +975,132 @@ class ColaLayoutService extends Manager {
     return nodeCenter - _distributionCenter;
   }
 
+  List<Offset> _buildSupplementalCandidatePositions({
+    required int nodeIndex,
+    required Offset currentPosition,
+    required double radius,
+  }) {
+    final node = _nodesList[nodeIndex];
+    final candidates = <Offset>[];
+    final seen = <String>{};
+
+    void addCandidate(Offset raw) {
+      final constrained = _constrainNodeToCanvas(node, raw);
+      final signature = '${constrained.dx.toStringAsFixed(2)}:${constrained.dy.toStringAsFixed(2)}';
+      if (seen.add(signature)) {
+        candidates.add(constrained);
+      }
+    }
+
+    final neighborAnchor = _calculateNeighborAnchorPosition(nodeIndex);
+    if (neighborAnchor != null) {
+      addCandidate(neighborAnchor);
+      final vector = neighborAnchor - currentPosition;
+      if (vector.distance > 0.001) {
+        final normalized = vector / vector.distance;
+        addCandidate(currentPosition + normalized * (radius * 0.6));
+      }
+    }
+
+    final clusterAnchor = _calculateAttributeClusterAnchorPosition(nodeIndex);
+    if (clusterAnchor != null) {
+      addCandidate(clusterAnchor);
+      final vector = clusterAnchor - currentPosition;
+      if (vector.distance > 0.001) {
+        final normalized = vector / vector.distance;
+        addCandidate(currentPosition + normalized * (radius * 0.75));
+      }
+    }
+
+    if (neighborAnchor != null && clusterAnchor != null) {
+      addCandidate(Offset(
+        (neighborAnchor.dx + clusterAnchor.dx) / 2,
+        (neighborAnchor.dy + clusterAnchor.dy) / 2,
+      ));
+    }
+
+    return candidates;
+  }
+
+  Offset? _calculateNeighborAnchorPosition(int nodeIndex) {
+    final adjacentIndices = _adjacentNodeIndices[nodeIndex];
+    if (adjacentIndices == null || adjacentIndices.isEmpty) {
+      return null;
+    }
+
+    double sumX = 0;
+    double sumY = 0;
+    int count = 0;
+    for (final adjacentIndex in adjacentIndices) {
+      final center = _nodeCenterAtIndex(adjacentIndex);
+      if (center == null) {
+        continue;
+      }
+      final adjacentNode = _nodesList[adjacentIndex];
+      sumX += center.dx - adjacentNode.size.width / 2;
+      sumY += center.dy - adjacentNode.size.height / 2;
+      count++;
+    }
+
+    if (count == 0) {
+      return null;
+    }
+
+    final node = _nodesList[nodeIndex];
+    return Offset(
+      sumX / count - node.size.width / 2,
+      sumY / count - node.size.height / 2,
+    );
+  }
+
+  Offset? _calculateAttributeClusterAnchorPosition(int nodeIndex) {
+    final clusterKeys = _nodeAttributeClusterKeys[nodeIndex];
+    if (clusterKeys == null || clusterKeys.isEmpty) {
+      return null;
+    }
+
+    double sumX = 0;
+    double sumY = 0;
+    double totalWeight = 0;
+
+    for (final key in clusterKeys) {
+      final clusterNodes = _attributeClusterNodeIndices[key];
+      if (clusterNodes == null || clusterNodes.length < 2) {
+        continue;
+      }
+
+      for (final clusterNodeIndex in clusterNodes) {
+        if (clusterNodeIndex == nodeIndex) {
+          continue;
+        }
+        final center = _nodeCenterAtIndex(clusterNodeIndex);
+        if (center == null) {
+          continue;
+        }
+        final weight = key.startsWith('attr_text:') ? 0.6 : 1.0;
+        sumX += center.dx * weight;
+        sumY += center.dy * weight;
+        totalWeight += weight;
+      }
+    }
+
+    if (totalWeight <= 0) {
+      return null;
+    }
+
+    final node = _nodesList[nodeIndex];
+    return Offset(sumX / totalWeight - node.size.width / 2, sumY / totalWeight - node.size.height / 2);
+  }
+
+  Offset? _nodeCenterAtIndex(int nodeIndex) {
+    final node = _nodesList[nodeIndex];
+    final position = _targetPositions[nodeIndex] ?? node.aPosition;
+    if (position == null) {
+      return null;
+    }
+    return Offset(position.dx + node.size.width / 2, position.dy + node.size.height / 2);
+  }
+
   _CandidateScore _evaluateCandidatePosition({
     required int nodeIndex,
     required Offset position,
@@ -913,13 +1137,19 @@ class ColaLayoutService extends Manager {
     final distancePenalty = (position - anchorPosition).distance;
     final settings = state.autoLayoutSettings;
     final centerPenalty = centerDistance * _centerAffinity(nodeIndex) * settings.centerWeight;
+    final connectedNodeDistancePenalty = _connectedNodeDistancePenalty(nodeIndex, nodeCenter);
+    final connectedNodeDirectionPenalty = _connectedNodeDirectionPenalty(nodeIndex, position, anchorPosition);
+    final attributeClusterPenalty = _attributeClusterPenalty(nodeIndex, nodeCenter);
     final totalScore =
         nodeOverlapArea * settings.nodeOverlapAreaWeight +
         arrowOverlapArea * settings.arrowOverlapAreaWeight +
         nodeOverlapCount * settings.nodeOverlapCountWeight +
         arrowOverlapCount * settings.arrowOverlapCountWeight +
         distancePenalty * settings.distanceWeight +
-        centerPenalty;
+        centerPenalty +
+        connectedNodeDistancePenalty * settings.connectedNodeDistanceWeight +
+        connectedNodeDirectionPenalty * settings.connectedNodeDirectionWeight +
+        attributeClusterPenalty * settings.attributeClusterWeight;
 
     return _CandidateScore(
       nodeOverlapArea: nodeOverlapArea,
@@ -929,8 +1159,79 @@ class ColaLayoutService extends Manager {
       centerDistance: centerDistance,
       centerPenalty: centerPenalty,
       distancePenalty: distancePenalty,
+      connectedNodeDistancePenalty: connectedNodeDistancePenalty,
+      connectedNodeDirectionPenalty: connectedNodeDirectionPenalty,
+      attributeClusterPenalty: attributeClusterPenalty,
       totalScore: totalScore,
     );
+  }
+
+  double _connectedNodeDistancePenalty(int nodeIndex, Offset nodeCenter) {
+    final adjacentIndices = _adjacentNodeIndices[nodeIndex];
+    if (adjacentIndices == null || adjacentIndices.isEmpty) {
+      return 0;
+    }
+
+    double penalty = 0;
+    int count = 0;
+    for (final adjacentIndex in adjacentIndices) {
+      final adjacentCenter = _nodeCenterAtIndex(adjacentIndex);
+      if (adjacentCenter == null) {
+        continue;
+      }
+      penalty += (nodeCenter - adjacentCenter).distance;
+      count++;
+    }
+
+    return count == 0 ? 0 : penalty / count;
+  }
+
+  double _connectedNodeDirectionPenalty(int nodeIndex, Offset position, Offset anchorPosition) {
+    final neighborAnchor = _calculateNeighborAnchorPosition(nodeIndex);
+    if (neighborAnchor == null) {
+      return 0;
+    }
+
+    final desiredVector = neighborAnchor - anchorPosition;
+    final actualVector = position - anchorPosition;
+    if (desiredVector.distance <= 0.001 || actualVector.distance <= 0.001) {
+      return 0;
+    }
+
+    final dot = desiredVector.dx * actualVector.dx + desiredVector.dy * actualVector.dy;
+    final cosine = (dot / (desiredVector.distance * actualVector.distance)).clamp(-1.0, 1.0);
+    return (1 - cosine) * actualVector.distance;
+  }
+
+  double _attributeClusterPenalty(int nodeIndex, Offset nodeCenter) {
+    final clusterKeys = _nodeAttributeClusterKeys[nodeIndex];
+    if (clusterKeys == null || clusterKeys.isEmpty) {
+      return 0;
+    }
+
+    double penalty = 0;
+    double totalWeight = 0;
+    for (final key in clusterKeys) {
+      final clusterNodeIndices = _attributeClusterNodeIndices[key];
+      if (clusterNodeIndices == null || clusterNodeIndices.length < 2) {
+        continue;
+      }
+
+      for (final clusterNodeIndex in clusterNodeIndices) {
+        if (clusterNodeIndex == nodeIndex) {
+          continue;
+        }
+        final clusterCenter = _nodeCenterAtIndex(clusterNodeIndex);
+        if (clusterCenter == null) {
+          continue;
+        }
+        final weight = key.startsWith('attr_text:') ? 0.5 : 1.0;
+        penalty += (nodeCenter - clusterCenter).distance * weight;
+        totalWeight += weight;
+      }
+    }
+
+    return totalWeight == 0 ? 0 : penalty / totalWeight;
   }
 
   double _centerAffinity(int nodeIndex) {
@@ -1048,6 +1349,9 @@ class ColaLayoutService extends Manager {
     _nodeConnectionCounts.clear();
     _nodeSourceConnectionCounts.clear();
     _nodeTargetConnectionCounts.clear();
+    _adjacentNodeIndices.clear();
+    _nodeAttributeClusterKeys.clear();
+    _attributeClusterNodeIndices.clear();
     _positionAnimationCompleter = null;
     _finishAfterCurrentAnimation = false;
     
@@ -1119,6 +1423,9 @@ class _CandidateScore {
   final double centerDistance;
   final double centerPenalty;
   final double distancePenalty;
+  final double connectedNodeDistancePenalty;
+  final double connectedNodeDirectionPenalty;
+  final double attributeClusterPenalty;
   final double totalScore;
 
   const _CandidateScore({
@@ -1129,6 +1436,9 @@ class _CandidateScore {
     required this.centerDistance,
     required this.centerPenalty,
     required this.distancePenalty,
+    required this.connectedNodeDistancePenalty,
+    required this.connectedNodeDirectionPenalty,
+    required this.attributeClusterPenalty,
     required this.totalScore,
   });
 
