@@ -278,7 +278,103 @@ class ArrowManager extends Manager {
     }
   }
 
+  bool _hasExistingConnection({
+    required String sourceId,
+    required String targetId,
+    String? excludeArrowId,
+  }) {
+    if (sourceId.isEmpty || targetId.isEmpty) {
+      return false;
+    }
+
+    final normalizedSource = _normalizeConnectionEndpointId(sourceId);
+    final normalizedTarget = _normalizeConnectionEndpointId(targetId);
+
+    for (final existingArrow in state.arrows) {
+      if (excludeArrowId != null && existingArrow.id == excludeArrowId) {
+        continue;
+      }
+
+      final existingSource = _normalizeConnectionEndpointId(existingArrow.source);
+      final existingTarget = _normalizeConnectionEndpointId(existingArrow.target);
+
+      if (_isSameConnection(
+        sourceA: existingSource,
+        targetA: existingTarget,
+        sourceB: normalizedSource,
+        targetB: normalizedTarget,
+      )) {
+        return true;
+      }
+    }
+
+    final schemaArrows = state.schema['arrows'] as List<dynamic>? ?? const [];
+    for (final item in schemaArrows) {
+      if (item is! Map) {
+        continue;
+      }
+
+      final arrowId = item['id']?.toString();
+      if (excludeArrowId != null && arrowId == excludeArrowId) {
+        continue;
+      }
+
+      final existingSource = _normalizeConnectionEndpointId(item['source']?.toString() ?? '');
+      final existingTarget = _normalizeConnectionEndpointId(item['target']?.toString() ?? '');
+
+      if (_isSameConnection(
+        sourceA: existingSource,
+        targetA: existingTarget,
+        sourceB: normalizedSource,
+        targetB: normalizedTarget,
+      )) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool _isSameConnection({
+    required String sourceA,
+    required String targetA,
+    required String sourceB,
+    required String targetB,
+  }) {
+    if (sourceA == sourceB && targetA == targetB) {
+      return true;
+    }
+
+    if (sourceA == targetB && targetA == sourceB) {
+      return true;
+    }
+
+    return false;
+  }
+
+  String _normalizeConnectionEndpointId(String endpointId) {
+    if (endpointId.isEmpty) {
+      return endpointId;
+    }
+
+    final endpoint = _getNodeFromArrow(endpointId);
+    if (endpoint.attribute != null) {
+      return 'attr:${endpoint.attribute!.id}';
+    }
+
+    if (endpoint.node != null) {
+      return 'node:${endpoint.node!.id}';
+    }
+
+    return endpointId;
+  }
+
   Future<void> confirmCreateArrow(Arrow arrow) async {
+    if (arrow.target.isEmpty || _hasExistingConnection(sourceId: arrow.source, targetId: arrow.target, excludeArrowId: arrow.id)) {
+      clearStartCreatedArrow();
+      return;
+    }
+
     EventService.apiStatic('confirm_create_arrow', 'ArrowManager.confirmCreateArrow', {'arrow': arrow.toJson()});
   }
 
