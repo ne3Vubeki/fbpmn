@@ -796,7 +796,7 @@ class ColaLayoutService extends Manager {
       if (rects != null && rects.isNotEmpty) {
         for (final rect in rects) {
           arrowRects.add(_OccupiedArrowRect(
-            rect: _expandRect(rect, 8),
+            rect: _expandRect(rect, 14),
             incidentNodeIndices: incidentNodeIndices,
           ));
         }
@@ -809,7 +809,7 @@ class ColaLayoutService extends Manager {
         final p1 = coordinates[i];
         final p2 = coordinates[i + 1];
         arrowRects.add(_OccupiedArrowRect(
-          rect: _segmentToRect(p1, p2, 12),
+          rect: _segmentToRect(p1, p2, 20),
           incidentNodeIndices: incidentNodeIndices,
         ));
       }
@@ -1244,11 +1244,47 @@ class ColaLayoutService extends Manager {
   }
 
   bool _isScoreBetter(_CandidateScore candidate, _CandidateScore baseline) {
-    if (candidate.totalScore >= baseline.totalScore) {
+    if (candidate.hardCollisionCount > baseline.hardCollisionCount) {
       return false;
     }
 
-    if (candidate.hardCollisionCount > baseline.hardCollisionCount) {
+    if (candidate.hardCollisionCount < baseline.hardCollisionCount) {
+      return true;
+    }
+
+    if (candidate.arrowOverlapCount > baseline.arrowOverlapCount) {
+      return false;
+    }
+
+    if (candidate.arrowOverlapCount < baseline.arrowOverlapCount) {
+      return true;
+    }
+
+    if (candidate.nodeOverlapCount > baseline.nodeOverlapCount) {
+      return false;
+    }
+
+    if (candidate.nodeOverlapCount < baseline.nodeOverlapCount) {
+      return true;
+    }
+
+    if (candidate.arrowOverlapArea > baseline.arrowOverlapArea + 0.01) {
+      return false;
+    }
+
+    if (candidate.arrowOverlapArea + 0.01 < baseline.arrowOverlapArea) {
+      return true;
+    }
+
+    if (candidate.nodeOverlapArea > baseline.nodeOverlapArea + 0.01) {
+      return false;
+    }
+
+    if (candidate.nodeOverlapArea + 0.01 < baseline.nodeOverlapArea) {
+      return true;
+    }
+
+    if (candidate.totalScore >= baseline.totalScore) {
       return false;
     }
 
