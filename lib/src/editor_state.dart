@@ -21,27 +21,67 @@ class EditorState {
 
   /// Применяет начальную конфигурацию из [properties]['config'].
   void _applyConfig() {
+    // Конфигурация приходит из внешнего окружения и хранится в секции `config`.
+    // Если конфигурация отсутствует или имеет неожиданный тип, применять нечего.
     final config = properties['config'];
     if (config == null || config is! Map) return;
 
+    // Проходим по всем переданным ключам и обновляем соответствующие поля состояния.
+    // Здесь намеренно используется switch по строковым ключам внешней конфигурации.
     config.forEach((key, value) {
       switch (key.toString()) {
+        // Включает snap-поведение редактора при ручном перемещении узлов.
+        // Управляет прилипанием к сетке и соседним элементам во время drag-and-drop.
         case 'snapEnabled':
           if (value is bool) snapEnabled = value;
+
+        // Показывает или скрывает визуальные границы растровых тайлов холста.
+        // Используется в основном как отладочная настройка отображения.
         case 'showTileBorders':
           if (value is bool) showTileBorders = value;
+
+        // Переключает способ отрисовки связей: прямые сегменты или кривые.
+        // Влияет только на визуальное представление стрелок, а не на данные схемы.
         case 'useCurves':
           if (value is bool) useCurves = value;
+
+        // Включает отображение служебной панели производительности.
+        // Полезно для диагностики FPS и общей нагрузки при работе редактора.
         case 'showPerformance':
           if (value is bool) showPerformance = value;
+
+        // Управляет отображением миниатюры схемы.
+        // Если флаг выключен, thumbnail-обзор холста не показывается.
         case 'showThumbnail':
           if (value is bool) showThumbnail = value;
+
+        // Включает специальный режим отображения, в котором остаются только коннекторы.
+        // Используется для упрощённого просмотра связей без акцента на узлы.
         case 'onlyConnectors':
           if (value is bool) onlyConnectors = value;
+
+        // Включает или отключает стартовый этап Cola в пайплайне автораскладки.
+        // Если `false`, алгоритм сразу переходит к локальной расстановке без глобического смешивания.
         case 'autoLayoutUseCola':
           if (value is bool) autoLayoutUseCola = value;
+
+        // Включает или отключает финальный этап доводки после основной расстановки.
+        // Этот шаг пытается дополнительно уменьшить остаточные пересечения узлов и стрелок.
         case 'autoLayoutUsePolish':
           if (value is bool) autoLayoutUsePolish = value;
+
+        // Разрешает прилипание к рядом расположенным узлам на этапе основной расстановки.
+        // Сторона прилипания выбирается автоматически по сектору узла относительно центра схемы.
+        case 'autoLayoutUseSnapOnRepair':
+          if (value is bool) autoLayoutUseSnapOnRepair = value;
+
+        // Разрешает такое же секторное прилипание на этапе финальной доводки.
+        // Если выключено, доводка ищет позицию только на базе score-функции без прилипания к узлам.
+        case 'autoLayoutUseSnapOnPolish':
+          if (value is bool) autoLayoutUseSnapOnPolish = value;
+
+        // Включает режим, в котором при выделении одного узла скрываются остальные неактивные элементы.
+        // Используется для фокусировки на связанном фрагменте схемы.
         case 'selectAndHide':
           if (value is bool) selectAndHide = value;
       }
@@ -236,6 +276,10 @@ class EditorState {
   bool autoLayoutUseCola = true;
 
   bool autoLayoutUsePolish = true;
+
+  bool autoLayoutUseSnapOnRepair = false;
+
+  bool autoLayoutUseSnapOnPolish = false;
 
   int autoLayoutElapsedMilliseconds = 0;
 

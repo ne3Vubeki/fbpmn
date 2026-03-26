@@ -137,6 +137,12 @@ class EventService {
               case 'autoLayoutUsePolish':
                 state.autoLayoutUsePolish = entry.value;
                 break;
+              case 'autoLayoutUseSnapOnRepair':
+                state.autoLayoutUseSnapOnRepair = entry.value;
+                break;
+              case 'autoLayoutUseSnapOnPolish':
+                state.autoLayoutUseSnapOnPolish = entry.value;
+                break;
             }
           }
         }

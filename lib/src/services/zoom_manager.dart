@@ -6,6 +6,7 @@ import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:fbpmn/src/services/cola_layout_service.dart';
 import 'package:fbpmn/src/editor_state.dart';
+import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:flutter/material.dart';
 
 class ZoomManager extends Manager {
@@ -42,6 +43,14 @@ class ZoomManager extends Manager {
     }
 
     scrollHandler.autoFitAndCenterNodes();
+  }
+
+  void zoomInStep() {
+    _zoomByPercentStep(10);
+  }
+
+  void zoomOutStep() {
+    _zoomByPercentStep(-10);
   }
 
   void handleThumbnailClick(Offset newCanvasOffset) {
@@ -142,6 +151,38 @@ class ZoomManager extends Manager {
     });
 
     await colaLayoutService!.runAutoLayout();
+  }
+
+  void _zoomByPercentStep(int percentStep) {
+    final double oldScale = state.scale;
+    final double oldPercent = oldScale * 100;
+    final double targetPercent = (oldPercent + percentStep).clamp(
+      EditorConfig.minScale * 100,
+      EditorConfig.maxScale * 100,
+    );
+    final double newScale = targetPercent / 100;
+
+    if (newScale == oldScale) {
+      return;
+    }
+
+    final Offset viewportCenter = Offset(
+      state.viewportSize.width / 2,
+      state.viewportSize.height / 2,
+    );
+    final Offset centerInCanvas = viewportCenter - state.offset;
+    final double zoomFactor = newScale / oldScale;
+    final Offset newOffset = viewportCenter - centerInCanvas * zoomFactor;
+
+    state.scale = newScale;
+    state.offset = _constrainOffset(newOffset);
+
+    if (oldScale != newScale) {
+      nodeManager.onScaleChanged();
+    }
+
+    scrollHandler.updateScrollControllers();
+    onStateUpdate();
   }
 
   Offset _constrainOffset(Offset newOffset) {

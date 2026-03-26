@@ -1,4 +1,5 @@
 import 'package:fbpmn/src/services/arrow_manager.dart';
+import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -88,10 +89,10 @@ class InputHandler extends Manager {
 
     double newScale = state.scale * (1 + delta * 0.001);
 
-    if (newScale < 0.3) {
-      newScale = 0.3;
-    } else if (newScale > 2.0) {
-      newScale = 2.0;
+    if (newScale < EditorConfig.minScale) {
+      newScale = EditorConfig.minScale;
+    } else if (newScale > EditorConfig.maxScale) {
+      newScale = EditorConfig.maxScale;
     }
 
     final double zoomFactor = newScale / oldScale;

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 
 import '../models/image_tile.dart';
-import '../utils/canvas_icons.dart';
 
 class CanvasThumbnail extends StatefulWidget {
   final double canvasWidth;
@@ -358,79 +357,66 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
         width: thumbnailWidth,
         height: thumbnailHeight,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(.7),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: _isDragging ? Colors.blue : Colors.grey[400]!,
             width: _isDragging ? 2 : 1,
           ),
         ),
-        child: Stack(
-          children: [
-            // Миниатюра холста
-            RawImage(
-              image: _thumbnailImage,
-              width: thumbnailWidth,
-              height: thumbnailHeight,
-              fit: BoxFit.fill,
-            ),
-
-            // Видимая область (прозрачный голубой прямоугольник)
-            Positioned(
-              left: _clampedVisibleLeft,
-              top: _clampedVisibleTop,
-              child: Container(
-                width: _clampedVisibleWidth,
-                height: _clampedVisibleHeight,
-                decoration: BoxDecoration(
-                  color: _isDragging
-                      ? Colors.blue.withOpacity(0.3)
-                      : Colors.blue.withOpacity(0.2),
-                  border: Border.all(
-                    color: _isDragging
-                        ? Colors.blue.withOpacity(0.9)
-                        : Colors.blue.withOpacity(0.8),
-                    width: _isDragging ? 2 : 1.5,
-                  ),
-                ),
-              ),
-            ),
-
-            // Информация о видимой области
-            Positioned(
-              top: 4,
-              left: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: Text(
-                  '${clampedVisibleWidth.toInt()}×${clampedVisibleHeight.toInt()}',
-                  style: const TextStyle(fontSize: 10, color: Colors.white),
-                ),
-              ),
-            ),
-
-            // Индикатор перетаскивания
-            if (_isDragging)
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Center(
-                    child: CanvasIcon(
-                      painter: CanvasIcons.paintOpenWith,
-                      size: 24,
-                      color: Colors.blue,
+        child: Padding(
+          padding: EdgeInsets.all(_isDragging ? 2 : 1),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                Opacity(
+                  opacity: 0.7,
+                  child: ColoredBox(
+                    color: Colors.white,
+                    child: RawImage(
+                      image: _thumbnailImage,
+                      width: thumbnailWidth,
+                      height: thumbnailHeight,
+                      fit: BoxFit.fill,
                     ),
                   ),
                 ),
-              ),
-          ],
+                Positioned(
+                  left: _clampedVisibleLeft,
+                  top: _clampedVisibleTop,
+                  child: Container(
+                    width: _clampedVisibleWidth,
+                    height: _clampedVisibleHeight,
+                    decoration: BoxDecoration(
+                      color: _isDragging
+                          ? Colors.blue.withOpacity(0.3)
+                          : Colors.blue.withOpacity(0.2),
+                      border: Border.all(
+                        color: _isDragging
+                            ? Colors.blue.withOpacity(0.9)
+                            : Colors.blue.withOpacity(0.8),
+                        width: _isDragging ? 2 : 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+                if (_isDragging)
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: Colors.black.withOpacity(0.1),
+                      child: const Center(
+                        child: Icon(
+                          Icons.open_with,
+                          size: 24,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

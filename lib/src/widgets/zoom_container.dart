@@ -36,15 +36,12 @@ class ZoomContainer extends StatefulWidget {
 
 class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomContainer> {
   double get scale => widget.state.scale;
-  bool get showTileBorders => widget.state.showTileBorders;
   double get canvasWidth => widget.zoomManager.scrollHandler.dynamicCanvasWidth;
   double get canvasHeight => widget.zoomManager.scrollHandler.dynamicCanvasHeight;
   Offset get canvasOffset => widget.state.offset;
   Offset get delta => widget.state.delta;
   Size get viewportSize => widget.state.viewportSize;
   Map<String, ImageTile> get imageTiles => widget.state.imageTiles;
-
-  onToggleTileBorders() => widget.zoomManager.toggleTileBorders();
 
   @override
   void initState() {
@@ -101,22 +98,12 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
           // Панель управления зумом (ширина равна ширине контейнера)
           ZoomPanel(
             scale: scale,
-            showTileBorders: showTileBorders,
-            showThumbnail: widget.state.showThumbnail,
-            showCurves: widget.state.useCurves,
-            snapEnabled: widget.state.snapEnabled,
-            showPerformance: widget.state.showPerformance,
-            onAutoLayout: widget.zoomManager.colaLayoutService != null ? widget.zoomManager.runAutoLayout : null,
-            isLayoutRunning: widget.zoomManager.isLayoutRunning,
             canvasWidth: canvasWidth,
             canvasHeight: canvasHeight,
             panelWidth: containerWidth,
             onResetZoom: widget.zoomManager.resetZoom,
-            onToggleTileBorders: onToggleTileBorders,
-            onToggleThumbnail: widget.zoomManager.toggleThumbnail,
-            onToggleCurves: widget.zoomManager.toggleCurves,
-            onToggleSnap: widget.zoomManager.toggleSnap,
-            onTogglePerformance: widget.zoomManager.togglePerformance,
+            onZoomIn: widget.zoomManager.zoomInStep,
+            onZoomOut: widget.zoomManager.zoomOutStep,
           ),
         ],
       ),
