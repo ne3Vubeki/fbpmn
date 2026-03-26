@@ -22,7 +22,6 @@ class EditorState {
   /// Применяет начальную конфигурацию из [properties]['config'].
   void _applyConfig() {
     // Конфигурация приходит из внешнего окружения и хранится в секции `config`.
-    // Если конфигурация отсутствует или имеет неожиданный тип, применять нечего.
     final config = properties['config'];
     if (config == null || config is! Map) return;
 
@@ -246,7 +245,7 @@ class EditorState {
   Set<String> updatedImageTileIds = {};
 
   /// Отображать ли границы тайлов (для отладки).
-  bool showTileBorders = true;
+  bool showTileBorders = false;
 
   /// Отображать только коннекторы.
   bool onlyConnectors = false;
