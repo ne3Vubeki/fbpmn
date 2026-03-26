@@ -217,10 +217,10 @@ class ColaLayoutService extends Manager {
         _createColaLayout();
 
         // 10. Запускаем анимированную раскладку
-        _setCurrentLayoutProcess('Auto-layout: Cola');
+        _setCurrentLayoutProcess('Автораскладка: подготовка');
         _runAnimatedLayout();
       } else {
-        _setCurrentLayoutProcess('Auto-layout: Repair');
+        _setCurrentLayoutProcess('Автораскладка: расстановка');
         await _runRepairOnlyLayout();
       }
       
@@ -710,7 +710,7 @@ class ColaLayoutService extends Manager {
     }
     _applyTargetPositionsImmediately();
 
-    _setCurrentLayoutProcess('Auto-layout: Repair');
+    _setCurrentLayoutProcess('Автораскладка: расстановка');
     await _repairLayoutCollisions(maxIterations: 8);
 
     if (!_isRunning || _isFinishing) {
@@ -718,7 +718,7 @@ class ColaLayoutService extends Manager {
     }
 
     if (state.autoLayoutUsePolish) {
-      _setCurrentLayoutProcess('Auto-layout: Polish');
+      _setCurrentLayoutProcess('Автораскладка: доводка');
       await _runPolishLayout(maxIterations: 24);
     }
 
@@ -1608,7 +1608,7 @@ class ColaLayoutService extends Manager {
 
   Future<void> stopLayout() async {
     if (_isRunning) {
-      _setCurrentLayoutProcess('Auto-layout: Stopping');
+      _setCurrentLayoutProcess('Автораскладка: Остановка');
       _animator?.stop();
       await _finishLayout();
     }
