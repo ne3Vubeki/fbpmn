@@ -43,6 +43,19 @@ class _StableGridImageState extends State<StableGridImage> {
   bool _suppressSchemaCallback = false;
   bool _schemaInitialized = false;
 
+  String _formatLayoutElapsed(int milliseconds) {
+    final totalSeconds = milliseconds ~/ 1000;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    final millis = milliseconds % 1000;
+
+    if (minutes > 0) {
+      return '$minutes:${seconds.toString().padLeft(2, '0')},${millis.toString().padLeft(3, '0')}';
+    }
+
+    return '$seconds,${millis.toString().padLeft(3, '0')}';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -355,8 +368,8 @@ class _StableGridImageState extends State<StableGridImage> {
                         ),
                         const SizedBox(width: 8),
                         SizedBox(
-                          width: 26,
-                          height: 26,
+                          width: 24,
+                          height: 24,
                           child: Material(
                             color: Colors.black,
                             shape: const CircleBorder(),
@@ -373,6 +386,15 @@ class _StableGridImageState extends State<StableGridImage> {
                                 ),
                               ),
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatLayoutElapsed(_editorState.autoLayoutElapsedMilliseconds),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],

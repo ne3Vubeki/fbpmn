@@ -21,8 +21,33 @@ class ColaLayoutService extends Manager {
   final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
 
+  static const bool _animateRepair = true;
+  static const double _defaultAnimationSpeed = 0.9;
+  static const double _nodeOverlapAreaWeight = 1000.0;
+  static const double _arrowOverlapAreaWeight = 700.0;
+  static const double _nodeOverlapCountWeight = 5000.0;
+  static const double _arrowOverlapCountWeight = 2500.0;
+  static const double _distanceWeight = 1.0;
+  static const double _centerWeight = 1.0;
+  static const double _connectedNodeDistanceWeight = 0.42;
+  static const double _connectedNodeDirectionWeight = 0.2;
+  static const double _attributeClusterWeight = 0.24;
+  static const double _centerAffinityBase = 1.4;
+  static const double _centerAffinityConnectivityFactor = 4.0;
+
+  static const double _polishNodeOverlapAreaWeight = 1400.0;
+  static const double _polishArrowOverlapAreaWeight = 2200.0;
+  static const double _polishNodeOverlapCountWeight = 6200.0;
+  static const double _polishArrowOverlapCountWeight = 9200.0;
+  static const double _polishDistanceWeight = 0.45;
+  static const double _polishCenterWeight = 0.7;
+  static const double _polishConnectedNodeDistanceWeight = 0.32;
+  static const double _polishConnectedNodeDirectionWeight = 0.14;
+  static const double _polishAttributeClusterWeight = 0.18;
+
   bool _isRunning = false;
   bool get isRunning => _isRunning;
+  bool _isFinishing = false;
 
   ColaLayout? _layout;
   AnimatedLayout? _animator;
@@ -78,6 +103,9 @@ class ColaLayoutService extends Manager {
 
   bool _finishAfterCurrentAnimation = false;
 
+  Stopwatch? _layoutStopwatch;
+  Timer? _layoutElapsedTimer;
+
   ColaLayoutService({
     required this.state,
     required this.tileManager,
@@ -119,7 +147,24 @@ class ColaLayoutService extends Manager {
     _isAnimating = false;
     _finishAfterCurrentAnimation = false;
     _positionAnimationCompleter = null;
-    animationSpeed = state.autoLayoutSettings.animationSpeed.clamp(0.2, 0.95);
+    animationSpeed = _defaultAnimationSpeed.clamp(0.2, 0.95);
+    _isFinishing = false;
+    state.autoLayoutElapsedMilliseconds = 0;
+    _layoutStopwatch?.stop();
+    _layoutStopwatch = Stopwatch()..start();
+    _layoutElapsedTimer?.cancel();
+    _layoutElapsedTimer = Timer.periodic(const Duration(milliseconds: 10), (_) {
+      if (!_isRunning || _isFinishing) {
+        return;
+      }
+      final elapsed = _layoutStopwatch?.elapsedMilliseconds ?? 0;
+      if (state.autoLayoutElapsedMilliseconds == elapsed) {
+        return;
+      }
+      state.autoLayoutElapsedMilliseconds = elapsed;
+      tileManager.onStateUpdate();
+      onStateUpdate();
+    });
     onStateUpdate();
 
     try {
@@ -172,10 +217,10 @@ class ColaLayoutService extends Manager {
         _createColaLayout();
 
         // 10. Запускаем анимированную раскладку
-        _setCurrentLayoutProcess('run process: cola');
+        _setCurrentLayoutProcess('Auto-layout: Cola');
         _runAnimatedLayout();
       } else {
-        _setCurrentLayoutProcess(state.autoLayoutReorderByConnectors ? 'run process: connector repair' : 'run process: repair');
+        _setCurrentLayoutProcess('Auto-layout: Repair');
         await _runRepairOnlyLayout();
       }
       
@@ -539,7 +584,7 @@ class ColaLayoutService extends Manager {
 
     _finishAfterCurrentAnimation = finishAfter;
 
-    if (skipAnimation || !state.autoLayoutSettings.animateRepair) {
+    if (skipAnimation || !_animateRepair) {
       _applyTargetPositionsImmediately();
       if (finishAfter) {
         await _finishLayout();
@@ -660,10 +705,26 @@ class ColaLayoutService extends Manager {
 
   Future<void> _handleLayoutComplete() async {
     await _animateToTargetsAndWait();
+    if (!_isRunning || _isFinishing) {
+      return;
+    }
     _applyTargetPositionsImmediately();
 
-    _setCurrentLayoutProcess(state.autoLayoutReorderByConnectors ? 'run process: connector repair' : 'run process: repair');
+    _setCurrentLayoutProcess('Auto-layout: Repair');
     await _repairLayoutCollisions(maxIterations: 8);
+
+    if (!_isRunning || _isFinishing) {
+      return;
+    }
+
+    if (state.autoLayoutUsePolish) {
+      _setCurrentLayoutProcess('Auto-layout: Polish');
+      await _runPolishLayout(maxIterations: 24);
+    }
+
+    if (!_isRunning || _isFinishing) {
+      return;
+    }
 
     print('Cola: расчёт завершён');
 
@@ -693,6 +754,9 @@ class ColaLayoutService extends Manager {
     int executedIterations = 0;
 
     for (int iteration = 0; iteration < maxIterations; iteration++) {
+      if (!_isRunning || _isFinishing) {
+        break;
+      }
       occupancy = _buildOccupancyMap();
       stats = _collectCollisionStats(occupancy);
       if (!stats.hasHardCollisions) {
@@ -716,6 +780,9 @@ class ColaLayoutService extends Manager {
         });
 
       for (final entry in nodeOrder) {
+        if (!_isRunning || _isFinishing) {
+          break;
+        }
         occupancy = _buildOccupancyMap();
         final currentStats = _collectCollisionStats(occupancy);
         final currentScore = currentStats.nodeScores[entry.key];
@@ -740,7 +807,7 @@ class ColaLayoutService extends Manager {
 
         final node = _nodesList[entry.key];
 
-        if (skipAnimation || !state.autoLayoutSettings.animateRepair) {
+        if (skipAnimation || !_animateRepair) {
           nodeManager.updateNodePositionForLayout(node, bestCandidate.position);
           _animatedPositions[entry.key] = bestCandidate.position;
           arrowManager.recalculateSelectedArrows();
@@ -751,6 +818,111 @@ class ColaLayoutService extends Manager {
 
       occupancy = _buildOccupancyMap();
       stats = _collectCollisionStats(occupancy);
+      if (!movedInIteration || !stats.hasHardCollisions) {
+        break;
+      }
+    }
+
+    return _RepairReport(
+      iterations: executedIterations,
+      movedNodes: movedNodes,
+      hasHardCollisions: stats.hasHardCollisions,
+    );
+  }
+
+  Future<_RepairReport> _runPolishLayout({required int maxIterations}) async {
+    var occupancy = _buildOccupancyMap();
+    var stats = _collectCollisionStats(occupancy, mode: _ScoringMode.polish);
+
+    if (!stats.hasHardCollisions) {
+      return const _RepairReport(iterations: 0, movedNodes: 0, hasHardCollisions: false);
+    }
+
+    int movedNodes = 0;
+    int executedIterations = 0;
+
+    for (int iteration = 0; iteration < maxIterations; iteration++) {
+      if (!_isRunning || _isFinishing) {
+        break;
+      }
+      occupancy = _buildOccupancyMap();
+      stats = _collectCollisionStats(occupancy, mode: _ScoringMode.polish);
+      if (!stats.hasHardCollisions) {
+        break;
+      }
+
+      final nodeOrder = stats.nodeScores.entries.where((entry) => entry.value.hasHardCollisions).toList()
+        ..sort((a, b) {
+          final arrowCompare = b.value.arrowOverlapCount.compareTo(a.value.arrowOverlapCount);
+          if (arrowCompare != 0) return arrowCompare;
+
+          final arrowAreaCompare = b.value.arrowOverlapArea.compareTo(a.value.arrowOverlapArea);
+          if (arrowAreaCompare != 0) return arrowAreaCompare;
+
+          final hardCompare = b.value.hardCollisionCount.compareTo(a.value.hardCollisionCount);
+          if (hardCompare != 0) return hardCompare;
+
+          return b.value.totalScore.compareTo(a.value.totalScore);
+        });
+
+      if (nodeOrder.isEmpty) {
+        break;
+      }
+
+      executedIterations = iteration + 1;
+      bool movedInIteration = false;
+
+      for (final entry in nodeOrder) {
+        if (!_isRunning || _isFinishing) {
+          break;
+        }
+        occupancy = _buildOccupancyMap();
+        final currentStats = _collectCollisionStats(occupancy, mode: _ScoringMode.polish);
+        final currentScore = currentStats.nodeScores[entry.key];
+        if (currentScore == null || !currentScore.hasHardCollisions) {
+          continue;
+        }
+
+        final bestCandidate = _findBestPositionByRings(
+          nodeIndex: entry.key,
+          occupancy: occupancy,
+          currentScore: currentScore,
+          mode: _ScoringMode.polish,
+          maxRings: 20,
+          angleStepDegrees: 10,
+        );
+
+        if (bestCandidate == null) {
+          continue;
+        }
+
+        _targetPositions[entry.key] = bestCandidate.position;
+        _initialPositions[entry.key] = bestCandidate.position;
+        movedNodes++;
+        movedInIteration = true;
+
+        final node = _nodesList[entry.key];
+        if (skipAnimation || !_animateRepair) {
+          nodeManager.updateNodePositionForLayout(node, bestCandidate.position);
+          _animatedPositions[entry.key] = bestCandidate.position;
+          arrowManager.recalculateSelectedArrows();
+        } else {
+          await _animateToTargetsAndWait();
+        }
+
+        final refreshedOccupancy = _buildOccupancyMap();
+        final refreshedStats = _collectCollisionStats(refreshedOccupancy, mode: _ScoringMode.polish);
+        if (!refreshedStats.hasHardCollisions) {
+          return _RepairReport(
+            iterations: executedIterations,
+            movedNodes: movedNodes,
+            hasHardCollisions: false,
+          );
+        }
+      }
+
+      occupancy = _buildOccupancyMap();
+      stats = _collectCollisionStats(occupancy, mode: _ScoringMode.polish);
       if (!movedInIteration || !stats.hasHardCollisions) {
         break;
       }
@@ -829,7 +1001,7 @@ class ColaLayoutService extends Manager {
     return childToParent;
   }
 
-  _CollisionStats _collectCollisionStats(_OccupancyMap occupancy) {
+  _CollisionStats _collectCollisionStats(_OccupancyMap occupancy, { _ScoringMode mode = _ScoringMode.repair }) {
     final nodeScores = <int, _CandidateScore>{};
     for (int i = 0; i < _nodesList.length; i++) {
       final node = _nodesList[i];
@@ -840,6 +1012,7 @@ class ColaLayoutService extends Manager {
         position: position,
         occupancy: occupancy,
         anchorPosition: position,
+        mode: mode,
       );
     }
 
@@ -854,14 +1027,17 @@ class ColaLayoutService extends Manager {
     required int nodeIndex,
     required _OccupancyMap occupancy,
     required _CandidateScore currentScore,
+    _ScoringMode mode = _ScoringMode.repair,
+    int maxRings = 8,
+    int angleStepDegrees = 15,
   }) {
     final node = _nodesList[nodeIndex];
     final currentPosition = _targetPositions[nodeIndex] ?? node.aPosition ?? Offset.zero;
     final baseStep = max(24.0, (max(node.size.width, node.size.height) / 2 + _nodeClearance(node) + 20) * 0.4);
     _CandidateResult? bestResult;
-    final prioritizedAngles = _buildPrioritizedAngles(nodeIndex, node, currentPosition);
+    final prioritizedAngles = _buildPrioritizedAngles(nodeIndex, node, currentPosition, angleStepDegrees: angleStepDegrees);
 
-    for (int ring = 1; ring <= 8; ring++) {
+    for (int ring = 1; ring <= maxRings; ring++) {
       final radius = baseStep * ring;
       for (final angle in prioritizedAngles) {
         final candidatePosition = _constrainNodeToCanvas(
@@ -877,6 +1053,7 @@ class ColaLayoutService extends Manager {
           position: candidatePosition,
           occupancy: occupancy,
           anchorPosition: currentPosition,
+          mode: mode,
         );
 
         if (!_isScoreBetter(candidateScore, currentScore)) {
@@ -918,8 +1095,7 @@ class ColaLayoutService extends Manager {
     return bestResult;
   }
 
-  List<double> _buildPrioritizedAngles(int nodeIndex, TableNode node, Offset currentPosition) {
-    const int angleStep = 15;
+  List<double> _buildPrioritizedAngles(int nodeIndex, TableNode node, Offset currentPosition, {required int angleStepDegrees}) {
     final nodeCenter = Offset(
       currentPosition.dx + node.size.width / 2,
       currentPosition.dy + node.size.height / 2,
@@ -939,14 +1115,14 @@ class ColaLayoutService extends Manager {
 
     final baseDegrees = (baseAngle * 180 / pi).round();
 
-    for (int offset = 0; offset <= 45; offset += angleStep) {
+    for (int offset = 0; offset <= 45; offset += angleStepDegrees) {
       addAngle(baseDegrees + offset);
       if (offset != 0) {
         addAngle(baseDegrees - offset);
       }
     }
 
-    for (int offset = 60; offset <= 180; offset += angleStep) {
+    for (int offset = 60; offset <= 180; offset += angleStepDegrees) {
       addAngle(baseDegrees + offset);
       addAngle(baseDegrees - offset);
     }
@@ -955,23 +1131,9 @@ class ColaLayoutService extends Manager {
   }
 
   Offset _resolveRepairPriorityVector(int nodeIndex, TableNode node, Offset nodeCenter) {
-    if (state.autoLayoutReorderByConnectors) {
-      if (node.qType == 'swimlane') {
-        return const Offset(1, 1);
-      }
-
-      final sourceCount = _nodeSourceConnectionCounts[nodeIndex] ?? 0;
-      final targetCount = _nodeTargetConnectionCounts[nodeIndex] ?? 0;
-
-      if (sourceCount > targetCount) {
-        return const Offset(-1, -1);
-      }
-
-      if (targetCount > sourceCount) {
-        return const Offset(1, 1);
-      }
+    if (node.qType == 'swimlane') {
+      return const Offset(1, 1);
     }
-
     return nodeCenter - _distributionCenter;
   }
 
@@ -1106,6 +1268,7 @@ class ColaLayoutService extends Manager {
     required Offset position,
     required _OccupancyMap occupancy,
     required Offset anchorPosition,
+    _ScoringMode mode = _ScoringMode.repair,
   }) {
     final node = _nodesList[nodeIndex];
     final candidateRect = _buildNodeOccupiedRect(node, position);
@@ -1135,21 +1298,21 @@ class ColaLayoutService extends Manager {
     final nodeCenter = Offset(position.dx + node.size.width / 2, position.dy + node.size.height / 2);
     final centerDistance = (nodeCenter - _distributionCenter).distance;
     final distancePenalty = (position - anchorPosition).distance;
-    final settings = state.autoLayoutSettings;
-    final centerPenalty = centerDistance * _centerAffinity(nodeIndex) * settings.centerWeight;
+    final weights = _weightsForMode(mode);
+    final centerPenalty = centerDistance * _centerAffinity(nodeIndex) * weights.centerWeight;
     final connectedNodeDistancePenalty = _connectedNodeDistancePenalty(nodeIndex, nodeCenter);
     final connectedNodeDirectionPenalty = _connectedNodeDirectionPenalty(nodeIndex, position, anchorPosition);
     final attributeClusterPenalty = _attributeClusterPenalty(nodeIndex, nodeCenter);
     final totalScore =
-        nodeOverlapArea * settings.nodeOverlapAreaWeight +
-        arrowOverlapArea * settings.arrowOverlapAreaWeight +
-        nodeOverlapCount * settings.nodeOverlapCountWeight +
-        arrowOverlapCount * settings.arrowOverlapCountWeight +
-        distancePenalty * settings.distanceWeight +
+        nodeOverlapArea * weights.nodeOverlapAreaWeight +
+        arrowOverlapArea * weights.arrowOverlapAreaWeight +
+        nodeOverlapCount * weights.nodeOverlapCountWeight +
+        arrowOverlapCount * weights.arrowOverlapCountWeight +
+        distancePenalty * weights.distanceWeight +
         centerPenalty +
-        connectedNodeDistancePenalty * settings.connectedNodeDistanceWeight +
-        connectedNodeDirectionPenalty * settings.connectedNodeDirectionWeight +
-        attributeClusterPenalty * settings.attributeClusterWeight;
+        connectedNodeDistancePenalty * weights.connectedNodeDistanceWeight +
+        connectedNodeDirectionPenalty * weights.connectedNodeDirectionWeight +
+        attributeClusterPenalty * weights.attributeClusterWeight;
 
     return _CandidateScore(
       nodeOverlapArea: nodeOverlapArea,
@@ -1236,11 +1399,36 @@ class ColaLayoutService extends Manager {
 
   double _centerAffinity(int nodeIndex) {
     final connectionRatio = (_nodeConnectionCounts[nodeIndex] ?? 0) / _maxNodeConnections;
-    if (!state.autoLayoutSettings.centerByConnectivity) {
-      return 1.2;
-    }
+    return _centerAffinityBase + connectionRatio * _centerAffinityConnectivityFactor;
+  }
 
-    return 1.4 + connectionRatio * 4.0;
+  _LayoutWeights _weightsForMode(_ScoringMode mode) {
+    switch (mode) {
+      case _ScoringMode.polish:
+        return const _LayoutWeights(
+          nodeOverlapAreaWeight: _polishNodeOverlapAreaWeight,
+          arrowOverlapAreaWeight: _polishArrowOverlapAreaWeight,
+          nodeOverlapCountWeight: _polishNodeOverlapCountWeight,
+          arrowOverlapCountWeight: _polishArrowOverlapCountWeight,
+          distanceWeight: _polishDistanceWeight,
+          centerWeight: _polishCenterWeight,
+          connectedNodeDistanceWeight: _polishConnectedNodeDistanceWeight,
+          connectedNodeDirectionWeight: _polishConnectedNodeDirectionWeight,
+          attributeClusterWeight: _polishAttributeClusterWeight,
+        );
+      case _ScoringMode.repair:
+        return const _LayoutWeights(
+          nodeOverlapAreaWeight: _nodeOverlapAreaWeight,
+          arrowOverlapAreaWeight: _arrowOverlapAreaWeight,
+          nodeOverlapCountWeight: _nodeOverlapCountWeight,
+          arrowOverlapCountWeight: _arrowOverlapCountWeight,
+          distanceWeight: _distanceWeight,
+          centerWeight: _centerWeight,
+          connectedNodeDistanceWeight: _connectedNodeDistanceWeight,
+          connectedNodeDirectionWeight: _connectedNodeDirectionWeight,
+          attributeClusterWeight: _attributeClusterWeight,
+        );
+    }
   }
 
   bool _isScoreBetter(_CandidateScore candidate, _CandidateScore baseline) {
@@ -1350,6 +1538,16 @@ class ColaLayoutService extends Manager {
   }
 
   Future<void> _finishLayout() async {
+    if (_isFinishing) {
+      return;
+    }
+    _isFinishing = true;
+    _isRunning = false;
+    _layoutElapsedTimer?.cancel();
+    _layoutElapsedTimer = null;
+    _layoutStopwatch?.stop();
+    state.autoLayoutElapsedMilliseconds = _layoutStopwatch?.elapsedMilliseconds ?? state.autoLayoutElapsedMilliseconds;
+
     // Останавливаем анимацию если она ещё работает
     _animator?.stop();
     _animator = null;
@@ -1390,6 +1588,8 @@ class ColaLayoutService extends Manager {
     _attributeClusterNodeIndices.clear();
     _positionAnimationCompleter = null;
     _finishAfterCurrentAnimation = false;
+    _isFinishing = false;
+    _layoutStopwatch = null;
     
     // Обновляем скролбары
     // scrollHandler.updateScrollControllers();
@@ -1408,6 +1608,7 @@ class ColaLayoutService extends Manager {
 
   Future<void> stopLayout() async {
     if (_isRunning) {
+      _setCurrentLayoutProcess('Auto-layout: Stopping');
       _animator?.stop();
       await _finishLayout();
     }
@@ -1442,6 +1643,35 @@ class _CollisionStats {
   });
 
   bool get hasHardCollisions => hardCollisionNodeCount > 0;
+}
+
+enum _ScoringMode {
+  repair,
+  polish,
+}
+
+class _LayoutWeights {
+  final double nodeOverlapAreaWeight;
+  final double arrowOverlapAreaWeight;
+  final double nodeOverlapCountWeight;
+  final double arrowOverlapCountWeight;
+  final double distanceWeight;
+  final double centerWeight;
+  final double connectedNodeDistanceWeight;
+  final double connectedNodeDirectionWeight;
+  final double attributeClusterWeight;
+
+  const _LayoutWeights({
+    required this.nodeOverlapAreaWeight,
+    required this.arrowOverlapAreaWeight,
+    required this.nodeOverlapCountWeight,
+    required this.arrowOverlapCountWeight,
+    required this.distanceWeight,
+    required this.centerWeight,
+    required this.connectedNodeDistanceWeight,
+    required this.connectedNodeDirectionWeight,
+    required this.attributeClusterWeight,
+  });
 }
 
 class _CandidateResult {
