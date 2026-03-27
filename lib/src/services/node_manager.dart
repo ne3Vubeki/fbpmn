@@ -2036,12 +2036,18 @@ class NodeManager extends Manager {
       }
 
       final rowHeightScaled = actualRowHeight * scale;
+      final maxVisibleHeight = node.size.height * scale;
 
       for (int rowIndex = 0; rowIndex < node.attributes.length; rowIndex++) {
         final attribute = node.attributes[rowIndex];
         if (attribute.qType != 'attribute') continue;
 
         final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
+        final rowBottom = rowTop + rowHeightScaled;
+        if (rowBottom > maxVisibleHeight) {
+          break;
+        }
+
         rows.add(
           AttributeHighlightRow(
             node: node,
@@ -2049,7 +2055,7 @@ class NodeManager extends Manager {
             currentNodeLeft: currentNodeLeft,
             currentNodeWidth: currentNodeWidth,
             rowTop: rowTop,
-            rowBottom: rowTop + rowHeightScaled,
+            rowBottom: rowBottom,
             rowHeightScaled: rowHeightScaled,
             leftCircleCenterX: currentNodeLeft,
             rightCircleCenterX: currentNodeLeft + currentNodeWidth,

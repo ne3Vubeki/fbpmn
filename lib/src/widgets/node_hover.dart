@@ -126,8 +126,14 @@ class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
       final nodeOffsetY = node.id == currentNode.id ? 0.0 : node.position.dy * scale;
       final nodeLeft = frame + offset + nodeOffsetX;
       final nodeRight = nodeLeft + node.size.width * scale;
+      final maxVisibleHeight = node.size.height * scale;
 
       for (final attribute in node.attributes) {
+        final attributeBottom = (attribute.position.dy + attribute.size.height) * scale;
+        if (attributeBottom > maxVisibleHeight) {
+          break;
+        }
+
         final centerY = offset + frame + nodeOffsetY + (attribute.position.dy + attribute.size.height / 2) * scale;
         final leftFilled = _hasCommittedConnections(attribute.connections?.get('left'));
         final rightFilled = _hasCommittedConnections(attribute.connections?.get('right'));

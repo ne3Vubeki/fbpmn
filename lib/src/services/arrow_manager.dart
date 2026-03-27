@@ -1272,8 +1272,9 @@ class ArrowManager extends Manager {
 
       double startDeltaPos = 0;
       double endDeltaPos = 0;
-      final sourceArrowIndent = !isSourceAttribute && targetNode == null ? createdArrowSourceHandleOffset : arrowIndent;
-      final targetArrowIndent = !isTargetAttribute && targetNode != null ? arrowIndent : 0.0;
+      final nodeConnectionIndent = createdArrowSourceHandleOffset;
+      final sourceArrowIndent = !isSourceAttribute ? nodeConnectionIndent : 0.0;
+      final targetArrowIndent = !isTargetAttribute && targetNode != null ? nodeConnectionIndent : 0.0;
       Connection? startConnection;
       Connection? endConnection;
 

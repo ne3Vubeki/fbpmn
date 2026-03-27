@@ -117,12 +117,6 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       // Применяем масштаб миниатюры
       canvas.scale(thumbnailScale, thumbnailScale);
 
-      // Фон миниатюры (важно для пустой схемы без тайлов)
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, safeCanvasWidth, safeCanvasHeight),
-        Paint()..color = const Color(0xFFF7F9FC),
-      );
-
       // Делаем снимок списка тайлов ДО первого await,
       // чтобы избежать use-after-free при dispose тайлов в TileManager
       final tilesSnapshot = Map.of(widget.imageTiles);
@@ -365,14 +359,11 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
               children: [
                 Opacity(
                   opacity: 0.7,
-                  child: ColoredBox(
-                    color: Colors.white,
-                    child: RawImage(
-                      image: _thumbnailImage,
-                      width: thumbnailWidth,
-                      height: thumbnailHeight,
-                      fit: BoxFit.fill,
-                    ),
+                  child: RawImage(
+                    image: _thumbnailImage,
+                    width: thumbnailWidth,
+                    height: thumbnailHeight,
+                    fit: BoxFit.fill,
                   ),
                 ),
                 Positioned(
