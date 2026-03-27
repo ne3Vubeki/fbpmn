@@ -258,7 +258,7 @@ class TileManager extends Manager {
         /// перезапись измененных тайлов
         for (final tile in tiles) {
           final tileId = tile.id;
-          state.imageTiles[tileId]?.image.dispose();
+          state.imageTiles[tileId]?.picture.dispose();
           state.imageTiles[tile.id] = tile;
         }
 
@@ -268,7 +268,7 @@ class TileManager extends Manager {
             .map((entry) => entry.key)
             .toList();
         for (final key in keysToRemove) {
-          state.imageTiles[key]?.image.dispose();
+          state.imageTiles[key]?.picture.dispose();
           state.imageTiles.remove(key);
         }
       } else {
@@ -334,9 +334,9 @@ class TileManager extends Manager {
       final newTile = await _createUpdatedTileWithContent(bounds, tileId, nodesInTile, arrowsInTile);
       if (newTile != null) {
         try {
-          state.imageTiles[tileId]?.image.dispose();
+          state.imageTiles[tileId]?.picture.dispose();
         } catch (e) {
-          print('Warning: Error disposing tile image: $e');
+          print('Warning: Error disposing tile picture: $e');
         }
         state.imageTiles[tileId] = newTile;
         state.updatedImageTileIds.add(tileId);
@@ -582,7 +582,7 @@ class TileManager extends Manager {
         .map((entry) => entry.key)
         .toList();
     for (final key in keysToRemove) {
-      state.imageTiles[key]?.image.dispose();
+      state.imageTiles[key]?.picture.dispose();
       state.imageTiles.remove(key);
     }
 
@@ -901,10 +901,10 @@ class TileManager extends Manager {
     try {
       final tile = state.imageTiles[tileId];
       try {
-        tile!.image.dispose();
+        tile!.picture.dispose();
       } catch (e) {
         // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
-        print('Warning: Error disposing tile image: $e');
+        print('Warning: Error disposing tile picture: $e');
       }
 
       // Удаляем тайл из списка
@@ -935,8 +935,6 @@ class TileManager extends Manager {
     List<Arrow?> arrowsInTile,
   ) async {
     try {
-      // Фиксированный размер изображения
-      final int tileImageSize = EditorConfig.tileSize;
       final double scale = 1.0;
 
       final recorder = ui.PictureRecorder();
@@ -1004,12 +1002,10 @@ class TileManager extends Manager {
       }
 
       final picture = recorder.endRecording();
-      final image = await picture.toImage(tileImageSize, tileImageSize);
-      picture.dispose();
 
       // Возвращаем тайл вместе с данными для последующего обновления маппингов
       return ImageTile(
-        image: image,
+        picture: picture,
         bounds: tileBounds,
         scale: scale,
         id: tileId,
@@ -1057,7 +1053,7 @@ class TileManager extends Manager {
         // Находим и dispose старый тайл перед заменой
         if (state.imageTiles[tileId] != null) {
           try {
-            state.imageTiles[tileId]!.image.dispose();
+            state.imageTiles[tileId]!.picture.dispose();
           } catch (e) {
             // Игнорируем ошибки disposal
           }
@@ -1156,7 +1152,7 @@ class TileManager extends Manager {
   Future<void> _disposeTiles() async {
     for (final entry in state.imageTiles.entries) {
       try {
-        state.imageTiles[entry.key]?.image.dispose();
+        state.imageTiles[entry.key]?.picture.dispose();
       } catch (e) {
         // Игнорируем ошибки disposal, которые могут возникнуть из-за WebGL контекста
         // (например, если изображение уже было освобождено)

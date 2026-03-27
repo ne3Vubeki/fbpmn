@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:fbpmn/src/models/image_tile.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -57,11 +55,6 @@ class TileImagePainter extends CustomPainter {
 
     final visibleRect = Rect.fromLTRB(visibleLeft, visibleTop, visibleRight, visibleBottom);
 
-    final paint = Paint()
-      ..filterQuality = FilterQuality.high
-      ..isAntiAlias = true
-      ..blendMode = BlendMode.srcOver;
-
     for (final entry in imageTiles.entries) {
       final tile = state.imageTiles[entry.key];
       if (tile != null && tile.bounds.overlaps(visibleRect)) {
@@ -69,30 +62,9 @@ class TileImagePainter extends CustomPainter {
           final intersection = tile.bounds.intersect(visibleRect);
           if (intersection.isEmpty) continue;
 
-          final srcLeft = (intersection.left - tile.bounds.left) * tile.scale;
-          final srcTop = (intersection.top - tile.bounds.top) * tile.scale;
-          final srcRight = (intersection.right - tile.bounds.left) * tile.scale;
-          final srcBottom = (intersection.bottom - tile.bounds.top) * tile.scale;
-
-          const double epsilon = 0.5;
-          if (srcLeft < -epsilon ||
-              srcTop < -epsilon ||
-              srcRight > tile.image.width + epsilon ||
-              srcBottom > tile.image.height + epsilon) {
-            continue;
-          }
-
-          final srcRect = Rect.fromLTRB(
-            math.max(0.0, srcLeft),
-            math.max(0.0, srcTop),
-            math.min(tile.image.width.toDouble(), srcRight),
-            math.min(tile.image.height.toDouble(), srcBottom),
-          );
-
           const double minVisibleSize = 0.1;
-          if (srcRect.width > minVisibleSize && srcRect.height > minVisibleSize) {
-            // print('Рисую тайл ${tile.id}');
-            _drawTileWithQuality(canvas, tile.image, srcRect, intersection, paint);
+          if (intersection.width > minVisibleSize && intersection.height > minVisibleSize) {
+            _drawTile(canvas, tile, intersection);
           }
         } catch (e) {
           // Тихая обработка ошибок при рисовании
@@ -101,16 +73,14 @@ class TileImagePainter extends CustomPainter {
     }
   }
 
-  void _drawTileWithQuality(Canvas canvas, ui.Image image, Rect srcRect, Rect dstRect, Paint paint) {
-    if (scale < 0.5) {
-      final highQualityPaint = Paint()
-        ..filterQuality = FilterQuality.high
-        ..isAntiAlias = true
-        ..blendMode = BlendMode.srcOver;
-      canvas.drawImageRect(image, srcRect, dstRect, highQualityPaint);
-    } else {
-      canvas.drawImageRect(image, srcRect, dstRect, paint);
-    }
+  void _drawTile(Canvas canvas, ImageTile tile, Rect intersection) {
+    canvas.save();
+    canvas.saveLayer(intersection, Paint());
+    canvas.clipRect(intersection);
+    canvas.translate(tile.bounds.left, tile.bounds.top);
+    canvas.drawPicture(tile.picture);
+    canvas.restore();
+    canvas.restore();
   }
 
   @override

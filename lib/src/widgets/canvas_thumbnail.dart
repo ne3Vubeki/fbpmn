@@ -133,18 +133,11 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
         // Позиция тайла на миниатюре
         final tileRect = tile.bounds;
 
-        // Рисуем тайл с улучшенным качеством
-        canvas.drawImageRect(
-          tile.image,
-          Rect.fromLTWH(
-            0,
-            0,
-            tile.image.width.toDouble(),
-            tile.image.height.toDouble(),
-          ),
-          tileRect,
-          Paint()..filterQuality = FilterQuality.high,
-        );
+        canvas.save();
+        canvas.clipRect(tileRect);
+        canvas.translate(tile.bounds.left, tile.bounds.top);
+        canvas.drawPicture(tile.picture);
+        canvas.restore();
       }
 
       // Завершаем запись и создаем изображение

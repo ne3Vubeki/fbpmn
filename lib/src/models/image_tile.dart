@@ -2,7 +2,7 @@ import 'dart:ui';
 
 // Класс для хранения тайлов изображения
 class ImageTile {
-  final Image image;
+  final Picture picture;
   final Rect bounds; // Границы тайла в мировых координатах
   final double scale; // Масштаб тайла
   final String id; // id тайла
@@ -10,7 +10,7 @@ class ImageTile {
   Set<String?> arrows; // Список id связей в тайле
   
   ImageTile({
-    required this.image,
+    required this.picture,
     required this.bounds,
     required this.scale,
     required this.id,
@@ -18,4 +18,3 @@ class ImageTile {
     this.arrows = const {},
   });
 }
-
