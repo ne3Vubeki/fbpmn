@@ -5,7 +5,7 @@ void main(List<String> arguments) async {
   print('🔨 Starting Flutter Web files hashing...');
   
   // Параметры командной строки
-  String buildPath = 'build/web';
+  String buildPath = _parseBuildPath(arguments) ?? 'build/web';
   bool verbose = arguments.contains('--verbose') || arguments.contains('-v');
   
   // Проверяем существование папки сборки
@@ -79,6 +79,22 @@ void main(List<String> arguments) async {
   await _updateIndexHtml(renameMap, verbose);
   
   print('✅ Successfully hashed ${renameMap.length} files!');
+}
+
+String? _parseBuildPath(List<String> arguments) {
+  for (var i = 0; i < arguments.length; i++) {
+    final argument = arguments[i];
+
+    if (argument.startsWith('--build-path=')) {
+      return argument.substring('--build-path='.length);
+    }
+
+    if (argument == '--build-path' && i + 1 < arguments.length) {
+      return arguments[i + 1];
+    }
+  }
+
+  return null;
 }
 
 /// Вычисляет хеш файла (первые 8 символов SHA256)

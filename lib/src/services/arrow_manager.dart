@@ -442,6 +442,12 @@ class ArrowManager extends Manager {
     }
   }
 
+  void recalculateAllArrows() {
+    for (final arrow in state.arrows) {
+      getArrowPathInTile(arrow, state.delta);
+    }
+  }
+
   ({Arrow arrow, Rect rect})? findArrowAtWorldPosition(Offset worldPos, TileManager tileManager) {
     final tile = tileManager.getTileAtWorldPosition(worldPos);
     if (tile == null) {

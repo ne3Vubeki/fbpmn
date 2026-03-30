@@ -11,6 +11,7 @@ import 'package:fbpmn/src/services/manager.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/services/tile_manager.dart';
+import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 import 'package:flutter/material.dart';
 
@@ -44,6 +45,11 @@ class ColaLayoutService extends Manager {
   static const double _polishConnectedNodeDistanceWeight = 0.32;
   static const double _polishConnectedNodeDirectionWeight = 0.14;
   static const double _polishAttributeClusterWeight = 0.18;
+
+  static const double _lazyNodeActivationThreshold = 0.14;
+  static const double _lazyNodeDistancePenaltyBoost = 34.0;
+  static const double _lazyNodeCenterBoost = 12.0;
+  static const double _lazyNodeMinRadiusFactor = 0.06;
 
   bool _isRunning = false;
   bool get isRunning => _isRunning;
@@ -769,13 +775,17 @@ class ColaLayoutService extends Manager {
 
       executedIterations = iteration + 1;
       bool movedInIteration = false;
+      final activeNodeIndices = stats.nodeScores.entries
+          .where((entry) => entry.value.hasHardCollisions && _hasActualHardCollision(entry.key))
+          .map((entry) => entry.key)
+          .toSet();
       final nodeOrder = stats.nodeScores.entries.toList()
         ..sort((a, b) {
           final hardCompare = b.value.hardCollisionCount.compareTo(a.value.hardCollisionCount);
           if (hardCompare != 0) return hardCompare;
 
-          final connectionCompare = (_nodeConnectionCounts[b.key] ?? 0).compareTo(_nodeConnectionCounts[a.key] ?? 0);
-          if (connectionCompare != 0) return connectionCompare;
+          final lazinessCompare = _nodeLaziness(a.key).compareTo(_nodeLaziness(b.key));
+          if (lazinessCompare != 0) return lazinessCompare;
 
           final centerCompare = a.value.centerDistance.compareTo(b.value.centerDistance);
           if (centerCompare != 0) return centerCompare;
@@ -787,10 +797,13 @@ class ColaLayoutService extends Manager {
         if (!_isRunning || _isFinishing) {
           break;
         }
+        if (!activeNodeIndices.contains(entry.key)) {
+          continue;
+        }
         occupancy = _buildOccupancyMap();
         final currentStats = _collectCollisionStats(occupancy);
         final currentScore = currentStats.nodeScores[entry.key];
-        if (currentScore == null || !currentScore.hasHardCollisions) {
+        if (currentScore == null || !currentScore.hasHardCollisions || !_hasActualHardCollision(entry.key)) {
           continue;
         }
 
@@ -863,11 +876,12 @@ class ColaLayoutService extends Manager {
           final arrowAreaCompare = b.value.arrowOverlapArea.compareTo(a.value.arrowOverlapArea);
           if (arrowAreaCompare != 0) return arrowAreaCompare;
 
-          final hardCompare = b.value.hardCollisionCount.compareTo(a.value.hardCollisionCount);
-          if (hardCompare != 0) return hardCompare;
+          final lazinessCompare = _nodeLaziness(a.key).compareTo(_nodeLaziness(b.key));
+          if (lazinessCompare != 0) return lazinessCompare;
 
           return b.value.totalScore.compareTo(a.value.totalScore);
         });
+      final activeNodeIndices = nodeOrder.where((entry) => _hasActualHardCollision(entry.key)).map((entry) => entry.key).toSet();
 
       if (nodeOrder.isEmpty) {
         break;
@@ -880,10 +894,13 @@ class ColaLayoutService extends Manager {
         if (!_isRunning || _isFinishing) {
           break;
         }
+        if (!activeNodeIndices.contains(entry.key)) {
+          continue;
+        }
         occupancy = _buildOccupancyMap();
         final currentStats = _collectCollisionStats(occupancy, mode: _ScoringMode.polish);
         final currentScore = currentStats.nodeScores[entry.key];
-        if (currentScore == null || !currentScore.hasHardCollisions) {
+        if (currentScore == null || !currentScore.hasHardCollisions || !_hasActualHardCollision(entry.key)) {
           continue;
         }
 
@@ -1005,6 +1022,70 @@ class ColaLayoutService extends Manager {
     return childToParent;
   }
 
+  bool _hasActualHardCollision(int nodeIndex) {
+    final node = _nodesList[nodeIndex];
+    final position = _targetPositions[nodeIndex] ?? node.aPosition;
+    if (position == null) {
+      return false;
+    }
+
+    final candidateRect = Utils.calculateNodeRect(node: node, position: position);
+
+    for (int i = 0; i < _nodesList.length; i++) {
+      if (i == nodeIndex) {
+        continue;
+      }
+      final otherNode = _nodesList[i];
+      final otherPosition = _targetPositions[i] ?? otherNode.aPosition;
+      if (otherPosition == null) {
+        continue;
+      }
+      final otherRect = Utils.calculateNodeRect(node: otherNode, position: otherPosition);
+      if (_overlapArea(candidateRect, otherRect) > 0) {
+        return true;
+      }
+    }
+
+    final childToParent = _buildChildToParentMap();
+    for (final arrow in state.arrowsSelected) {
+      if (arrow == null) continue;
+
+      final incidentNodeIndices = <int>{};
+      final sourceId = childToParent[arrow.source] ?? arrow.source;
+      final targetId = childToParent[arrow.target] ?? arrow.target;
+      final sourceIndex = _nodeIndexMap[sourceId];
+      final targetIndex = _nodeIndexMap[targetId];
+      if (sourceIndex != null) incidentNodeIndices.add(sourceIndex);
+      if (targetIndex != null) incidentNodeIndices.add(targetIndex);
+      if (incidentNodeIndices.contains(nodeIndex)) {
+        continue;
+      }
+
+      final rects = arrow.rects;
+      if (rects != null && rects.isNotEmpty) {
+        for (final rect in rects) {
+          if (_overlapArea(candidateRect, rect) > 0) {
+            return true;
+          }
+        }
+        continue;
+      }
+
+      final coordinates = arrow.coordinates;
+      if (coordinates == null || coordinates.length < 2) {
+        continue;
+      }
+      for (int i = 0; i < coordinates.length - 1; i++) {
+        final segmentRect = _segmentToRect(coordinates[i], coordinates[i + 1], EditorConfig.arrowSelectedWidth);
+        if (_overlapArea(candidateRect, segmentRect) > 0) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   _CollisionStats _collectCollisionStats(_OccupancyMap occupancy, { _ScoringMode mode = _ScoringMode.repair }) {
     final nodeScores = <int, _CandidateScore>{};
     for (int i = 0; i < _nodesList.length; i++) {
@@ -1038,10 +1119,11 @@ class ColaLayoutService extends Manager {
     final node = _nodesList[nodeIndex];
     final currentPosition = _targetPositions[nodeIndex] ?? node.aPosition ?? Offset.zero;
     final baseStep = max(24.0, (max(node.size.width, node.size.height) / 2 + _nodeClearance(node) + 20) * 0.4);
+    final effectiveMaxRings = _effectiveMaxRings(nodeIndex, mode, maxRings);
     _CandidateResult? bestResult;
     final prioritizedAngles = _buildPrioritizedAngles(nodeIndex, node, currentPosition, angleStepDegrees: angleStepDegrees);
 
-    for (int ring = 1; ring <= maxRings; ring++) {
+    for (int ring = 1; ring <= effectiveMaxRings; ring++) {
       final radius = baseStep * ring;
       for (final angle in prioritizedAngles) {
         final candidatePosition = _constrainNodeToCanvas(
@@ -1795,9 +1877,10 @@ class ColaLayoutService extends Manager {
 
     final nodeCenter = Offset(position.dx + node.size.width / 2, position.dy + node.size.height / 2);
     final centerDistance = (nodeCenter - _distributionCenter).distance;
-    final distancePenalty = (position - anchorPosition).distance;
+    final rawDistancePenalty = (position - anchorPosition).distance;
     final weights = _weightsForMode(mode);
-    final centerPenalty = centerDistance * _centerAffinity(nodeIndex) * weights.centerWeight;
+    final distancePenalty = rawDistancePenalty * _lazyDistanceMultiplier(nodeIndex, mode);
+    final centerPenalty = centerDistance * _centerAffinity(nodeIndex) * _lazyCenterMultiplier(nodeIndex, mode) * weights.centerWeight;
     final connectedNodeDistancePenalty = _connectedNodeDistancePenalty(nodeIndex, nodeCenter);
     final connectedNodeDirectionPenalty = _connectedNodeDirectionPenalty(nodeIndex, position, anchorPosition);
     final attributeClusterPenalty = _attributeClusterPenalty(nodeIndex, nodeCenter);
@@ -1898,6 +1981,39 @@ class ColaLayoutService extends Manager {
   double _centerAffinity(int nodeIndex) {
     final connectionRatio = (_nodeConnectionCounts[nodeIndex] ?? 0) / _maxNodeConnections;
     return _centerAffinityBase + connectionRatio * _centerAffinityConnectivityFactor;
+  }
+
+  double _nodeLaziness(int nodeIndex) {
+    final connectionRatio = ((_nodeConnectionCounts[nodeIndex] ?? 0) / max(1, _maxNodeConnections)).clamp(0.0, 1.0);
+    if (connectionRatio <= _lazyNodeActivationThreshold) {
+      return 0;
+    }
+    final normalized =
+        ((connectionRatio - _lazyNodeActivationThreshold) / (1 - _lazyNodeActivationThreshold)).clamp(0.0, 1.0);
+    return normalized * normalized * normalized;
+  }
+
+  double _lazyDistanceMultiplier(int nodeIndex, _ScoringMode mode) {
+    if (mode != _ScoringMode.repair && mode != _ScoringMode.polish) {
+      return 1;
+    }
+    return 1 + _nodeLaziness(nodeIndex) * _lazyNodeDistancePenaltyBoost;
+  }
+
+  double _lazyCenterMultiplier(int nodeIndex, _ScoringMode mode) {
+    if (mode != _ScoringMode.repair && mode != _ScoringMode.polish) {
+      return 1;
+    }
+    return 1 + _nodeLaziness(nodeIndex) * _lazyNodeCenterBoost;
+  }
+
+  int _effectiveMaxRings(int nodeIndex, _ScoringMode mode, int baseMaxRings) {
+    if (mode != _ScoringMode.repair && mode != _ScoringMode.polish) {
+      return baseMaxRings;
+    }
+    final laziness = _nodeLaziness(nodeIndex);
+    final radiusFactor = (1 - laziness * (1 - _lazyNodeMinRadiusFactor)).clamp(_lazyNodeMinRadiusFactor, 1.0);
+    return max(1, (baseMaxRings * radiusFactor).round());
   }
 
   _LayoutWeights _weightsForMode(_ScoringMode mode) {
@@ -2064,6 +2180,8 @@ class ColaLayoutService extends Manager {
 
     // Сохраняем узлы обратно в тайлы (используем метод NodeManager)
     await nodeManager.saveAllNodesAfterLayout();
+    arrowManager.recalculateAllArrows();
+    scrollHandler.autoFitAndCenterNodes();
 
     await EventService.apiStatic('schema_update', 'ColaLayoutService._finishLayout');
 
