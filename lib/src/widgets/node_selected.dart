@@ -53,16 +53,46 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
 
   @override
   Widget build(BuildContext context) {
-    if (widget.state.nodesSelected.isEmpty) return Container();
 
-    final allNodes = widget.state.nodesSelected.toList();
-    final isMultiSelect = allNodes.length > 1;
+    final widgets = <Widget>[];
 
-    if (isMultiSelect) {
-      return _buildMultiSelect(allNodes);
-    } else {
-      return _buildSingleSelect(allNodes.first!);
+    if (widget.state.nodesSelected.isNotEmpty) {
+      final allNodes = widget.state.nodesSelected.toList();
+      final isMultiSelect = allNodes.length > 1;
+
+      if (isMultiSelect) {
+        widgets.add(_buildMultiSelect(allNodes));
+      } else {
+        widgets.add(_buildSingleSelect(allNodes.first!));
+      }
     }
+
+    if (widget.state.isAreaSelecting) {
+      widgets.add(_buildAreaSelection());
+    }
+
+    if (widgets.isEmpty) return Container();
+
+    if (widgets.length == 1) return widgets.first;
+
+    return Stack(children: widgets);
+  }
+
+  Widget _buildAreaSelection() {
+    final selectionRect = Rect.fromPoints(widget.state.selectionStart, widget.state.selectionCurrent);
+
+    return Positioned(
+      left: selectionRect.left,
+      top: selectionRect.top,
+      child: Container(
+        width: selectionRect.width,
+        height: selectionRect.height,
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.12),
+          border: Border.all(color: Colors.blue, width: 1.5),
+        ),
+      ),
+    );
   }
 
   /// Режим 1: Единичное выделение — один узел
@@ -108,6 +138,7 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
 
     final validNodes = result.validNodes;
     final worldBounds = result.worldBounds;
+    final outOffset = 10.0 * widget.state.scale;
 
     // Экранные координаты bounding box
     final screenTopLeft = Utils.worldToScreen(worldBounds.topLeft, widget.state);
@@ -120,26 +151,36 @@ class _NodeSelectedState extends State<NodeSelected> with StateWidget<NodeSelect
     final showBorder = !widget.state.isAutoLayoutMode;
 
     return Positioned(
-      left: screenTopLeft.dx - frameTotalOffset,
-      top: screenTopLeft.dy - frameTotalOffset,
+      left: screenTopLeft.dx - framePadding,
+      top: screenTopLeft.dy - framePadding,
       child: Container(
         padding: EdgeInsets.all(framePadding),
-        decoration: showBorder
-            ? BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                border: Border.all(color: Colors.blue, width: frameBorderWidth),
-              )
-            : null,
-        child: RepaintBoundary(
-          child: CustomPaint(
-            size: nodeSize,
-            painter: NodeCustomPainter(
-              nodes: validNodes,
-              targetSize: nodeSize,
-              worldBounds: worldBounds,
-              simplifiedMode: widget.state.isAutoLayoutMode,
+        child: Stack(
+          children: [
+            RepaintBoundary(
+              child: CustomPaint(
+                size: nodeSize,
+                painter: NodeCustomPainter(
+                  nodes: validNodes,
+                  targetSize: nodeSize,
+                  worldBounds: worldBounds,
+                  simplifiedMode: widget.state.isAutoLayoutMode,
+                ),
+              ),
             ),
-          ),
+            if (showBorder)
+              Positioned.fill(
+                left: outOffset,
+                top: outOffset,
+                right: outOffset,
+                bottom: outOffset,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.3),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

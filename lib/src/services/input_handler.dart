@@ -194,7 +194,13 @@ class InputHandler extends Manager {
         _isDirectNodeDrag = true;
         nodeManager.startNodeDrag(position);
       } else {
-        nodeManager.selectNodeAtPosition(position, immediateDrag: true);
+        final worldPos = Utils.screenToWorld(position, state);
+        final nodeHit = nodeManager.findNodeAtWorldPosition(worldPos);
+        if (nodeHit == null) {
+          nodeManager.startAreaSelection(position);
+        } else {
+          nodeManager.selectNodeAtPosition(position, immediateDrag: true);
+        }
       }
     }
 
@@ -225,10 +231,12 @@ class InputHandler extends Manager {
     } else if (state.isNodeDragging || _isDirectNodeDrag) {
       // Перетаскивание узла (как через выделение, так и прямое)
       nodeManager.updateNodeDrag(position);
+    } else if (state.isAreaSelecting) {
+      nodeManager.updateAreaSelection(position);
     }
   }
 
-  void handlePanEnd() {
+  Future<void> handlePanEnd() async {
     if (state.isPanning) {
       state.isPanning = false;
     }
@@ -238,11 +246,15 @@ class InputHandler extends Manager {
       nodeManager.endNodeDrag();
     }
 
+    if (state.isAreaSelecting) {
+      await nodeManager.endAreaSelection();
+    }
+
     _isDirectNodeDrag = false;
     // Не вызываем onStateUpdate здесь - nodeManager.endNodeDrag() уже вызывает его при необходимости
   }
 
-  void handlePanCancel() {
+  Future<void> handlePanCancel() async {
     if (state.isPanning) {
       state.isPanning = false;
     }
@@ -250,6 +262,10 @@ class InputHandler extends Manager {
     // Отменяем перетаскивание узла, если оно было
     if (state.isNodeDragging) {
       nodeManager.endNodeDrag();
+    }
+
+    if (state.isAreaSelecting) {
+      await nodeManager.cancelAreaSelection();
     }
 
     _isDirectNodeDrag = false;

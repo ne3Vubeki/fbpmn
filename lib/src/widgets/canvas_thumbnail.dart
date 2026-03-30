@@ -344,6 +344,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
         width: thumbnailWidth,
         height: thumbnailHeight,
         decoration: BoxDecoration(
+          color: Colors.white.withOpacity(.9),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: _isDragging ? Colors.blue : Colors.grey[400]!,

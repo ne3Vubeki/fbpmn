@@ -170,6 +170,12 @@ class EditorState {
   /// Внутренние отступы рамки выделения узла.
   EdgeInsets framePadding = EdgeInsets.all(0);
 
+  bool isAreaSelecting = false;
+
+  Offset selectionStart = Offset.zero;
+
+  Offset selectionCurrent = Offset.zero;
+
   TableNode? toggleSwimlaneNode;
 
   /// Узел ховеред

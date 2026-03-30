@@ -152,8 +152,11 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
                         event.delta,
                       );
                     } else if (widget.nodeManager.isResizing) {
-                    } else if (widget.state.isNodeDragging) {
-                      widget.nodeManager.updateNodeDrag(event.localPosition);
+                    } else if (widget.state.isNodeDragging || widget.state.isAreaSelecting) {
+                      widget.inputHandler.handlePanUpdate(
+                        event.localPosition,
+                        event.delta,
+                      );
                     }
                   },
                   onPointerDown: (PointerDownEvent event) {

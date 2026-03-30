@@ -20,6 +20,8 @@ class NodeHover extends StatefulWidget {
 
 class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
   final Map<String, bool> isHovered = {};
+  Offset _cursorPosition = Offset.zero;
+  String? _cursorNodeId;
 
   TableNode? _findNodeById(String nodeId, List<TableNode> nodes) {
     for (final node in nodes) {
@@ -248,6 +250,10 @@ class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
         : BorderRadius.zero;
     final overlaySize = Size(nodeSize.width + offset * 2 + frame * 2, nodeSize.height + offset * 2 + frame * 2);
     final showArrowCreatedHoverWidgets = widget.state.arrowCreated != null;
+    final tooltipText = currentNode.text.trim();
+    final hasCursorPosition = _cursorNodeId == currentNode.id;
+    final tooltipLeft = (_cursorPosition.dx + 14).clamp(0.0, overlaySize.width + hoverPadding * 2 - 12);
+    final tooltipTop = (_cursorPosition.dy + 18).clamp(0.0, overlaySize.height + hoverPadding * 2 - 12);
 
     double groupOffsetX = 0;
     double groupOffsetY = 0;
@@ -264,14 +270,24 @@ class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
       child: MouseRegion(
         opaque: true,
         cursor: SystemMouseCursors.click,
-        onHover: showArrowCreatedHoverWidgets
-            ? (_) {
-                if (widget.state.hoveredNode?.id != currentNode.id) {
+        onHover: (event) {
+          if (_cursorPosition != event.localPosition) {
+            setState(() {
+              _cursorPosition = event.localPosition;
+              _cursorNodeId = currentNode.id;
+            });
+          } else if (_cursorNodeId != currentNode.id) {
+            setState(() {
+              _cursorNodeId = currentNode.id;
+            });
+          }
+          if (showArrowCreatedHoverWidgets) {
+            if (widget.state.hoveredNode?.id != currentNode.id) {
                   widget.state.hoveredNode = currentNode;
                   widget.nodeManager.onStateUpdate();
                 }
-              }
-            : null,
+          }
+        },
         child: SizedBox(
           width: overlaySize.width + hoverPadding * 2,
           height: overlaySize.height + hoverPadding * 2,
@@ -342,6 +358,26 @@ class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
                     ),
                   ),
               ],
+              if (tooltipText.isNotEmpty && hasCursorPosition)
+                Positioned(
+                  left: tooltipLeft,
+                  top: tooltipTop,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        child: Text(
+                          tooltipText,
+                          style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.2),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

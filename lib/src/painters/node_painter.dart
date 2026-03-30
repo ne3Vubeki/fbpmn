@@ -224,7 +224,7 @@ class NodePainter {
     final isBO = node.qType == 'bo';
 
     final highlightPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.3)
+      ..color = Colors.blue.withOpacity(0.2)
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 

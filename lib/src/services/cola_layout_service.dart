@@ -217,10 +217,10 @@ class ColaLayoutService extends Manager {
         _createColaLayout();
 
         // 10. Запускаем анимированную раскладку
-        _setCurrentLayoutProcess('Сжатие');
+        _setCurrentLayoutProcess('Смешивание');
         _runAnimatedLayout();
       } else {
-        _setCurrentLayoutProcess('Раскладка');
+        _setCurrentLayoutProcess('Расстановка');
         await _runRepairOnlyLayout();
       }
       
@@ -713,7 +713,7 @@ class ColaLayoutService extends Manager {
     _applyTargetPositionsImmediately();
     _captureDistributionCenter();
 
-    _setCurrentLayoutProcess('Раскладка');
+    _setCurrentLayoutProcess('Расстановка');
     await _repairLayoutCollisions(maxIterations: 8);
 
     if (!_isRunning || _isFinishing) {
@@ -722,7 +722,7 @@ class ColaLayoutService extends Manager {
 
     if (state.autoLayoutUsePolish) {
       _captureDistributionCenter();
-      _setCurrentLayoutProcess('Доводка');
+      _setCurrentLayoutProcess('Корректировка');
       await _runPolishLayout(maxIterations: 24);
     }
 

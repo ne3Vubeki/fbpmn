@@ -117,6 +117,7 @@ class NodeManager extends Manager {
     if (state.isNodeDragging && state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
       final screenDelta = screenPosition - _nodeDragStart;
       final worldDelta = screenDelta / state.scale;
+      final isMultiSelect = state.nodesSelected.length > 1;
 
       // Обновляем мировые координаты первого УЗЛА
       var newWorldPosition = _nodeStartWorldPosition + worldDelta;
@@ -147,7 +148,9 @@ class NodeManager extends Manager {
       }
 
       // Обновляем позицию рамки на основе новой позиции узла
-      _updateNodePosition();
+      if (!isMultiSelect) {
+        _updateNodePosition();
+      }
 
       onStateUpdate();
       arrowManager.onStateUpdate();
@@ -447,7 +450,7 @@ class NodeManager extends Manager {
   }
 
   /// Добавление узла в существующее выделение (Ctrl+клик)
-  Future<void> _addNodeToSelection(TableNode node) async {
+  Future<void> _addNodeToSelection(TableNode node, {bool deferHeavyUpdate = false}) async {
     // Проверяем, не выделен ли уже этот узел
     if (state.nodesSelected.any((n) => n?.id == node.id)) return;
 
@@ -457,6 +460,8 @@ class NodeManager extends Manager {
     node.isSelected = true;
     state.nodesSelected.add(node);
     state.nodesIdOnTopLayer += node.id;
+
+    if (deferHeavyUpdate) return;
 
     // Обновляем подсвеченные узлы (связанные с выделенными)
     tileManager.updateHighlightedNodes();
@@ -476,9 +481,6 @@ class NodeManager extends Manager {
 
   /// Подготовка узла для перемещения на верхний слой
   Future<void> _prepareNodeForTopLayer(TableNode node) async {
-    // Удаляем узел из state.nodes
-    _removeNodeFromNodesList(node);
-
     // Для swimlane в развернутом состоянии удаляем всех детей из тайлов
     if (node.qType == 'swimlane' && !(node.isCollapsed ?? false)) {
       // Сохраняем абсолютные позиции детей перед удалением
@@ -496,8 +498,10 @@ class NodeManager extends Manager {
     }
 
     // Удаляем узел из тайлов
-    // Вместо вызова для одного узла, нужно передавать список всех выделенных узлов
-    await tileManager.removeSelectedNodesFromTiles(state.nodesSelected); // Новый метод
+    await tileManager.removeSelectedNodesFromTiles(state.nodesSelected);
+
+    // Удаляем узел из state.nodes только после завершения обновления тайлов
+    _removeNodeFromNodesList(node);
   }
 
   // Новый метод: удаление узла из основного списка узлов
@@ -718,6 +722,26 @@ class NodeManager extends Manager {
     return state.nodes.firstWhereOrNull((n) => n.id == node.parent);
   }
 
+  TableNode? _findTopGroupAncestor(TableNode node) {
+    TableNode? currentGroup = node.qType == 'group' ? node : null;
+    String? parentId = node.parent;
+
+    while (parentId != null) {
+      final parentNode = getNodeById(state.nodes, parentId);
+      if (parentNode == null) {
+        break;
+      }
+
+      if (parentNode.qType == 'group') {
+        currentGroup = parentNode;
+      }
+
+      parentId = parentNode.parent;
+    }
+
+    return currentGroup;
+  }
+
   Future<void> handleEmptyAreaClick() async {
     if (isResizing) {
       return;
@@ -762,6 +786,148 @@ class NodeManager extends Manager {
       onStateUpdate();
       arrowManager.onStateUpdate();
     }
+  }
+
+  void startAreaSelection(Offset screenPosition) {
+    state.isAreaSelecting = true;
+    state.selectionStart = screenPosition;
+    state.selectionCurrent = screenPosition;
+    onStateUpdate();
+  }
+
+  void updateAreaSelection(Offset screenPosition) {
+    if (!state.isAreaSelecting) {
+      return;
+    }
+
+    state.selectionCurrent = screenPosition;
+    onStateUpdate();
+  }
+
+  Future<void> endAreaSelection() async {
+    if (!state.isAreaSelecting) {
+      return;
+    }
+
+    final selectionRect = Rect.fromPoints(state.selectionStart, state.selectionCurrent);
+
+    state.isAreaSelecting = false;
+    state.selectionStart = Offset.zero;
+    state.selectionCurrent = Offset.zero;
+
+    if (selectionRect.width < 2 && selectionRect.height < 2) {
+      await handleEmptyAreaClick();
+      return;
+    }
+
+    await selectNodesInArea(selectionRect);
+  }
+
+  Future<void> cancelAreaSelection() async {
+    if (!state.isAreaSelecting) {
+      return;
+    }
+
+    state.isAreaSelecting = false;
+    state.selectionStart = Offset.zero;
+    state.selectionCurrent = Offset.zero;
+    onStateUpdate();
+  }
+
+  Future<void> selectNodesInArea(Rect screenSelectionRect) async {
+    final worldTopLeft = Utils.screenToWorld(screenSelectionRect.topLeft, state);
+    final worldBottomRight = Utils.screenToWorld(screenSelectionRect.bottomRight, state);
+    final worldSelectionRect = Rect.fromPoints(worldTopLeft, worldBottomRight);
+    final allNodes = <TableNode>[];
+
+    void collectSelectableNodes(List<TableNode> nodes) {
+      for (final node in nodes) {
+        allNodes.add(node);
+
+        if (node.children == null || node.children!.isEmpty) {
+          continue;
+        }
+
+        if (node.qType == 'swimlane' && (node.isCollapsed ?? false)) {
+          continue;
+        }
+
+        collectSelectableNodes(node.children!);
+      }
+    }
+
+    collectSelectableNodes(state.nodes);
+    final selectedNodesById = <String, TableNode>{};
+
+    for (final node in allNodes) {
+      final nodePosition = node.aPosition ?? (state.delta + node.position);
+      final nodeRect = Rect.fromLTWH(
+        nodePosition.dx,
+        nodePosition.dy,
+        node.size.width,
+        node.size.height,
+      );
+      if (nodeRect.overlaps(worldSelectionRect)) {
+        final groupNode = _findTopGroupAncestor(node);
+        if (groupNode != null) {
+          selectedNodesById[groupNode.id] = groupNode;
+          continue;
+        }
+
+        selectedNodesById[node.id] = node;
+      }
+    }
+
+    final selectedNodes = selectedNodesById.values.toList();
+
+    if (state.nodesIdOnTopLayer.isNotEmpty && state.nodesSelected.isNotEmpty) {
+      await _saveNodeToTiles();
+    } else {
+      _deselectAllNodes();
+      state.nodesSelected.clear();
+      state.arrowsSelected.clear();
+      state.hoveredArrow = null;
+      state.nodesIdOnTopLayer = '';
+      state.selectedNodeOffset = Offset.zero;
+      state.originalNodePosition = Offset.zero;
+      state.isNodeDragging = false;
+      state.highlightedNodeIds.clear();
+    }
+
+    if (selectedNodes.isEmpty) {
+      await tileManager.updateTilesAfterNodeChange();
+      onStateUpdate();
+      arrowManager.onStateUpdate();
+      return;
+    }
+
+    for (final node in selectedNodes) {
+      await _addNodeToSelection(node, deferHeavyUpdate: true);
+    }
+
+    if (selectedNodes.length == 1) {
+      final selectedNode = selectedNodes.first;
+      state.originalNodePosition = selectedNode.aPosition ?? (state.delta + selectedNode.position);
+      _updateNodePosition();
+    } else {
+      final boundsResult = Utils.getNodesWorldBounds(state.nodesSelected.toList(), state.delta);
+      if (boundsResult != null) {
+        state.originalNodePosition = boundsResult.worldBounds.topLeft;
+      }
+    }
+
+    tileManager.updateHighlightedNodes();
+    onStateUpdate();
+
+    await tileManager.updateTilesAfterNodeChange();
+
+    for (final node in selectedNodes) {
+      await _prepareNodeForTopLayer(node);
+    }
+
+    arrowManager.selectAllArrows();
+
+    onStateUpdate();
   }
 
   Future<void> selectNodeAtPosition(Offset screenPosition, {bool immediateDrag = false}) async {
@@ -1168,9 +1334,8 @@ class NodeManager extends Manager {
       snapPointsY.addAll([top, bottom, centerY]);
     }
 
-    // Вычисляем worldDelta из позиции первого узла
-    final firstStartPos = _multiDragStartPositions[state.nodesSelected.first!.id];
-    final worldDelta = (firstStartPos != null) ? worldPosition - firstStartPos : Offset.zero;
+    // Вычисляем worldDelta из общей стартовой точки drag
+    final worldDelta = worldPosition - _nodeStartWorldPosition;
 
     // Ищем ближайшие snap-точки среди ВСЕХ выделенных узлов
     double correctionX = 0;
