@@ -1352,6 +1352,9 @@ class ArrowManager extends Manager {
             sourceCenter.dy + startDeltaPos,
           );
           endConnectionPoint = Offset(targetCenter.dx + endDeltaPos, targetBottom + targetArrowIndent);
+          if (startConnectionPoint.dy >= endConnectionPoint.dy && sidesNodesList.length == 2) {
+            sidesNodesList.add('3');
+          }
           break;
         case 'left:right':
           startConnectionPoint = Offset(
@@ -1415,6 +1418,9 @@ class ArrowManager extends Manager {
             sourceBottom + (!isSourceAttribute ? sourceArrowIndent : 0),
           );
           endConnectionPoint = Offset(targetLeft - targetArrowIndent, targetCenter.dy + endDeltaPos);
+          if (startConnectionPoint.dy >= endConnectionPoint.dy && sidesNodesList.length == 2) {
+            sidesNodesList.add('3');
+          }
           break;
         case 'bottom:bottom':
           startConnectionPoint = Offset(
@@ -1425,8 +1431,7 @@ class ArrowManager extends Manager {
           break;
       }
 
-      // startConnection!.pos = startConnectionPoint;
-      // endConnection!.pos = endConnectionPoint;
+      sides = sidesNodesList.join(':');
 
       return (start: startConnectionPoint, end: endConnectionPoint, sides: sides);
     } catch (e) {

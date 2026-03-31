@@ -24,6 +24,7 @@ class TileManager extends Manager {
   bool _isCreatingTiles = false;
   bool _pendingTilesUpdate = false;
   bool _lastSelectAndHideApplied = false;
+  bool _lastOnlyConnectorsApplied = false;
   Set<String> _lastHighlightedNodeIds = <String>{};
 
   final bool _waitForUI = false;
@@ -230,8 +231,13 @@ class TileManager extends Manager {
     try {
       final currentHighlightedNodeIds = _getCurrentHighlightedNodeIds();
       final applySelectAndHide = _shouldApplySelectAndHide;
-      final forceFullRedraw = applySelectAndHide || _lastSelectAndHideApplied != applySelectAndHide;
+      final applyOnlyConnectors = state.onlyConnectors;
+      final forceFullRedraw =
+          applySelectAndHide ||
+          _lastSelectAndHideApplied != applySelectAndHide ||
+          _lastOnlyConnectorsApplied != applyOnlyConnectors;
       _lastSelectAndHideApplied = applySelectAndHide;
+      _lastOnlyConnectorsApplied = applyOnlyConnectors;
 
       // Очищаем старые данные только при полном пересоздании
       if (!isUpdate || forceFullRedraw) {
