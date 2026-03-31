@@ -1024,8 +1024,8 @@ class ArrowManager extends Manager {
           sides = getSidesForNodeAndAttribute(
             ifNode: 'right:left',
             ifAttrST: 'right:left|left:left:4|right:right:4|left:right',
-            ifAttrS: 'left:left|right:right',
-            ifAttrT: '${cy < 0 ? 'bottom:right:3' : 'top:right:3'}|right:left',
+            ifAttrS: 'left:right|right:right',
+            ifAttrT: 'right:left|right:right',
           );
           break;
         case 'right60':
@@ -1033,7 +1033,7 @@ class ArrowManager extends Manager {
             ifNode: 'left:right',
             ifAttrST: 'left:right|right:right:4|left:left:4|right:left',
             ifAttrS: 'right:right|left:left',
-            ifAttrT: '${cy < 0 ? 'bottom:left:3' : 'top:left:3'}|right:right',
+            ifAttrT: 'left:right|left:left',
           );
           break;
         case 'top60':
@@ -1041,7 +1041,7 @@ class ArrowManager extends Manager {
             ifNode: 'bottom:top',
             ifAttrST: 'left:left|left:left|right:right|left:left',
             ifAttrS: 'right:right|left:left',
-            ifAttrT: '${cx < 0 ? 'right:right' : 'left:left'}|left:left',
+            ifAttrT: '${cx < 0 ? 'right:right' : 'left:left'}|right:right',
           );
           break;
         case 'bottom60':
@@ -1049,7 +1049,7 @@ class ArrowManager extends Manager {
             ifNode: 'top:bottom',
             ifAttrST: 'left:left|left:left|right:right|left:left',
             ifAttrS: 'right:right|left:left',
-            ifAttrT: '${cx < 0 ? 'left:left' : 'right:right'}|left:left',
+            ifAttrT: '${cx < 0 ? 'left:left' : 'right:right'}|right:right',
           );
           break;
         case 'left60|top60':
