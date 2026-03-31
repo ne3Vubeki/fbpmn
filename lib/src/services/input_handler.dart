@@ -273,42 +273,7 @@ class InputHandler extends Manager {
   }
 
   Offset constrainOffset(Offset offset) {
-    // Используем динамический размер холста из ScrollHandler
-    final Size canvasSize = Size(
-      scrollHandler.dynamicCanvasWidth * state.scale,
-      scrollHandler.dynamicCanvasHeight * state.scale,
-    );
-
-    double constrainedX = offset.dx;
-    double constrainedY = offset.dy;
-
-    // Максимальные смещения
-    final double maxRight = 0;
-    final double maxLeft = state.viewportSize.width - canvasSize.width;
-    final double maxBottom = 0;
-    final double maxTop = state.viewportSize.height - canvasSize.height;
-
-    // Ограничиваем по X
-    if (canvasSize.width <= state.viewportSize.width) {
-      // Холст меньше viewport - центрируем
-      constrainedX = (state.viewportSize.width - canvasSize.width) / 2;
-    } else {
-      // Холст больше viewport - ограничиваем
-      if (constrainedX > maxRight) constrainedX = maxRight;
-      if (constrainedX < maxLeft) constrainedX = maxLeft;
-    }
-
-    // Ограничиваем по Y
-    if (canvasSize.height <= state.viewportSize.height) {
-      // Холст меньше viewport - центрируем
-      constrainedY = (state.viewportSize.height - canvasSize.height) / 2;
-    } else {
-      // Холст больше viewport - ограничиваем
-      if (constrainedY > maxBottom) constrainedY = maxBottom;
-      if (constrainedY < maxTop) constrainedY = maxTop;
-    }
-
-    return Offset(constrainedX, constrainedY);
+    return scrollHandler.constrainOffset(offset);
   }
 
   FocusNode get focusNode => _focusNode;

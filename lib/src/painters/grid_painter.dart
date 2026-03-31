@@ -5,30 +5,24 @@ import '../services/node_manager.dart';
 
 class GridPainter extends CustomPainter {
   final double scale;
-  final Offset offset;
   final NodeManager nodeManager;
 
   GridPainter({
     required this.scale,
-    required this.offset,
     required this.nodeManager,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    final double visibleLeft = 0;
+    final double visibleTop = 0;
+    final double visibleRight = size.width / scale;
+    final double visibleBottom = size.height / scale;
+
     canvas.save();
+    canvas.clipRect(Offset.zero & size);
     canvas.scale(scale, scale);
-    canvas.translate(offset.dx / scale, offset.dy / scale);
-
-    final double visibleLeft = -offset.dx / scale;
-    final double visibleTop = -offset.dy / scale;
-    final double visibleRight = (size.width - offset.dx) / scale;
-    final double visibleBottom = (size.height - offset.dy) / scale;
-
-    print('Рисую сетку: $visibleLeft:$visibleTop $visibleRight:$visibleBottom');
-
     _drawHierarchicalGrid(canvas, visibleLeft, visibleTop, visibleRight, visibleBottom);
-
     canvas.restore();
   }
 
@@ -111,7 +105,6 @@ class GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant GridPainter oldDelegate) {
-    return oldDelegate.scale != scale ||
-        oldDelegate.offset != offset;
+    return oldDelegate.scale != scale;
   }
 }

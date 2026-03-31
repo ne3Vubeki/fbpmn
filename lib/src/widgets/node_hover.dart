@@ -55,6 +55,40 @@ class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
     return false;
   }
 
+  TableNode _resolveTooltipNode({
+    required TableNode currentNode,
+    required Offset localPosition,
+    required double hoverPadding,
+    required double offset,
+    required double frame,
+    required double scale,
+  }) {
+    if (currentNode.qType != 'group' || currentNode.children == null || currentNode.children!.isEmpty) {
+      return currentNode;
+    }
+
+    final contentLocalPosition = Offset(
+      localPosition.dx - hoverPadding - offset - frame,
+      localPosition.dy - hoverPadding - offset - frame,
+    );
+
+    for (int i = currentNode.children!.length - 1; i >= 0; i--) {
+      final child = currentNode.children![i];
+      final childRect = Rect.fromLTWH(
+        child.position.dx * scale,
+        child.position.dy * scale,
+        child.size.width * scale,
+        child.size.height * scale,
+      );
+
+      if (childRect.contains(contentLocalPosition)) {
+        return child;
+      }
+    }
+
+    return currentNode;
+  }
+
   bool _hasCommittedConnections(Set<dynamic>? sideConnections) {
     final createdArrowId = widget.state.arrowCreated?.id;
     if (sideConnections == null || sideConnections.isEmpty) {
@@ -250,10 +284,18 @@ class _NodeHoverState extends State<NodeHover> with StateWidget<NodeHover> {
         : BorderRadius.zero;
     final overlaySize = Size(nodeSize.width + offset * 2 + frame * 2, nodeSize.height + offset * 2 + frame * 2);
     final showArrowCreatedHoverWidgets = widget.state.arrowCreated != null;
-    final tooltipText = currentNode.text.trim();
-    final hasCursorPosition = _cursorNodeId == currentNode.id;
     final tooltipLeft = (_cursorPosition.dx + 14).clamp(0.0, overlaySize.width + hoverPadding * 2 - 12);
     final tooltipTop = (_cursorPosition.dy + 18).clamp(0.0, overlaySize.height + hoverPadding * 2 - 12);
+    final tooltipNode = _resolveTooltipNode(
+      currentNode: currentNode,
+      localPosition: _cursorPosition,
+      hoverPadding: hoverPadding,
+      offset: offset,
+      frame: frame,
+      scale: scale,
+    );
+    final tooltipText = tooltipNode.text.trim();
+    final hasCursorPosition = _cursorNodeId == currentNode.id;
 
     double groupOffsetX = 0;
     double groupOffsetY = 0;

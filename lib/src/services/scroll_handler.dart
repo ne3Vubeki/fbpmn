@@ -35,8 +35,8 @@ class ScrollHandler extends Manager {
   double get dynamicCanvasWidth => _dynamicCanvasWidth;
   double get dynamicCanvasHeight => _dynamicCanvasHeight;
   Size get scaledCanvasSize => Size(
-    _dynamicCanvasWidth * state.scale,
-    _dynamicCanvasHeight * state.scale,
+    math.max(_dynamicCanvasWidth, EditorConfig.staticCanvasWidth) * state.scale,
+    math.max(_dynamicCanvasHeight, EditorConfig.staticCanvasHeight) * state.scale,
   );
 
   // Наличие скроллбаров
@@ -249,41 +249,35 @@ class ScrollHandler extends Manager {
 
   /// Ограничивает текущий offset границами
   void _constrainCurrentOffset() {
+    state.offset = constrainOffset(state.offset);
+  }
+
+  Offset constrainOffset(Offset offset) {
     final Size canvasSize = _calculateCanvasSize();
 
-    double constrainedX = state.offset.dx;
-    double constrainedY = state.offset.dy;
+    double constrainedX = offset.dx;
+    double constrainedY = offset.dy;
 
-    // Максимальные смещения
-    final double maxRight = 0; // Нельзя двигать вправо за левую границу
-    final double maxLeft =
-        state.viewportSize.width - canvasSize.width; // Максимум влево
+    final double maxRight = 0;
+    final double maxLeft = state.viewportSize.width - canvasSize.width;
+    final double maxBottom = 0;
+    final double maxTop = state.viewportSize.height - canvasSize.height;
 
-    final double maxBottom = 0; // Нельзя двигать вниз за верхнюю границу
-    final double maxTop =
-        state.viewportSize.height - canvasSize.height; // Максимум вверх
-
-    // Ограничиваем по X
     if (canvasSize.width <= state.viewportSize.width) {
-      // Холст меньше viewport - центрируем
       constrainedX = (state.viewportSize.width - canvasSize.width) / 2;
     } else {
-      // Холст больше viewport - ограничиваем
       if (constrainedX > maxRight) constrainedX = maxRight;
       if (constrainedX < maxLeft) constrainedX = maxLeft;
     }
 
-    // Ограничиваем по Y
     if (canvasSize.height <= state.viewportSize.height) {
-      // Холст меньше viewport - центрируем
       constrainedY = (state.viewportSize.height - canvasSize.height) / 2;
     } else {
-      // Холст больше viewport - ограничиваем
       if (constrainedY > maxBottom) constrainedY = maxBottom;
       if (constrainedY < maxTop) constrainedY = maxTop;
     }
 
-    state.offset = Offset(constrainedX, constrainedY);
+    return Offset(constrainedX, constrainedY);
   }
 
   void updateScrollControllers() {
@@ -323,7 +317,20 @@ class ScrollHandler extends Manager {
 
   /// Вызывается при изменении размера viewport
   void handleViewportResize(Size newViewportSize) {
+    final Size previousViewportSize = state.viewportSize;
     state.viewportSize = newViewportSize;
+
+    final bool isFirstValidViewport =
+        previousViewportSize.width <= 0 || previousViewportSize.height <= 0;
+
+    if (isFirstValidViewport && newViewportSize.width > 0 && newViewportSize.height > 0) {
+      if (state.nodes.isNotEmpty) {
+        autoFitAndCenterNodes();
+      } else {
+        centerCanvas();
+      }
+      return;
+    }
 
     // Корректируем текущий offset под новый размер viewport
     _constrainCurrentOffset();

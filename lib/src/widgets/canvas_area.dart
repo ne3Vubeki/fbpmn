@@ -66,6 +66,9 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
     widget.inputHandler.setOnStateUpdate('CanvasArea', () {
       timeoutSetState();
     });
+    widget.scrollHandler.setOnStateUpdate('CanvasArea', () {
+      timeoutSetState();
+    });
   }
 
   void _updateActualSize() {
@@ -269,5 +272,12 @@ class _CanvasAreaState extends State<CanvasArea> with StateWidget<CanvasArea> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    widget.inputHandler.removeOnStateUpdate('CanvasArea');
+    widget.scrollHandler.removeOnStateUpdate('CanvasArea');
+    super.dispose();
   }
 }

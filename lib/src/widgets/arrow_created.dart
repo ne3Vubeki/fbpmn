@@ -1,5 +1,6 @@
+import 'dart:math' as math;
+
 import 'package:fbpmn/src/painters/arrow_painter.dart';
-import 'package:fbpmn/src/painters/direction_arrow_painter.dart';
 import 'package:fbpmn/src/models/attribute.dart';
 import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
@@ -66,14 +67,46 @@ class _ArrowCreatedState extends State<ArrowCreated> with StateWidget<ArrowCreat
     return (node: foundNode, attribute: foundAttribute);
   }
 
+  Offset _resolveWorldPosition(TableNode node) {
+    if (node.aPosition != null) {
+      return node.aPosition!;
+    }
+
+    final parentId = node.parent;
+    if (parentId == null) {
+      return node.position + widget.state.delta;
+    }
+
+    final parentNode = NodeManager.getNodeById(widget.state.nodes, parentId);
+    if (parentNode == null) {
+      return node.position + widget.state.delta;
+    }
+
+    return _resolveWorldPosition(parentNode) + node.position;
+  }
+
   String _getTargetDirectionFromPosition(String targetId, Offset targetPoint) {
+    final targetSide = widget.state.arrowCreated?.sides?.split(':').skip(1).firstWhere(
+      (side) => side.isNotEmpty,
+      orElse: () => '',
+    );
+    if (targetSide != null && targetSide.isNotEmpty) {
+      return {
+            'left': 'r',
+            'right': 'l',
+            'top': 'b',
+            'bottom': 't',
+          }[targetSide] ??
+          'l';
+    }
+
     final targetData = _findTargetById(targetId);
     final targetNode = targetData.node;
     if (targetNode == null) {
       return 'l';
     }
 
-    final targetWorldPosition = targetNode.aPosition ?? (targetNode.position + widget.state.delta);
+    final targetWorldPosition = _resolveWorldPosition(targetNode);
     final targetAttribute = targetData.attribute;
     final targetRect = Rect.fromLTWH(
       targetAttribute == null ? targetWorldPosition.dx : targetWorldPosition.dx + targetAttribute.position.dx,
@@ -88,10 +121,32 @@ class _ArrowCreatedState extends State<ArrowCreated> with StateWidget<ArrowCreat
     final delta = targetPoint - targetCenter;
 
     if (delta.dx.abs() >= delta.dy.abs()) {
-      return delta.dx >= 0 ? 'l' : 'r';
+      return delta.dx >= 0 ? 'r' : 'l';
     }
 
-    return delta.dy >= 0 ? 't' : 'b';
+    return delta.dy >= 0 ? 'b' : 't';
+  }
+
+  Widget _buildDirectionIcon(String direction, double length) {
+    final rotations = <String, double>{
+      'r': 0,
+      'l': math.pi,
+      't': -math.pi / 2,
+      'b': math.pi / 2,
+    };
+    final size = length * 0.75;
+
+    return Transform.rotate(
+      angle: rotations[direction] ?? 0,
+      child: Transform.translate(
+        offset: Offset(-size / 6, -size / 6),
+        child: Icon(
+          Icons.arrow_forward,
+          color: Colors.white,
+          size: size,
+        ),
+      ),
+    );
   }
 
   @override
@@ -169,10 +224,7 @@ class _ArrowCreatedState extends State<ArrowCreated> with StateWidget<ArrowCreat
                           ),
                           child: _isTargetHovered
                               ? Center(
-                                  child: CustomPaint(
-                                    size: Size(length * 0.6, length * 0.6),
-                                    painter: DirectionArrowPainter(direction: targetDirection, color: Colors.white),
-                                  ),
+                                  child: _buildDirectionIcon(targetDirection, length),
                                 )
                               : null,
                         ),

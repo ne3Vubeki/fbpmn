@@ -44,53 +44,35 @@ class ZoomPanel extends StatelessWidget {
     final bool canZoomIn = scale < EditorConfig.maxScale;
     final bool canZoomOut = scale > EditorConfig.minScale;
     final List<Widget> enabledSettingsIcons = [
-      if (showTileBorders)
-        const Tooltip(
+        Tooltip(
           message: 'Границы тайлов',
-          child: Icon(Icons.border_outer, color: Colors.redAccent),
+          child: Icon(Icons.border_outer, color: showTileBorders ? Colors.redAccent : Colors.grey),
         ),
-      if (showThumbnail)
-        const Tooltip(
+      Tooltip(
           message: 'Окно миниатюры',
-          child: Icon(Icons.picture_in_picture_alt_outlined, color: Colors.blueAccent),
+          child: Icon(Icons.picture_in_picture_alt_outlined, color: showThumbnail ? Colors.blueAccent : Colors.grey),
         ),
-      if (showPerformance)
-        const Tooltip(
+      Tooltip(
           message: 'Метрики',
-          child: Icon(Icons.speed_outlined, color: Colors.orangeAccent),
+          child: Icon(Icons.speed_outlined, color: showPerformance ? Colors.orangeAccent : Colors.grey),
         ),
-      if (snapEnabled)
-        const Tooltip(
+      Tooltip(
           message: 'Прилипание',
-          child: Icon(Icons.grid_on, color: Colors.green),
+          child: Icon(Icons.grid_on, color: snapEnabled ? Colors.green : Colors.grey),
         ),
-      if (useCurves)
-        const Tooltip(
+      Tooltip(
           message: 'Кривые связи',
-          child: Icon(Icons.timeline, color: Colors.purple),
+          child: Icon(Icons.timeline, color: useCurves ? Colors.purple : Colors.grey),
         ),
-      if (onlyConnectors)
-        const Tooltip(
+      Tooltip(
           message: 'Только коннекторы',
-          child: Icon(Icons.device_hub, color: Colors.black87),
+          child: Icon(Icons.device_hub, color: onlyConnectors ? Colors.black87 : Colors.grey),
         ),
-      if (selectAndHide)
-        const Tooltip(
+      Tooltip(
           message: 'Скрывать другие узлы и связи при выделении',
-          child: Icon(Icons.visibility_off_outlined, color: Colors.teal),
+          child: Icon(Icons.visibility_off_outlined, color: selectAndHide ? Colors.teal : Colors.grey),
         ),
     ];
-    final List<Widget> settingsIconsRowChildren = enabledSettingsIcons.isEmpty
-        ? [const SizedBox(width: 18, height: 18)]
-        : enabledSettingsIcons
-            .expand(
-              (widget) => [
-                widget,
-                const SizedBox(width: 4),
-              ],
-            )
-            .toList()
-          ..removeLast();
 
     return Container(
       width: panelWidth,
@@ -181,7 +163,7 @@ class ZoomPanel extends StatelessWidget {
                     reverse: true,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: settingsIconsRowChildren,
+                      children: enabledSettingsIcons,
                     ),
                   ),
                 ),

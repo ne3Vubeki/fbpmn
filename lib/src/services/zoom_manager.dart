@@ -119,8 +119,28 @@ class ZoomManager extends Manager {
   }
 
   void toggleSnap() {
-    state.snapEnabled = !state.snapEnabled;
-    onStateUpdate();
+    setSnapEnabled(!state.snapEnabled);
+  }
+
+  void setSnapEnabled(bool enabled, {bool forceNotify = false}) {
+    if (!forceNotify && state.snapEnabled == enabled) {
+      return;
+    }
+
+    state.snapEnabled = enabled;
+    if (!enabled && state.snapLines.isNotEmpty) {
+      state.snapLines = [];
+    }
+
+    onStateUpdate('snap');
+  }
+
+  void onSnap() {
+    setSnapEnabled(true);
+  }
+
+  void offSnap() {
+    setSnapEnabled(false);
   }
 
   void togglePerformance() {
@@ -182,20 +202,11 @@ class ZoomManager extends Manager {
     }
 
     scrollHandler.updateScrollControllers();
+    scrollHandler.onStateUpdate();
     onStateUpdate();
   }
 
   Offset _constrainOffset(Offset newOffset) {
-    final viewportWidth = state.viewportSize.width;
-    final viewportHeight = state.viewportSize.height;
-    final canvasWidth = scrollHandler.dynamicCanvasWidth;
-    final canvasHeight = scrollHandler.dynamicCanvasHeight;
-
-    final maxOffsetX = 0.0;
-    final minOffsetX = viewportWidth - canvasWidth * state.scale;
-    final maxOffsetY = 0.0;
-    final minOffsetY = viewportHeight - canvasHeight * state.scale;
-
-    return Offset(newOffset.dx.clamp(minOffsetX, maxOffsetX), newOffset.dy.clamp(minOffsetY, maxOffsetY));
+    return scrollHandler.constrainOffset(newOffset);
   }
 }

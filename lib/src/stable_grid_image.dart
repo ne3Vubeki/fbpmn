@@ -132,8 +132,8 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _suppressSchemaCallback = true;
     try {
-      // await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_2.json');
-      _shemaManager.createEmptySchema(apply: true);
+      await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_2.json');
+      // _shemaManager.createEmptySchema(apply: true);
       _schemaInitialized = true;
     } finally {
       _suppressSchemaCallback = false;
@@ -249,6 +249,9 @@ class _StableGridImageState extends State<StableGridImage> {
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollHandler.autoFitAndCenterNodes();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollHandler.autoFitAndCenterNodes();
+        });
       });
     }
   }

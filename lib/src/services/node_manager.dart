@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:fbpmn/src/models/attribute_highlight_row.dart';
 import 'package:fbpmn/src/models/snap_line.dart';
-import 'package:fbpmn/src/painters/direction_arrow_painter.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/event_service.dart';
 import 'package:fbpmn/src/services/manager.dart';
@@ -22,6 +21,13 @@ class NodeManager extends Manager {
   final TileManager tileManager;
   final ArrowManager arrowManager;
   final ShemaManager schemaManager;
+
+  static const Map<String, double> _arrowIconRotations = {
+    'r': 0,
+    'l': math.pi,
+    't': -math.pi / 2,
+    'b': math.pi / 2,
+  };
 
   Offset _nodeDragStart = Offset.zero;
   Offset _nodeStartWorldPosition = Offset.zero;
@@ -80,7 +86,10 @@ class NodeManager extends Manager {
         return node;
       }
       if (node.children != null && node.children!.isNotEmpty) {
-        return getNodeById(node.children!, id);
+        final foundNode = getNodeById(node.children!, id);
+        if (foundNode != null) {
+          return foundNode;
+        }
       }
     }
     return null;
@@ -1883,12 +1892,7 @@ class NodeManager extends Manager {
                           border: Border.all(color: Colors.blue, width: widthBorderCircle),
                         ),
                         child: !isSelectedNodeHandleDisabled && isHoveredHandle
-                            ? Center(
-                                child: CustomPaint(
-                                  size: Size(length * 0.6, length * 0.6),
-                                  painter: DirectionArrowPainter(direction: handle, color: Colors.white),
-                                ),
-                              )
+                            ? Center(child: _buildConnectionArrowIcon(handle, length))
                             : null,
                       ),
                     ),
@@ -1918,12 +1922,7 @@ class NodeManager extends Manager {
                             border: Border.all(color: Colors.blue, width: widthBorderCircle),
                           ),
                           child: !isSelectedNodeHandleDisabled && isHoveredHandle
-                              ? Center(
-                                  child: CustomPaint(
-                                    size: Size(length * 0.6, length * 0.6),
-                                    painter: DirectionArrowPainter(direction: handle, color: Colors.white),
-                                  ),
-                                )
+                              ? Center(child: _buildConnectionArrowIcon(handle, length))
                               : null,
                         ),
                       ),
@@ -2061,6 +2060,17 @@ class NodeManager extends Manager {
     return children;
   }
 
+  Widget _buildConnectionArrowIcon(String direction, double length) {
+    return Transform.rotate(
+      angle: _arrowIconRotations[direction] ?? 0,
+      child: Icon(
+        Icons.arrow_forward,
+        color: Colors.white,
+        size: length * 0.75,
+      ),
+    );
+  }
+
   Widget _buildAttributeConnectionCircle({
     required AttributeHighlightRow row,
     required String side,
@@ -2099,12 +2109,7 @@ class NodeManager extends Manager {
             border: Border.all(color: Colors.blue, width: widthBorderCircle),
           ),
           child: !isHoverDisabled && !isSelectedObjectCircleDisabled && isHoveredCircle
-              ? Center(
-                  child: CustomPaint(
-                    size: Size(length * 0.6, length * 0.6),
-                    painter: DirectionArrowPainter(direction: direction, color: Colors.white),
-                  ),
-                )
+              ? Center(child: _buildConnectionArrowIcon(direction, length))
               : null,
         ),
       ),
@@ -2183,7 +2188,10 @@ class NodeManager extends Manager {
       double actualRowHeight;
 
       if (!isGroup) {
-        if (node.size.height > totalMinContentHeight) {
+        if (node.heightHeader != null) {
+          headerHeight = node.heightHeader as double;
+          actualRowHeight = (node.size.height - headerHeight) / node.attributes.length;
+        } else if (node.size.height > totalMinContentHeight) {
           final extraHeight = node.size.height - totalMinContentHeight;
           final headerShare = minHeaderHeight / totalMinContentHeight;
           headerHeight = minHeaderHeight + extraHeight * headerShare;
@@ -2201,7 +2209,7 @@ class NodeManager extends Manager {
       }
 
       final rowHeightScaled = actualRowHeight * scale;
-      final maxVisibleHeight = node.size.height * scale;
+      final maxVisibleHeight = nodeOffsetY + node.size.height * scale;
 
       for (int rowIndex = 0; rowIndex < node.attributes.length; rowIndex++) {
         final attribute = node.attributes[rowIndex];
@@ -2209,7 +2217,7 @@ class NodeManager extends Manager {
 
         final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
         final rowBottom = rowTop + rowHeightScaled;
-        if (rowBottom > maxVisibleHeight) {
+        if (rowTop >= maxVisibleHeight) {
           break;
         }
 

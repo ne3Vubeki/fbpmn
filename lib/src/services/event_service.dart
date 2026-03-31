@@ -74,10 +74,10 @@ class EventService {
         zoomManager.offThumbnail();
         break;
       case 'snap_on':
-        state.snapEnabled = true;
+        zoomManager.onSnap();
         break;
       case 'snap_off':
-        state.snapEnabled = false;
+        zoomManager.offSnap();
         break;
       case 'tiles_border_on':
         zoomManager.onTileBorders();
@@ -110,38 +110,46 @@ class EventService {
       /// События настройки редактора
       case 'configuration_editor_changed':
         if (data != null) {
+          final Map<String, dynamic> previousConfig =
+              Map<String, dynamic>.from(state.properties['config'] as Map? ?? const {});
           state.setConfig(data);
           for (final entry in data.entries) {
+            final previousValue = previousConfig[entry.key];
+            final newValue = entry.value;
+            if (previousValue == newValue) {
+              continue;
+            }
+
             switch (entry.key) {
               case 'snapEnabled':
-                state.snapEnabled = entry.value;
+                zoomManager.setSnapEnabled(newValue == true, forceNotify: true);
                 break;
               case 'showTileBorders':
-                entry.value == true ? zoomManager.onTileBorders() : zoomManager.offTileBorders();
+                newValue == true ? zoomManager.onTileBorders() : zoomManager.offTileBorders();
                 break;
               case 'useCurves':
-                entry.value == true ? zoomManager.onCurves() : zoomManager.offCurves();
+                newValue == true ? zoomManager.onCurves() : zoomManager.offCurves();
                 break;
               case 'showPerformance':
-                entry.value == true ? zoomManager.onPerformance() : zoomManager.offPerformance();
+                newValue == true ? zoomManager.onPerformance() : zoomManager.offPerformance();
                 break;
               case 'showThumbnail':
-                entry.value == true ? zoomManager.onThumbnail() : zoomManager.offThumbnail();
+                newValue == true ? zoomManager.onThumbnail() : zoomManager.offThumbnail();
                 break;
               case 'onlyConnectors':
-                entry.value == true ? tileManager.onOnlyConnectors() : tileManager.offOnlyConnectors();
+                await (newValue == true ? tileManager.onOnlyConnectors() : tileManager.offOnlyConnectors());
                 break;
               case 'autoLayoutUseCola':
-                state.autoLayoutUseCola = entry.value;
+                state.autoLayoutUseCola = newValue == true;
                 break;
               case 'autoLayoutUsePolish':
-                state.autoLayoutUsePolish = entry.value;
+                state.autoLayoutUsePolish = newValue == true;
                 break;
               case 'autoLayoutUseSnapOnRepair':
-                state.autoLayoutUseSnapOnRepair = entry.value;
+                state.autoLayoutUseSnapOnRepair = newValue == true;
                 break;
               case 'autoLayoutUseSnapOnPolish':
-                state.autoLayoutUseSnapOnPolish = entry.value;
+                state.autoLayoutUseSnapOnPolish = newValue == true;
                 break;
             }
           }

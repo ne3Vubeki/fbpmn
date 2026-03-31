@@ -73,31 +73,43 @@ class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<Hi
     final size = widget.scrollHandler.scaledCanvasSize;
     return Stack(
       children: [
-        // Слой 1: сетка — перерисовывается только при scale/offset
-        RepaintBoundary(
-          child: CustomPaint(
-            size: size,
-            painter: GridPainter(
-              scale: widget.state.scale,
-              offset: widget.state.offset,
-              nodeManager: widget.nodeManager,
-            ),
-          ),
+        Positioned.fill(
+          child: ColoredBox(color: const Color(0xFFD0D0D0)),
         ),
-
-        // Слой 2: тайлы — перерисовывается только при изменении visibleTiles
-        RepaintBoundary(
-          child: CustomPaint(
-            size: size,
-            painter: TileImagePainter(
-              scale: widget.state.scale,
-              offset: widget.state.offset,
-              canvasSize: size,
-              state: widget.state,
-              imageTiles: widget.state.imageTiles,
-              nodesIdOnTopLayer: widget.state.nodesIdOnTopLayer,
-              isTileEvent: isTileEvent,
-              updatedImageTileIds: widget.state.updatedImageTileIds,
+        Positioned(
+          left: widget.state.offset.dx,
+          top: widget.state.offset.dy,
+          width: size.width,
+          height: size.height,
+          child: ColoredBox(
+            color: Colors.white,
+            child: Stack(
+              children: [
+                RepaintBoundary(
+                  child: CustomPaint(
+                    size: size,
+                    painter: GridPainter(
+                      scale: widget.state.scale,
+                      nodeManager: widget.nodeManager,
+                    ),
+                  ),
+                ),
+                RepaintBoundary(
+                  child: CustomPaint(
+                    size: size,
+                    painter: TileImagePainter(
+                      scale: widget.state.scale,
+                      offset: Offset.zero,
+                      canvasSize: size,
+                      state: widget.state,
+                      imageTiles: widget.state.imageTiles,
+                      nodesIdOnTopLayer: widget.state.nodesIdOnTopLayer,
+                      isTileEvent: isTileEvent,
+                      updatedImageTileIds: widget.state.updatedImageTileIds,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
