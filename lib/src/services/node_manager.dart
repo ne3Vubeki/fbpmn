@@ -2190,7 +2190,10 @@ class NodeManager extends Manager {
       if (!isGroup) {
         if (node.heightHeader != null) {
           headerHeight = node.heightHeader as double;
-          actualRowHeight = (node.size.height - headerHeight) / node.attributes.length;
+          actualRowHeight = math.max(
+            (node.size.height - headerHeight) / node.attributes.length,
+            EditorConfig.minRowHeight,
+          );
         } else if (node.size.height > totalMinContentHeight) {
           final extraHeight = node.size.height - totalMinContentHeight;
           final headerShare = minHeaderHeight / totalMinContentHeight;
@@ -2217,7 +2220,7 @@ class NodeManager extends Manager {
 
         final rowTop = (headerHeight + actualRowHeight * rowIndex) * scale + nodeOffsetY;
         final rowBottom = rowTop + rowHeightScaled;
-        if (rowTop >= maxVisibleHeight) {
+        if (rowBottom > maxVisibleHeight) {
           break;
         }
 

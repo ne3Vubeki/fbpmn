@@ -34,6 +34,14 @@ class ArrowManager extends Manager {
 
   ArrowManager({required this.state, required this.schemaManager});
 
+  bool _isAttributeVisibleInNode(TableNode node, Attribute? attribute) {
+    if (attribute == null) {
+      return true;
+    }
+
+    return attribute.position.dy + attribute.size.height <= node.size.height;
+  }
+
   Future<void> createArrowFromMap(Map<String, dynamic> arrowMap) async {
     final arrow = Arrow.fromJson(arrowMap);
     state.arrows.add(arrow);
@@ -1461,6 +1469,13 @@ class ArrowManager extends Manager {
       return (paths: ArrowPaths(path: Path()), coordinates: []);
     }
 
+    if (!_isAttributeVisibleInNode(sourceNode, sourceAttr) || !_isAttributeVisibleInNode(targetNode, targetAttr)) {
+      arrow.paths = ArrowPaths(path: Path());
+      arrow.rects = [];
+      arrow.coordinates = [];
+      return (paths: ArrowPaths(path: Path()), coordinates: []);
+    }
+
     // Получаем абсолютные позиции
     final sourceAbsolutePos = sourceNode.aPosition ?? (sourceNode.position + baseOffset);
     final targetAbsolutePos = targetNode.aPosition ?? (targetNode.position + baseOffset);
@@ -1531,6 +1546,13 @@ class ArrowManager extends Manager {
     final sourceNodeAndAttr = _getNodeFromArrow(arrow.source);
     final sourceNode = sourceNodeAndAttr.node;
     if (sourceNode == null) {
+      return (paths: ArrowPaths(path: Path()), coordinates: []);
+    }
+
+    if (!_isAttributeVisibleInNode(sourceNode, sourceNodeAndAttr.attribute)) {
+      arrow.coordinates = [];
+      arrow.paths = ArrowPaths(path: Path());
+      arrow.rects = [];
       return (paths: ArrowPaths(path: Path()), coordinates: []);
     }
 

@@ -474,26 +474,37 @@ class NodePainter {
     // ПРОПОРЦИОНАЛЬНЫЙ РАСЧЕТ ВЫСОТ ЗАГОЛОВКА И АТРИБУТОВ
     final minHeaderHeight = EditorConfig.minHeaderHeight;
     final minRowHeight = EditorConfig.minRowHeight;
+    final hasAttributes = node.attributes.isNotEmpty;
+    final isBoWithoutAttributes = isBO && !hasAttributes;
 
     // Общая высота контента (сумма минимальных высот)
     final totalMinContentHeight = minHeaderHeight + minRowHeight * node.attributes.length;
 
     // Если реальная высота узла больше минимальной, распределяем пропорционально
     double headerHeight;
-    double rowHeight;
+    double rowHeight = 0;
+    bool shouldDrawEmptyBodyForBo = false;
 
-    if (!isGroup) {
+    if (isBoWithoutAttributes) {
+      final proportionalHeaderHeight = nodeRect.height / 2;
+      if (proportionalHeaderHeight >= minHeaderHeight) {
+        headerHeight = proportionalHeaderHeight;
+        shouldDrawEmptyBodyForBo = true;
+      } else {
+        headerHeight = math.min(minHeaderHeight, nodeRect.height);
+      }
+    } else if (!isGroup) {
       if (nodeRect.height > totalMinContentHeight) {
         // Пропорциональное распределение дополнительного пространства
         final extraHeight = nodeRect.height - totalMinContentHeight;
         final headerShare = minHeaderHeight / totalMinContentHeight;
 
         headerHeight = minHeaderHeight + extraHeight * headerShare;
-        rowHeight = (nodeRect.height - headerHeight) / node.attributes.length;
+        rowHeight = hasAttributes ? (nodeRect.height - headerHeight) / node.attributes.length : 0;
       } else {
         // Если высота меньше или равна минимальной, используем минимальные значения
         headerHeight = minHeaderHeight;
-        rowHeight = math.max((nodeRect.height - headerHeight) / node.attributes.length, minRowHeight);
+        rowHeight = hasAttributes ? math.max((nodeRect.height - headerHeight) / node.attributes.length, minRowHeight) : 0;
       }
     } else {
       headerHeight = minHeaderHeight;
@@ -531,7 +542,7 @@ class NodePainter {
       ..isAntiAlias = true
       ..filterQuality = FilterQuality.high;
 
-    if (!isGroup && isBO) {
+    if (!isGroup && isBO && (hasAttributes || shouldDrawEmptyBodyForBo)) {
       canvas.drawLine(
         Offset(nodeRect.left, nodeRect.top + headerHeight),
         Offset(nodeRect.right, nodeRect.top + headerHeight),

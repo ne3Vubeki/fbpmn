@@ -312,7 +312,7 @@ class CanvasIcons {
 
     // Вычисляем точки треугольника
     final triangleHeight = size.height * 0.85;
-    final triangleWidth = size.width * 0.85;
+    final triangleWidth = size.width;
 
     final topPoint = Offset(center.dx, center.dy - triangleHeight / 2);
     final bottomLeft = Offset(center.dx - triangleWidth / 2, center.dy + triangleHeight / 2);
@@ -362,7 +362,7 @@ class CanvasIcons {
     final textStyle = TextStyle(
       color: Colors.white,
       fontSize: size.height * 0.5,
-      fontWeight: FontWeight.bold,
+      fontWeight: FontWeight.normal,
       fontFamily: 'Arial',
     );
 
