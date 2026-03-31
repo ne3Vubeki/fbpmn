@@ -2166,26 +2166,31 @@ class ColaLayoutService extends Manager {
     _animator?.stop();
     _animator = null;
 
-    // Освобождаем Cola layout (если ещё не освобождён)
-    _layout?.dispose();
-    _layout = null;
+        // Освобождаем Cola layout (если ещё не освобождён)
+        _layout?.dispose();
+        _layout = null;
 
-    // Пересчитываем пути связей с финальными позициями
-    arrowManager.recalculateSelectedArrows();
+        // ВАЖНО: пересчитываем все пути связей ДО сохранения узлов обратно в тайлы,
+        // чтобы тайлы сразу строились по финальной геометрии стрелок.
+        arrowManager.recalculateAllArrows();
 
-    // Пересчитываем размер холста на основе новых позиций узлов
-    // ВАЖНО: делаем это ДО saveAllNodesAfterLayout, так как этот метод
-    // изменяет state.delta и пересчитывает aPosition
-    scrollHandler.calculateCanvasSizeFromNodes(state.nodes);
+        // Пересчитываем размер холста на основе новых позиций узлов
+        // ВАЖНО: делаем это ДО saveAllNodesAfterLayout, так как этот метод
+        // изменяет state.delta и пересчитывает aPosition
+        scrollHandler.calculateCanvasSizeFromNodes(state.nodes);
 
-    // Сохраняем узлы обратно в тайлы (используем метод NodeManager)
-    await nodeManager.saveAllNodesAfterLayout();
-    arrowManager.recalculateAllArrows();
-    scrollHandler.autoFitAndCenterNodes();
+        // Сохраняем узлы обратно в тайлы (используем метод NodeManager)
+        await nodeManager.saveAllNodesAfterLayout();
+        scrollHandler.autoFitAndCenterNodes();
 
-    await EventService.apiStatic('schema_update', 'ColaLayoutService._finishLayout');
+        await EventService.apiStatic('schema_update', 'ColaLayoutService._finishLayout');
 
-    // Выключаем loading indicator и режим автораскладки
+        // Выключаем loading indicator и режим автораскладки
+        state.isLoading = false;
+        state.isAutoLayoutMode = false;
+        state.currentLayoutProcess = '';
+        _isRunning = false;
+        _isAnimating = false;
     state.isLoading = false;
     state.isAutoLayoutMode = false;
     state.currentLayoutProcess = '';

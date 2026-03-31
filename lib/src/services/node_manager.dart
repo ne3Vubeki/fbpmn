@@ -578,8 +578,6 @@ class NodeManager extends Manager {
     state.selectedNodeOffset = Offset.zero;
     state.originalNodePosition = Offset.zero;
 
-    arrowManager.compactAllConnections();
-
     await tileManager.updateTilesAfterNodeChange();
 
     // Пересчитываем абсолютные позиции для всех узлов
