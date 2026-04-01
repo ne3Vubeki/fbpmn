@@ -99,15 +99,6 @@ class ArrowManager extends Manager {
 
   Future<void> confirmConfigArrow(Arrow arrow) async {
     EventService.apiStatic('confirm_config_arrow', 'ArrowManager.confirmConfigArrow', {'arrow': arrow.toJson()});
-    // EventService.apiStatic('arrow_config', {
-    //   'arrow': {
-    //     'id': "1768315075764",
-    //     'qType': "qRelationship",
-    //     'source': "1768315075755_status",
-    //     'target': "1768315075756_status",
-    //     'targetArrow': "block",
-    //   },
-    // });
   }
 
   void _clearNodeSelectionState() {

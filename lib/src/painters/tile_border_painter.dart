@@ -7,101 +7,102 @@ class TileBorderPainter extends CustomPainter {
   final bool isNodeDragging;
 
   double get scale => state.scale;
-  Offset get offset => state.offset;
 
   TileBorderPainter({required this.state, required this.isNodeDragging});
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(scale, scale);
-    canvas.translate(offset.dx / scale, offset.dy / scale);
-
-    final double visibleLeft = -offset.dx / scale;
-    final double visibleTop = -offset.dy / scale;
-    final double visibleRight = (size.width - offset.dx) / scale;
-    final double visibleBottom = (size.height - offset.dy) / scale;
-
-    final visibleRect = Rect.fromLTRB(
-      visibleLeft,
-      visibleTop,
-      visibleRight,
-      visibleBottom,
-    );
+    final screenRect = Offset.zero & size;
 
     final tilePaint = Paint()
       ..color = Colors.red.withOpacity(0.01)
       ..style = PaintingStyle.fill;
 
-    final double safeScale = scale > 0 ? scale : 1.0;
-
     final tileBorderPaint = Paint()
       ..color = Colors.red.withOpacity(0.7)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0 / safeScale
-      ..isAntiAlias = true;
+      ..strokeWidth = 1.0
+      ..isAntiAlias = false;
 
     for (final entry in state.imageTiles.entries) {
       final tile = entry.value;
-      if (tile.bounds.overlaps(visibleRect)) {
-        canvas.drawRect(tile.bounds, tilePaint);
-        canvas.drawRect(tile.bounds, tileBorderPaint);
+      final rect = Rect.fromLTWH(
+        tile.bounds.left * scale,
+        tile.bounds.top * scale,
+        tile.bounds.width * scale,
+        tile.bounds.height * scale,
+      );
 
-        final double idFontSize = (12 / safeScale).clamp(1.0, 200.0);
-        final double countFontSize = (10 / safeScale).clamp(1.0, 200.0);
+      if (!rect.overlaps(screenRect)) {
+        continue;
+      }
 
-        // Отображаем id тайла
-        final idTextPainter = TextPainter(
-          text: TextSpan(
-            text: '${tile.id}',
-            style: TextStyle(
-              color: Colors.red,
-              fontSize: idFontSize,
-              fontWeight: FontWeight.bold,
-            ),
+      canvas.drawRect(rect, tilePaint);
+      canvas.drawRect(rect, tileBorderPaint);
+
+      final double padding = 6 * scale;
+      final double idFontSize = 20 * scale;
+      final double countFontSize = 20 * scale;
+      final double availableWidth = rect.width - padding * 2;
+
+      // Отображаем id тайла
+      final idTextPainter = TextPainter(
+        text: TextSpan(
+          text: tile.id,
+          style: TextStyle(
+            color: Colors.red,
+            fontSize: idFontSize,
+            fontWeight: FontWeight.bold,
           ),
-          textDirection: TextDirection.ltr,
-        )..layout();
+        ),
+        maxLines: 1,
+        ellipsis: '…',
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: availableWidth > 0 ? availableWidth : 0);
+      final double idTextHeight = idTextPainter.height;
 
+      if (availableWidth > 0 && rect.height > idTextHeight + padding * 2) {
         idTextPainter.paint(
           canvas,
-          Offset(tile.bounds.left + 2 / safeScale, tile.bounds.top + 2 / safeScale),
+          Offset(rect.left + padding, rect.top + padding),
         );
-        idTextPainter.dispose();
+      }
+      idTextPainter.dispose();
 
-        // Отображаем количество узлов в тайле
-        final countText =
-            'узлов: ${tile.nodes.length}, связей: ${tile.arrows.length}';
+      // Отображаем количество узлов в тайле
+      final countText =
+          'узлов: ${tile.nodes.length}, связей: ${tile.arrows.length}';
 
-        final countTextPainter = TextPainter(
-          text: TextSpan(
-            text: countText,
-            style: TextStyle(
-              color: Colors.blue.withOpacity(0.8),
-              fontSize: countFontSize,
-            ),
+      final countTextPainter = TextPainter(
+        text: TextSpan(
+          text: countText,
+          style: TextStyle(
+            color: Colors.blue.withOpacity(0.8),
+            fontSize: countFontSize,
           ),
-          textDirection: TextDirection.ltr,
-        )..layout();
+        ),
+        maxLines: 1,
+        ellipsis: '…',
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: availableWidth > 0 ? availableWidth : 0);
 
+      if (availableWidth > 0 && rect.height > idTextHeight + countTextPainter.height + padding * 3) {
         countTextPainter.paint(
           canvas,
           Offset(
-            tile.bounds.right - countTextPainter.width - 2 / safeScale,
-            tile.bounds.top + 2 / safeScale,
+            rect.left + padding,
+            rect.top + padding + idTextHeight + padding / 2,
           ),
         );
-        countTextPainter.dispose();
       }
+      countTextPainter.dispose();
     }
-
-    canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant TileBorderPainter oldDelegate) {
     return oldDelegate.scale != scale ||
-        oldDelegate.offset != offset ||
+        oldDelegate.state.offset != state.offset ||
         oldDelegate.state.imageTiles.length != state.imageTiles.length ||
         !oldDelegate.isNodeDragging ||
         !isNodeDragging;

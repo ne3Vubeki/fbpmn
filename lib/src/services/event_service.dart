@@ -226,13 +226,8 @@ class EventService {
           }
         }
         break;
-
-      /// Подтверждающие события
-      case 'confirm_create_arrow':
-      case 'confirm_config_arrow':
-      case 'confirm_delete_arrow':
-      case 'confirm_delete_node':
-        appEvent?.emitToJs(action: action, data: data);
+      case 'get_schema':
+        appEvent?.emitToJs(action: action, data: state.schema);
         break;
     }
   }
@@ -250,6 +245,11 @@ class EventService {
       case 'confirm_config_arrow':
       case 'confirm_delete_arrow':
       case 'confirm_delete_node':
+      case 'selected_nodes':
+      case 'selected_arrow':
+      case 'deselected_nodes':
+      case 'deselected_arrow':
+      case 'change_schema':
         appEvent?.emitToJs(action: action, data: data);
         break;
     }

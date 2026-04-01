@@ -36,9 +36,6 @@ class _TileBorderState extends State<TileBorder> with StateWidget<TileBorder> {
     widget.scrollHandler.setOnStateUpdate('TileBorder', () {
       timeoutSetState();
     });
-    // widget.inputHandler.setOnStateUpdate('TileBorder', () {
-    //   timeoutSetState();
-    // });
   }
 
   @override
@@ -48,13 +45,21 @@ class _TileBorderState extends State<TileBorder> with StateWidget<TileBorder> {
 
   @override
   Widget build(BuildContext context) {
+    final size = widget.scrollHandler.scaledCanvasSize;
+
     return widget.state.showTileBorders
-        ? RepaintBoundary(
-            child: CustomPaint(
-              size: widget.scrollHandler.scaledCanvasSize,
-              painter: TileBorderPainter(
-                state: widget.state,
-                isNodeDragging: widget.state.isNodeDragging,
+        ? Positioned(
+            left: widget.state.offset.dx,
+            top: widget.state.offset.dy,
+            width: size.width,
+            height: size.height,
+            child: RepaintBoundary(
+              child: CustomPaint(
+                size: size,
+                painter: TileBorderPainter(
+                  state: widget.state,
+                  isNodeDragging: widget.state.isNodeDragging,
+                ),
               ),
             ),
           )
