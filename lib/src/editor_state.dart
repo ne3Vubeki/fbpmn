@@ -251,7 +251,7 @@ class EditorState {
   Set<String> updatedImageTileIds = {};
 
   /// Отображать ли границы тайлов (для отладки).
-  bool showTileBorders = true;
+  bool showTileBorders = false;
 
   /// Отображать только коннекторы.
   bool onlyConnectors = false;
