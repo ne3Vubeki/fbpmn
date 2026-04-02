@@ -869,7 +869,7 @@ class ArrowManager extends Manager {
       );
 
       final cx = targetRect.center.dx - sourceRect.center.dx;
-      final cy = targetRect.center.dy - sourceRect.center.dy;
+      // final cy = targetRect.center.dy - sourceRect.center.dy;
 
       final sourceWidth = sourceRect.width;
       final sourceHeight = sourceHeightHeader;
