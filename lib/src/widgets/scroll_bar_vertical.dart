@@ -22,13 +22,14 @@ class ScrollBarVertical extends StatefulWidget {
 }
 
 class _TileBorderState extends State<ScrollBarVertical> with StateWidget<ScrollBarVertical> {
-  Size _scaledCanvasSize = Size.zero;
+  Size _scrollContentSize = Size.zero;
   bool _needsHorizontalScrollbar = false;
   bool _needsVerticalScrollbar = false;
 
   @override
   void initState() {
     super.initState();
+    updateCanvasSize();
     widget.scrollHandler.setOnStateUpdate('ScrollBarVertical', () {
       timeoutSetState(callback: updateCanvasSize);
     });
@@ -37,8 +38,8 @@ class _TileBorderState extends State<ScrollBarVertical> with StateWidget<ScrollB
     });
   }
 
-  updateCanvasSize() {
-    _scaledCanvasSize = widget.scrollHandler.scaledCanvasSize;
+  void updateCanvasSize() {
+    _scrollContentSize = widget.scrollHandler.scrollContentSize;
     _needsHorizontalScrollbar = widget.scrollHandler.needsHorizontalScrollbar;
     _needsVerticalScrollbar = widget.scrollHandler.needsVerticalScrollbar;
   }
@@ -74,7 +75,7 @@ class _TileBorderState extends State<ScrollBarVertical> with StateWidget<ScrollB
                     physics: const NeverScrollableScrollPhysics(),
                     child: SizedBox(
                       width: 10,
-                      height: _scaledCanvasSize.height,
+                      height: _scrollContentSize.height,
                     ),
                   ),
                 ),

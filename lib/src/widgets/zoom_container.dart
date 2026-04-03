@@ -36,10 +36,10 @@ class ZoomContainer extends StatefulWidget {
 
 class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomContainer> {
   double get scale => widget.state.scale;
-  double get canvasWidth => widget.zoomManager.scrollHandler.dynamicCanvasWidth;
-  double get canvasHeight => widget.zoomManager.scrollHandler.dynamicCanvasHeight;
+  Rect get navigationBounds => widget.zoomManager.scrollHandler.navigationBounds;
+  double get navigationWidth => navigationBounds.width;
+  double get navigationHeight => navigationBounds.height;
   Offset get canvasOffset => widget.state.offset;
-  Offset get delta => widget.state.delta;
   Size get viewportSize => widget.state.viewportSize;
   Map<String, ImageTile> get imageTiles => widget.state.imageTiles;
 
@@ -81,11 +81,9 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
           // Миниатюра холста (отображается если включена)
           if (widget.state.showThumbnail) ...[
             CanvasThumbnail(
-              canvasWidth: canvasWidth,
-              canvasHeight: canvasHeight,
+              navigationBounds: navigationBounds,
               canvasOffset: canvasOffset,
               panelWidth: containerWidth,
-              delta: delta, // Передаем delta
               viewportSize: viewportSize,
               scale: scale,
               imageTiles: imageTiles,
@@ -98,8 +96,8 @@ class _ZoomContainerState extends State<ZoomContainer> with StateWidget<ZoomCont
           // Панель управления зумом (ширина равна ширине контейнера)
           ZoomPanel(
             scale: scale,
-            canvasWidth: canvasWidth,
-            canvasHeight: canvasHeight,
+            navigationWidth: navigationWidth,
+            navigationHeight: navigationHeight,
             panelWidth: containerWidth,
             onResetZoom: widget.zoomManager.resetZoom,
             onZoomIn: widget.zoomManager.zoomInStep,

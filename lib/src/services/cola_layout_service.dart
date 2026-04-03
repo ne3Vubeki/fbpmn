@@ -2132,12 +2132,7 @@ class ColaLayoutService extends Manager {
   }
 
   Rect _getDynamicCanvasBounds() {
-    return Rect.fromLTWH(
-      0,
-      0,
-      scrollHandler.dynamicCanvasWidth,
-      scrollHandler.dynamicCanvasHeight,
-    );
+    return scrollHandler.navigationBounds;
   }
 
   Offset _constrainNodeToCanvas(TableNode node, Offset worldPosition) {

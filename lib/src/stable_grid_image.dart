@@ -13,6 +13,7 @@ import 'services/node_manager.dart';
 import 'services/zoom_manager.dart';
 import 'editor_state.dart';
 import 'services/event_service.dart';
+import 'utils/utils.dart';
 import 'widgets/zoom_container.dart';
 import 'widgets/loading_indicator.dart';
 import 'widgets/canvas_area.dart';
@@ -132,8 +133,8 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _suppressSchemaCallback = true;
     try {
-      // await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_2.json');
-      _shemaManager.createEmptySchema(apply: true);
+      await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_7.json');
+      // _shemaManager.createEmptySchema(apply: true);
       _schemaInitialized = true;
     } finally {
       _suppressSchemaCallback = false;
@@ -145,6 +146,40 @@ class _StableGridImageState extends State<StableGridImage> {
 
   Future<void> _initEditor() async {
     await _initEditorInternal(preserveViewport: false);
+  }
+
+  Offset _calculateInitialDeltaFromSchemeCenter(List<TableNode> nodes) {
+    if (nodes.isEmpty) {
+      return Offset.zero;
+    }
+
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = double.negativeInfinity;
+    double maxY = double.negativeInfinity;
+
+    void collectNodeBounds(TableNode node, Offset parentPosition) {
+      final nodePosition = parentPosition + node.position;
+      final nodeRect = Utils.calculateNodeRect(node: node, position: nodePosition);
+
+      minX = minX < nodeRect.left ? minX : nodeRect.left;
+      minY = minY < nodeRect.top ? minY : nodeRect.top;
+      maxX = maxX > nodeRect.right ? maxX : nodeRect.right;
+      maxY = maxY > nodeRect.bottom ? maxY : nodeRect.bottom;
+
+      if (node.children != null && node.children!.isNotEmpty) {
+        for (final child in node.children!) {
+          collectNodeBounds(child, nodePosition);
+        }
+      }
+    }
+
+    for (final node in nodes) {
+      collectNodeBounds(node, Offset.zero);
+    }
+
+    final center = Offset((minX + maxX) / 2, (minY + maxY) / 2);
+    return Offset(-center.dx, -center.dy);
   }
 
   Future<void> _initEditorInternal({required bool preserveViewport}) async {
@@ -174,11 +209,7 @@ class _StableGridImageState extends State<StableGridImage> {
 
       final objects = diagram['objects'] as List<dynamic>? ?? [];
       final arrows = diagram['arrows'] as List<dynamic>? ?? [];
-      final metadata = (diagram['metadata'] as Map?) ?? const {};
-      final double dx = ((metadata['dx'] as num?) ?? 0).toDouble();
-      final double dy = ((metadata['dy'] as num?) ?? 0).toDouble();
-
-      _editorState.delta = Offset(dx, dy);
+      _editorState.delta = Offset.zero;
 
       if (objects.isNotEmpty) {
         var processedObjects = 0;
@@ -192,14 +223,12 @@ class _StableGridImageState extends State<StableGridImage> {
           }
         }
 
+        _editorState.delta = _calculateInitialDeltaFromSchemeCenter(_editorState.nodes);
+
         // Вычисляем абсолютные позиции для всех узлов
         for (final node in _editorState.nodes) {
           node.initializeAbsolutePositions(_editorState.delta);
         }
-
-        // Рассчитываем размер холста на основе расположения узлов
-        // Этот метод сам обновит абсолютные позиции после коррекции delta
-        _scrollHandler.calculateCanvasSizeFromNodes(_editorState.nodes);
 
         // Загружаем стрелки/связи
         if (arrows.isNotEmpty) {

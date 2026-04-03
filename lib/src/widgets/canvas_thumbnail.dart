@@ -5,11 +5,9 @@ import 'dart:math' as math;
 import '../models/image_tile.dart';
 
 class CanvasThumbnail extends StatefulWidget {
-  final double canvasWidth;
-  final double canvasHeight;
+  final Rect navigationBounds;
   final Offset canvasOffset;
   final double panelWidth;
-  final Offset delta;
   final Size viewportSize;
   final double scale;
   final Map<String, ImageTile> imageTiles;
@@ -19,11 +17,9 @@ class CanvasThumbnail extends StatefulWidget {
 
   const CanvasThumbnail({
     super.key,
-    required this.canvasWidth,
-    required this.canvasHeight,
+    required this.navigationBounds,
     required this.canvasOffset,
     required this.panelWidth,
-    required this.delta,
     required this.viewportSize,
     required this.scale,
     required this.imageTiles,
@@ -52,50 +48,115 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   double _clampedVisibleHeight = 0;
   int _lastTilesCount = 0;
 
-  double get _scaledCanvasWidth => widget.canvasWidth * widget.scale;
-  double get _scaledCanvasHeight => widget.canvasHeight * widget.scale;
-  bool get _canvasFitsViewportWidth => _scaledCanvasWidth <= widget.viewportSize.width;
-  bool get _canvasFitsViewportHeight => _scaledCanvasHeight <= widget.viewportSize.height;
+  double get _canvasWidth => widget.navigationBounds.width;
+  double get _canvasHeight => widget.navigationBounds.height;
+  double get _canvasLeft => widget.navigationBounds.left;
+  double get _canvasTop => widget.navigationBounds.top;
+  double get _visibleWorldWidth => widget.viewportSize.width / widget.scale;
+  double get _visibleWorldHeight => widget.viewportSize.height / widget.scale;
+  double get _viewportThumbnailWidth => _visibleWorldWidth * _thumbnailScale;
+  double get _viewportThumbnailHeight => _visibleWorldHeight * _thumbnailScale;
+  double get _minVisibleLeftWorld => math.min(
+    _canvasLeft,
+    widget.navigationBounds.right - _visibleWorldWidth,
+  );
+  double get _maxVisibleLeftWorld => math.max(
+    _canvasLeft,
+    widget.navigationBounds.right - _visibleWorldWidth,
+  );
+  double get _minVisibleTopWorld => math.min(
+    _canvasTop,
+    widget.navigationBounds.bottom - _visibleWorldHeight,
+  );
+  double get _maxVisibleTopWorld => math.max(
+    _canvasTop,
+    widget.navigationBounds.bottom - _visibleWorldHeight,
+  );
+  double get _visibleRangeWidthWorld => _maxVisibleLeftWorld - _minVisibleLeftWorld;
+  double get _visibleRangeHeightWorld => _maxVisibleTopWorld - _minVisibleTopWorld;
+
+  double _worldLeftToThumbnailLeft(double worldLeft) {
+    final double trackWidth = _thumbnailWidth - _viewportThumbnailWidth;
+    if (trackWidth <= 0 || _visibleRangeWidthWorld <= 0) {
+      return (_thumbnailWidth - _viewportThumbnailWidth) / 2;
+    }
+
+    final double progress =
+        (worldLeft - _minVisibleLeftWorld) / _visibleRangeWidthWorld;
+    return trackWidth * progress.clamp(0.0, 1.0);
+  }
+
+  double _worldTopToThumbnailTop(double worldTop) {
+    final double trackHeight = _thumbnailHeight - _viewportThumbnailHeight;
+    if (trackHeight <= 0 || _visibleRangeHeightWorld <= 0) {
+      return (_thumbnailHeight - _viewportThumbnailHeight) / 2;
+    }
+
+    final double progress =
+        (worldTop - _minVisibleTopWorld) / _visibleRangeHeightWorld;
+    return trackHeight * progress.clamp(0.0, 1.0);
+  }
+
+  double _thumbnailLeftToWorldLeft(double thumbnailLeft) {
+    final double trackWidth = _thumbnailWidth - _viewportThumbnailWidth;
+    if (trackWidth <= 0 || _visibleRangeWidthWorld <= 0) {
+      return _getVisibleWorldRect().left;
+    }
+
+    final double progress = (thumbnailLeft / trackWidth).clamp(0.0, 1.0);
+    return _minVisibleLeftWorld + _visibleRangeWidthWorld * progress;
+  }
+
+  double _thumbnailTopToWorldTop(double thumbnailTop) {
+    final double trackHeight = _thumbnailHeight - _viewportThumbnailHeight;
+    if (trackHeight <= 0 || _visibleRangeHeightWorld <= 0) {
+      return _getVisibleWorldRect().top;
+    }
+
+    final double progress = (thumbnailTop / trackHeight).clamp(0.0, 1.0);
+    return _minVisibleTopWorld + _visibleRangeHeightWorld * progress;
+  }
+
+  bool _isPointInsideVisibleArea(Offset localPosition) {
+    return localPosition.dx >= _clampedVisibleLeft &&
+        localPosition.dx <= _clampedVisibleLeft + _clampedVisibleWidth &&
+        localPosition.dy >= _clampedVisibleTop &&
+        localPosition.dy <= _clampedVisibleTop + _clampedVisibleHeight;
+  }
+
+  double _thumbnailPositionToWorldX(double thumbnailX) {
+    final double safeCanvasWidth = _canvasWidth > 0 ? _canvasWidth : 1;
+    final double normalized = (thumbnailX / _thumbnailWidth).clamp(0.0, 1.0);
+    return _canvasLeft + normalized * safeCanvasWidth;
+  }
+
+  double _thumbnailPositionToWorldY(double thumbnailY) {
+    final double safeCanvasHeight = _canvasHeight > 0 ? _canvasHeight : 1;
+    final double normalized = (thumbnailY / _thumbnailHeight).clamp(0.0, 1.0);
+    return _canvasTop + normalized * safeCanvasHeight;
+  }
 
   ({double left, double top, double width, double height}) _getVisibleWorldRect() {
-    final double visibleWorldWidth = math.min(
-      widget.canvasWidth,
-      widget.viewportSize.width / widget.scale,
+    final double visibleWorldLeft = (-widget.canvasOffset.dx / widget.scale).clamp(
+      _minVisibleLeftWorld,
+      _maxVisibleLeftWorld,
     );
-    final double visibleWorldHeight = math.min(
-      widget.canvasHeight,
-      widget.viewportSize.height / widget.scale,
+    final double visibleWorldTop = (-widget.canvasOffset.dy / widget.scale).clamp(
+      _minVisibleTopWorld,
+      _maxVisibleTopWorld,
     );
-
-    final double visibleWorldLeft = _canvasFitsViewportWidth
-        ? (widget.canvasWidth - visibleWorldWidth) / 2
-        : (-widget.canvasOffset.dx / widget.scale).clamp(
-            0.0,
-            math.max(0.0, widget.canvasWidth - visibleWorldWidth),
-          );
-
-    final double visibleWorldTop = _canvasFitsViewportHeight
-        ? (widget.canvasHeight - visibleWorldHeight) / 2
-        : (-widget.canvasOffset.dy / widget.scale).clamp(
-            0.0,
-            math.max(0.0, widget.canvasHeight - visibleWorldHeight),
-          );
 
     return (
       left: visibleWorldLeft,
       top: visibleWorldTop,
-      width: visibleWorldWidth,
-      height: visibleWorldHeight,
+      width: _visibleWorldWidth,
+      height: _visibleWorldHeight,
     );
   }
 
   Offset _offsetForVisibleWorldRect({required double left, required double top}) {
-    final double newCanvasOffsetX = _canvasFitsViewportWidth
-        ? (widget.viewportSize.width - _scaledCanvasWidth) / 2
-        : -left * widget.scale;
-    final double newCanvasOffsetY = _canvasFitsViewportHeight
-        ? (widget.viewportSize.height - _scaledCanvasHeight) / 2
-        : -top * widget.scale;
+    final double newCanvasOffsetX = -left * widget.scale;
+    final double newCanvasOffsetY = -top * widget.scale;
 
     return Offset(newCanvasOffsetX, newCanvasOffsetY);
   }
@@ -114,9 +175,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     // сравниваем по количеству тайлов или изменению размеров холста/delta
     final bool shouldRebuildThumbnail =
         widget.imageTiles.length != _lastTilesCount ||
-        widget.canvasWidth != oldWidget.canvasWidth ||
-        widget.canvasHeight != oldWidget.canvasHeight ||
-        widget.delta != oldWidget.delta;
+        widget.navigationBounds != oldWidget.navigationBounds;
 
     if (shouldRebuildThumbnail) {
       _lastTilesCount = widget.imageTiles.length;
@@ -141,30 +200,35 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     _pendingThumbnailRebuild = false;
 
     try { 
-      final double safeCanvasWidth = widget.canvasWidth > 0 ? widget.canvasWidth : 1;
-      final double safeCanvasHeight = widget.canvasHeight > 0 ? widget.canvasHeight : 1;
+      final double safeCanvasWidth = _canvasWidth > 0 ? _canvasWidth : 1;
+      final double safeCanvasHeight = _canvasHeight > 0 ? _canvasHeight : 1;
 
-      // Ширина миниатюры всегда = panelWidth
-      final double thumbnailWidth = widget.panelWidth;
+      // Миниатюра всегда квадратная
+      final double thumbnailSize = widget.panelWidth;
 
-      // Высота рассчитывается пропорционально размерам холста
-      final double aspectRatio = safeCanvasWidth / safeCanvasHeight;
-      final double thumbnailHeight = thumbnailWidth / aspectRatio;
-
-      // Масштаб для миниатюры (отношение ширины миниатюры к ширине холста)
-      final double thumbnailScale = thumbnailWidth / safeCanvasWidth;
+      // Масштаб вписывает всю схему в квадратную область
+      final double thumbnailScale = math.min(
+        thumbnailSize / safeCanvasWidth,
+        thumbnailSize / safeCanvasHeight,
+      );
+      final double contentWidth = safeCanvasWidth * thumbnailScale;
+      final double contentHeight = safeCanvasHeight * thumbnailScale;
+      final double contentOffsetX = (thumbnailSize - contentWidth) / 2;
+      final double contentOffsetY = (thumbnailSize - contentHeight) / 2;
 
       // Сохраняем расчетные значения для использования в build()
       _thumbnailScale = thumbnailScale;
-      _thumbnailWidth = thumbnailWidth;
-      _thumbnailHeight = thumbnailHeight;
+      _thumbnailWidth = thumbnailSize;
+      _thumbnailHeight = thumbnailSize;
 
       // Создаем PictureRecorder для миниатюры
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
 
       // Применяем масштаб миниатюры
+      canvas.translate(contentOffsetX, contentOffsetY);
       canvas.scale(thumbnailScale, thumbnailScale);
+      canvas.translate(-_canvasLeft, -_canvasTop);
 
       // Делаем снимок списка тайлов ДО первого await,
       // чтобы избежать use-after-free при dispose тайлов в TileManager
@@ -186,8 +250,8 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       // Завершаем запись и создаем изображение
       final picture = recorder.endRecording();
       final image = await picture.toImage(
-        thumbnailWidth.toInt().clamp(1, 1000000),
-        thumbnailHeight.toInt().clamp(1, 1000000),
+        thumbnailSize.toInt().clamp(1, 1000000),
+        thumbnailSize.toInt().clamp(1, 1000000),
       );
       picture.dispose();
 
@@ -216,11 +280,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     widget.onInteractionStart?.call();
 
     // Проверяем, кликнули ли внутри видимой области
-    final bool clickedInVisibleArea =
-        localPosition.dx >= _clampedVisibleLeft &&
-        localPosition.dx <= _clampedVisibleLeft + _clampedVisibleWidth &&
-        localPosition.dy >= _clampedVisibleTop &&
-        localPosition.dy <= _clampedVisibleTop + _clampedVisibleHeight;
+    final bool clickedInVisibleArea = _isPointInsideVisibleArea(localPosition);
 
     if (!clickedInVisibleArea) {
       // Если кликнули вне видимой области, центрируем на этой точке
@@ -241,33 +301,26 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   void _handleDragUpdate(Offset localPosition) {
     if (!_isDragging || _thumbnailImage == null) return;
 
-    if (_canvasFitsViewportWidth && _canvasFitsViewportHeight) {
-      return;
-    }
-
     // Рассчитываем смещение мыши в координатах миниатюры
     final Offset mouseDelta = localPosition - _dragStartPosition;
 
-    final double maxRectLeft = (_thumbnailWidth - _clampedVisibleWidth) < 0
-        ? 0
-        : (_thumbnailWidth - _clampedVisibleWidth);
-    final double maxRectTop = (_thumbnailHeight - _clampedVisibleHeight) < 0
-        ? 0
-        : (_thumbnailHeight - _clampedVisibleHeight);
+    final double minRectLeft = math.min(0, _thumbnailWidth - _clampedVisibleWidth);
+    final double minRectTop = math.min(0, _thumbnailHeight - _clampedVisibleHeight);
+    final double maxRectLeft = math.max(0, _thumbnailWidth - _clampedVisibleWidth);
+    final double maxRectTop = math.max(0, _thumbnailHeight - _clampedVisibleHeight);
 
     // Новая позиция прямоугольника в миниатюре
     final double newRectLeft = (_dragStartRectPosition.dx + mouseDelta.dx)
-        .clamp(0, maxRectLeft);
-    final double newRectTop = (_dragStartRectPosition.dy + mouseDelta.dy).clamp(0, maxRectTop);
+        .clamp(minRectLeft, maxRectLeft);
+    final double newRectTop = (_dragStartRectPosition.dy + mouseDelta.dy).clamp(minRectTop, maxRectTop);
 
     // Обновляем позицию прямоугольника
     _clampedVisibleLeft = newRectLeft;
     _clampedVisibleTop = newRectTop;
 
     // Преобразуем позицию прямоугольника в миниатюре в мировые координаты
-    // Позиция прямоугольника в мировых координатах = позиция в миниатюре / масштаб миниатюры
-    final double visibleWorldLeft = newRectLeft / _thumbnailScale;
-    final double visibleWorldTop = newRectTop / _thumbnailScale;
+    final double visibleWorldLeft = _thumbnailLeftToWorldLeft(newRectLeft);
+    final double visibleWorldTop = _thumbnailTopToWorldTop(newRectTop);
 
     final Offset newCanvasOffset = _offsetForVisibleWorldRect(
       left: visibleWorldLeft,
@@ -292,9 +345,13 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
   void _handleTap(Offset localPosition) {
     if (_thumbnailImage == null) return;
 
+    if (_isPointInsideVisibleArea(localPosition)) {
+      return;
+    }
+
     // Преобразуем координаты клика из миниатюры в мировые координаты
-    final double worldX = localPosition.dx / _thumbnailScale;
-    final double worldY = localPosition.dy / _thumbnailScale;
+    final double worldX = _thumbnailPositionToWorldX(localPosition.dx);
+    final double worldY = _thumbnailPositionToWorldY(localPosition.dy);
 
     // Центрируем viewport на этой точке
     // Центр viewport должен быть в точке (worldX, worldY)
@@ -304,14 +361,8 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     final double newVisibleWorldTop = worldY - (visibleRect.height / 2);
 
     // Ограничиваем мировые координаты границами холста
-    final double maxWorldLeft = widget.canvasWidth - visibleRect.width;
-    final double maxWorldTop = widget.canvasHeight - visibleRect.height;
-
-    final double safeMaxWorldLeft = maxWorldLeft < 0 ? 0 : maxWorldLeft;
-    final double safeMaxWorldTop = maxWorldTop < 0 ? 0 : maxWorldTop;
-
-    final double clampedWorldLeft = newVisibleWorldLeft.clamp(0, safeMaxWorldLeft);
-    final double clampedWorldTop = newVisibleWorldTop.clamp(0, safeMaxWorldTop);
+    final double clampedWorldLeft = newVisibleWorldLeft.clamp(_minVisibleLeftWorld, _maxVisibleLeftWorld);
+    final double clampedWorldTop = newVisibleWorldTop.clamp(_minVisibleTopWorld, _maxVisibleTopWorld);
 
     // Вызываем callback
     if (widget.onThumbnailClick != null) {
@@ -335,7 +386,7 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
     if (_thumbnailImage == null) {
       return Container(
         width: widget.panelWidth,
-        height: 150,
+        height: widget.panelWidth,
         decoration: BoxDecoration(
           color: Colors.grey[100],
           borderRadius: BorderRadius.circular(6),
@@ -345,40 +396,29 @@ class _CanvasThumbnailState extends State<CanvasThumbnail> {
       );
     }
 
-    // Используем расчетные размеры из _createThumbnail()
     final double thumbnailWidth = _thumbnailWidth;
     final double thumbnailHeight = _thumbnailHeight;
-    final double thumbnailScale = _thumbnailScale;
 
     final visibleRect = _getVisibleWorldRect();
 
     // Переводим в координаты миниатюры
-    final double visibleLeft = visibleRect.left * thumbnailScale;
-    final double visibleTop = visibleRect.top * thumbnailScale;
-    final double visibleWidth = visibleRect.width * thumbnailScale;
-    final double visibleHeight = visibleRect.height * thumbnailScale;
-
-    final double clampedVisibleWidth = visibleWidth.clamp(0, thumbnailWidth);
-    final double clampedVisibleHeight = visibleHeight.clamp(0, thumbnailHeight);
-    final double maxVisibleLeft = (thumbnailWidth - clampedVisibleWidth) < 0
-        ? 0
-        : (thumbnailWidth - clampedVisibleWidth);
-    final double maxVisibleTop = (thumbnailHeight - clampedVisibleHeight) < 0
-        ? 0
-        : (thumbnailHeight - clampedVisibleHeight);
+    final double visibleLeft = _worldLeftToThumbnailLeft(visibleRect.left);
+    final double visibleTop = _worldTopToThumbnailTop(visibleRect.top);
+    final double visibleWidth = _viewportThumbnailWidth;
+    final double visibleHeight = _viewportThumbnailHeight;
 
     // Ограничиваем координаты видимой области границами миниатюры
-    _clampedVisibleLeft = visibleLeft.clamp(0, maxVisibleLeft);
-    _clampedVisibleTop = visibleTop.clamp(0, maxVisibleTop);
-    _clampedVisibleWidth = clampedVisibleWidth;
-    _clampedVisibleHeight = clampedVisibleHeight;
+    _clampedVisibleLeft = visibleLeft;
+    _clampedVisibleTop = visibleTop;
+    _clampedVisibleWidth = visibleWidth;
+    _clampedVisibleHeight = visibleHeight;
 
     return GestureDetector(
       onPanStart: (details) => _handleDragStart(details.localPosition),
       onPanUpdate: (details) => _handleDragUpdate(details.localPosition),
       onPanEnd: (details) => _handleDragEnd(),
       onPanCancel: () => _handleDragEnd(),
-      onTapDown: (details) => _handleTap(details.localPosition),
+      onTapUp: (details) => _handleTap(details.localPosition),
       child: Container(
         width: thumbnailWidth,
         height: thumbnailHeight,

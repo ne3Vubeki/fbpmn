@@ -45,17 +45,11 @@ class _TileBorderState extends State<TileBorder> with StateWidget<TileBorder> {
 
   @override
   Widget build(BuildContext context) {
-    final size = widget.scrollHandler.scaledCanvasSize;
-
     return widget.state.showTileBorders
-        ? Positioned(
-            left: widget.state.offset.dx,
-            top: widget.state.offset.dy,
-            width: size.width,
-            height: size.height,
+        ? Positioned.fill(
             child: RepaintBoundary(
               child: CustomPaint(
-                size: size,
+                size: widget.state.viewportSize,
                 painter: TileBorderPainter(
                   state: widget.state,
                   isNodeDragging: widget.state.isNodeDragging,

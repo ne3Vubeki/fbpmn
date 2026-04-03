@@ -3,8 +3,8 @@ import '../utils/editor_config.dart';
 
 class ZoomPanel extends StatelessWidget {
   final double scale;
-  final double canvasWidth;
-  final double canvasHeight;
+  final double navigationWidth;
+  final double navigationHeight;
   final double panelWidth;
   final VoidCallback onResetZoom;
   final VoidCallback onZoomIn;
@@ -20,8 +20,8 @@ class ZoomPanel extends StatelessWidget {
   const ZoomPanel({
     super.key,
     required this.scale,
-    required this.canvasWidth,
-    required this.canvasHeight,
+    required this.navigationWidth,
+    required this.navigationHeight,
     required this.panelWidth,
     required this.onResetZoom,
     required this.onZoomIn,
@@ -38,8 +38,8 @@ class ZoomPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Форматируем размеры для отображения
-    final String widthText = '${(canvasWidth).toInt()}';
-    final String heightText = '${(canvasHeight).toInt()}';
+    final String widthText = '${(navigationWidth).toInt()}';
+    final String heightText = '${(navigationHeight).toInt()}';
     final String sizeText = '$widthText × $heightText';
     final bool canZoomIn = scale < EditorConfig.maxScale;
     final bool canZoomOut = scale > EditorConfig.minScale;
@@ -95,7 +95,7 @@ class ZoomPanel extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Tooltip(
-                        message: 'Размер холста (ширина × высота)',
+                        message: 'Размер области навигации (ширина × высота)',
                         child: Text(
                           sizeText,
                           maxLines: 1,

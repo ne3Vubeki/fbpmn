@@ -19,10 +19,6 @@ class ScrollHandler extends Manager {
   final ScrollController horizontalScrollController = ScrollController();
   final ScrollController verticalScrollController = ScrollController();
 
-  // Динамически рассчитанные размеры холста
-  double _dynamicCanvasWidth = EditorConfig.staticCanvasWidth;
-  double _dynamicCanvasHeight = EditorConfig.staticCanvasHeight;
-
   // Для перетаскивания скроллбаров
   bool _isHorizontalDragging = false;
   bool _isVerticalDragging = false;
@@ -31,17 +27,71 @@ class ScrollHandler extends Manager {
   double _horizontalDragStartOffset = 0.0;
   double _verticalDragStartOffset = 0.0;
 
-  // Геттеры для динамических размеров холста
-  double get dynamicCanvasWidth => _dynamicCanvasWidth;
-  double get dynamicCanvasHeight => _dynamicCanvasHeight;
+  Rect? get schemeBounds => Utils.getNodesWorldBounds(state.nodes, state.delta)?.worldBounds;
+  Rect _toSquareBounds(Rect bounds) {
+    final double side = math.max(bounds.width, bounds.height);
+    return Rect.fromCenter(
+      center: bounds.center,
+      width: side,
+      height: side,
+    );
+  }
+
+  Rect get navigationBounds {
+    final bounds = schemeBounds;
+    if (bounds == null) {
+      return _toSquareBounds(Rect.fromCenter(
+        center: Offset.zero,
+        width: EditorConfig.staticCanvasWidth,
+        height: EditorConfig.staticCanvasHeight,
+      ));
+    }
+    return _toSquareBounds(bounds.inflate(1000));
+  }
   Size get scaledCanvasSize => Size(
-    math.max(_dynamicCanvasWidth, EditorConfig.staticCanvasWidth) * state.scale,
-    math.max(_dynamicCanvasHeight, EditorConfig.staticCanvasHeight) * state.scale,
+    navigationBounds.width * state.scale,
+    navigationBounds.height * state.scale,
+  );
+  Size get scrollContentSize => Size(
+    horizontalScrollContentSize,
+    verticalScrollContentSize,
+  );
+  double get horizontalScrollExtent =>
+      (scaledCanvasSize.width - state.viewportSize.width).abs();
+  double get verticalScrollExtent =>
+      (scaledCanvasSize.height - state.viewportSize.height).abs();
+  double get horizontalScrollContentSize =>
+      state.viewportSize.width + horizontalScrollExtent;
+  double get verticalScrollContentSize =>
+      state.viewportSize.height + verticalScrollExtent;
+  double get visibleWorldWidth => state.viewportSize.width / state.scale;
+  double get visibleWorldHeight => state.viewportSize.height / state.scale;
+  double get minVisibleLeftWorld => math.min(
+    navigationBounds.left,
+    navigationBounds.right - visibleWorldWidth,
+  );
+  double get maxVisibleLeftWorld => math.max(
+    navigationBounds.left,
+    navigationBounds.right - visibleWorldWidth,
+  );
+  double get minVisibleTopWorld => math.min(
+    navigationBounds.top,
+    navigationBounds.bottom - visibleWorldHeight,
+  );
+  double get maxVisibleTopWorld => math.max(
+    navigationBounds.top,
+    navigationBounds.bottom - visibleWorldHeight,
+  );
+  Rect get visibleWorldRect => Rect.fromLTWH(
+    (-state.offset.dx / state.scale).clamp(minVisibleLeftWorld, maxVisibleLeftWorld),
+    (-state.offset.dy / state.scale).clamp(minVisibleTopWorld, maxVisibleTopWorld),
+    visibleWorldWidth,
+    visibleWorldHeight,
   );
 
   // Наличие скроллбаров
-  bool get needsHorizontalScrollbar => scaledCanvasSize.width > state.viewportSize.width;
-  bool get needsVerticalScrollbar => scaledCanvasSize.height > state.viewportSize.height;
+  bool get needsHorizontalScrollbar => horizontalScrollExtent > 0.5;
+  bool get needsVerticalScrollbar => verticalScrollExtent > 0.5;
 
   ScrollHandler({required this.state, this.nodeManager, this.arrowManager}) {
     horizontalScrollController.addListener(_onHorizontalScroll);
@@ -52,8 +102,6 @@ class ScrollHandler extends Manager {
   /// Нужен при переключении на пустую схему, чтобы не сохранялись размеры
   /// предыдущей (большой) схемы.
   void resetCanvasSizeToDefault({bool notify = false}) {
-    _dynamicCanvasWidth = EditorConfig.staticCanvasWidth;
-    _dynamicCanvasHeight = EditorConfig.staticCanvasHeight;
     if (notify) {
       onStateUpdate();
     }
@@ -61,93 +109,9 @@ class ScrollHandler extends Manager {
 
   /// Рассчитывает размер холста на основе расположения узлов
   void calculateCanvasSizeFromNodes(List<TableNode> nodes) {
-    if (nodes.isEmpty) return;
-
-    double minX = double.infinity;
-    double minY = double.infinity;
-    double maxX = -double.infinity;
-    double maxY = -double.infinity;
-
-    // Рекурсивная функция для обхода всех узлов включая дочерние
-    void collectNodeBounds(TableNode node, Offset parentPosition) {
-      final nodePosition = parentPosition + node.position;
-      final nodeRect = Utils.calculateNodeRect(
-        node: node,
-        position: nodePosition,
-      );
-
-      minX = math.min(minX, nodeRect.left);
-      minY = math.min(minY, nodeRect.top);
-      maxX = math.max(maxX, nodeRect.right);
-      maxY = math.max(maxY, nodeRect.bottom);
-
-      // Рекурсивно обходим дочерние узлы
-      if (node.children != null && node.children!.isNotEmpty) {
-        for (final child in node.children!) {
-          collectNodeBounds(child, nodePosition);
-        }
-      }
+    if (nodes.isEmpty) {
+      return;
     }
-
-    // Сначала рассчитываем границы узлов с текущим delta
-    for (final node in nodes) {
-      collectNodeBounds(node, state.delta);
-    }
-
-    const double padding = 1000;
-
-    // Рассчитываем необходимые границы холста
-    final double requiredLeft = minX - padding;
-    final double requiredTop = minY - padding;
-
-    // Корректируем delta так, чтобы requiredLeft был в 0
-    // Это сместит все узлы вправо, чтобы они поместились в холст
-    final Offset deltaCorrection = Offset(-requiredLeft, -requiredTop);
-    state.delta += deltaCorrection;
-
-    // После изменения delta нужно обновить абсолютные позиции всех узлов
-    for (final node in nodes) {
-      node.calculateAbsolutePositions(state.delta);
-    }
-
-    // Теперь пересчитываем границы с новым delta
-    minX = double.infinity;
-    minY = double.infinity;
-    maxX = -double.infinity;
-    maxY = -double.infinity;
-
-    for (final node in nodes) {
-      collectNodeBounds(node, state.delta);
-    }
-
-    // Рассчитываем окончательный размер холста
-    final double finalWidth = (maxX - minX) + padding * 2;
-    final double finalHeight = (maxY - minY) + padding * 2;
-
-    // Округляем до размера тайла
-    final double calculatedWidth = _roundToTileMultiple(finalWidth, tileSize);
-    final double calculatedHeight = _roundToTileMultiple(finalHeight, tileSize);
-
-    // Используем бОльший размер: расчетный или статический
-    _dynamicCanvasWidth = math.max(calculatedWidth, EditorConfig.staticCanvasWidth);
-    _dynamicCanvasHeight = math.max(calculatedHeight, EditorConfig.staticCanvasHeight);
-  }
-
-  /// Округляет значение до ближайшего кратного размеру тайла
-  double _roundToTileMultiple(double value, double tileSize) {
-    final double tilesCount = (value / tileSize).ceil().toDouble();
-    return tilesCount * tileSize;
-  }
-
-  /// Размер холста с учетом масштаба (динамические размеры)
-  Size _calculateCanvasSize() {
-    // Используем динамический размер, но не меньше минимального
-    final double width =
-        math.max(_dynamicCanvasWidth, EditorConfig.staticCanvasWidth) * state.scale;
-    final double height =
-        math.max(_dynamicCanvasHeight, EditorConfig.staticCanvasHeight) * state.scale;
-
-    return Size(width, height);
   }
 
   /// Автоматически масштабирует и центрирует узлы в видимой области
@@ -220,12 +184,10 @@ class ScrollHandler extends Manager {
   }
 
   void centerCanvas() {
-    final Size canvasSize = _calculateCanvasSize();
-
-    // Центрируем холст в видимой области
+    final Rect bounds = navigationBounds;
     state.offset = Offset(
-      (state.viewportSize.width - canvasSize.width) / 2,
-      (state.viewportSize.height - canvasSize.height) / 2,
+      state.viewportSize.width / 2 - bounds.center.dx * state.scale,
+      state.viewportSize.height / 2 - bounds.center.dy * state.scale,
     );
 
     // Корректируем offset, чтобы не выходить за границы
@@ -253,56 +215,39 @@ class ScrollHandler extends Manager {
   }
 
   Offset constrainOffset(Offset offset) {
-    final Size canvasSize = _calculateCanvasSize();
-
     double constrainedX = offset.dx;
     double constrainedY = offset.dy;
 
-    final double maxRight = 0;
-    final double maxLeft = state.viewportSize.width - canvasSize.width;
-    final double maxBottom = 0;
-    final double maxTop = state.viewportSize.height - canvasSize.height;
+    final double visibleLeft = -offset.dx / state.scale;
+    final double clampedVisibleLeft = _clamp(
+      visibleLeft,
+      minVisibleLeftWorld,
+      maxVisibleLeftWorld,
+    );
+    constrainedX = -clampedVisibleLeft * state.scale;
 
-    if (canvasSize.width <= state.viewportSize.width) {
-      constrainedX = (state.viewportSize.width - canvasSize.width) / 2;
-    } else {
-      if (constrainedX > maxRight) constrainedX = maxRight;
-      if (constrainedX < maxLeft) constrainedX = maxLeft;
-    }
-
-    if (canvasSize.height <= state.viewportSize.height) {
-      constrainedY = (state.viewportSize.height - canvasSize.height) / 2;
-    } else {
-      if (constrainedY > maxBottom) constrainedY = maxBottom;
-      if (constrainedY < maxTop) constrainedY = maxTop;
-    }
+    final double visibleTop = -offset.dy / state.scale;
+    final double clampedVisibleTop = _clamp(
+      visibleTop,
+      minVisibleTopWorld,
+      maxVisibleTopWorld,
+    );
+    constrainedY = -clampedVisibleTop * state.scale;
 
     return Offset(constrainedX, constrainedY);
   }
 
   void updateScrollControllers() {
-    final Size canvasSize = _calculateCanvasSize();
-
-    // Максимальная прокрутка
-    final double horizontalMaxScroll = _max(
-      0,
-      canvasSize.width - state.viewportSize.width,
-    );
-    final double verticalMaxScroll = _max(
-      0,
-      canvasSize.height - state.viewportSize.height,
-    );
-
     // Текущая позиция в координатах скроллбара
     final double horizontalPosition = _clamp(
-      -state.offset.dx,
+      (-state.offset.dx - minVisibleLeftWorld * state.scale),
       0,
-      horizontalMaxScroll,
+      horizontalScrollExtent,
     );
     final double verticalPosition = _clamp(
-      -state.offset.dy,
+      (-state.offset.dy - minVisibleTopWorld * state.scale),
       0,
-      verticalMaxScroll,
+      verticalScrollExtent,
     );
 
     // Обновляем скроллбары
@@ -351,14 +296,10 @@ class ScrollHandler extends Manager {
       return; // Игнорируем при перетаскивании и программном обновлении
 
     final double scrollPosition = horizontalScrollController.offset;
-    final Size canvasSize = _calculateCanvasSize();
-    final double maxScroll = _max(
-      0,
-      canvasSize.width - state.viewportSize.width,
-    );
 
-    final double clampedScroll = _clamp(scrollPosition, 0, maxScroll);
-    state.offset = Offset(-clampedScroll, state.offset.dy);
+    final double clampedScroll = _clamp(scrollPosition, 0, horizontalScrollExtent);
+    final double visibleLeft = minVisibleLeftWorld + clampedScroll / state.scale;
+    state.offset = Offset(-visibleLeft * state.scale, state.offset.dy);
 
     // Обновляем позицию выделенного узла
     if (state.nodesIdOnTopLayer.isNotEmpty) {
@@ -373,14 +314,10 @@ class ScrollHandler extends Manager {
       return; // Игнорируем при перетаскивании и программном обновлении
 
     final double scrollPosition = verticalScrollController.offset;
-    final Size canvasSize = _calculateCanvasSize();
-    final double maxScroll = _max(
-      0,
-      canvasSize.height - state.viewportSize.height,
-    );
 
-    final double clampedScroll = _clamp(scrollPosition, 0, maxScroll);
-    state.offset = Offset(state.offset.dx, -clampedScroll);
+    final double clampedScroll = _clamp(scrollPosition, 0, verticalScrollExtent);
+    final double visibleTop = minVisibleTopWorld + clampedScroll / state.scale;
+    state.offset = Offset(state.offset.dx, -visibleTop * state.scale);
 
     // Обновляем позицию выделенного узла
     if (state.nodesIdOnTopLayer.isNotEmpty) {
@@ -402,11 +339,7 @@ class ScrollHandler extends Manager {
   void handleHorizontalScrollbarDragUpdate(PointerMoveEvent details) {
     if (!_isHorizontalDragging) return;
 
-    final Size canvasSize = _calculateCanvasSize();
-    final double maxScroll = _max(
-      0,
-      canvasSize.width - state.viewportSize.width,
-    );
+    final double maxScroll = horizontalScrollExtent;
 
     if (maxScroll == 0) return;
 
@@ -416,7 +349,7 @@ class ScrollHandler extends Manager {
     // САМЫЙ ПРОСТОЙ И ТОЧНЫЙ РАСЧЕТ:
     // Если холст в N раз больше viewport, то движение мыши на 1px = движение скроллбара на N px
     final double canvasToViewportWidthRatio =
-        canvasSize.width / state.viewportSize.width;
+        horizontalScrollContentSize / state.viewportSize.width;
     final double adjustedDelta = mouseDelta * canvasToViewportWidthRatio;
 
     final double newScrollOffset = _clamp(
@@ -429,7 +362,8 @@ class ScrollHandler extends Manager {
       horizontalScrollController.jumpTo(newScrollOffset);
     }
 
-    state.offset = Offset(-newScrollOffset, state.offset.dy);
+    final double visibleLeft = minVisibleLeftWorld + newScrollOffset / state.scale;
+    state.offset = Offset(-visibleLeft * state.scale, state.offset.dy);
 
     if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
@@ -453,11 +387,7 @@ class ScrollHandler extends Manager {
   void handleVerticalScrollbarDragUpdate(PointerMoveEvent details) {
     if (!_isVerticalDragging) return;
 
-    final Size canvasSize = _calculateCanvasSize();
-    final double maxScroll = _max(
-      0,
-      canvasSize.height - state.viewportSize.height,
-    );
+    final double maxScroll = verticalScrollExtent;
 
     if (maxScroll == 0) return;
 
@@ -465,7 +395,7 @@ class ScrollHandler extends Manager {
 
     // САМЫЙ ПРОСТОЙ И ТОЧНЫЙ РАСЧЕТ:
     final double canvasToViewportHeightRatio =
-        canvasSize.height / state.viewportSize.height;
+        verticalScrollContentSize / state.viewportSize.height;
     final double adjustedDelta = mouseDelta * canvasToViewportHeightRatio;
 
     final double newScrollOffset = _clamp(
@@ -478,7 +408,8 @@ class ScrollHandler extends Manager {
       verticalScrollController.jumpTo(newScrollOffset);
     }
 
-    state.offset = Offset(state.offset.dx, -newScrollOffset);
+    final double visibleTop = minVisibleTopWorld + newScrollOffset / state.scale;
+    state.offset = Offset(state.offset.dx, -visibleTop * state.scale);
 
     if (state.nodesIdOnTopLayer.isNotEmpty) {
       nodeManager?.onOffsetChanged();
@@ -491,8 +422,6 @@ class ScrollHandler extends Manager {
     _isVerticalDragging = false;
     onStateUpdate();
   }
-
-  double _max(double a, double b) => a > b ? a : b;
 
   double _clamp(double value, double min, double max) {
     if (value < min) return min;

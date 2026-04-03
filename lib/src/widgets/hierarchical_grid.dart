@@ -70,46 +70,34 @@ class _HierarchicalGridState extends State<HierarchicalGrid> with StateWidget<Hi
 
   @override
   Widget build(BuildContext context) {
-    final size = widget.scrollHandler.scaledCanvasSize;
     return Stack(
       children: [
         Positioned.fill(
-          child: ColoredBox(color: const Color(0xFFD0D0D0)),
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: widget.state.viewportSize,
+              painter: GridPainter(
+                scale: widget.state.scale,
+                offset: widget.state.offset,
+                nodeManager: widget.nodeManager,
+              ),
+            ),
+          ),
         ),
-        Positioned(
-          left: widget.state.offset.dx,
-          top: widget.state.offset.dy,
-          width: size.width,
-          height: size.height,
-          child: ColoredBox(
-            color: Colors.white,
-            child: Stack(
-              children: [
-                RepaintBoundary(
-                  child: CustomPaint(
-                    size: size,
-                    painter: GridPainter(
-                      scale: widget.state.scale,
-                      nodeManager: widget.nodeManager,
-                    ),
-                  ),
-                ),
-                RepaintBoundary(
-                  child: CustomPaint(
-                    size: size,
-                    painter: TileImagePainter(
-                      scale: widget.state.scale,
-                      offset: Offset.zero,
-                      canvasSize: size,
-                      state: widget.state,
-                      imageTiles: widget.state.imageTiles,
-                      nodesIdOnTopLayer: widget.state.nodesIdOnTopLayer,
-                      isTileEvent: isTileEvent,
-                      updatedImageTileIds: widget.state.updatedImageTileIds,
-                    ),
-                  ),
-                ),
-              ],
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: widget.state.viewportSize,
+              painter: TileImagePainter(
+                scale: widget.state.scale,
+                offset: widget.state.offset,
+                canvasSize: widget.state.viewportSize,
+                state: widget.state,
+                imageTiles: widget.state.imageTiles,
+                nodesIdOnTopLayer: widget.state.nodesIdOnTopLayer,
+                isTileEvent: isTileEvent,
+                updatedImageTileIds: widget.state.updatedImageTileIds,
+              ),
             ),
           ),
         ),

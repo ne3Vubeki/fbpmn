@@ -7,6 +7,7 @@ class TileBorderPainter extends CustomPainter {
   final bool isNodeDragging;
 
   double get scale => state.scale;
+  Offset get offset => state.offset;
 
   TileBorderPainter({required this.state, required this.isNodeDragging});
 
@@ -27,8 +28,8 @@ class TileBorderPainter extends CustomPainter {
     for (final entry in state.imageTiles.entries) {
       final tile = entry.value;
       final rect = Rect.fromLTWH(
-        tile.bounds.left * scale,
-        tile.bounds.top * scale,
+        tile.bounds.left * scale + offset.dx,
+        tile.bounds.top * scale + offset.dy,
         tile.bounds.width * scale,
         tile.bounds.height * scale,
       );
