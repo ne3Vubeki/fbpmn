@@ -1,5 +1,7 @@
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/cola_layout_service.dart';
+import 'package:fbpmn/src/micro_layout/services/indexed_db_training_sample_repository.dart';
+import 'package:fbpmn/src/micro_layout/services/micro_layout_snapshot_service.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/models/app.model.dart';
@@ -151,6 +153,15 @@ class EventService {
               case 'autoLayoutUseSnapOnPolish':
                 state.autoLayoutUseSnapOnPolish = newValue == true;
                 break;
+              case 'autoLayoutUseNeuralPolish':
+                state.autoLayoutUseNeuralPolish = newValue == true;
+                break;
+              case 'autoLayoutTrainNeuralPolish':
+                state.autoLayoutTrainNeuralPolish = newValue == true;
+                break;
+              case 'manualLayoutTrainNeuralPolish':
+                state.manualLayoutTrainNeuralPolish = newValue == true;
+                break;
             }
           }
         }
@@ -228,6 +239,21 @@ class EventService {
         break;
       case 'get_schema':
         appEvent?.emitToJs(action: action, data: state.schema);
+        break;
+      case 'get_micro_layout_data':
+        final repository = IndexedDbTrainingSampleRepository.createDefault();
+        final snapshotService = MicroLayoutSnapshotService(repository: repository);
+        final snapshot = await snapshotService.createSnapshot(
+          buildVersion: data?['buildVersion']?.toString() ?? 'local',
+          modelVersion: data?['modelVersion']?.toString() ?? '0',
+          schemaVersion: data?['schemaVersion']?.toString() ?? '1',
+        );
+        appEvent?.emitToJs(
+          action: action,
+          data: <String, dynamic>{
+            'snapshot': snapshot.toJson(),
+          },
+        );
         break;
     }
   }

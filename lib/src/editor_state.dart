@@ -79,6 +79,14 @@ class EditorState {
         case 'autoLayoutUseSnapOnPolish':
           if (value is bool) autoLayoutUseSnapOnPolish = value;
 
+        // Разрешает финальный нейроэтап автораскладки.
+        case 'autoLayoutUseNeuralPolish':
+          if (value is bool) autoLayoutUseNeuralPolish = value;
+
+        // Разрешает локальный сбор обучающих samples для нейроэтапа автораскладки.
+        case 'autoLayoutTrainNeuralPolish':
+          if (value is bool) autoLayoutTrainNeuralPolish = value;
+
         // Включает режим, в котором при выделении одного узла скрываются остальные неактивные элементы.
         // Используется для фокусировки на связанном фрагменте схемы.
         case 'selectAndHide':
@@ -180,7 +188,6 @@ class EditorState {
 
   /// Узел ховеред
   TableNode? hoveredNode;
-
 
   // ---------------------------------------------------------------------------
   // Наведение на атрибуты узла
@@ -285,6 +292,12 @@ class EditorState {
   bool autoLayoutUseSnapOnRepair = false;
 
   bool autoLayoutUseSnapOnPolish = false;
+
+  bool autoLayoutUseNeuralPolish = false;
+
+  bool autoLayoutTrainNeuralPolish = false;
+
+  bool manualLayoutTrainNeuralPolish = false;
 
   int autoLayoutElapsedMilliseconds = 0;
 

@@ -1,6 +1,14 @@
 import 'dart:math' as math;
 
+import 'package:fbpmn/src/micro_layout/models/layout_candidate.dart';
+import 'package:fbpmn/src/micro_layout/models/layout_search_request.dart';
+import 'package:fbpmn/src/micro_layout/models/layout_training_sample.dart';
+import 'package:fbpmn/src/micro_layout/services/candidate_feature_extractor.dart';
+import 'package:fbpmn/src/micro_layout/services/indexed_db_training_sample_repository.dart';
+import 'package:fbpmn/src/micro_layout/services/runtime_layout_simulation_evaluator.dart';
+import 'package:fbpmn/src/micro_layout/services/runtime_tile_snapshot_factory.dart';
 import 'package:fbpmn/src/models/attribute_highlight_row.dart';
+import 'package:fbpmn/src/models/arrow.dart';
 import 'package:fbpmn/src/models/snap_line.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/event_service.dart';
@@ -557,6 +565,9 @@ class NodeManager extends Manager {
     tracker.startDeselect();
 
     final selectedNodes = state.nodesSelected.whereType<TableNode>().toList();
+    final manualSamples = state.manualLayoutTrainNeuralPolish
+        ? await _buildManualLayoutSamples(selectedNodes)
+        : const <LayoutTrainingSample>[];
 
     // Обрабатываем все выделенные узлы
     for (final node in state.nodesSelected) {
@@ -567,6 +578,11 @@ class NodeManager extends Manager {
 
     _syncNodesToSchema(selectedNodes);
     await EventService.apiStatic('schema_update', 'NodeManager._saveNodeToTiles');
+
+    if (manualSamples.isNotEmpty) {
+      final repository = IndexedDbTrainingSampleRepository.createDefault();
+      await repository.saveSamples(manualSamples);
+    }
 
     // Очищаем подсветку ПЕРЕД перерисовкой тайлов
     state.highlightedNodeIds.clear();
@@ -589,6 +605,82 @@ class NodeManager extends Manager {
 
     onStateUpdate();
     arrowManager.onStateUpdate();
+  }
+
+  Future<List<LayoutTrainingSample>> _buildManualLayoutSamples(List<TableNode> selectedNodes) async {
+    final snapshotFactory = RuntimeTileSnapshotFactory(state: state);
+    final evaluator = RuntimeLayoutSimulationEvaluator(
+      state: state,
+      nodeManager: this,
+      arrowManager: arrowManager,
+    );
+    final samples = <LayoutTrainingSample>[];
+
+    for (final node in selectedNodes) {
+      final originPosition = _multiDragStartPositions[node.id];
+      final candidatePosition = node.aPosition ?? (state.delta + node.position);
+      if (originPosition == null || (candidatePosition - originPosition).distance <= 0.01) {
+        continue;
+      }
+
+      final tile = tileManager.getTileAtWorldPosition(candidatePosition);
+      if (tile == null) {
+        continue;
+      }
+
+      final tileNodes = NodeManager.whereAllNodes(state.nodes, (candidateNode) => tile.nodes.contains(candidateNode.id))
+          .whereType<TableNode>()
+          .toList(growable: false);
+      if (tileNodes.isEmpty) {
+        continue;
+      }
+
+      final incidentArrows = arrowManager.getArrowsForNodes(<TableNode?>[node]).whereType<Arrow>().toList(growable: false);
+      final candidate = LayoutCandidate(
+        nodeId: node.id,
+        originPosition: originPosition,
+        candidatePosition: candidatePosition,
+        nodeSize: node.size,
+        tileId: tile.id,
+      );
+      final tileSnapshot = snapshotFactory.create(tile);
+      final request = LayoutSearchRequest(
+        node: node,
+        tileSnapshot: tileSnapshot,
+        nearbyNodes: tileNodes,
+        incidentArrows: incidentArrows,
+        searchBounds: tile.bounds,
+      );
+      final evaluation = await evaluator.evaluate(
+        request: request,
+        candidate: candidate,
+      );
+      final features = const CandidateFeatureExtractor().extract(
+        node: node,
+        candidate: candidate,
+        tileSnapshot: tileSnapshot,
+        incidentArrows: incidentArrows,
+        localNodeDensity: tileNodes.length / math.max(1, tileSnapshot.bounds.width * tileSnapshot.bounds.height),
+        localArrowDensity: incidentArrows.length / math.max(1, tileSnapshot.bounds.width * tileSnapshot.bounds.height),
+      );
+
+      samples.add(
+        LayoutTrainingSample(
+          id: 'manual_${node.id}_${candidatePosition.dx}_${candidatePosition.dy}_${DateTime.now().microsecondsSinceEpoch}',
+          nodeId: node.id,
+          tileId: tile.id,
+          candidate: candidate,
+          features: features,
+          metrics: evaluation.metrics,
+          snapshot: tileSnapshot,
+          targetScore: evaluation.exactScore,
+          accepted: true,
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+
+    return samples;
   }
 
   Future<void> commitNodeSelectionBeforeArrowSelection() async {

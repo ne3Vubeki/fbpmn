@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:fbpmn/src/cola/cola_interop.dart';
 import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/models/attribute.dart';
+import 'package:fbpmn/src/micro_layout/services/neural_polish_service.dart';
 import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/event_service.dart';
@@ -21,6 +22,7 @@ class ColaLayoutService extends Manager {
   final ArrowManager arrowManager;
   final NodeManager nodeManager;
   final ScrollHandler scrollHandler;
+  late final NeuralPolishService _neuralPolishService;
 
   static const bool _animateRepair = true;
   static const double _defaultAnimationSpeed = 0.9;
@@ -118,7 +120,21 @@ class ColaLayoutService extends Manager {
     required this.arrowManager,
     required this.nodeManager,
     required this.scrollHandler,
-  });
+  }) {
+    _neuralPolishService = state.autoLayoutTrainNeuralPolish
+        ? NeuralPolishService.withIndexedDb(
+            state: state,
+            tileManager: tileManager,
+            arrowManager: arrowManager,
+            nodeManager: nodeManager,
+          )
+        : NeuralPolishService(
+            state: state,
+            tileManager: tileManager,
+            arrowManager: arrowManager,
+            nodeManager: nodeManager,
+          );
+  }
 
   void _setCurrentLayoutProcess(String value) {
     if (state.currentLayoutProcess == value) {
@@ -730,6 +746,15 @@ class ColaLayoutService extends Manager {
       _captureDistributionCenter();
       _setCurrentLayoutProcess('Корректировка');
       await _runPolishLayout(maxIterations: 24);
+    }
+
+    if (!_isRunning || _isFinishing) {
+      return;
+    }
+
+    if (state.autoLayoutUseNeuralPolish) {
+      _setCurrentLayoutProcess('Нейрокоррекция');
+      await _neuralPolishService.run();
     }
 
     if (!_isRunning || _isFinishing) {
