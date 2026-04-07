@@ -87,6 +87,11 @@ class EditorState {
         case 'autoLayoutTrainNeuralPolish':
           if (value is bool) autoLayoutTrainNeuralPolish = value;
 
+        // Разрешает сбор обучающих samples при ручном перемещении узлов.
+        // Используется для накопления пользовательских правок как локального датасета.
+        case 'manualLayoutTrainNeuralPolish':
+          if (value is bool) manualLayoutTrainNeuralPolish = value;
+
         // Включает режим, в котором при выделении одного узла скрываются остальные неактивные элементы.
         // Используется для фокусировки на связанном фрагменте схемы.
         case 'selectAndHide':
@@ -295,11 +300,24 @@ class EditorState {
 
   bool autoLayoutUseNeuralPolish = false;
 
+  /// Включает сбор samples для обучения нейромодели во время этапов автораскладки.
   bool autoLayoutTrainNeuralPolish = false;
 
+  /// Включает сбор samples при ручном перемещении узлов с фиксацией результата при deselect.
   bool manualLayoutTrainNeuralPolish = false;
 
+  /// Время выполнения текущего процесса раскладки или обучения для отображения в overlay.
   int autoLayoutElapsedMilliseconds = 0;
 
+  /// Текущий прогресс длительного процесса в процентах для progress bar в overlay.
+  double? currentLayoutProcessProgress;
+
+  /// Показывать ли кнопку остановки в overlay текущего процесса.
+  bool currentLayoutProcessCanStop = true;
+
+  /// Активен ли в текущем процессе раскладки сбор samples для обучения AI.
+  bool currentLayoutProcessAiCollecting = false;
+
+  /// Название текущего этапа раскладки или обучения, отображаемое в overlay.
   String currentLayoutProcess = '';
 }

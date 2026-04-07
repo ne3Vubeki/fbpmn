@@ -31,10 +31,11 @@ class WebIndexedDbService implements IndexedDbService {
       onUpgradeNeeded: (event) {
         final target = event.target as dynamic;
         final database = target.result;
+        final transaction = target.transaction;
         for (final storeDefinition in definition.stores) {
           final storeExists = database.objectStoreNames.contains(storeDefinition.name);
           final store = storeExists
-              ? (event.transaction as dynamic).objectStore(storeDefinition.name)
+              ? transaction.objectStore(storeDefinition.name)
               : database.createObjectStore(
                   storeDefinition.name,
                   keyPath: storeDefinition.keyPath,

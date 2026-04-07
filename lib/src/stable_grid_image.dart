@@ -1,4 +1,7 @@
+import 'package:flutter/services.dart';
 import 'package:fbpmn/src/models/app.model.dart';
+import 'package:fbpmn/src/micro_layout/services/indexed_db_training_sample_repository.dart';
+import 'package:fbpmn/src/micro_layout/services/micro_layout_bootstrap_service.dart';
 import 'package:fbpmn/src/services/cola_layout_service.dart';
 import 'package:fbpmn/src/services/shema_manager.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +46,7 @@ class _StableGridImageState extends State<StableGridImage> {
   bool _hasPendingReinitialize = false;
   bool _suppressSchemaCallback = false;
   bool _schemaInitialized = false;
+  bool _externalSchemaReceived = false;
 
   String _formatLayoutElapsed(int milliseconds) {
     final totalSeconds = milliseconds ~/ 1000;
@@ -64,7 +68,6 @@ class _StableGridImageState extends State<StableGridImage> {
     _editorState = EditorState(widget.properties);
 
     _shemaManager = ShemaManager(state: _editorState);
-    _initializeEmptySchemaOnFirstLaunch();
 
     _arrowManager = ArrowManager(state: _editorState, schemaManager: _shemaManager);
 
@@ -95,6 +98,12 @@ class _StableGridImageState extends State<StableGridImage> {
       scrollHandler: _scrollHandler,
     );
 
+    _colaLayoutService.setOnStateUpdate('StableGridImage_ProcessOverlay', () {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
     _zoomManager = ZoomManager(
       state: _editorState,
       inputHandler: _inputHandler,
@@ -119,26 +128,48 @@ class _StableGridImageState extends State<StableGridImage> {
 
     _shemaManager.setOnStateUpdate('StableGridImage', ([data]) {
       if (_suppressSchemaCallback) return;
+      _externalSchemaReceived = true;
       _reinitializeFromSchema(_shemaManager.schema, preserveViewport: data == 'preserve_viewport');
     });
 
     // Инициализация (запускаем после загрузки схемы)
     _initializeEmptySchemaOnFirstLaunch().then((_) {
-      _initEditor();
+      if (!_externalSchemaReceived) {
+        _initEditor();
+      }
     });
   }
 
   Future<void> _initializeEmptySchemaOnFirstLaunch() async {
     if (_schemaInitialized) return;
 
-    _suppressSchemaCallback = true;
+    _schemaInitialized = true;
     try {
-      await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_7.json');
-      // _shemaManager.createEmptySchema(apply: true);
-      _schemaInitialized = true;
-    } finally {
-      _suppressSchemaCallback = false;
-    }
+      await _bootstrapMicroLayoutSnapshot();
+      if (!_externalSchemaReceived) {
+        _suppressSchemaCallback = true;
+        try {
+          // await _shemaManager.resolveSchema(allowHttpLoad: true, filePath: 'assets/diagram_7.json');
+          _shemaManager.createEmptySchema(apply: true);
+        } finally {
+          _suppressSchemaCallback = false;
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _bootstrapMicroLayoutSnapshot() async {
+    final repository = IndexedDbTrainingSampleRepository.createDefault();
+    final bootstrapService = MicroLayoutBootstrapService(repository: repository);
+
+    try {
+      final bundledSnapshot = await rootBundle.loadString('micro_layout_snapshot.json');
+      await bootstrapService.bootstrapFromBundledSnapshotJson(
+        bundledSnapshot,
+        mergeSamples: true,
+        replaceWeights: true,
+      );
+    } catch (_) {}
   }
 
   /// Даёт UI-потоку время на отрисовку (для анимации LoadingIndicator)
@@ -387,48 +418,91 @@ class _StableGridImageState extends State<StableGridImage> {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: Row(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _editorState.currentLayoutProcess,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Material(
-                            color: Colors.black,
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: () async {
-                                await _colaLayoutService.stopLayout();
-                              },
-                              child: Center(
-                                child: Container(
-                                  width: 10,
-                                  height: 10,
-                                  color: Colors.red,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_editorState.autoLayoutTrainNeuralPolish &&
+                                _editorState.currentLayoutProcess.isNotEmpty) ...[
+                              const Icon(
+                                Icons.psychology_alt_rounded,
+                                size: 16,
+                                color: Color(0xFF7ED957),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              _editorState.currentLayoutProcess,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (_editorState.currentLayoutProcessCanStop) ...[
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Material(
+                                  color: Colors.black,
+                                  shape: const CircleBorder(),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () async {
+                                      await _colaLayoutService.stopLayout();
+                                    },
+                                    child: Center(
+                                      child: Container(
+                                        width: 10,
+                                        height: 10,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ),
                                 ),
+                              ),
+                            ],
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatLayoutElapsed(_editorState.autoLayoutElapsedMilliseconds),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (_editorState.currentLayoutProcessProgress != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '${_editorState.currentLayoutProcessProgress!.round()}%',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (_editorState.currentLayoutProcessProgress != null) ...[
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            width: 220,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: LinearProgressIndicator(
+                                value: (_editorState.currentLayoutProcessProgress! / 100).clamp(0, 1),
+                                minHeight: 6,
+                                backgroundColor: Colors.white.withValues(alpha: 0.18),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4DA3FF)),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _formatLayoutElapsed(_editorState.autoLayoutElapsedMilliseconds),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ),

@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/cola_layout_service.dart';
 import 'package:fbpmn/src/micro_layout/services/indexed_db_training_sample_repository.dart';
 import 'package:fbpmn/src/micro_layout/services/micro_layout_snapshot_service.dart';
+import 'package:fbpmn/src/micro_layout/services/micro_layout_trainer.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/services/scroll_handler.dart';
 import 'package:fbpmn/src/models/app.model.dart';
@@ -253,6 +256,72 @@ class EventService {
           data: <String, dynamic>{
             'snapshot': snapshot.toJson(),
           },
+        );
+        break;
+      case 'export_micro_layout_snapshot_json':
+        final exportRepository = IndexedDbTrainingSampleRepository.createDefault();
+        final exportSnapshotService = MicroLayoutSnapshotService(repository: exportRepository);
+        final snapshotJson = await exportSnapshotService.exportSnapshotJson(
+          buildVersion: data?['buildVersion']?.toString() ?? 'local',
+          modelVersion: data?['modelVersion']?.toString() ?? '0',
+          schemaVersion: data?['schemaVersion']?.toString() ?? '1',
+        );
+        appEvent?.emitToJs(
+          action: action,
+          data: <String, dynamic>{
+            'snapshotJson': snapshotJson,
+          },
+        );
+        break;
+      case 'import_micro_layout_data':
+        final importRepository = IndexedDbTrainingSampleRepository.createDefault();
+        final importSnapshotService = MicroLayoutSnapshotService(repository: importRepository);
+        final mergeSamples = data?['mergeSamples'] != false;
+        final replaceWeights = data?['replaceWeights'] == true;
+
+        if (data?['snapshotJson'] is String) {
+          final result = await importSnapshotService.importSnapshotJson(
+            data!['snapshotJson'] as String,
+            mergeSamples: mergeSamples,
+            replaceWeights: replaceWeights,
+          );
+          appEvent?.emitToJs(
+            action: action,
+            data: <String, dynamic>{
+              'schemaVersion': result.schemaVersion,
+              'modelVersion': result.modelVersion,
+              'buildVersion': result.buildVersion,
+              'importedSampleCount': result.importedSampleCount,
+              'weightsUpdated': result.weightsUpdated,
+            },
+          );
+        } else if (data?['snapshot'] is Map) {
+          final snapshotJson = <String, dynamic>{
+            ...Map<String, dynamic>.from(data!['snapshot'] as Map),
+          };
+          final result = await importSnapshotService.importSnapshotJson(
+            jsonEncode(snapshotJson),
+            mergeSamples: mergeSamples,
+            replaceWeights: replaceWeights,
+          );
+          appEvent?.emitToJs(
+            action: action,
+            data: <String, dynamic>{
+              'schemaVersion': result.schemaVersion,
+              'modelVersion': result.modelVersion,
+              'buildVersion': result.buildVersion,
+              'importedSampleCount': result.importedSampleCount,
+              'weightsUpdated': result.weightsUpdated,
+            },
+          );
+        }
+        break;
+      case 'start_train_micro_layout_model':
+        await MicroLayoutTrainer.startTrainingProcess(
+          state: state,
+          tileManager: tileManager,
+          appEvent: appEvent,
+          data: data,
         );
         break;
     }

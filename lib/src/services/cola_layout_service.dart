@@ -121,19 +121,12 @@ class ColaLayoutService extends Manager {
     required this.nodeManager,
     required this.scrollHandler,
   }) {
-    _neuralPolishService = state.autoLayoutTrainNeuralPolish
-        ? NeuralPolishService.withIndexedDb(
-            state: state,
-            tileManager: tileManager,
-            arrowManager: arrowManager,
-            nodeManager: nodeManager,
-          )
-        : NeuralPolishService(
-            state: state,
-            tileManager: tileManager,
-            arrowManager: arrowManager,
-            nodeManager: nodeManager,
-          );
+    _neuralPolishService = NeuralPolishService.withIndexedDb(
+      state: state,
+      tileManager: tileManager,
+      arrowManager: arrowManager,
+      nodeManager: nodeManager,
+    );
   }
 
   void _setCurrentLayoutProcess(String value) {
@@ -141,6 +134,9 @@ class ColaLayoutService extends Manager {
       return;
     }
     state.currentLayoutProcess = value;
+    state.currentLayoutProcessProgress = null;
+    state.currentLayoutProcessCanStop = true;
+    state.currentLayoutProcessAiCollecting = false;
     tileManager.onStateUpdate();
     onStateUpdate();
   }
@@ -745,6 +741,10 @@ class ColaLayoutService extends Manager {
     if (state.autoLayoutUsePolish) {
       _captureDistributionCenter();
       _setCurrentLayoutProcess('Корректировка');
+      if (state.autoLayoutTrainNeuralPolish) {
+        state.currentLayoutProcessAiCollecting = true;
+        onStateUpdate();
+      }
       await _runPolishLayout(maxIterations: 24);
     }
 
@@ -752,7 +752,9 @@ class ColaLayoutService extends Manager {
       return;
     }
 
-    if (state.autoLayoutUseNeuralPolish) {
+    final hasStoredNeuralModel = await _neuralPolishService.hasStoredModel();
+
+    if (state.autoLayoutUseNeuralPolish && hasStoredNeuralModel) {
       _setCurrentLayoutProcess('Нейрокоррекция');
       await _neuralPolishService.run();
     }
@@ -948,6 +950,14 @@ class ColaLayoutService extends Manager {
         movedInIteration = true;
 
         final node = _nodesList[entry.key];
+        final originPosition = node.aPosition ?? (state.delta + node.position);
+        if (state.autoLayoutTrainNeuralPolish) {
+          await _neuralPolishService.saveAcceptedPlacementSample(
+            node: node,
+            originPosition: originPosition,
+            candidatePosition: bestCandidate.position,
+          );
+        }
         if (skipAnimation || !_animateRepair) {
           nodeManager.updateNodePositionForLayout(node, bestCandidate.position);
           _animatedPositions[entry.key] = bestCandidate.position;
@@ -2209,11 +2219,17 @@ class ColaLayoutService extends Manager {
         state.isLoading = false;
         state.isAutoLayoutMode = false;
         state.currentLayoutProcess = '';
+        state.currentLayoutProcessProgress = null;
+        state.currentLayoutProcessCanStop = true;
+        state.currentLayoutProcessAiCollecting = false;
         _isRunning = false;
         _isAnimating = false;
     state.isLoading = false;
     state.isAutoLayoutMode = false;
     state.currentLayoutProcess = '';
+    state.currentLayoutProcessProgress = null;
+    state.currentLayoutProcessCanStop = true;
+    state.currentLayoutProcessAiCollecting = false;
     _isRunning = false;
     _isAnimating = false;
 

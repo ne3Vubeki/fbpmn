@@ -4,6 +4,8 @@ import 'package:fbpmn/src/micro_layout/models/micro_layout_snapshot_metadata.dar
 import 'package:fbpmn/src/micro_layout/models/micro_layout_weights.dart';
 
 abstract class TrainingSampleRepository {
+  Future<void> clearSamples();
+
   Future<void> saveSample(LayoutTrainingSample sample);
 
   Future<void> saveSamples(List<LayoutTrainingSample> samples);
@@ -47,6 +49,11 @@ class InMemoryTrainingSampleRepository implements TrainingSampleRepository {
     _samples.clear();
     _weights = null;
     _metadata = null;
+  }
+
+  @override
+  Future<void> clearSamples() async {
+    _samples.clear();
   }
 
   @override

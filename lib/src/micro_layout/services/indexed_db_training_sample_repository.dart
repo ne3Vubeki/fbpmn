@@ -11,6 +11,7 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
   static const String _metadataRecordId = 'current';
 
   final IndexedDbService indexedDbService;
+  Future<void>? _opening;
 
   IndexedDbTrainingSampleRepository({required this.indexedDbService});
 
@@ -21,15 +22,74 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
   }
 
   Future<void> open() {
-    return indexedDbService.open(IndexedDbAppDefinition.database);
+    return _ensureOpen(forceReopen: true);
+  }
+
+  Future<void> _ensureOpen({bool forceReopen = false}) async {
+    if (!forceReopen && indexedDbService.isOpen) {
+      return;
+    }
+
+    final existingOpening = _opening;
+    if (existingOpening != null) {
+      return existingOpening;
+    }
+
+    final opening = () async {
+      if (forceReopen && indexedDbService.isOpen) {
+        await indexedDbService.close();
+      }
+      await indexedDbService.open(IndexedDbAppDefinition.database);
+    }();
+
+    _opening = opening;
+    try {
+      await opening;
+    } finally {
+      if (identical(_opening, opening)) {
+        _opening = null;
+      }
+    }
+  }
+
+  bool _shouldReopen(Object error) {
+    if (error is StateError) {
+      return true;
+    }
+    final message = error.toString().toLowerCase();
+    return message.contains('database is not open') ||
+        message.contains('not found') ||
+        message.contains('no such store') ||
+        message.contains('versionchange') ||
+        message.contains('not a known object store') ||
+        message.contains('connection is closing');
+  }
+
+  Future<T> _withDatabase<T>(Future<T> Function() action) async {
+    await _ensureOpen();
+    try {
+      return await action();
+    } catch (error) {
+      if (!_shouldReopen(error)) {
+        rethrow;
+      }
+      await _ensureOpen(forceReopen: true);
+      return action();
+    }
+  }
+
+  @override
+  Future<void> clearSamples() async {
+    await _withDatabase(() => indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutSamples));
   }
 
   @override
   Future<void> clear() async {
-    await open();
-    await indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutSamples);
-    await indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutWeights);
-    await indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutMetadata);
+    await _withDatabase(() async {
+      await indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutSamples);
+      await indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutWeights);
+      await indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutMetadata);
+    });
   }
 
   @override
@@ -38,7 +98,6 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
     required String modelVersion,
     String schemaVersion = '1',
   }) async {
-    await open();
     final samples = await getSamples();
     final weights = await getWeights();
 
@@ -68,8 +127,7 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
 
   @override
   Future<List<LayoutTrainingSample>> getSamples() async {
-    await open();
-    final records = await indexedDbService.getAll(storeName: IndexedDbAppStores.microLayoutSamples);
+    final records = await _withDatabase(() => indexedDbService.getAll(storeName: IndexedDbAppStores.microLayoutSamples));
     return records
         .map((record) => _mapRecord(record))
         .map(LayoutTrainingSample.fromJson)
@@ -78,10 +136,11 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
 
   @override
   Future<MicroLayoutSnapshotMetadata?> getSnapshotMetadata() async {
-    await open();
-    final record = await indexedDbService.get(
-      storeName: IndexedDbAppStores.microLayoutMetadata,
-      key: _metadataRecordId,
+    final record = await _withDatabase(
+      () => indexedDbService.get(
+        storeName: IndexedDbAppStores.microLayoutMetadata,
+        key: _metadataRecordId,
+      ),
     );
     if (record == null) {
       return null;
@@ -93,10 +152,11 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
 
   @override
   Future<MicroLayoutWeights?> getWeights() async {
-    await open();
-    final record = await indexedDbService.get(
-      storeName: IndexedDbAppStores.microLayoutWeights,
-      key: _weightsRecordId,
+    final record = await _withDatabase(
+      () => indexedDbService.get(
+        storeName: IndexedDbAppStores.microLayoutWeights,
+        key: _weightsRecordId,
+      ),
     );
     if (record == null) {
       return null;
@@ -112,10 +172,8 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
     bool mergeSamples = true,
     bool replaceWeights = true,
   }) async {
-    await open();
-
     if (!mergeSamples) {
-      await indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutSamples);
+      await _withDatabase(() => indexedDbService.clearStore(storeName: IndexedDbAppStores.microLayoutSamples));
     }
 
     await saveSamples(snapshot.samples);
@@ -129,10 +187,11 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
 
   @override
   Future<void> saveSample(LayoutTrainingSample sample) async {
-    await open();
-    await indexedDbService.put(
-      storeName: IndexedDbAppStores.microLayoutSamples,
-      value: sample.toJson(),
+    await _withDatabase(
+      () => indexedDbService.put(
+        storeName: IndexedDbAppStores.microLayoutSamples,
+        value: sample.toJson(),
+      ),
     );
   }
 
@@ -142,30 +201,34 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
       return;
     }
 
-    await open();
-    await indexedDbService.putAll(
-      storeName: IndexedDbAppStores.microLayoutSamples,
-      values: samples.map((sample) => sample.toJson()).toList(growable: false),
+    await _withDatabase(
+      () => indexedDbService.putAll(
+        storeName: IndexedDbAppStores.microLayoutSamples,
+        values: samples.map((sample) => sample.toJson()).toList(growable: false),
+      ),
     );
   }
 
   @override
   Future<void> saveWeights(MicroLayoutWeights weights) async {
-    await open();
     final json = weights.toJson();
     json['id'] = _weightsRecordId;
-    await indexedDbService.put(
-      storeName: IndexedDbAppStores.microLayoutWeights,
-      value: json,
+    await _withDatabase(
+      () => indexedDbService.put(
+        storeName: IndexedDbAppStores.microLayoutWeights,
+        value: json,
+      ),
     );
   }
 
   Future<void> _saveMetadata(MicroLayoutSnapshotMetadata metadata) async {
     final json = metadata.toJson();
     json['id'] = _metadataRecordId;
-    await indexedDbService.put(
-      storeName: IndexedDbAppStores.microLayoutMetadata,
-      value: json,
+    await _withDatabase(
+      () => indexedDbService.put(
+        storeName: IndexedDbAppStores.microLayoutMetadata,
+        value: json,
+      ),
     );
   }
 
