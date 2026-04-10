@@ -11,7 +11,7 @@ export 'models/micro_layout_training_batch.dart';
 export 'models/micro_layout_snapshot.dart';
 export 'models/micro_layout_snapshot_metadata.dart';
 export 'models/micro_layout_weights.dart';
-export 'models/tile_snapshot.dart';
+export 'models/layout_context_snapshot.dart';
 export 'services/candidate_feature_extractor.dart';
 export 'services/heuristic_layout_simulation_evaluator.dart';
 export 'services/indexed_db_training_sample_repository.dart';

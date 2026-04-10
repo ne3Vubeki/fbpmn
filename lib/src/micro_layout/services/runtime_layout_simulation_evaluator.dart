@@ -8,6 +8,7 @@ import 'package:fbpmn/src/micro_layout/models/layout_search_request.dart';
 import 'package:fbpmn/src/micro_layout/services/layout_quality_scorer.dart';
 import 'package:fbpmn/src/micro_layout/services/layout_simulation_evaluator.dart';
 import 'package:fbpmn/src/models/arrow.dart';
+import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/services/arrow_manager.dart';
 import 'package:fbpmn/src/services/node_manager.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
@@ -35,6 +36,33 @@ class RuntimeLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
     final node = request.node;
     final originalAbsolutePosition = node.aPosition ?? (state.delta + node.position);
     final originalRelativePosition = node.position;
+    final originalChildAbsolutePositions = <String, Offset>{};
+
+    void collectChildAbsolutePositions(TableNode currentNode) {
+      if (currentNode.children == null || currentNode.children!.isEmpty) {
+        return;
+      }
+      for (final child in currentNode.children!) {
+        final childAbsolutePosition = child.aPosition ?? ((currentNode.aPosition ?? (state.delta + currentNode.position)) + child.position);
+        originalChildAbsolutePositions[child.id] = childAbsolutePosition;
+        collectChildAbsolutePositions(child);
+      }
+    }
+
+    void restoreChildAbsolutePositions(TableNode currentNode) {
+      if (currentNode.children == null || currentNode.children!.isEmpty) {
+        return;
+      }
+      for (final child in currentNode.children!) {
+        final originalChildAbsolutePosition = originalChildAbsolutePositions[child.id];
+        if (originalChildAbsolutePosition != null) {
+          child.aPosition = originalChildAbsolutePosition;
+        }
+        restoreChildAbsolutePositions(child);
+      }
+    }
+
+    collectChildAbsolutePositions(node);
 
     final incidentArrows = request.incidentArrows.toSet().toList(growable: false);
 
@@ -48,6 +76,7 @@ class RuntimeLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
 
     node.aPosition = originalAbsolutePosition;
     node.position = originalRelativePosition;
+    restoreChildAbsolutePositions(node);
     for (final arrow in incidentArrows) {
       arrowManager.getArrowPathInTile(arrow, state.delta);
     }
@@ -82,8 +111,7 @@ class RuntimeLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
       }
     }
 
-    final tileArrowIds = request.tileSnapshot.arrowIds.toSet();
-    final otherArrows = state.arrows.where((arrow) => tileArrowIds.contains(arrow.id) && !incidentArrows.contains(arrow)).toList(growable: false);
+    final otherArrows = request.contextArrows.where((arrow) => !incidentArrows.contains(arrow)).toList(growable: false);
 
     var edgeNodeIntersections = 0.0;
     for (final arrow in otherArrows) {

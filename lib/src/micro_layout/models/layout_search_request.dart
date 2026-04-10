@@ -1,14 +1,15 @@
 import 'dart:ui';
 
-import 'package:fbpmn/src/micro_layout/models/tile_snapshot.dart';
+import 'package:fbpmn/src/micro_layout/models/layout_context_snapshot.dart';
 import 'package:fbpmn/src/models/arrow.dart';
 import 'package:fbpmn/src/models/table.node.dart';
 
 class LayoutSearchRequest {
   final TableNode node;
-  final TileSnapshot tileSnapshot;
+  final LayoutContextSnapshot contextSnapshot;
   final List<TableNode> nearbyNodes;
   final List<Arrow> incidentArrows;
+  final List<Arrow> contextArrows;
   final List<Rect> freeSpaceRects;
   final Rect searchBounds;
   final double gridStep;
@@ -17,9 +18,10 @@ class LayoutSearchRequest {
 
   const LayoutSearchRequest({
     required this.node,
-    required this.tileSnapshot,
+    required this.contextSnapshot,
     this.nearbyNodes = const <TableNode>[],
     this.incidentArrows = const <Arrow>[],
+    this.contextArrows = const <Arrow>[],
     this.freeSpaceRects = const <Rect>[],
     required this.searchBounds,
     this.gridStep = 48,

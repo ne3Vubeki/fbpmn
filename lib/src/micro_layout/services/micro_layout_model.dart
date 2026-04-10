@@ -5,6 +5,8 @@ import 'package:fbpmn/src/micro_layout/models/micro_layout_training_batch.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_weights.dart';
 
 class MicroLayoutModel {
+  static const double _gradientClipValue = 1000;
+
   final int inputSize;
   final List<int> hiddenSizes;
   final int outputSize;
@@ -43,7 +45,7 @@ class MicroLayoutModel {
   }
 
   double predict(LayoutFeatureVector features) {
-    final output = _forward(features.toList());
+    final output = _forward(_normalizeInput(features.toList()));
     return output.first;
   }
 
@@ -57,13 +59,23 @@ class MicroLayoutModel {
     }
 
     var totalLoss = 0.0;
+    var trainedSamples = 0;
     for (var sampleIndex = 0; sampleIndex < batch.length; sampleIndex++) {
-      final input = batch.features[sampleIndex].toList();
+      final input = _normalizeInput(batch.features[sampleIndex].toList());
       final target = batch.targets[sampleIndex];
-      totalLoss += _trainSample(input, target, learningRate);
+      final loss = _trainSample(input, target, learningRate);
+      if (!loss.isFinite) {
+        continue;
+      }
+      totalLoss += loss;
+      trainedSamples += 1;
     }
 
-    return totalLoss / batch.length;
+    if (trainedSamples == 0) {
+      return 0;
+    }
+
+    return totalLoss / trainedSamples;
   }
 
   MicroLayoutWeights exportWeights({int version = 1}) {
@@ -77,6 +89,18 @@ class MicroLayoutModel {
       outputSize: outputSize,
       version: version,
     );
+  }
+
+  List<double> _normalizeInput(List<double> input) {
+    if (input.length == inputSize) {
+      return input;
+    }
+
+    if (input.length > inputSize) {
+      return input.sublist(0, inputSize);
+    }
+
+    return <double>[...input, ...List<double>.filled(inputSize - input.length, 0)];
   }
 
   List<List<double>> _forwardWithActivations(List<double> input) {
@@ -107,11 +131,21 @@ class MicroLayoutModel {
   }
 
   double _trainSample(List<double> input, double target, double learningRate) {
+    if (input.any((value) => !value.isFinite) || !target.isFinite || !learningRate.isFinite || learningRate <= 0) {
+      return double.nan;
+    }
+
     final activations = _forwardWithActivations(input);
     final predictions = activations.last;
     final output = predictions.first;
+    if (!output.isFinite) {
+      return double.nan;
+    }
     final error = output - target;
     final loss = error * error;
+    if (!loss.isFinite) {
+      return double.nan;
+    }
 
     var downstreamGradient = <double>[2 * error];
 
@@ -122,14 +156,28 @@ class MicroLayoutModel {
       final propagatedGradient = List<double>.filled(layerInput.length, 0);
 
       for (var outIndex = 0; outIndex < _kernels[layerIndex].length; outIndex++) {
-        final activationGradient = isOutputLayer ? downstreamGradient[outIndex] : downstreamGradient[outIndex] * _reluDerivative(layerOutput[outIndex]);
+        final rawActivationGradient = isOutputLayer ? downstreamGradient[outIndex] : downstreamGradient[outIndex] * _reluDerivative(layerOutput[outIndex]);
+        final activationGradient = _clipGradient(rawActivationGradient);
+        if (!activationGradient.isFinite) {
+          return double.nan;
+        }
 
         for (var inIndex = 0; inIndex < _kernels[layerIndex][outIndex].length; inIndex++) {
           propagatedGradient[inIndex] += _kernels[layerIndex][outIndex][inIndex] * activationGradient;
-          _kernels[layerIndex][outIndex][inIndex] -= learningRate * activationGradient * layerInput[inIndex];
+          final weightDelta = learningRate * activationGradient * layerInput[inIndex];
+          if (!weightDelta.isFinite) {
+            return double.nan;
+          }
+          final nextWeight = _kernels[layerIndex][outIndex][inIndex] - weightDelta;
+          _kernels[layerIndex][outIndex][inIndex] = nextWeight.isFinite ? nextWeight : _kernels[layerIndex][outIndex][inIndex];
         }
 
-        _biases[layerIndex][outIndex] -= learningRate * activationGradient;
+        final biasDelta = learningRate * activationGradient;
+        if (!biasDelta.isFinite) {
+          return double.nan;
+        }
+        final nextBias = _biases[layerIndex][outIndex] - biasDelta;
+        _biases[layerIndex][outIndex] = nextBias.isFinite ? nextBias : _biases[layerIndex][outIndex];
       }
 
       downstreamGradient = propagatedGradient;
@@ -154,4 +202,17 @@ class MicroLayoutModel {
   double _relu(double value) => value > 0 ? value : 0;
 
   double _reluDerivative(double activatedValue) => activatedValue > 0 ? 1 : 0;
+
+  double _clipGradient(double value) {
+    if (!value.isFinite) {
+      return double.nan;
+    }
+    if (value > _gradientClipValue) {
+      return _gradientClipValue;
+    }
+    if (value < -_gradientClipValue) {
+      return -_gradientClipValue;
+    }
+    return value;
+  }
 }

@@ -142,8 +142,19 @@ class ColaLayoutService extends Manager {
   }
 
   Future<void> runAutoLayout() async {
-    if (_isRunning) return;
-    if (state.nodes.isEmpty) return;
+    print(
+      '[NEURAL_POLISH] runAutoLayout_enter isRunning=$_isRunning '
+      'nodes=${state.nodes.length} autoLayoutUseNeuralPolish=${state.autoLayoutUseNeuralPolish} '
+      'autoLayoutUsePolish=${state.autoLayoutUsePolish}',
+    );
+    if (_isRunning) {
+      print('[NEURAL_POLISH] runAutoLayout_skip reason=already_running');
+      return;
+    }
+    if (state.nodes.isEmpty) {
+      print('[NEURAL_POLISH] runAutoLayout_skip reason=no_nodes');
+      return;
+    }
 
     // Создаем новый Completer для этого запуска
     _layoutCompleter = Completer<void>();
@@ -187,15 +198,19 @@ class ColaLayoutService extends Manager {
 
     try {
       // 0. Сворачиваем все развернутые swimlane узлы перед запуском Cola
+      print('[NEURAL_POLISH] runAutoLayout_before_collapse');
       await _collapseExpandedSwimlanes();
+      print('[NEURAL_POLISH] runAutoLayout_after_collapse');
 
       // 2. Включаем loading indicator
       state.isLoading = true;
       tileManager.onStateUpdate();
+      print('[NEURAL_POLISH] runAutoLayout_before_selectAllNodes');
 
       // 3. Переносим все узлы в nodesSelected (используем метод NodeManager)
       _nodesList.clear();
       _nodesList.addAll(await nodeManager.selectAllNodesForLayout());
+      print('[NEURAL_POLISH] runAutoLayout_after_selectAllNodes count=${_nodesList.length}');
 
       if (_nodesList.isEmpty) {
         _isRunning = false;
@@ -226,18 +241,23 @@ class ColaLayoutService extends Manager {
       arrowManager.selectAllArrows();
 
       if (state.autoLayoutUseCola) {
+        print('[NEURAL_POLISH] runAutoLayout_branch cola');
         // 8. Инициализируем Cola если нужно
         if (!ColaInterop.isReady) {
+          print('[NEURAL_POLISH] runAutoLayout_before_cola_init');
           await ColaInterop.init();
+          print('[NEURAL_POLISH] runAutoLayout_after_cola_init');
         }
 
         // 9. Создаем Cola layout
         _createColaLayout();
+        print('[NEURAL_POLISH] runAutoLayout_after_createColaLayout');
 
         // 10. Запускаем анимированную раскладку
         _setCurrentLayoutProcess('Смешивание');
         _runAnimatedLayout();
       } else {
+        print('[NEURAL_POLISH] runAutoLayout_branch repair_only');
         _setCurrentLayoutProcess('Расстановка');
         await _runRepairOnlyLayout();
       }
@@ -531,7 +551,7 @@ class ColaLayoutService extends Manager {
     print(
       'Repair-only: iterations=${repairReport.iterations}, moved=${repairReport.movedNodes}, remaining=${repairReport.hasHardCollisions}',
     );
-    await _finishLayout();
+    await _runPostRepairStages();
   }
 
   void _onLayoutTick(List<NodePosition> positions) {
@@ -731,6 +751,14 @@ class ColaLayoutService extends Manager {
     _applyTargetPositionsImmediately();
     _captureDistributionCenter();
 
+    await _runPostRepairStages();
+  }
+
+  Future<void> _runPostRepairStages() async {
+    if (!_isRunning || _isFinishing) {
+      return;
+    }
+
     _setCurrentLayoutProcess('Расстановка');
     await _repairLayoutCollisions(maxIterations: 8);
 
@@ -753,10 +781,16 @@ class ColaLayoutService extends Manager {
     }
 
     final hasStoredNeuralModel = await _neuralPolishService.hasStoredModel();
+    print(
+      '[NEURAL_POLISH] gate autoLayoutUseNeuralPolish=${state.autoLayoutUseNeuralPolish} '
+      'hasStoredModel=$hasStoredNeuralModel isRunning=$_isRunning isFinishing=$_isFinishing',
+    );
 
     if (state.autoLayoutUseNeuralPolish && hasStoredNeuralModel) {
+      print('[NEURAL_POLISH] stage_start');
       _setCurrentLayoutProcess('Нейрокоррекция');
       await _neuralPolishService.run();
+      print('[NEURAL_POLISH] stage_end');
     }
 
     if (!_isRunning || _isFinishing) {
@@ -850,6 +884,15 @@ class ColaLayoutService extends Manager {
         movedInIteration = true;
 
         final node = _nodesList[entry.key];
+        final originPosition = node.aPosition ?? (state.delta + node.position);
+        if (state.autoLayoutTrainNeuralPolish) {
+          await _neuralPolishService.saveAcceptedPlacementSample(
+            node: node,
+            originPosition: originPosition,
+            candidatePosition: bestCandidate.position,
+            sampleSource: 'auto_repair',
+          );
+        }
 
         if (skipAnimation || !_animateRepair) {
           nodeManager.updateNodePositionForLayout(node, bestCandidate.position);
@@ -956,6 +999,7 @@ class ColaLayoutService extends Manager {
             node: node,
             originPosition: originPosition,
             candidatePosition: bestCandidate.position,
+            sampleSource: 'auto_polish',
           );
         }
         if (skipAnimation || !_animateRepair) {

@@ -5,10 +5,16 @@ import 'package:fbpmn/src/micro_layout/models/layout_candidate.dart';
 import 'package:fbpmn/src/micro_layout/models/layout_candidate_evaluation.dart';
 import 'package:fbpmn/src/micro_layout/models/layout_search_request.dart';
 import 'package:fbpmn/src/micro_layout/models/layout_search_result.dart';
+import 'package:fbpmn/src/micro_layout/models/layout_training_context.dart';
 import 'package:fbpmn/src/micro_layout/services/candidate_feature_extractor.dart';
 import 'package:fbpmn/src/micro_layout/services/layout_candidate_generator.dart';
 import 'package:fbpmn/src/micro_layout/services/layout_simulation_evaluator.dart';
 import 'package:fbpmn/src/micro_layout/services/micro_layout_model.dart';
+import 'package:fbpmn/src/models/arrow.dart';
+import 'package:fbpmn/src/models/attribute.dart';
+import 'package:fbpmn/src/models/connections.dart';
+import 'package:fbpmn/src/models/table.node.dart';
+import 'package:fbpmn/src/utils/editor_config.dart';
 
 class MicroLayoutPlanner {
   final LayoutCandidateGenerator candidateGenerator;
@@ -37,7 +43,7 @@ class MicroLayoutPlanner {
         .toList(growable: false)
       ..sort((a, b) => b.predictedScore.compareTo(a.predictedScore));
 
-    final topK = min(request.topKForExactEvaluation, rankedCandidates.length);
+    final topK = min(max(request.topKForExactEvaluation, 10), rankedCandidates.length);
     final exactEvaluations = <LayoutCandidateEvaluation>[];
 
     for (var index = 0; index < topK; index++) {
@@ -65,37 +71,230 @@ class MicroLayoutPlanner {
       return candidate.heuristicScore;
     }
 
+    final candidateRect = candidate.candidateRect;
+    final nearestFreeSpace = featureExtractor.resolveNearestFreeSpace(request.freeSpaceRects, candidateRect);
+    final contextSnapshot = request.contextSnapshot;
+    final contextWidth = contextSnapshot.contextWidth <= 0 ? contextSnapshot.bounds.width : contextSnapshot.contextWidth;
+    final contextHeight = contextSnapshot.contextHeight <= 0 ? contextSnapshot.bounds.height : contextSnapshot.contextHeight;
+    final contextArea = max(1.0, contextWidth * contextHeight);
+    var overlapCount = 0.0;
+    var overlapArea = 0.0;
+
+    for (final node in request.nearbyNodes) {
+      if (node.id == request.node.id) {
+        continue;
+      }
+
+      final nodeCenter = (node.aPosition ?? node.position) + Offset(node.size.width / 2, node.size.height / 2);
+      final nodeRect = Rect.fromCenter(
+        center: nodeCenter,
+        width: node.size.width,
+        height: node.size.height,
+      );
+      final overlap = candidateRect.intersect(nodeRect);
+      if (!overlap.isEmpty) {
+        overlapCount += 1;
+        overlapArea += overlap.width * overlap.height;
+      }
+    }
+
+    final incidentArrowLength = request.incidentArrows.fold<double>(
+      0,
+      (sum, arrow) => sum + _arrowLength(arrow),
+    );
+    final sourceMetrics = _buildSourceMetrics(request);
+    final trainingContext = LayoutTrainingContext(
+      sampleSource: 'auto',
+      qType: request.node.qType,
+      isManualSample: false,
+      isConflictNode: sourceMetrics.nodeOverlapCount > 0 || sourceMetrics.edgeIntersectionCount > 0,
+      totalConnectionCount: _countConnections(request.node),
+      incidentArrowCount: request.incidentArrows.length,
+      nodeConnectionsBefore: _captureConnectionsProfile(request.node.connections),
+      attributeConnectionsBefore: _captureAttributeConnectionsProfile(request.node.attributes),
+      nodeConnectionsAfter: _captureConnectionsProfile(request.node.connections),
+      attributeConnectionsAfter: _captureAttributeConnectionsProfile(request.node.attributes),
+      sourceNodeOverlapCount: sourceMetrics.nodeOverlapCount,
+      sourceEdgeIntersectionCount: sourceMetrics.edgeIntersectionCount,
+      sourceEdgeCrossings: sourceMetrics.edgeCrossings,
+      sourceIncidentArrowLength: sourceMetrics.totalIncidentArrowLength,
+      resultNodeOverlapCount: overlapCount,
+      resultEdgeIntersectionCount: _countArrowIntersections(candidateRect, request),
+      resultEdgeCrossings: sourceMetrics.edgeCrossings,
+      resultIncidentArrowLength: incidentArrowLength,
+      movementDistance: candidate.movementDistance,
+      freeSpaceBounds: nearestFreeSpace,
+    );
+
     final featureVector = featureExtractor.extract(
       node: request.node,
       candidate: candidate,
-      tileSnapshot: request.tileSnapshot,
+      contextSnapshot: contextSnapshot,
       incidentArrows: request.incidentArrows,
-      freeSpaceBounds: _resolveNearestFreeSpace(request.freeSpaceRects, candidate.candidateRect),
-      localNodeDensity: _safeDensity(request.nearbyNodes.length, request.tileSnapshot.bounds),
-      localArrowDensity: _safeDensity(request.incidentArrows.length, request.tileSnapshot.bounds),
+      freeSpaceBounds: nearestFreeSpace,
+      localNodeDensity: _safeDensity(request.nearbyNodes.length, contextSnapshot.bounds),
+      localArrowDensity: _safeDensity(request.contextArrows.length, contextSnapshot.bounds),
       minDistanceToNeighbor: _minDistanceToNeighbor(request, candidate),
+      candidateNodeOverlapCount: overlapCount,
+      candidateNodeOverlapAreaRatio: overlapArea / contextArea,
+      candidateEdgeIntersectionCount: _countArrowIntersections(candidateRect, request),
+      candidateIncidentArrowLengthRatio: incidentArrowLength / max(contextSnapshot.bounds.longestSide, 1.0),
+      trainingContext: trainingContext,
     );
 
     return model!.predict(featureVector);
   }
 
-  Rect? _resolveNearestFreeSpace(List<Rect> freeSpaceRects, Rect candidateRect) {
-    if (freeSpaceRects.isEmpty) {
-      return null;
-    }
+  double _countArrowIntersections(Rect candidateRect, LayoutSearchRequest request) {
+    var intersections = 0.0;
 
-    Rect? bestRect;
-    double? bestDistance;
-
-    for (final rect in freeSpaceRects) {
-      final distance = (rect.center - candidateRect.center).distance;
-      if (bestDistance == null || distance < bestDistance) {
-        bestDistance = distance;
-        bestRect = rect;
+    for (final arrow in _resolveRelevantArrows(request)) {
+      for (final rect in _arrowRects(arrow)) {
+        if (!candidateRect.intersect(rect).isEmpty) {
+          intersections += 1;
+        }
       }
     }
 
-    return bestRect;
+    return intersections;
+  }
+
+  List<Arrow> _resolveRelevantArrows(LayoutSearchRequest request) {
+    final arrows = <Arrow>[];
+    final seen = <String>{};
+
+    for (final arrow in request.contextArrows) {
+      if (seen.add(arrow.id)) {
+        arrows.add(arrow);
+      }
+    }
+
+    return arrows;
+  }
+
+  ({double nodeOverlapCount, double edgeIntersectionCount, double edgeCrossings, double totalIncidentArrowLength}) _buildSourceMetrics(
+    LayoutSearchRequest request,
+  ) {
+    final nodeRect = request.node.aPosition == null
+        ? Rect.fromLTWH(request.node.position.dx, request.node.position.dy, request.node.size.width, request.node.size.height)
+        : Rect.fromLTWH(request.node.aPosition!.dx, request.node.aPosition!.dy, request.node.size.width, request.node.size.height);
+    final relevantArrows = _resolveRelevantArrows(request);
+    final otherArrows = relevantArrows.where((arrow) => !request.incidentArrows.contains(arrow)).toList(growable: false);
+
+    var nodeOverlapCount = 0.0;
+    for (final nearbyNode in request.nearbyNodes) {
+      if (nearbyNode.id == request.node.id) {
+        continue;
+      }
+      final nodeCenter = (nearbyNode.aPosition ?? nearbyNode.position) + Offset(nearbyNode.size.width / 2, nearbyNode.size.height / 2);
+      final nearbyRect = Rect.fromCenter(center: nodeCenter, width: nearbyNode.size.width, height: nearbyNode.size.height);
+      if (!nodeRect.intersect(nearbyRect).isEmpty) {
+        nodeOverlapCount += 1;
+      }
+    }
+
+    var edgeIntersectionCount = 0.0;
+    for (final arrow in otherArrows) {
+      for (final rect in _arrowRects(arrow)) {
+        if (!nodeRect.intersect(rect).isEmpty) {
+          edgeIntersectionCount += 1;
+        }
+      }
+    }
+
+    var edgeCrossings = 0.0;
+    var totalIncidentArrowLength = 0.0;
+    for (final incidentArrow in request.incidentArrows) {
+      final incidentRects = _arrowRects(incidentArrow);
+      totalIncidentArrowLength += _arrowLength(incidentArrow);
+      for (final arrow in otherArrows) {
+        final otherRects = _arrowRects(arrow);
+        for (final incidentRect in incidentRects) {
+          for (final otherRect in otherRects) {
+            if (!incidentRect.intersect(otherRect).isEmpty) {
+              edgeCrossings += 1;
+            }
+          }
+        }
+      }
+    }
+
+    return (
+      nodeOverlapCount: nodeOverlapCount,
+      edgeIntersectionCount: edgeIntersectionCount,
+      edgeCrossings: edgeCrossings,
+      totalIncidentArrowLength: totalIncidentArrowLength,
+    );
+  }
+
+  ConnectionSideProfile _captureConnectionsProfile(Connections? connections) {
+    return ConnectionSideProfile(
+      top: connections?.length('top') ?? 0,
+      right: connections?.length('right') ?? 0,
+      bottom: connections?.length('bottom') ?? 0,
+      left: connections?.length('left') ?? 0,
+    );
+  }
+
+  ConnectionSideProfile _captureAttributeConnectionsProfile(List<Attribute> attributes) {
+    var top = 0;
+    var right = 0;
+    var bottom = 0;
+    var left = 0;
+    for (final attribute in attributes) {
+      top += attribute.connections?.length('top') ?? 0;
+      right += attribute.connections?.length('right') ?? 0;
+      bottom += attribute.connections?.length('bottom') ?? 0;
+      left += attribute.connections?.length('left') ?? 0;
+    }
+    return ConnectionSideProfile(top: top, right: right, bottom: bottom, left: left);
+  }
+
+  int _countConnections(TableNode node) {
+    final nodeConnections = _captureConnectionsProfile(node.connections).total;
+    final attributeConnections = _captureAttributeConnectionsProfile(node.attributes).total;
+    return nodeConnections + attributeConnections;
+  }
+
+  List<Rect> _arrowRects(Arrow arrow) {
+    final rects = arrow.rects;
+    if (rects != null && rects.isNotEmpty) {
+      return rects;
+    }
+
+    final coordinates = arrow.coordinates;
+    if (coordinates == null || coordinates.length < 2) {
+      return const <Rect>[];
+    }
+
+    final result = <Rect>[];
+    for (var index = 0; index < coordinates.length - 1; index++) {
+      final start = coordinates[index];
+      final end = coordinates[index + 1];
+      final half = EditorConfig.arrowSelectedWidth / 2;
+      result.add(
+        Rect.fromLTRB(
+          min(start.dx, end.dx) - half,
+          min(start.dy, end.dy) - half,
+          max(start.dx, end.dx) + half,
+          max(start.dy, end.dy) + half,
+        ),
+      );
+    }
+    return result;
+  }
+
+  double _arrowLength(Arrow arrow) {
+    final coordinates = arrow.coordinates;
+    if (coordinates == null || coordinates.length < 2) {
+      return 0;
+    }
+
+    var length = 0.0;
+    for (var index = 0; index < coordinates.length - 1; index++) {
+      length += (coordinates[index + 1] - coordinates[index]).distance;
+    }
+    return length;
   }
 
   double _minDistanceToNeighbor(LayoutSearchRequest request, LayoutCandidate candidate) {

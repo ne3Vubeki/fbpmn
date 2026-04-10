@@ -2,6 +2,7 @@ import 'package:fbpmn/src/micro_layout/models/layout_training_sample.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_snapshot.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_snapshot_metadata.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_weights.dart';
+import 'package:fbpmn/src/micro_layout/services/candidate_feature_extractor.dart';
 import 'package:fbpmn/src/micro_layout/services/training_sample_repository.dart';
 import 'package:fbpmn/src/services/indexed_db/indexed_db_app_definition.dart';
 import 'package:fbpmn/src/services/indexed_db/indexed_db_service.dart';
@@ -12,6 +13,7 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
 
   final IndexedDbService indexedDbService;
   Future<void>? _opening;
+  int _sampleRecordSequence = 0;
 
   IndexedDbTrainingSampleRepository({required this.indexedDbService});
 
@@ -105,6 +107,8 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
       schemaVersion: schemaVersion,
       modelVersion: modelVersion,
       buildVersion: buildVersion,
+      datasetSchemaTag: 'neural_polish_v5',
+      featureCount: CandidateFeatureExtractor.featureCount,
       exportedAt: DateTime.now(),
       sampleCount: samples.length,
       hasWeights: weights != null,
@@ -129,7 +133,7 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
   Future<List<LayoutTrainingSample>> getSamples() async {
     final records = await _withDatabase(() => indexedDbService.getAll(storeName: IndexedDbAppStores.microLayoutSamples));
     return records
-        .map((record) => _mapRecord(record))
+        .map((record) => _mapSampleRecord(record))
         .map(LayoutTrainingSample.fromJson)
         .toList(growable: false);
   }
@@ -190,7 +194,7 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
     await _withDatabase(
       () => indexedDbService.put(
         storeName: IndexedDbAppStores.microLayoutSamples,
-        value: sample.toJson(),
+        value: _buildSampleRecord(sample),
       ),
     );
   }
@@ -204,7 +208,7 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
     await _withDatabase(
       () => indexedDbService.putAll(
         storeName: IndexedDbAppStores.microLayoutSamples,
-        values: samples.map((sample) => sample.toJson()).toList(growable: false),
+        values: samples.map(_buildSampleRecord).toList(growable: false),
       ),
     );
   }
@@ -234,5 +238,23 @@ class IndexedDbTrainingSampleRepository implements TrainingSampleRepository {
 
   Map<String, dynamic> _mapRecord(dynamic record) {
     return Map<String, dynamic>.from(record as Map);
+  }
+
+  Map<String, dynamic> _mapSampleRecord(dynamic record) {
+    final json = _mapRecord(record);
+    json.remove('id');
+    return json;
+  }
+
+  Map<String, dynamic> _buildSampleRecord(LayoutTrainingSample sample) {
+    final json = sample.toJson();
+    json['id'] = _nextSampleRecordId();
+    return json;
+  }
+
+  String _nextSampleRecordId() {
+    final timestampMicros = DateTime.now().microsecondsSinceEpoch;
+    final sequence = _sampleRecordSequence++;
+    return 'sample_${timestampMicros}_$sequence';
   }
 }

@@ -158,6 +158,7 @@ class EventService {
                 break;
               case 'autoLayoutUseNeuralPolish':
                 state.autoLayoutUseNeuralPolish = newValue == true;
+                print('[NEURAL_POLISH] config autoLayoutUseNeuralPolish=${state.autoLayoutUseNeuralPolish}');
                 break;
               case 'autoLayoutTrainNeuralPolish':
                 state.autoLayoutTrainNeuralPolish = newValue == true;

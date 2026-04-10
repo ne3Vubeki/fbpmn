@@ -2,6 +2,7 @@ import 'package:fbpmn/src/editor_state.dart';
 import 'package:fbpmn/src/micro_layout/models/layout_training_sample.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_training_batch.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_weights.dart';
+import 'package:fbpmn/src/micro_layout/services/candidate_feature_extractor.dart';
 import 'package:fbpmn/src/micro_layout/services/indexed_db_training_sample_repository.dart';
 import 'package:fbpmn/src/micro_layout/services/micro_layout_model.dart';
 import 'package:fbpmn/src/micro_layout/services/training_sample_repository.dart';
@@ -42,7 +43,7 @@ class MicroLayoutTrainingResult {
 }
 
 class MicroLayoutTrainer {
-  static const int _defaultMicroLayoutInputSize = 28;
+  static const int _defaultMicroLayoutInputSize = CandidateFeatureExtractor.featureCount;
   static bool _isTraining = false;
 
   final TrainingSampleRepository repository;
@@ -171,7 +172,8 @@ class MicroLayoutTrainer {
     bool acceptedOnly = false,
     void Function(MicroLayoutTrainingProgress progress)? onProgress,
   }) async {
-    final samples = acceptedOnly ? await repository.getAcceptedSamples() : await repository.getSamples();
+    final rawSamples = acceptedOnly ? await repository.getAcceptedSamples() : await repository.getSamples();
+    final samples = rawSamples.where(_isSampleValid).toList(growable: false);
     if (samples.isEmpty) {
       return const MicroLayoutTrainingResult(sampleCount: 0, epochs: 0, loss: 0);
     }
@@ -210,6 +212,54 @@ class MicroLayoutTrainer {
 
   Future<MicroLayoutWeights?> loadWeights() {
     return repository.getWeights();
+  }
+
+  bool _isSampleValid(LayoutTrainingSample sample) {
+    final context = sample.trainingContext;
+    if (context == null) {
+      return false;
+    }
+
+    if (context.schemaVersion < 5) {
+      return false;
+    }
+
+    if (context.isManualSample) {
+      return false;
+    }
+
+    if (context.sampleSource != 'auto') {
+      return false;
+    }
+
+    const allowedDatasetKinds = <String>{
+      'auto_immediate',
+      'auto_repair_immediate',
+      'auto_polish_immediate',
+    };
+
+    if (!allowedDatasetKinds.contains(context.datasetKind)) {
+      return false;
+    }
+
+    if (context.outcomeKind != 'immediate') {
+      return false;
+    }
+
+    if (!context.isConflictNode) {
+      return false;
+    }
+
+    if (!sample.targetScore.isFinite) {
+      return false;
+    }
+
+    final featureValues = sample.features.toList();
+    if (featureValues.isEmpty) {
+      return false;
+    }
+
+    return featureValues.every((value) => value.isFinite);
   }
 
   MicroLayoutTrainingBatch _createBatch(List<LayoutTrainingSample> samples) {

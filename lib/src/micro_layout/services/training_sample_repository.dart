@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:fbpmn/src/micro_layout/models/layout_training_sample.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_snapshot.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_snapshot_metadata.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_weights.dart';
+import 'package:fbpmn/src/micro_layout/services/candidate_feature_extractor.dart';
 
 abstract class TrainingSampleRepository {
   Future<void> clearSamples();
@@ -40,8 +43,13 @@ class InMemoryTrainingSampleRepository implements TrainingSampleRepository {
   MicroLayoutWeights? _weights;
   MicroLayoutSnapshotMetadata? _metadata;
 
-  bool _containsSample(String sampleId) {
-    return _samples.any((sample) => sample.id == sampleId);
+  String _sampleFingerprint(LayoutTrainingSample sample) {
+    return jsonEncode(sample.toJson());
+  }
+
+  bool _containsSample(LayoutTrainingSample sample) {
+    final fingerprint = _sampleFingerprint(sample);
+    return _samples.any((existingSample) => _sampleFingerprint(existingSample) == fingerprint);
   }
 
   @override
@@ -89,9 +97,11 @@ class InMemoryTrainingSampleRepository implements TrainingSampleRepository {
         schemaVersion: schemaVersion,
         modelVersion: modelVersion,
         buildVersion: buildVersion,
+        datasetSchemaTag: 'neural_polish_v5',
+        featureCount: CandidateFeatureExtractor.featureCount,
         exportedAt: DateTime.now(),
         sampleCount: samples.length,
-        hasWeights: weights != null,
+        hasWeights: _weights != null,
       );
 
     _metadata = metadata;
@@ -114,7 +124,7 @@ class InMemoryTrainingSampleRepository implements TrainingSampleRepository {
     }
 
     for (final sample in snapshot.samples) {
-      if (!_containsSample(sample.id)) {
+      if (!_containsSample(sample)) {
         _samples.add(sample);
       }
     }
@@ -128,7 +138,7 @@ class InMemoryTrainingSampleRepository implements TrainingSampleRepository {
 
   @override
   Future<void> saveSample(LayoutTrainingSample sample) async {
-    if (_containsSample(sample.id)) {
+    if (_containsSample(sample)) {
       return;
     }
     _samples.add(sample);
@@ -137,7 +147,7 @@ class InMemoryTrainingSampleRepository implements TrainingSampleRepository {
   @override
   Future<void> saveSamples(List<LayoutTrainingSample> samples) async {
     for (final sample in samples) {
-      if (_containsSample(sample.id)) {
+      if (_containsSample(sample)) {
         continue;
       }
       _samples.add(sample);

@@ -425,15 +425,6 @@ class _StableGridImageState extends State<StableGridImage> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (_editorState.autoLayoutTrainNeuralPolish &&
-                                _editorState.currentLayoutProcess.isNotEmpty) ...[
-                              const Icon(
-                                Icons.psychology_alt_rounded,
-                                size: 16,
-                                color: Color(0xFF7ED957),
-                              ),
-                              const SizedBox(width: 6),
-                            ],
                             Text(
                               _editorState.currentLayoutProcess,
                               style: const TextStyle(
@@ -456,10 +447,27 @@ class _StableGridImageState extends State<StableGridImage> {
                                       await _colaLayoutService.stopLayout();
                                     },
                                     child: Center(
-                                      child: Container(
+                                      child: SizedBox(
                                         width: 10,
                                         height: 10,
-                                        color: Colors.red,
+                                        child: Stack(
+                                          children: [
+                                            const Positioned.fill(
+                                              child: ColoredBox(color: Colors.red),
+                                            ),
+                                            if (_editorState.autoLayoutTrainNeuralPolish &&
+                                                _editorState.currentLayoutProcess.isNotEmpty)
+                                              const Positioned(
+                                                left: 2,
+                                                top: 2,
+                                                child: SizedBox(
+                                                  width: 6,
+                                                  height: 6,
+                                                  child: ColoredBox(color: Color(0xFF7ED957)),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),

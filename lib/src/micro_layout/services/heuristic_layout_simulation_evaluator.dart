@@ -38,9 +38,9 @@ class HeuristicLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
     }
 
     final movementDistance = candidate.movementDistance;
-    final tileArea = max(1.0, request.tileSnapshot.bounds.width * request.tileSnapshot.bounds.height);
+    final contextArea = max(1.0, request.contextSnapshot.bounds.width * request.contextSnapshot.bounds.height);
     final nodeArea = candidateRect.width * candidateRect.height;
-    final spacingScore = max(0.0, (tileArea - nodeArea) / tileArea);
+    final spacingScore = max(0.0, (contextArea - nodeArea) / contextArea);
     final alignmentScore = _alignmentScore(request, candidate);
 
     final metrics = LayoutQualityMetrics(

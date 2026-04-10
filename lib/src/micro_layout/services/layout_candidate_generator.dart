@@ -22,11 +22,9 @@ class LayoutCandidateGenerator {
 
       candidates.add(
         LayoutCandidate(
-          nodeId: request.node.id,
           originPosition: origin,
           candidatePosition: constrained,
           nodeSize: request.node.size,
-          tileId: request.tileSnapshot.tileId,
           heuristicScore: heuristicScore,
         ),
       );
