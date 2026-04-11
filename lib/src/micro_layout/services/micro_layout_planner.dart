@@ -17,6 +17,8 @@ import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 
 class MicroLayoutPlanner {
+  static const double _minimumExactScoreGain = 0.5;
+
   final LayoutCandidateGenerator candidateGenerator;
   final CandidateFeatureExtractor featureExtractor;
   final MicroLayoutModel? model;
@@ -34,6 +36,22 @@ class MicroLayoutPlanner {
     if (generatedCandidates.isEmpty) {
       return const LayoutSearchResult(bestCandidate: null);
     }
+
+    final originCandidate = generatedCandidates.firstWhere(
+      (candidate) => candidate.movementDistance <= 0.01,
+      orElse: () => LayoutCandidate(
+        originPosition: request.node.aPosition ?? request.node.position,
+        candidatePosition: request.node.aPosition ?? request.node.position,
+        nodeSize: request.node.size,
+        heuristicScore: 1,
+      ),
+    );
+
+    final baselineEvaluation = await evaluator.evaluate(
+      request: request,
+      candidate: originCandidate,
+      predictedScore: _predictCandidateScore(request, originCandidate),
+    );
 
     final rankedCandidates = generatedCandidates
         .map((candidate) => (
@@ -56,11 +74,22 @@ class MicroLayoutPlanner {
       exactEvaluations.add(evaluation);
     }
 
+    final hasBaselineInTopK = exactEvaluations.any(
+      (evaluation) => evaluation.candidate.movementDistance <= 0.01,
+    );
+    if (!hasBaselineInTopK) {
+      exactEvaluations.add(baselineEvaluation);
+    }
+
     exactEvaluations.sort((a, b) => b.exactScore.compareTo(a.exactScore));
     final bestEvaluation = exactEvaluations.isEmpty ? null : exactEvaluations.first;
 
+    final shouldKeepCurrentPosition = bestEvaluation == null ||
+        bestEvaluation.candidate.movementDistance <= 0.01 ||
+        bestEvaluation.exactScore <= baselineEvaluation.exactScore + _minimumExactScoreGain;
+
     return LayoutSearchResult(
-      bestCandidate: bestEvaluation?.candidate,
+      bestCandidate: shouldKeepCurrentPosition ? null : bestEvaluation.candidate,
       generatedCandidates: generatedCandidates,
       evaluatedCandidates: exactEvaluations,
     );

@@ -224,11 +224,12 @@ class MicroLayoutTrainer {
       return false;
     }
 
-    if (context.isManualSample) {
-      return false;
-    }
+    const allowedSampleSources = <String>{
+      'auto',
+      'manual',
+    };
 
-    if (context.sampleSource != 'auto') {
+    if (!allowedSampleSources.contains(context.sampleSource)) {
       return false;
     }
 
@@ -236,17 +237,20 @@ class MicroLayoutTrainer {
       'auto_immediate',
       'auto_repair_immediate',
       'auto_polish_immediate',
+      'manual_immediate',
+      'manual_deferred',
     };
 
     if (!allowedDatasetKinds.contains(context.datasetKind)) {
       return false;
     }
 
-    if (context.outcomeKind != 'immediate') {
-      return false;
-    }
+    const allowedOutcomeKinds = <String>{
+      'immediate',
+      'deferred',
+    };
 
-    if (!context.isConflictNode) {
+    if (!allowedOutcomeKinds.contains(context.outcomeKind)) {
       return false;
     }
 

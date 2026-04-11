@@ -789,7 +789,16 @@ class ColaLayoutService extends Manager {
     if (state.autoLayoutUseNeuralPolish && hasStoredNeuralModel) {
       print('[NEURAL_POLISH] stage_start');
       _setCurrentLayoutProcess('Нейрокоррекция');
-      await _neuralPolishService.run();
+      final neuralOccupancy = _buildOccupancyMap();
+      final neuralStats = _collectCollisionStats(neuralOccupancy, mode: _ScoringMode.polish);
+      final activeNodeIds = neuralStats.nodeScores.entries
+          .where((entry) => entry.value.hasHardCollisions && _hasActualHardCollision(entry.key))
+          .map((entry) => _nodesList[entry.key].id)
+          .toSet();
+      await _neuralPolishService.run(
+        activeNodeIds: activeNodeIds,
+        fixedSearchBounds: _buildCurrentLayoutBounds(),
+      );
       print('[NEURAL_POLISH] stage_end');
     }
 
@@ -2212,6 +2221,35 @@ class ColaLayoutService extends Manager {
 
   Rect _getDynamicCanvasBounds() {
     return scrollHandler.navigationBounds;
+  }
+
+  Rect _buildCurrentLayoutBounds() {
+    if (_nodesList.isEmpty) {
+      return _getDynamicCanvasBounds();
+    }
+
+    var left = double.infinity;
+    var top = double.infinity;
+    var right = double.negativeInfinity;
+    var bottom = double.negativeInfinity;
+
+    for (int index = 0; index < _nodesList.length; index++) {
+      final node = _nodesList[index];
+      final position = _targetPositions[index] ?? node.aPosition;
+      if (position == null) {
+        continue;
+      }
+      left = min(left, position.dx);
+      top = min(top, position.dy);
+      right = max(right, position.dx + node.size.width);
+      bottom = max(bottom, position.dy + node.size.height);
+    }
+
+    if (!left.isFinite || !top.isFinite || !right.isFinite || !bottom.isFinite) {
+      return _getDynamicCanvasBounds();
+    }
+
+    return Rect.fromLTRB(left, top, right, bottom);
   }
 
   Offset _constrainNodeToCanvas(TableNode node, Offset worldPosition) {

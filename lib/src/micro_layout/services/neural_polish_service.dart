@@ -24,10 +24,14 @@ import 'package:fbpmn/src/services/tile_manager.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 
 class NeuralPolishService {
-  static const double _defaultAnimationSpeed = 0.9;
+  static const double _minimumAppliedMovementDistance = 8.0;
+  static const int _minAnimationFrames = 6;
+  static const int _maxAnimationFrames = 14;
+  static const int _animationFrameMillis = 16;
+  static const int _progressUpdateStride = 4;
+  static const int _animationHeavyUpdateStride = 2;
   static const int _maxGlobalPasses = 3;
   static const int _maxLocalRequeuesPerNode = 2;
-  static const int _contextRegionRadiusInCells = 1;
 
   final EditorState state;
   final TileManager tileManager;
@@ -71,7 +75,12 @@ class NeuralPolishService {
     return MicroLayoutModel.fromWeights(weights);
   }
 
-  Future<void> run({MicroLayoutModel? model, bool applyBestCandidate = true}) async {
+  Future<void> run({
+    MicroLayoutModel? model,
+    bool applyBestCandidate = true,
+    Set<String>? activeNodeIds,
+    Rect? fixedSearchBounds,
+  }) async {
     final resolvedModel = model ?? await loadStoredModel();
     if (resolvedModel == null) {
       print('[NEURAL_POLISH] run_skip reason=model_not_found');
@@ -79,7 +88,17 @@ class NeuralPolishService {
     }
 
     final allNodes = NodeManager.whereAllNodes(state.nodes, (_) => true).whereType<TableNode>().toList(growable: false);
-    final movableNodes = state.nodes.whereType<TableNode>().toList(growable: false);
+    final allArrows = state.arrows.whereType<Arrow>().toList(growable: false);
+    final schemaBounds = fixedSearchBounds ?? _buildSchemaBounds(allNodes);
+    final incidentArrowsByNodeId = _buildIncidentArrowsByNodeId(allArrows);
+    final conflictNodeIds = activeNodeIds == null
+        ? _resolveConflictNodeIds(allNodes, allArrows, incidentArrowsByNodeId)
+        : <String>{...activeNodeIds};
+    final movableNodes = allNodes.where((node) => conflictNodeIds.contains(node.id)).toList(growable: false);
+    if (movableNodes.isEmpty) {
+      print('[NEURAL_POLISH] run_skip reason=no_conflict_nodes');
+      return;
+    }
     print(
       '[NEURAL_POLISH] run_start applyBestCandidate=$applyBestCandidate '
       'nodes=${movableNodes.length}',
@@ -99,7 +118,7 @@ class NeuralPolishService {
     final localRequeueCounts = <String, int>{};
     final processedNodeIds = <String>{};
     var progressStep = 0;
-    final totalSteps = max(1, movableNodes.length * _maxGlobalPasses);
+    final totalSteps = max(1, movableNodes.length);
 
     for (var passIndex = 0; passIndex < _maxGlobalPasses; passIndex++) {
       final queue = <TableNode>[...movableNodes];
@@ -111,20 +130,27 @@ class NeuralPolishService {
         queuedNodeIds.remove(node.id);
         processedNodeIds.add(node.id);
 
-        state.currentLayoutProcessProgress = (progressStep * 100 / totalSteps).clamp(0, 100).toDouble();
-        tileManager.onStateUpdate();
-        nodeManager.onStateUpdate();
-        arrowManager.onStateUpdate();
+        final visibleProgress = min(processedNodeIds.length, totalSteps);
+        state.currentLayoutProcessProgress = (visibleProgress * 100 / totalSteps).clamp(0, 100).toDouble();
+        if (progressStep == 0 || progressStep % _progressUpdateStride == 0) {
+          tileManager.onStateUpdate();
+          nodeManager.onStateUpdate();
+          arrowManager.onStateUpdate();
+        }
         progressStep += 1;
 
-        final runtimeContext = _buildRuntimeContextForNode(node, allNodes);
-        final contextNodes = _resolveContextNodes(runtimeContext, allNodes);
+        if (!conflictNodeIds.contains(node.id)) {
+          continue;
+        }
+
+        final runtimeContext = _buildRuntimeContextForNode(node, allNodes, schemaBounds);
+        final incidentArrows = incidentArrowsByNodeId[node.id] ?? const <Arrow>[];
+        final contextNodes = _resolveContextNodes(runtimeContext, allNodes, node, incidentArrows);
         if (contextNodes.isEmpty) {
           continue;
         }
 
         final contextSnapshot = _createRuntimeContextSnapshot(runtimeContext, contextNodes);
-        final incidentArrows = arrowManager.getArrowsForNodes(<TableNode?>[node]).whereType<Arrow>().toList(growable: false);
         final contextArrows = _resolveContextArrows(runtimeContext, contextNodes, incidentArrows);
         final request = LayoutSearchRequest(
           node: node,
@@ -134,8 +160,8 @@ class NeuralPolishService {
           contextArrows: contextArrows,
           freeSpaceRects: _buildFreeSpaceRects(runtimeContext.bounds, contextNodes, node),
           searchBounds: runtimeContext.bounds,
-          maxCandidates: 20,
-          topKForExactEvaluation: 5,
+          maxCandidates: 48,
+          topKForExactEvaluation: 12,
         );
 
         final result = await planner.findBestCandidate(request);
@@ -145,7 +171,18 @@ class NeuralPolishService {
         }
 
         final bestEvaluation = result.evaluatedCandidates.isEmpty ? null : result.evaluatedCandidates.first;
-        if (bestEvaluation == null || !bestEvaluation.accepted || bestCandidate.movementDistance <= 0.01) {
+        if (bestEvaluation == null || !bestEvaluation.accepted || bestCandidate.movementDistance < _minimumAppliedMovementDistance) {
+          continue;
+        }
+
+        final globalValidation = _captureContextSnapshot(
+          node: node,
+          candidatePosition: bestCandidate.candidatePosition,
+          nearbyNodes: allNodes,
+          incidentArrows: incidentArrows,
+          contextArrows: allArrows,
+        );
+        if (globalValidation.isConflictNode) {
           continue;
         }
 
@@ -163,6 +200,7 @@ class NeuralPolishService {
           contextNodes: contextNodes,
           contextArrows: contextArrows,
           movableNodeIds: movableNodeIds,
+          conflictNodeIds: conflictNodeIds,
         );
         for (final affectedNode in affectedNodes) {
           if (affectedNode.id == node.id || queuedNodeIds.contains(affectedNode.id)) {
@@ -197,6 +235,7 @@ class NeuralPolishService {
     required List<TableNode> contextNodes,
     required List<Arrow> contextArrows,
     required Set<String> movableNodeIds,
+    required Set<String> conflictNodeIds,
   }) {
     final affectedNodeIds = <String>{};
 
@@ -218,6 +257,7 @@ class NeuralPolishService {
     final affectedNodes = state.nodes
         .whereType<TableNode>()
         .where((node) => affectedNodeIds.contains(node.id))
+        .where((node) => conflictNodeIds.contains(node.id))
         .toList(growable: false);
 
     return affectedNodes;
@@ -228,21 +268,32 @@ class NeuralPolishService {
     required Offset targetPosition,
   }) async {
     final tolerance = max(1.0, EditorConfig.tileSize * 0.005);
-    var current = node.aPosition ?? (state.delta + node.position);
-
-    while ((targetPosition - current).distance > tolerance) {
-      final newX = current.dx + (targetPosition.dx - current.dx) * _defaultAnimationSpeed;
-      final newY = current.dy + (targetPosition.dy - current.dy) * _defaultAnimationSpeed;
-      final nextPosition = Offset(newX, newY);
-
-      nodeManager.updateNodePositionForLayout(node, nextPosition);
+    final current = node.aPosition ?? (state.delta + node.position);
+    final distance = (targetPosition - current).distance;
+    if (distance <= tolerance) {
+      nodeManager.updateNodePositionForLayout(node, targetPosition);
       arrowManager.recalculateSelectedArrows();
       tileManager.onStateUpdate();
       nodeManager.onStateUpdate();
       arrowManager.onStateUpdate();
+      return;
+    }
 
-      current = nextPosition;
-      await Future<void>.delayed(const Duration(milliseconds: 8));
+    final steps = (distance / max(48.0, EditorConfig.tileSize * 0.75))
+        .round()
+        .clamp(_minAnimationFrames, _maxAnimationFrames);
+
+    for (var step = 1; step <= steps; step++) {
+      final t = step / steps;
+      final nextPosition = Offset.lerp(current, targetPosition, t) ?? targetPosition;
+      nodeManager.updateNodePositionForLayout(node, nextPosition);
+      nodeManager.onStateUpdate();
+      if (step == steps || step % _animationHeavyUpdateStride == 0) {
+        arrowManager.recalculateSelectedArrows();
+        tileManager.onStateUpdate();
+        arrowManager.onStateUpdate();
+      }
+      await Future<void>.delayed(const Duration(milliseconds: _animationFrameMillis));
     }
 
     nodeManager.updateNodePositionForLayout(node, targetPosition);
@@ -255,6 +306,7 @@ class NeuralPolishService {
   ({String id, Rect bounds, Rect sourceBounds, Set<String> nodes, Set<String> arrows}) _buildRuntimeContextForNode(
     TableNode node,
     List<TableNode> allNodes,
+    Rect schemaBounds,
   ) {
     final cellWorldSize = EditorConfig.tileSize.toDouble();
     final position = node.aPosition ?? (state.delta + node.position);
@@ -263,29 +315,9 @@ class NeuralPolishService {
     final sourceLeft = gridX * cellWorldSize;
     final sourceTop = gridY * cellWorldSize;
     final sourceBounds = Rect.fromLTWH(sourceLeft, sourceTop, cellWorldSize, cellWorldSize);
-    final left = (gridX - _contextRegionRadiusInCells) * cellWorldSize;
-    final top = (gridY - _contextRegionRadiusInCells) * cellWorldSize;
-    final regionSizeInCells = _contextRegionRadiusInCells * 2 + 1;
-    final bounds = Rect.fromLTWH(left, top, cellWorldSize * regionSizeInCells, cellWorldSize * regionSizeInCells);
-
-    final nodeIds = allNodes
-        .where((candidate) {
-          final candidatePosition = candidate.aPosition ?? (state.delta + candidate.position);
-          final candidateRect = Rect.fromLTWH(
-            candidatePosition.dx,
-            candidatePosition.dy,
-            candidate.size.width,
-            candidate.size.height,
-          );
-          return candidateRect.overlaps(bounds);
-        })
-        .map((candidate) => candidate.id)
-        .toSet();
-
-    final arrowIds = state.arrows
-        .where((arrow) => nodeIds.contains(arrow.source) || nodeIds.contains(arrow.target))
-        .map((arrow) => arrow.id)
-        .toSet();
+    final bounds = _expandSearchBoundsForNode(schemaBounds, node.size);
+    final nodeIds = allNodes.map((candidate) => candidate.id).toSet();
+    final arrowIds = state.arrows.map((arrow) => arrow.id).toSet();
 
     return (
       id: 'runtime_${gridX}_$gridY',
@@ -325,8 +357,33 @@ class NeuralPolishService {
   List<TableNode> _resolveContextNodes(
     ({String id, Rect bounds, Rect sourceBounds, Set<String> nodes, Set<String> arrows}) context,
     List<TableNode> allNodes,
+    TableNode targetNode,
+    List<Arrow> incidentArrows,
   ) {
-    return allNodes.where((node) => context.nodes.contains(node.id)).toList(growable: false);
+    final connectedNodeIds = <String>{targetNode.id};
+    for (final arrow in incidentArrows) {
+      connectedNodeIds.add(arrow.source);
+      connectedNodeIds.add(arrow.target);
+    }
+
+    final targetPosition = targetNode.aPosition ?? (state.delta + targetNode.position);
+    final localBounds = Rect.fromCenter(
+      center: Offset(targetPosition.dx + targetNode.size.width / 2, targetPosition.dy + targetNode.size.height / 2),
+      width: max(EditorConfig.tileSize * 6.0, targetNode.size.width + EditorConfig.tileSize * 4.0),
+      height: max(EditorConfig.tileSize * 6.0, targetNode.size.height + EditorConfig.tileSize * 4.0),
+    ).intersect(context.bounds);
+
+    return allNodes.where((node) {
+      if (!context.nodes.contains(node.id)) {
+        return false;
+      }
+      if (connectedNodeIds.contains(node.id)) {
+        return true;
+      }
+      final position = node.aPosition ?? (state.delta + node.position);
+      final nodeRect = Rect.fromLTWH(position.dx, position.dy, node.size.width, node.size.height);
+      return nodeRect.overlaps(localBounds);
+    }).toList(growable: false);
   }
 
   LayoutContextSnapshot _createRuntimeContextSnapshot(
@@ -376,11 +433,23 @@ class NeuralPolishService {
       Offset(contextBounds.right - currentNode.size.width, contextBounds.top),
     ];
 
+    for (final occupiedRect in occupiedRects.take(32)) {
+      anchorPoints.addAll(<Offset>[
+        Offset(occupiedRect.left - currentNode.size.width, occupiedRect.top),
+        Offset(occupiedRect.right, occupiedRect.top),
+        Offset(occupiedRect.left, occupiedRect.bottom),
+        Offset(occupiedRect.right - currentNode.size.width, occupiedRect.bottom),
+      ]);
+    }
+
     for (final point in anchorPoints) {
       final rect = Rect.fromLTWH(point.dx, point.dy, currentNode.size.width, currentNode.size.height);
       final overlaps = occupiedRects.any((occupied) => occupied.overlaps(rect));
       if (!overlaps) {
         freeRects.add(rect);
+        if (freeRects.length >= 24) {
+          return freeRects;
+        }
       }
     }
 
@@ -389,16 +458,19 @@ class NeuralPolishService {
     }
 
     final fallback = <Rect>[];
-    final step = max(24.0, min(contextBounds.width, contextBounds.height) / 6);
+    final step = max(96.0, sqrt(max(1.0, contextBounds.width * contextBounds.height) / 48));
     for (double y = contextBounds.top; y <= contextBounds.bottom - currentNode.size.height; y += step) {
       for (double x = contextBounds.left; x <= contextBounds.right - currentNode.size.width; x += step) {
         final rect = Rect.fromLTWH(x, y, currentNode.size.width, currentNode.size.height);
         if (!occupiedRects.any((occupied) => occupied.overlaps(rect))) {
           fallback.add(rect);
+          if (fallback.length >= 24) {
+            return fallback;
+          }
         }
       }
     }
-    return fallback.take(12).toList(growable: false);
+    return fallback.take(24).toList(growable: false);
   }
 
   Future<void> saveAcceptedPlacementSample({
@@ -431,14 +503,20 @@ class NeuralPolishService {
       if (!hasNode) {
         allNodes.add(node);
       }
-      final runtimeContext = _buildRuntimeContextForPosition(originPosition, candidatePosition, allNodes);
-      final contextNodes = _resolveContextNodes(runtimeContext, allNodes).toList(growable: true);
+      final runtimeContext = _buildRuntimeContextForPosition(
+        originPosition,
+        candidatePosition,
+        allNodes,
+        _buildSchemaBounds(allNodes),
+        node.size,
+      );
+      final incidentArrows = arrowManager.getArrowsForNodes(<TableNode?>[node]).whereType<Arrow>().toList(growable: false);
+      final contextNodes = _resolveContextNodes(runtimeContext, allNodes, node, incidentArrows).toList(growable: true);
       if (contextNodes.every((candidateNode) => candidateNode.id != node.id)) {
         contextNodes.add(node);
       }
 
       final contextSnapshot = _createRuntimeContextSnapshot(runtimeContext, contextNodes);
-      final incidentArrows = arrowManager.getArrowsForNodes(<TableNode?>[node]).whereType<Arrow>().toList(growable: false);
       final contextArrows = _resolveContextArrows(runtimeContext, contextNodes, incidentArrows);
       final request = LayoutSearchRequest(
         node: node,
@@ -642,52 +720,98 @@ class NeuralPolishService {
     Offset sourcePosition,
     Offset position,
     List<TableNode> allNodes,
+    Rect? schemaBounds,
+    Size? nodeSize,
   ) {
     final cellWorldSize = EditorConfig.tileSize.toDouble();
     final sourceGridX = (sourcePosition.dx / cellWorldSize).floor();
     final sourceGridY = (sourcePosition.dy / cellWorldSize).floor();
     final gridX = (position.dx / cellWorldSize).floor();
     final gridY = (position.dy / cellWorldSize).floor();
-    final minGridX = min(sourceGridX, gridX) - _contextRegionRadiusInCells;
-    final minGridY = min(sourceGridY, gridY) - _contextRegionRadiusInCells;
-    final maxGridX = max(sourceGridX, gridX) + _contextRegionRadiusInCells;
-    final maxGridY = max(sourceGridY, gridY) + _contextRegionRadiusInCells;
-    final left = minGridX * cellWorldSize;
-    final top = minGridY * cellWorldSize;
-    final bounds = Rect.fromLTRB(
-      left,
-      top,
-      (maxGridX + 1) * cellWorldSize,
-      (maxGridY + 1) * cellWorldSize,
-    );
+    final baseBounds = schemaBounds ?? _buildSchemaBounds(allNodes);
+    final bounds = nodeSize == null ? baseBounds : _expandSearchBoundsForNode(baseBounds, nodeSize);
     final sourceBounds = Rect.fromLTWH(sourceGridX * cellWorldSize, sourceGridY * cellWorldSize, cellWorldSize, cellWorldSize);
-
-    final nodeIds = allNodes
-        .where((candidate) {
-          final candidatePosition = candidate.aPosition ?? (state.delta + candidate.position);
-          final candidateRect = Rect.fromLTWH(
-            candidatePosition.dx,
-            candidatePosition.dy,
-            candidate.size.width,
-            candidate.size.height,
-          );
-          return candidateRect.overlaps(bounds);
-        })
-        .map((candidate) => candidate.id)
-        .toSet();
-
-    final arrowIds = state.arrows
-        .where((arrow) => nodeIds.contains(arrow.source) || nodeIds.contains(arrow.target))
-        .map((arrow) => arrow.id)
-        .toSet();
+    final nodeIds = allNodes.map((candidate) => candidate.id).toSet();
+    final arrowIds = state.arrows.map((arrow) => arrow.id).toSet();
 
     return (
-      id: '${left.toInt()}:${top.toInt()}',
+      id: '${gridX}_$gridY',
       bounds: bounds,
       sourceBounds: sourceBounds,
       nodes: nodeIds,
       arrows: arrowIds,
     );
+  }
+
+  Rect _buildSchemaBounds(List<TableNode> allNodes) {
+    if (allNodes.isEmpty) {
+      final size = EditorConfig.tileSize.toDouble();
+      return Rect.fromLTWH(0, 0, size, size);
+    }
+
+    var left = double.infinity;
+    var top = double.infinity;
+    var right = double.negativeInfinity;
+    var bottom = double.negativeInfinity;
+
+    for (final node in allNodes) {
+      final position = node.aPosition ?? (state.delta + node.position);
+      left = min(left, position.dx);
+      top = min(top, position.dy);
+      right = max(right, position.dx + node.size.width);
+      bottom = max(bottom, position.dy + node.size.height);
+    }
+
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
+  Rect _expandSearchBoundsForNode(Rect schemaBounds, Size nodeSize) {
+    return Rect.fromLTRB(
+      schemaBounds.left - nodeSize.width,
+      schemaBounds.top - nodeSize.height,
+      schemaBounds.right + nodeSize.width,
+      schemaBounds.bottom + nodeSize.height,
+    );
+  }
+
+  Map<String, List<Arrow>> _buildIncidentArrowsByNodeId(List<Arrow> allArrows) {
+    final result = <String, List<Arrow>>{};
+    for (final arrow in allArrows) {
+      result.putIfAbsent(arrow.source, () => <Arrow>[]).add(arrow);
+      result.putIfAbsent(arrow.target, () => <Arrow>[]).add(arrow);
+    }
+    return result;
+  }
+
+  Set<String> _resolveConflictNodeIds(
+    List<TableNode> allNodes,
+    List<Arrow> allArrows,
+    Map<String, List<Arrow>> incidentArrowsByNodeId,
+  ) {
+    final result = <String>{};
+    for (final node in allNodes) {
+      final incidentArrows = incidentArrowsByNodeId[node.id] ?? const <Arrow>[];
+      if (_isConflictNode(node, allNodes, allArrows, incidentArrows)) {
+        result.add(node.id);
+      }
+    }
+    return result;
+  }
+
+  bool _isConflictNode(
+    TableNode node,
+    List<TableNode> allNodes,
+    List<Arrow> allArrows,
+    List<Arrow> incidentArrows,
+  ) {
+    final snapshot = _captureContextSnapshot(
+      node: node,
+      candidatePosition: null,
+      nearbyNodes: allNodes,
+      incidentArrows: incidentArrows,
+      contextArrows: allArrows,
+    );
+    return snapshot.isConflictNode;
   }
 
   _SampleContextSnapshot _captureContextSnapshot({
