@@ -15,6 +15,9 @@ class LayoutSearchRequest {
   final double gridStep;
   final int maxCandidates;
   final int topKForExactEvaluation;
+  final int graphNodeCount;
+  final int graphEdgeCount;
+  final double graphConflictRatio;
 
   const LayoutSearchRequest({
     required this.node,
@@ -27,5 +30,8 @@ class LayoutSearchRequest {
     this.gridStep = 48,
     this.maxCandidates = 24,
     this.topKForExactEvaluation = 5,
+    this.graphNodeCount = 0,
+    this.graphEdgeCount = 0,
+    this.graphConflictRatio = 0,
   });
 }

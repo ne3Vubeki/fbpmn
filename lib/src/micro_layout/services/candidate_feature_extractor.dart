@@ -11,7 +11,7 @@ import 'package:fbpmn/src/models/table.node.dart';
 class CandidateFeatureExtractor {
   const CandidateFeatureExtractor();
 
-  static const int featureCount = 73;
+  static const int featureCount = 109;
 
   double _safeValue(double value) {
     return value.isFinite ? value : 0;
@@ -62,6 +62,7 @@ class CandidateFeatureExtractor {
     required LayoutCandidate candidate,
     required LayoutContextSnapshot contextSnapshot,
     List<Arrow> incidentArrows = const <Arrow>[],
+    List<TableNode> nearbyNodes = const <TableNode>[],
     Rect? freeSpaceBounds,
     double localNodeDensity = 0,
     double localArrowDensity = 0,
@@ -197,8 +198,204 @@ class CandidateFeatureExtractor {
       _safeValue(resultEdgeIntersectionCount - sourceEdgeIntersectionCount),
       _safeValue(resultEdgeCrossings - sourceEdgeCrossings),
       _safeRatio(resultIncidentArrowLength - sourceIncidentArrowLength, maxContextSide),
+      ..._computeGroupAFeatures(
+        node: node,
+        candidateRect: candidateRect,
+        candidateCenter: candidateCenter,
+        nearbyNodes: nearbyNodes,
+        incidentArrows: incidentArrows,
+        maxContextSide: maxContextSide,
+      ),
+      _safeValue((context?.graphNodeCount ?? 0) / 200.0),
+      _safeValue((context?.graphEdgeCount ?? 0) / 200.0),
+      _safeValue((context?.graphConflictRatio ?? 0).clamp(0.0, 1.0)),
+      _safeValue((context?.sequenceIndex ?? 0) / 50.0),
     ],
-    schemaVersion: 4,
+    schemaVersion: 5,
     );
+  }
+
+  List<double> _computeGroupAFeatures({
+    required TableNode node,
+    required Rect candidateRect,
+    required Offset candidateCenter,
+    required List<TableNode> nearbyNodes,
+    required List<Arrow> incidentArrows,
+    required double maxContextSide,
+  }) {
+    final safeMaxSide = maxContextSide > 0.001 ? maxContextSide : 1.0;
+    final neighbors = nearbyNodes.where((n) => n.id != node.id).toList(growable: false);
+    final neighborCount = max(1, neighbors.length);
+
+    // --- Alignment (3 features) ---
+    const alignThreshold = 4.0;
+    var hAlignCount = 0;
+    var vAlignCount = 0;
+    var bestAlignGap = double.infinity;
+
+    for (final neighbor in neighbors) {
+      final nPos = neighbor.aPosition ?? neighbor.position;
+      final nRect = Rect.fromLTWH(nPos.dx, nPos.dy, neighbor.size.width, neighbor.size.height);
+
+      final hGap = min(
+        (candidateRect.top - nRect.top).abs(),
+        min((candidateRect.center.dy - nRect.center.dy).abs(),
+            (candidateRect.bottom - nRect.bottom).abs()),
+      );
+      if (hGap < alignThreshold) hAlignCount++;
+      bestAlignGap = min(bestAlignGap, hGap);
+
+      final vGap = min(
+        (candidateRect.left - nRect.left).abs(),
+        min((candidateRect.center.dx - nRect.center.dx).abs(),
+            (candidateRect.right - nRect.right).abs()),
+      );
+      if (vGap < alignThreshold) vAlignCount++;
+      bestAlignGap = min(bestAlignGap, vGap);
+    }
+    if (!bestAlignGap.isFinite) bestAlignGap = safeMaxSide;
+
+    // --- Edge-to-edge clearance (2 features) ---
+    var minClearance = double.infinity;
+    var totalClearance = 0.0;
+
+    for (final neighbor in neighbors) {
+      final nPos = neighbor.aPosition ?? neighbor.position;
+      final nRect = Rect.fromLTWH(nPos.dx, nPos.dy, neighbor.size.width, neighbor.size.height);
+      final dx = max(0.0, max(nRect.left - candidateRect.right, candidateRect.left - nRect.right));
+      final dy = max(0.0, max(nRect.top - candidateRect.bottom, candidateRect.top - nRect.bottom));
+      final clearance = sqrt(dx * dx + dy * dy);
+      minClearance = min(minClearance, clearance);
+      totalClearance += clearance;
+    }
+    if (!minClearance.isFinite) minClearance = 0.0;
+    final avgClearance = neighbors.isNotEmpty ? totalClearance / neighbors.length : 0.0;
+
+    // --- Neighbor type distribution (4 features) ---
+    var neighborBo = 0;
+    var neighborGroup = 0;
+    var neighborEnum = 0;
+    var neighborSwimlane = 0;
+
+    for (final neighbor in neighbors) {
+      switch (neighbor.qType) {
+        case 'bo':
+          neighborBo++;
+          break;
+        case 'group':
+          neighborGroup++;
+          break;
+        case 'enum':
+          neighborEnum++;
+          break;
+        case 'swimlane':
+          neighborSwimlane++;
+          break;
+      }
+    }
+
+    // --- Same-type clustering (2 features) ---
+    var sameTypeCount = 0;
+    var sameTypeTotalDist = 0.0;
+
+    for (final neighbor in neighbors) {
+      if (neighbor.qType == node.qType) {
+        sameTypeCount++;
+        final nPos = neighbor.aPosition ?? neighbor.position;
+        final nCenter = Offset(nPos.dx + neighbor.size.width / 2, nPos.dy + neighbor.size.height / 2);
+        sameTypeTotalDist += (candidateCenter - nCenter).distance;
+      }
+    }
+    final sameTypeAvgDist = sameTypeCount > 0 ? sameTypeTotalDist / sameTypeCount : 0.0;
+
+    // --- Flow direction (4 features) ---
+    var incomingCount = 0;
+    var outgoingCount = 0;
+    var flowDirX = 0.0;
+    var flowDirY = 0.0;
+
+    final nodeById = <String, TableNode>{};
+    for (final n in nearbyNodes) {
+      nodeById[n.id] = n;
+    }
+
+    for (final arrow in incidentArrows) {
+      final isSource = arrow.source == node.id;
+      if (isSource) {
+        outgoingCount++;
+      } else {
+        incomingCount++;
+      }
+
+      final otherNodeId = isSource ? arrow.target : arrow.source;
+      final otherNode = nodeById[otherNodeId];
+      Offset otherCenter;
+      if (otherNode != null) {
+        final otherPos = otherNode.aPosition ?? otherNode.position;
+        otherCenter = Offset(otherPos.dx + otherNode.size.width / 2, otherPos.dy + otherNode.size.height / 2);
+      } else {
+        otherCenter = isSource ? arrow.aPositionTarget : arrow.aPositionSource;
+        if (otherCenter == Offset.zero) continue;
+      }
+
+      final dir = isSource ? (otherCenter - candidateCenter) : (candidateCenter - otherCenter);
+      flowDirX += dir.dx;
+      flowDirY += dir.dy;
+    }
+
+    final totalIncident = max(1, incomingCount + outgoingCount);
+    final flowLen = sqrt(flowDirX * flowDirX + flowDirY * flowDirY);
+    final safeFlowLen = flowLen > 0.001 ? flowLen : 1.0;
+
+    // --- Hierarchy (2 features) ---
+    final hasParent = node.parent != null ? 1.0 : 0.0;
+    final childrenCountNorm = (node.children?.length ?? 0) / max(1.0, neighborCount.toDouble());
+
+    // --- Arrow complexity (1 feature) ---
+    var totalWaypoints = 0;
+    for (final arrow in incidentArrows) {
+      totalWaypoints += arrow.coordinates?.length ?? 0;
+    }
+    final avgWaypoints = incidentArrows.isNotEmpty ? totalWaypoints / incidentArrows.length : 0.0;
+
+    // --- Spacing variance (2 features) ---
+    final distances = <double>[];
+    for (final neighbor in neighbors) {
+      final nPos = neighbor.aPosition ?? neighbor.position;
+      final nCenter = Offset(nPos.dx + neighbor.size.width / 2, nPos.dy + neighbor.size.height / 2);
+      distances.add((candidateCenter - nCenter).distance);
+    }
+
+    var spacingVariance = 0.0;
+    var spacingUniformity = 0.0;
+    if (distances.length >= 2) {
+      final mean = distances.reduce((a, b) => a + b) / distances.length;
+      final variance = distances.map((d) => (d - mean) * (d - mean)).reduce((a, b) => a + b) / distances.length;
+      spacingVariance = variance;
+      spacingUniformity = mean > 0.001 ? (1.0 - min(1.0, sqrt(variance) / mean)).clamp(0.0, 1.0) : 0.0;
+    }
+
+    return <double>[
+      _safeValue(hAlignCount / neighborCount),
+      _safeValue(vAlignCount / neighborCount),
+      _safeRatio(bestAlignGap, safeMaxSide),
+      _safeRatio(minClearance, safeMaxSide),
+      _safeRatio(avgClearance, safeMaxSide),
+      _safeValue(neighborBo / neighborCount),
+      _safeValue(neighborGroup / neighborCount),
+      _safeValue(neighborEnum / neighborCount),
+      _safeValue(neighborSwimlane / neighborCount),
+      _safeValue(sameTypeCount / neighborCount),
+      _safeRatio(sameTypeAvgDist, safeMaxSide),
+      _safeValue(incomingCount / totalIncident),
+      _safeValue(outgoingCount / totalIncident),
+      _safeValue((flowDirX / safeFlowLen).clamp(-1.0, 1.0)),
+      _safeValue((flowDirY / safeFlowLen).clamp(-1.0, 1.0)),
+      _safeValue(hasParent),
+      _safeValue(childrenCountNorm),
+      _safeValue(avgWaypoints / 10.0),
+      _safeRatio(spacingVariance, safeMaxSide * safeMaxSide),
+      _safeValue(spacingUniformity),
+    ];
   }
 }

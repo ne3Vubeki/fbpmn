@@ -5,7 +5,7 @@ import 'package:fbpmn/src/micro_layout/models/micro_layout_training_batch.dart';
 import 'package:fbpmn/src/micro_layout/models/micro_layout_weights.dart';
 
 class MicroLayoutModel {
-  static const double _gradientClipValue = 1000;
+  static const double _gradientClipValue = 5.0;
 
   final int inputSize;
   final List<int> hiddenSizes;
@@ -63,7 +63,8 @@ class MicroLayoutModel {
     for (var sampleIndex = 0; sampleIndex < batch.length; sampleIndex++) {
       final input = _normalizeInput(batch.features[sampleIndex].toList());
       final target = batch.targets[sampleIndex];
-      final loss = _trainSample(input, target, learningRate);
+      final sampleWeight = batch.weights != null ? batch.weights![sampleIndex] : 1.0;
+      final loss = _trainSample(input, target, learningRate * sampleWeight);
       if (!loss.isFinite) {
         continue;
       }
@@ -76,6 +77,28 @@ class MicroLayoutModel {
     }
 
     return totalLoss / trainedSamples;
+  }
+
+  double computeBatchLoss(MicroLayoutTrainingBatch batch) {
+    if (batch.isEmpty) {
+      return 0;
+    }
+
+    var totalLoss = 0.0;
+    var validSamples = 0;
+    for (var sampleIndex = 0; sampleIndex < batch.length; sampleIndex++) {
+      final input = _normalizeInput(batch.features[sampleIndex].toList());
+      final target = batch.targets[sampleIndex];
+      final output = _forward(input).first;
+      if (!output.isFinite) {
+        continue;
+      }
+      final error = output - target;
+      totalLoss += error * error;
+      validSamples += 1;
+    }
+
+    return validSamples > 0 ? totalLoss / validSamples : 0;
   }
 
   MicroLayoutWeights exportWeights({int version = 1}) {

@@ -64,6 +64,11 @@ class LayoutTrainingContext {
   final double? deferredScore;
   final bool? deferredAccepted;
   final Rect? freeSpaceBounds;
+  final String? sessionId;
+  final int sequenceIndex;
+  final int graphNodeCount;
+  final int graphEdgeCount;
+  final double graphConflictRatio;
 
   const LayoutTrainingContext({
     this.schemaVersion = 5,
@@ -95,6 +100,11 @@ class LayoutTrainingContext {
     this.deferredScore,
     this.deferredAccepted,
     this.freeSpaceBounds,
+    this.sessionId,
+    this.sequenceIndex = 0,
+    this.graphNodeCount = 0,
+    this.graphEdgeCount = 0,
+    this.graphConflictRatio = 0,
   });
 
   Map<String, dynamic> toJson() {
@@ -135,6 +145,11 @@ class LayoutTrainingContext {
               'right': freeSpaceBounds!.right,
               'bottom': freeSpaceBounds!.bottom,
             },
+      'sessionId': sessionId,
+      'sequenceIndex': sequenceIndex,
+      'graphNodeCount': graphNodeCount,
+      'graphEdgeCount': graphEdgeCount,
+      'graphConflictRatio': graphConflictRatio,
     };
   }
 
@@ -185,6 +200,11 @@ class LayoutTrainingContext {
               (freeSpaceJson['right'] as num?)?.toDouble() ?? 0,
               (freeSpaceJson['bottom'] as num?)?.toDouble() ?? 0,
             ),
+      sessionId: json['sessionId'] as String?,
+      sequenceIndex: (json['sequenceIndex'] as num?)?.toInt() ?? 0,
+      graphNodeCount: (json['graphNodeCount'] as num?)?.toInt() ?? 0,
+      graphEdgeCount: (json['graphEdgeCount'] as num?)?.toInt() ?? 0,
+      graphConflictRatio: (json['graphConflictRatio'] as num?)?.toDouble() ?? 0,
     );
   }
 }

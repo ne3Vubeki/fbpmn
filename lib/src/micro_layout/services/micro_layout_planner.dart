@@ -127,10 +127,66 @@ class MicroLayoutPlanner {
       }
     }
 
-    final incidentArrowLength = request.incidentArrows.fold<double>(
-      0,
-      (sum, arrow) => sum + _arrowLength(arrow),
+    final nodeById = <String, TableNode>{};
+    for (final nearbyNode in request.nearbyNodes) {
+      nodeById[nearbyNode.id] = nearbyNode;
+    }
+
+    final nonIncidentArrows = request.contextArrows
+        .where((arrow) => !request.incidentArrows.contains(arrow))
+        .toList(growable: false);
+
+    var estimatedIncidentArrowLength = 0.0;
+    var estimatedEdgeCrossings = 0.0;
+    var estConnAfterTop = 0;
+    var estConnAfterRight = 0;
+    var estConnAfterBottom = 0;
+    var estConnAfterLeft = 0;
+
+    for (final arrow in request.incidentArrows) {
+      final otherNodeId = arrow.source == request.node.id ? arrow.target : arrow.source;
+      final otherNode = nodeById[otherNodeId];
+
+      Offset otherEnd;
+      if (otherNode != null) {
+        final otherPos = otherNode.aPosition ?? otherNode.position;
+        otherEnd = otherPos + Offset(otherNode.size.width / 2, otherNode.size.height / 2);
+      } else {
+        final coords = arrow.coordinates;
+        if (coords != null && coords.length >= 2) {
+          otherEnd = arrow.source == request.node.id ? coords.last : coords.first;
+        } else {
+          continue;
+        }
+      }
+
+      estimatedIncidentArrowLength += (candidateRect.center - otherEnd).distance;
+
+      final dx = otherEnd.dx - candidateRect.center.dx;
+      final dy = otherEnd.dy - candidateRect.center.dy;
+      if (dx.abs() >= dy.abs()) {
+        if (dx > 0) { estConnAfterRight++; } else { estConnAfterLeft++; }
+      } else {
+        if (dy > 0) { estConnAfterBottom++; } else { estConnAfterTop++; }
+      }
+
+      final segmentRect = _segmentToRect(candidateRect.center, otherEnd, EditorConfig.arrowSelectedWidth);
+      for (final otherArrow in nonIncidentArrows) {
+        for (final otherRect in _arrowRects(otherArrow)) {
+          if (!segmentRect.intersect(otherRect).isEmpty) {
+            estimatedEdgeCrossings += 1;
+          }
+        }
+      }
+    }
+
+    final estimatedNodeConnectionsAfter = ConnectionSideProfile(
+      top: estConnAfterTop,
+      right: estConnAfterRight,
+      bottom: estConnAfterBottom,
+      left: estConnAfterLeft,
     );
+
     final sourceMetrics = _buildSourceMetrics(request);
     final trainingContext = LayoutTrainingContext(
       sampleSource: 'auto',
@@ -141,16 +197,19 @@ class MicroLayoutPlanner {
       incidentArrowCount: request.incidentArrows.length,
       nodeConnectionsBefore: _captureConnectionsProfile(request.node.connections),
       attributeConnectionsBefore: _captureAttributeConnectionsProfile(request.node.attributes),
-      nodeConnectionsAfter: _captureConnectionsProfile(request.node.connections),
+      nodeConnectionsAfter: estimatedNodeConnectionsAfter,
       attributeConnectionsAfter: _captureAttributeConnectionsProfile(request.node.attributes),
+      graphNodeCount: request.graphNodeCount,
+      graphEdgeCount: request.graphEdgeCount,
+      graphConflictRatio: request.graphConflictRatio,
       sourceNodeOverlapCount: sourceMetrics.nodeOverlapCount,
       sourceEdgeIntersectionCount: sourceMetrics.edgeIntersectionCount,
       sourceEdgeCrossings: sourceMetrics.edgeCrossings,
       sourceIncidentArrowLength: sourceMetrics.totalIncidentArrowLength,
       resultNodeOverlapCount: overlapCount,
       resultEdgeIntersectionCount: _countArrowIntersections(candidateRect, request),
-      resultEdgeCrossings: sourceMetrics.edgeCrossings,
-      resultIncidentArrowLength: incidentArrowLength,
+      resultEdgeCrossings: estimatedEdgeCrossings,
+      resultIncidentArrowLength: estimatedIncidentArrowLength,
       movementDistance: candidate.movementDistance,
       freeSpaceBounds: nearestFreeSpace,
     );
@@ -160,6 +219,7 @@ class MicroLayoutPlanner {
       candidate: candidate,
       contextSnapshot: contextSnapshot,
       incidentArrows: request.incidentArrows,
+      nearbyNodes: request.nearbyNodes,
       freeSpaceBounds: nearestFreeSpace,
       localNodeDensity: _safeDensity(request.nearbyNodes.length, contextSnapshot.bounds),
       localArrowDensity: _safeDensity(request.contextArrows.length, contextSnapshot.bounds),
@@ -167,7 +227,7 @@ class MicroLayoutPlanner {
       candidateNodeOverlapCount: overlapCount,
       candidateNodeOverlapAreaRatio: overlapArea / contextArea,
       candidateEdgeIntersectionCount: _countArrowIntersections(candidateRect, request),
-      candidateIncidentArrowLengthRatio: incidentArrowLength / max(contextSnapshot.bounds.longestSide, 1.0),
+      candidateIncidentArrowLengthRatio: estimatedIncidentArrowLength / max(contextSnapshot.bounds.longestSide, 1.0),
       trainingContext: trainingContext,
     );
 
@@ -176,8 +236,12 @@ class MicroLayoutPlanner {
 
   double _countArrowIntersections(Rect candidateRect, LayoutSearchRequest request) {
     var intersections = 0.0;
+    final incidentArrowIds = request.incidentArrows.map((a) => a.id).toSet();
 
     for (final arrow in _resolveRelevantArrows(request)) {
+      if (incidentArrowIds.contains(arrow.id)) {
+        continue;
+      }
       for (final rect in _arrowRects(arrow)) {
         if (!candidateRect.intersect(rect).isEmpty) {
           intersections += 1;
@@ -324,6 +388,16 @@ class MicroLayoutPlanner {
       length += (coordinates[index + 1] - coordinates[index]).distance;
     }
     return length;
+  }
+
+  Rect _segmentToRect(Offset start, Offset end, double thickness) {
+    final half = thickness / 2;
+    return Rect.fromLTRB(
+      min(start.dx, end.dx) - half,
+      min(start.dy, end.dy) - half,
+      max(start.dx, end.dx) + half,
+      max(start.dy, end.dy) + half,
+    );
   }
 
   double _minDistanceToNeighbor(LayoutSearchRequest request, LayoutCandidate candidate) {

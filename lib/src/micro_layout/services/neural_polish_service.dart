@@ -152,16 +152,20 @@ class NeuralPolishService {
 
         final contextSnapshot = _createRuntimeContextSnapshot(runtimeContext, contextNodes);
         final contextArrows = _resolveContextArrows(runtimeContext, contextNodes, incidentArrows);
+        final graphConflictRatio = allNodes.isNotEmpty ? conflictNodeIds.length / allNodes.length : 0.0;
         final request = LayoutSearchRequest(
           node: node,
           contextSnapshot: contextSnapshot,
           nearbyNodes: contextNodes,
           incidentArrows: incidentArrows,
           contextArrows: contextArrows,
-          freeSpaceRects: _buildFreeSpaceRects(runtimeContext.bounds, contextNodes, node),
+          freeSpaceRects: _buildFreeSpaceRects(runtimeContext.bounds, contextNodes, node, contextArrows),
           searchBounds: runtimeContext.bounds,
           maxCandidates: 48,
           topKForExactEvaluation: 12,
+          graphNodeCount: allNodes.length,
+          graphEdgeCount: allArrows.length,
+          graphConflictRatio: graphConflictRatio,
         );
 
         final result = await planner.findBestCandidate(request);
@@ -413,7 +417,7 @@ class NeuralPolishService {
     );
   }
 
-  List<Rect> _buildFreeSpaceRects(Rect contextBounds, List<TableNode> contextNodes, TableNode currentNode) {
+  List<Rect> _buildFreeSpaceRects(Rect contextBounds, List<TableNode> contextNodes, TableNode currentNode, List<Arrow> contextArrows) {
     final occupiedRects = contextNodes
         .where((node) => node.id != currentNode.id)
         .map((node) => Rect.fromLTWH(
@@ -423,6 +427,18 @@ class NeuralPolishService {
               node.size.height,
             ))
         .toList(growable: false);
+
+    final arrowObstacles = <Rect>[];
+    for (final arrow in contextArrows) {
+      arrowObstacles.addAll(_arrowRects(arrow));
+    }
+
+    bool isOccupied(Rect rect) {
+      if (occupiedRects.any((occupied) => occupied.overlaps(rect))) {
+        return true;
+      }
+      return arrowObstacles.any((arrowRect) => arrowRect.overlaps(rect));
+    }
 
     final freeRects = <Rect>[];
     final anchorPoints = <Offset>[
@@ -444,8 +460,7 @@ class NeuralPolishService {
 
     for (final point in anchorPoints) {
       final rect = Rect.fromLTWH(point.dx, point.dy, currentNode.size.width, currentNode.size.height);
-      final overlaps = occupiedRects.any((occupied) => occupied.overlaps(rect));
-      if (!overlaps) {
+      if (!isOccupied(rect)) {
         freeRects.add(rect);
         if (freeRects.length >= 24) {
           return freeRects;
@@ -462,7 +477,7 @@ class NeuralPolishService {
     for (double y = contextBounds.top; y <= contextBounds.bottom - currentNode.size.height; y += step) {
       for (double x = contextBounds.left; x <= contextBounds.right - currentNode.size.width; x += step) {
         final rect = Rect.fromLTWH(x, y, currentNode.size.width, currentNode.size.height);
-        if (!occupiedRects.any((occupied) => occupied.overlaps(rect))) {
+        if (!isOccupied(rect)) {
           fallback.add(rect);
           if (fallback.length >= 24) {
             return fallback;
@@ -478,6 +493,11 @@ class NeuralPolishService {
     required Offset originPosition,
     required Offset candidatePosition,
     String sampleSource = 'manual',
+    String? sessionId,
+    int sequenceIndex = 0,
+    int graphNodeCount = 0,
+    int graphEdgeCount = 0,
+    double graphConflictRatio = 0,
   }) async {
     final isManualSample = sampleSource == 'manual' || sampleSource == 'manual_deferred';
     final isTrainingEnabled = isManualSample ? state.manualLayoutTrainNeuralPolish : state.autoLayoutTrainNeuralPolish;
@@ -525,7 +545,10 @@ class NeuralPolishService {
         incidentArrows: incidentArrows,
         contextArrows: contextArrows,
         searchBounds: runtimeContext.bounds,
-        freeSpaceRects: _buildFreeSpaceRects(runtimeContext.bounds, contextNodes, node),
+        freeSpaceRects: _buildFreeSpaceRects(runtimeContext.bounds, contextNodes, node, contextArrows),
+        graphNodeCount: graphNodeCount,
+        graphEdgeCount: graphEdgeCount,
+        graphConflictRatio: graphConflictRatio,
       );
       final evaluator = RuntimeLayoutSimulationEvaluator(
         state: state,
@@ -546,6 +569,7 @@ class NeuralPolishService {
         required int deferredStepsToResolution,
         required bool? deferredAccepted,
         required double? deferredScore,
+        bool isNegativeSample = false,
       }) async {
         final candidate = LayoutCandidate(
           originPosition: originPosition,
@@ -591,12 +615,18 @@ class NeuralPolishService {
           deferredScore: deferredScore,
           deferredAccepted: deferredAccepted,
           freeSpaceBounds: nearestFreeSpace,
+          sessionId: sessionId,
+          sequenceIndex: sequenceIndex,
+          graphNodeCount: graphNodeCount,
+          graphEdgeCount: graphEdgeCount,
+          graphConflictRatio: graphConflictRatio,
         );
         final features = const CandidateFeatureExtractor().extract(
           node: node,
           candidate: candidate,
           contextSnapshot: contextSnapshot,
           incidentArrows: incidentArrows,
+          nearbyNodes: contextNodes,
           freeSpaceBounds: nearestFreeSpace,
           localNodeDensity: contextNodes.length / max(1, contextSnapshot.bounds.width * contextSnapshot.bounds.height),
           localArrowDensity: contextArrows.length / max(1, contextSnapshot.bounds.width * contextSnapshot.bounds.height),
@@ -614,7 +644,7 @@ class NeuralPolishService {
           metrics: evaluation.metrics,
           contextSnapshot: contextSnapshot,
           targetScore: evaluation.exactScore,
-          accepted: isDeferredSample ? (deferredAccepted ?? false) : isManualSample,
+          accepted: isNegativeSample ? false : (isDeferredSample ? (deferredAccepted ?? false) : isManualSample),
           createdAt: DateTime.now(),
           trainingContext: trainingContext,
         );
@@ -665,6 +695,27 @@ class NeuralPolishService {
           deferredStepsToResolution: observedStepsToResolution,
           deferredAccepted: observedResolved,
           deferredScore: observedDistance <= 0.01 ? null : observedDistance,
+        );
+      }
+
+      final negativeNodes = contextNodes
+          .where((n) => n.id != node.id)
+          .toList(growable: false);
+      final maxNegativeSamples = min(3, negativeNodes.length);
+      for (var negIdx = 0; negIdx < maxNegativeSamples; negIdx++) {
+        final negNode = negativeNodes[negIdx];
+        final negPos = negNode.aPosition ?? (state.delta + negNode.position);
+        if ((negPos - candidatePosition).distance < 1.0) {
+          continue;
+        }
+        await savePlacementSample(
+          placementPosition: negPos,
+          placementSampleSource: sampleSource,
+          deferredStepsObserved: 0,
+          deferredStepsToResolution: 0,
+          deferredAccepted: null,
+          deferredScore: null,
+          isNegativeSample: true,
         );
       }
     } finally {

@@ -608,12 +608,21 @@ class NodeManager extends Manager {
         arrowManager: arrowManager,
         nodeManager: this,
       );
+      final allNodes = NodeManager.whereAllNodes(state.nodes, (_) => true);
+      final totalNodes = allNodes.length;
+      final totalEdges = state.arrows.length;
+      final sessionId = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+      var sequenceIndex = 0;
       for (final entry in manualMovedNodes) {
         await neuralPolishService.saveAcceptedPlacementSample(
           node: entry.node,
           originPosition: entry.originPosition!,
           candidatePosition: entry.candidatePosition,
           sampleSource: 'manual',
+          sessionId: sessionId,
+          sequenceIndex: sequenceIndex++,
+          graphNodeCount: totalNodes,
+          graphEdgeCount: totalEdges,
         );
       }
     }
