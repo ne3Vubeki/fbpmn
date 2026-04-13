@@ -86,7 +86,7 @@ class RuntimeLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
       metrics: metrics,
       exactScore: exactScore,
       predictedScore: predictedScore,
-      accepted: metrics.nodeOverlaps <= 0 && metrics.edgeNodeIntersections <= 0,
+      accepted: metrics.nodeOverlaps <= 0,
     );
   }
 
@@ -141,7 +141,8 @@ class RuntimeLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
     }
 
     final minDistanceToNeighbor = _minDistanceToNeighbor(request, candidateRect.center);
-    final spacingScore = minDistanceToNeighbor / (EditorConfig.tileSize <= 0 ? 1 : EditorConfig.tileSize);
+    final normalizedSpacing = minDistanceToNeighbor / (EditorConfig.tileSize <= 0 ? 1 : EditorConfig.tileSize);
+    final spacingScore = (normalizedSpacing).clamp(0.0, 1.0);
     final alignmentScore = _alignmentScore(request, candidateRect);
 
     return LayoutQualityMetrics(

@@ -11,7 +11,7 @@ import 'package:fbpmn/src/models/table.node.dart';
 class CandidateFeatureExtractor {
   const CandidateFeatureExtractor();
 
-  static const int featureCount = 109;
+  static const int featureCount = 131;
 
   double _safeValue(double value) {
     return value.isFinite ? value : 0;
@@ -210,9 +210,239 @@ class CandidateFeatureExtractor {
       _safeValue((context?.graphEdgeCount ?? 0) / 200.0),
       _safeValue((context?.graphConflictRatio ?? 0).clamp(0.0, 1.0)),
       _safeValue((context?.sequenceIndex ?? 0) / 50.0),
+      ..._computeGroupDFeatures(
+        node: node,
+        candidateCenter: candidateCenter,
+        nearbyNodes: nearbyNodes,
+        incidentArrows: incidentArrows,
+        trainingContext: context,
+      ),
+      ..._computeGroupEFeatures(
+        node: node,
+        candidateRect: candidateRect,
+        candidateCenter: candidateCenter,
+        contextSnapshot: contextSnapshot,
+        nearbyNodes: nearbyNodes,
+        incidentArrows: incidentArrows,
+        freeSpaceBounds: freeSpaceBounds,
+        maxContextSide: maxContextSide,
+      ),
     ],
-    schemaVersion: 5,
+    schemaVersion: 6,
     );
+  }
+
+  // --- Group D: Model-derived features (12) ---
+  List<double> _computeGroupDFeatures({
+    required TableNode node,
+    required Offset candidateCenter,
+    required List<TableNode> nearbyNodes,
+    required List<Arrow> incidentArrows,
+    LayoutTrainingContext? trainingContext,
+  }) {
+    final neighbors = nearbyNodes.where((n) => n.id != node.id).toList(growable: false);
+    final neighborCount = max(1, neighbors.length);
+
+    // 1. nodeAspectRatio
+    final aspectRatio = node.size.height > 0.001 ? node.size.width / node.size.height : 1.0;
+
+    // 2. relativeSizeToNeighbors
+    final nodeArea = node.size.width * node.size.height;
+    var totalNeighborArea = 0.0;
+    for (final n in neighbors) {
+      totalNeighborArea += n.size.width * n.size.height;
+    }
+    final avgNeighborArea = neighbors.isNotEmpty ? totalNeighborArea / neighbors.length : nodeArea;
+    final relativeSize = avgNeighborArea > 0.001 ? nodeArea / avgNeighborArea : 1.0;
+
+    // 3. neighborSizeSimilarity
+    var sizeVariance = 0.0;
+    if (neighbors.isNotEmpty) {
+      final areas = neighbors.map((n) => n.size.width * n.size.height).toList();
+      final mean = areas.reduce((a, b) => a + b) / areas.length;
+      sizeVariance = areas.map((a) => (a - mean) * (a - mean)).reduce((a, b) => a + b) / areas.length;
+    }
+    final sizeSimilarity = totalNeighborArea > 0.001
+        ? (1.0 - min(1.0, sqrt(sizeVariance) / (totalNeighborArea / neighborCount))).clamp(0.0, 1.0)
+        : 0.0;
+
+    // 4. attributeCount
+    final attrCount = node.attributes.length;
+
+    // 5. isCollapsed
+    final isCollapsed = node.isCollapsed == true ? 1.0 : 0.0;
+
+    // 6. connectionBalance: (left+right) vs (top+bottom)
+    final connBefore = trainingContext?.nodeConnectionsBefore ?? const ConnectionSideProfile();
+    final attrConnBefore = trainingContext?.attributeConnectionsBefore ?? const ConnectionSideProfile();
+    final horizontal = (connBefore.left + connBefore.right + attrConnBefore.left + attrConnBefore.right).toDouble();
+    final vertical = (connBefore.top + connBefore.bottom + attrConnBefore.top + attrConnBefore.bottom).toDouble();
+    final connectionBalance = (horizontal + vertical) > 0.001 ? horizontal / (horizontal + vertical) : 0.5;
+
+    // 7. crossSideConnections — incoming from one side, outgoing to opposite
+    var crossSide = 0;
+    for (final arrow in incidentArrows) {
+      final sides = arrow.sides ?? '';
+      if (sides.length >= 2) {
+        final srcSide = sides[0];
+        final tgtSide = sides[1];
+        final isOpposite = (srcSide == 'L' && tgtSide == 'R') ||
+            (srcSide == 'R' && tgtSide == 'L') ||
+            (srcSide == 'T' && tgtSide == 'B') ||
+            (srcSide == 'B' && tgtSide == 'T');
+        if (isOpposite) crossSide++;
+      }
+    }
+    final crossSideRatio = incidentArrows.isNotEmpty ? crossSide / incidentArrows.length : 0.0;
+
+    // 8. powerSum
+    var powerSum = 0.0;
+    for (final arrow in incidentArrows) {
+      if (arrow.powers != null) {
+        for (final p in arrow.powers!) {
+          powerSum += double.tryParse(p.value) ?? 0.0;
+        }
+      }
+    }
+
+    // 9-12. quadrantDistribution (NE, NW, SE, SW)
+    var ne = 0, nw = 0, se = 0, sw = 0;
+    for (final neighbor in neighbors) {
+      final nPos = neighbor.aPosition ?? neighbor.position;
+      final nCenter = Offset(nPos.dx + neighbor.size.width / 2, nPos.dy + neighbor.size.height / 2);
+      final dx = nCenter.dx - candidateCenter.dx;
+      final dy = nCenter.dy - candidateCenter.dy;
+      if (dx >= 0 && dy < 0) {
+        ne++;
+      } else if (dx < 0 && dy < 0) {
+        nw++;
+      } else if (dx >= 0 && dy >= 0) {
+        se++;
+      } else {
+        sw++;
+      }
+    }
+
+    return <double>[
+      _safeValue((aspectRatio).clamp(0.0, 5.0) / 5.0),
+      _safeValue((relativeSize).clamp(0.0, 5.0) / 5.0),
+      _safeValue(sizeSimilarity),
+      _safeValue(attrCount / 20.0),
+      _safeValue(isCollapsed),
+      _safeValue(connectionBalance),
+      _safeValue(crossSideRatio),
+      _safeValue((powerSum / max(1.0, incidentArrows.length.toDouble())).clamp(0.0, 10.0) / 10.0),
+      _safeValue(ne / neighborCount),
+      _safeValue(nw / neighborCount),
+      _safeValue(se / neighborCount),
+      _safeValue(sw / neighborCount),
+    ];
+  }
+
+  // --- Group E: Spatial metrics (10) ---
+  List<double> _computeGroupEFeatures({
+    required TableNode node,
+    required Rect candidateRect,
+    required Offset candidateCenter,
+    required LayoutContextSnapshot contextSnapshot,
+    required List<TableNode> nearbyNodes,
+    required List<Arrow> incidentArrows,
+    Rect? freeSpaceBounds,
+    required double maxContextSide,
+  }) {
+    final safeMaxSide = maxContextSide > 0.001 ? maxContextSide : 1.0;
+    final bounds = contextSnapshot.bounds;
+    final neighbors = nearbyNodes.where((n) => n.id != node.id).toList(growable: false);
+
+    // 1. canvasCenterDistance
+    final canvasCenterDist = (candidateCenter - bounds.center).distance;
+
+    // 2. canvasEdgeDistance (min to 4 edges)
+    final edgeDistLeft = (candidateRect.left - bounds.left).abs();
+    final edgeDistRight = (bounds.right - candidateRect.right).abs();
+    final edgeDistTop = (candidateRect.top - bounds.top).abs();
+    final edgeDistBottom = (bounds.bottom - candidateRect.bottom).abs();
+    final minEdgeDist = [edgeDistLeft, edgeDistRight, edgeDistTop, edgeDistBottom].reduce(min);
+
+    // 3-4. gridConformance
+    double gridConformance(double coord, double step) {
+      if (step <= 1) return 1.0;
+      final remainder = coord % step;
+      final deviation = min(remainder, step - remainder);
+      return 1.0 - (deviation / (step / 2)).clamp(0.0, 1.0);
+    }
+    final gridX = gridConformance(candidateCenter.dx, 48.0);
+    final gridY = gridConformance(candidateCenter.dy, 48.0);
+
+    // 5. nearestNeighborAngle (normalized to [0,1])
+    var nearestAngle = 0.0;
+    var nearestDist = double.infinity;
+    for (final neighbor in neighbors) {
+      final nPos = neighbor.aPosition ?? neighbor.position;
+      final nCenter = Offset(nPos.dx + neighbor.size.width / 2, nPos.dy + neighbor.size.height / 2);
+      final dist = (nCenter - candidateCenter).distance;
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestAngle = atan2(nCenter.dy - candidateCenter.dy, nCenter.dx - candidateCenter.dx);
+      }
+    }
+    final normalizedAngle = (nearestAngle + pi) / (2 * pi);
+
+    // 6. voronoiTerritoryApprox
+    var minDxToNeighbor = safeMaxSide;
+    var minDyToNeighbor = safeMaxSide;
+    for (final neighbor in neighbors) {
+      final nPos = neighbor.aPosition ?? neighbor.position;
+      final nCenter = Offset(nPos.dx + neighbor.size.width / 2, nPos.dy + neighbor.size.height / 2);
+      minDxToNeighbor = min(minDxToNeighbor, (nCenter.dx - candidateCenter.dx).abs());
+      minDyToNeighbor = min(minDyToNeighbor, (nCenter.dy - candidateCenter.dy).abs());
+    }
+    final voronoiArea = minDxToNeighbor * minDyToNeighbor;
+
+    // 7. centralityScore (in_degree × out_degree / total²)
+    var inDeg = 0, outDeg = 0;
+    for (final arrow in incidentArrows) {
+      if (arrow.source == node.id) {
+        outDeg++;
+      } else {
+        inDeg++;
+      }
+    }
+    final totalDeg = max(1, inDeg + outDeg);
+    final centrality = (inDeg * outDeg) / (totalDeg * totalDeg);
+
+    // 8. neighborConnectionDensity (avg connections of neighbors)
+    var totalNeighborConns = 0.0;
+    for (final neighbor in neighbors) {
+      final nc = neighbor.connections;
+      totalNeighborConns += (nc != null ? (nc.left?.length ?? 0) + (nc.right?.length ?? 0) + (nc.top?.length ?? 0) + (nc.bottom?.length ?? 0) : 0);
+    }
+    final avgNeighborConns = neighbors.isNotEmpty ? totalNeighborConns / neighbors.length : 0.0;
+
+    // 9-10. freeSpaceDirection (vector to nearest free rect center)
+    var fsDirX = 0.0;
+    var fsDirY = 0.0;
+    if (freeSpaceBounds != null) {
+      final dir = freeSpaceBounds.center - candidateCenter;
+      final dirLen = dir.distance;
+      if (dirLen > 0.001) {
+        fsDirX = dir.dx / dirLen;
+        fsDirY = dir.dy / dirLen;
+      }
+    }
+
+    return <double>[
+      _safeRatio(canvasCenterDist, safeMaxSide),
+      _safeRatio(minEdgeDist, safeMaxSide),
+      _safeValue(gridX),
+      _safeValue(gridY),
+      _safeValue(normalizedAngle),
+      _safeRatio(voronoiArea, safeMaxSide * safeMaxSide),
+      _safeValue(centrality),
+      _safeValue(avgNeighborConns / 20.0),
+      _safeValue(fsDirX.clamp(-1.0, 1.0)),
+      _safeValue(fsDirY.clamp(-1.0, 1.0)),
+    ];
   }
 
   List<double> _computeGroupAFeatures({

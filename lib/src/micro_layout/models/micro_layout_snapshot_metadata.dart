@@ -37,7 +37,7 @@ class MicroLayoutSnapshotMetadata {
       schemaVersion: json['schemaVersion'] as String? ?? '1',
       modelVersion: json['modelVersion'] as String? ?? '0',
       buildVersion: json['buildVersion'] as String? ?? 'unknown',
-      datasetSchemaTag: json['datasetSchemaTag'] as String? ?? 'neural_polish_v5',
+      datasetSchemaTag: json['datasetSchemaTag'] as String? ?? 'neural_polish_v6',
       featureCount: (json['featureCount'] as num?)?.toInt() ?? 0,
       exportedAt: DateTime.parse(json['exportedAt'] as String),
       sampleCount: (json['sampleCount'] as num?)?.toInt() ?? 0,

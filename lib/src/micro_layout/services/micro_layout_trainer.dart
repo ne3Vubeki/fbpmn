@@ -205,6 +205,10 @@ class MicroLayoutTrainer {
     final valBatch = _createBatch(valSamples);
     var lastLoss = 0.0;
     var lastValLoss = 0.0;
+    var bestValLoss = double.infinity;
+    var earlyStopCounter = 0;
+    const earlyStopPatience = 3;
+    var actualEpochs = 0;
 
     for (var epoch = 0; epoch < epochs; epoch++) {
       final progress01 = epoch / max(1, epochs - 1);
@@ -214,6 +218,7 @@ class MicroLayoutTrainer {
       final shuffledTrainBatch = _shuffleBatch(trainBatch, rng);
       lastLoss = model.trainBatch(shuffledTrainBatch, learningRate: epochLR);
       lastValLoss = model.computeBatchLoss(valBatch);
+      actualEpochs = epoch + 1;
 
       onProgress?.call(
         MicroLayoutTrainingProgress(
@@ -225,11 +230,21 @@ class MicroLayoutTrainer {
         ),
       );
       await Future<void>.delayed(Duration.zero);
+
+      if (lastValLoss < bestValLoss) {
+        bestValLoss = lastValLoss;
+        earlyStopCounter = 0;
+      } else {
+        earlyStopCounter++;
+        if (earlyStopCounter >= earlyStopPatience) {
+          break;
+        }
+      }
     }
 
     return MicroLayoutTrainingResult(
       sampleCount: trainSamples.length,
-      epochs: epochs,
+      epochs: actualEpochs,
       loss: lastLoss,
     );
   }
@@ -253,7 +268,7 @@ class MicroLayoutTrainer {
       return false;
     }
 
-    if (context.schemaVersion < 5) {
+    if (context.schemaVersion < 6) {
       return false;
     }
 

@@ -17,7 +17,7 @@ class MicroLayoutModel {
 
   MicroLayoutModel({
     required this.inputSize,
-    this.hiddenSizes = const <int>[64, 32],
+    this.hiddenSizes = const <int>[128, 64, 32],
     this.outputSize = 1,
     Random? random,
   }) : _random = random ?? Random(42) {
@@ -222,9 +222,9 @@ class MicroLayoutModel {
     );
   }
 
-  double _relu(double value) => value > 0 ? value : 0;
+  double _relu(double value) => value > 0 ? value : 0.01 * value;
 
-  double _reluDerivative(double activatedValue) => activatedValue > 0 ? 1 : 0;
+  double _reluDerivative(double activatedValue) => activatedValue > 0 ? 1 : 0.01;
 
   double _clipGradient(double value) {
     if (!value.isFinite) {

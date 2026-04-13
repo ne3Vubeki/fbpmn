@@ -17,7 +17,7 @@ import 'package:fbpmn/src/models/table.node.dart';
 import 'package:fbpmn/src/utils/editor_config.dart';
 
 class MicroLayoutPlanner {
-  static const double _minimumExactScoreGain = 0.5;
+  static const double _minimumExactScoreGain = 0.02;
 
   final LayoutCandidateGenerator candidateGenerator;
   final CandidateFeatureExtractor featureExtractor;

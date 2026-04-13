@@ -8,6 +8,7 @@ import 'package:fbpmn/src/micro_layout/models/layout_quality_metrics.dart';
 import 'package:fbpmn/src/micro_layout/models/layout_search_request.dart';
 import 'package:fbpmn/src/micro_layout/services/layout_quality_scorer.dart';
 import 'package:fbpmn/src/micro_layout/services/layout_simulation_evaluator.dart';
+import 'package:fbpmn/src/utils/editor_config.dart';
 import 'package:fbpmn/src/utils/utils.dart';
 
 class HeuristicLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
@@ -38,9 +39,8 @@ class HeuristicLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
     }
 
     final movementDistance = candidate.movementDistance;
-    final contextArea = max(1.0, request.contextSnapshot.bounds.width * request.contextSnapshot.bounds.height);
-    final nodeArea = candidateRect.width * candidateRect.height;
-    final spacingScore = max(0.0, (contextArea - nodeArea) / contextArea);
+    final minDist = _minDistanceToNeighbor(request, candidateRect.center);
+    final spacingScore = (minDist / max(1.0, EditorConfig.tileSize.toDouble())).clamp(0.0, 1.0);
     final alignmentScore = _alignmentScore(request, candidate);
 
     final metrics = LayoutQualityMetrics(
@@ -81,6 +81,22 @@ class HeuristicLayoutSimulationEvaluator implements LayoutSimulationEvaluator {
     }
 
     return score;
+  }
+
+  double _minDistanceToNeighbor(LayoutSearchRequest request, Offset center) {
+    var minDistance = double.infinity;
+    for (final node in request.nearbyNodes) {
+      if (node.id == request.node.id) {
+        continue;
+      }
+      final position = node.aPosition ?? node.position;
+      final rect = Utils.calculateNodeRect(node: node, position: position);
+      final distance = (rect.center - center).distance;
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+    }
+    return minDistance.isFinite ? minDistance : 0;
   }
 
   double _overlapArea(Rect a, Rect b) {

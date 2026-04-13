@@ -25,13 +25,14 @@ import 'package:fbpmn/src/utils/editor_config.dart';
 
 class NeuralPolishService {
   static const double _minimumAppliedMovementDistance = 8.0;
-  static const int _minAnimationFrames = 6;
-  static const int _maxAnimationFrames = 14;
-  static const int _animationFrameMillis = 16;
-  static const int _progressUpdateStride = 4;
-  static const int _animationHeavyUpdateStride = 2;
+  static const int _minAnimationFrames = 2;
+  static const int _maxAnimationFrames = 6;
+  static const int _animationFrameMillis = 24;
+  static const int _progressUpdateStride = 2;
+  static const int _animationHeavyUpdateStride = 3;
   static const int _maxGlobalPasses = 3;
   static const int _maxLocalRequeuesPerNode = 2;
+  static const int _yieldEveryNNodes = 2;
 
   final EditorState state;
   final TileManager tileManager;
@@ -64,12 +65,20 @@ class NeuralPolishService {
 
   Future<bool> hasStoredModel() async {
     final weights = await repository.getWeights();
-    return weights != null;
+    if (weights == null) {
+      return false;
+    }
+    return weights.inputSize == CandidateFeatureExtractor.featureCount;
   }
 
   Future<MicroLayoutModel?> loadStoredModel() async {
     final weights = await repository.getWeights();
     if (weights == null) {
+      return null;
+    }
+    if (weights.inputSize != CandidateFeatureExtractor.featureCount) {
+      print('[NEURAL_POLISH] loadStoredModel_skip reason=inputSize_mismatch '
+          'expected=${CandidateFeatureExtractor.featureCount} got=${weights.inputSize}');
       return null;
     }
     return MicroLayoutModel.fromWeights(weights);
@@ -139,6 +148,10 @@ class NeuralPolishService {
         }
         progressStep += 1;
 
+        if (progressStep % _yieldEveryNNodes == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+
         if (!conflictNodeIds.contains(node.id)) {
           continue;
         }
@@ -179,6 +192,7 @@ class NeuralPolishService {
           continue;
         }
 
+        arrowManager.recalculateSelectedArrows();
         final globalValidation = _captureContextSnapshot(
           node: node,
           candidatePosition: bestCandidate.candidatePosition,
@@ -817,11 +831,12 @@ class NeuralPolishService {
   }
 
   Rect _expandSearchBoundsForNode(Rect schemaBounds, Size nodeSize) {
+    final padding = max(nodeSize.width, nodeSize.height) * 0.5;
     return Rect.fromLTRB(
-      schemaBounds.left - nodeSize.width,
-      schemaBounds.top - nodeSize.height,
-      schemaBounds.right + nodeSize.width,
-      schemaBounds.bottom + nodeSize.height,
+      schemaBounds.left - padding,
+      schemaBounds.top - padding,
+      schemaBounds.right + padding,
+      schemaBounds.bottom + padding,
     );
   }
 

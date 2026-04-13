@@ -71,8 +71,8 @@ class LayoutTrainingContext {
   final double graphConflictRatio;
 
   const LayoutTrainingContext({
-    this.schemaVersion = 5,
-    this.datasetSchemaTag = 'neural_polish_v5',
+    this.schemaVersion = 6,
+    this.datasetSchemaTag = 'neural_polish_v6',
     this.datasetKind = 'auto_immediate',
     this.outcomeKind = 'immediate',
     required this.sampleSource,
@@ -156,8 +156,8 @@ class LayoutTrainingContext {
   factory LayoutTrainingContext.fromJson(Map<String, dynamic> json) {
     final freeSpaceJson = json['freeSpaceBounds'] as Map<String, dynamic>?;
     return LayoutTrainingContext(
-      schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 5,
-      datasetSchemaTag: json['datasetSchemaTag'] as String? ?? 'neural_polish_v5',
+      schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 6,
+      datasetSchemaTag: json['datasetSchemaTag'] as String? ?? 'neural_polish_v6',
       datasetKind: json['datasetKind'] as String? ?? 'auto_immediate',
       outcomeKind: json['outcomeKind'] as String? ?? 'immediate',
       sampleSource: json['sampleSource'] as String? ?? 'auto',

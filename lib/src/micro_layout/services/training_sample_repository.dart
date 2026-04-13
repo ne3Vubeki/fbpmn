@@ -97,7 +97,7 @@ class InMemoryTrainingSampleRepository implements TrainingSampleRepository {
         schemaVersion: schemaVersion,
         modelVersion: modelVersion,
         buildVersion: buildVersion,
-        datasetSchemaTag: 'neural_polish_v5',
+        datasetSchemaTag: 'neural_polish_v6',
         featureCount: CandidateFeatureExtractor.featureCount,
         exportedAt: DateTime.now(),
         sampleCount: samples.length,
