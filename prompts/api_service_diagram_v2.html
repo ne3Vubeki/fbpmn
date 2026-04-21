@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>api.service.ts — Code Diagram v2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f5f5f5;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  svg.canvas {
+    width: 1400px;
+    height: 1000px;
+    display: block;
+    margin: 10px auto;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+</style>
+</head>
+<body>
+
+<svg class="canvas" viewBox="0 0 1400 1000">
+  <defs>
+    <!-- Shadow for nodes -->
+    <filter id="nodeShadow" x="-4%" y="-4%" width="110%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.10)"/>
+    </filter>
+
+    <!-- Inherit arrow: empty triangle -->
+    <marker id="mInherit" markerWidth="14" markerHeight="10" refX="14" refY="5" orient="auto">
+      <path d="M0,0 L14,5 L0,10 Z" fill="#fff" stroke="#666" stroke-width="1.2"/>
+    </marker>
+    <!-- Depend arrow: filled triangle -->
+    <marker id="mDepend" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <path d="M0,0 L10,3.5 L0,7 Z" fill="#888"/>
+    </marker>
+    <!-- Meta arrow: empty circle -->
+    <marker id="mMeta" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="3.5" fill="#fff" stroke="#E8A050" stroke-width="1.2"/>
+    </marker>
+    <!-- Flow arrow: filled triangle -->
+    <marker id="mFlow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <path d="M0,0 L10,3.5 L0,7 Z" fill="#4488CC"/>
+    </marker>
+    <!-- Flow tail: empty circle -->
+    <marker id="mFlowTail" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <circle cx="5" cy="5" r="3.5" fill="#fff" stroke="#4488CC" stroke-width="1.2"/>
+    </marker>
+  </defs>
+
+  <!-- ================================================================== -->
+  <!--  GROUP: file api.service.ts                                         -->
+  <!-- ================================================================== -->
+  <g id="file">
+    <rect x="16" y="16" width="1368" height="968" rx="6"
+          fill="none" stroke="#ccc" stroke-width="1" stroke-dasharray="8 4"/>
+    <text x="30" y="36" font-size="11" fill="#999" font-style="italic">«file»</text>
+    <text x="68" y="36" font-size="12" fill="#666" font-weight="600">api.service.ts</text>
+    <!-- group connectors: inout (white) -->
+    <circle cx="700" cy="16" r="5" fill="#fff" stroke="#aaa" stroke-width="1"/>
+    <circle cx="700" cy="984" r="5" fill="#fff" stroke="#aaa" stroke-width="1"/>
+    <circle cx="16" cy="30" r="5" fill="#fff" stroke="#aaa" stroke-width="1"/>
+    <circle cx="1384" cy="30" r="5" fill="#fff" stroke="#aaa" stroke-width="1"/>
+  </g>
+
+  <!-- ================================================================== -->
+  <!--  REF: HttpClient                                                    -->
+  <!-- ================================================================== -->
+  <g id="ref-http" filter="url(#nodeShadow)">
+    <rect x="60" y="60" width="210" height="50" rx="6"
+          fill="#fff" stroke="#bbb" stroke-width="1" stroke-dasharray="5 2"/>
+    <!-- header area -->
+    <rect x="60" y="60" width="210" height="26" rx="6"
+          fill="#f0f0f0"/>
+    <rect x="60" y="74" width="210" height="12"
+          fill="#f0f0f0"/>
+    <text x="80" y="78" font-size="10" fill="#888">⨉ import</text>
+    <text x="80" y="100" font-size="12" fill="#444" font-weight="600">HttpClient</text>
+    <!-- sub path -->
+    <text x="164" y="78" font-size="9" fill="#aaa">@angular/common/http</text>
+    <!-- connectors: out (red) -->
+    <circle cx="165" cy="60" r="4" fill="#F44336"/>
+    <circle cx="165" cy="110" r="4" fill="#F44336"/>
+    <circle cx="60" cy="73" r="4" fill="#F44336"/>
+    <circle cx="270" cy="73" r="4" fill="#F44336"/>
+  </g>
+
+  <!-- ================================================================== -->
+  <!--  REF: Injectable                                                    -->
+  <!-- ================================================================== -->
+  <g id="ref-injectable" filter="url(#nodeShadow)">
+    <rect x="300" y="60" width="200" height="50" rx="6"
+          fill="#fff" stroke="#bbb" stroke-width="1" stroke-dasharray="5 2"/>
+    <rect x="300" y="60" width="200" height="26" rx="6"
+          fill="#f0f0f0"/>
+    <rect x="300" y="74" width="200" height="12"
+          fill="#f0f0f0"/>
+    <text x="320" y="78" font-size="10" fill="#888">⨉ import</text>
+    <text x="320" y="100" font-size="12" fill="#444" font-weight="600">Injectable</text>
+    <text x="400" y="78" font-size="9" fill="#aaa">@angular/core</text>
+    <circle cx="400" cy="60" r="4" fill="#F44336"/>
+    <circle cx="400" cy="110" r="4" fill="#F44336"/>
+    <circle cx="300" cy="73" r="4" fill="#F44336"/>
+    <circle cx="500" cy="73" r="4" fill="#F44336"/>
+  </g>
+
+  <!-- ================================================================== -->
+  <!--  REF: QUrlService                                                   -->
+  <!-- ================================================================== -->
+  <g id="ref-qurl" filter="url(#nodeShadow)">
+    <rect x="530" y="60" width="230" height="50" rx="6"
+          fill="#fff" stroke="#bbb" stroke-width="1" stroke-dasharray="5 2"/>
+    <rect x="530" y="60" width="230" height="26" rx="6"
+          fill="#f0f0f0"/>
+    <rect x="530" y="74" width="230" height="12"
+          fill="#f0f0f0"/>
+    <text x="550" y="78" font-size="10" fill="#888">⨉ import</text>
+    <text x="550" y="100" font-size="12" fill="#444" font-weight="600">QUrlService</text>
+    <text x="642" y="78" font-size="9" fill="#aaa">@diasoft/qpalette-urls</text>
+    <circle cx="645" cy="60" r="4" fill="#F44336"/>
+    <circle cx="645" cy="110" r="4" fill="#F44336"/>
+    <circle cx="530" cy="73" r="4" fill="#F44336"/>
+    <circle cx="760" cy="73" r="4" fill="#F44336"/>
+  </g>
+
+  <!-- ================================================================== -->
+  <!--  BLOCK: class ApiUrl                                                -->
+  <!-- ================================================================== -->
+  <g id="class-apiurl" filter="url(#nodeShadow)">
+    <rect x="60" y="156" width="220" height="50" rx="8"
+          fill="#fff" stroke="#4A90D9" stroke-width="1.5"/>
+    <!-- header -->
+    <rect x="60" y="156" width="220" height="30" rx="8"
+          fill="#B3D9FF"/>
+    <rect x="60" y="170" width="220" height="16"
+          fill="#B3D9FF"/>
+    <text x="78" y="172" font-size="9" fill="#5a7a9a" font-style="italic">«class»</text>
+    <text x="78" y="188" font-size="12" fill="#1a3a5a" font-weight="700">ApiUrl</text>
+    <!-- empty body -->
+    <text x="78" y="202" font-size="9" fill="#bbb">{ }</text>
+    <!-- connectors: inout (white) -->
+    <circle cx="170" cy="156" r="4.5" fill="#fff" stroke="#888" stroke-width="1"/>
+    <circle cx="170" cy="206" r="4.5" fill="#fff" stroke="#888" stroke-width="1"/>
+    <circle cx="60" cy="171" r="4.5" fill="#fff" stroke="#888" stroke-width="1"/>
+    <circle cx="280" cy="171" r="4.5" fill="#fff" stroke="#888" stroke-width="1"/>
+  </g>
+
+  <!-- ================================================================== -->
+  <!--  META: @Injectable()                                                -->
+  <!-- ================================================================== -->
+  <g id="meta-injectable" filter="url(#nodeShadow)">
+    <rect x="380" y="160" width="130" height="30" rx="4"
+          fill="#FFF3E0" stroke="#E8A050" stroke-width="1"/>
+    <text x="396" y="180" font-size="11" fill="#B8702a" font-weight="600">@Injectable()</text>
+    <!-- connectors: out (red) -->
+    <circle cx="445" cy="160" r="4" fill="#F44336"/>
+    <circle cx="445" cy="190" r="4" fill="#F44336"/>
+    <circle cx="380" cy="175" r="4" fill="#F44336"/>
+    <circle cx="510" cy="175" r="4" fill="#F44336"/>
+  </g>
+
+  <!-- ================================================================== -->
+  <!--  BLOCK: class ApiService (EXPANDED)                                 -->
+  <!-- ================================================================== -->
+  <g id="class-apiservice" filter="url(#nodeShadow)">
+    <!-- outer frame -->
+    <rect x="340" y="230" width="620" height="730" rx="8"
+          fill="#fff" stroke="#4A90D9" stroke-width="1.5"/>
+    <!-- header -->
+    <rect x="340" y="230" width="620" height="32" rx="8"
+          fill="#B3D9FF"/>
+    <rect x="340" y="246" width="620" height="16"
+          fill="#B3D9FF"/>
+    <text x="362" y="249" font-size="9" fill="#5a7a9a" font-style="italic">«class»</text>
+    <text x="362" y="265" font-size="13" fill="#1a3a5a" font-weight="700">ApiService</text>
+    <text x="936" y="252" font-size="11" fill="#5a7a9a" cursor="pointer">[−]</text>
+
+    <!-- node connectors: inout (white) at header center -->
+    <circle cx="650" cy="230" r="5" fill="#fff" stroke="#888" stroke-width="1"/>
+    <circle cx="650" cy="960" r="5" fill="#fff" stroke="#888" stroke-width="1"/>
+    <circle cx="340" cy="248" r="5" fill="#fff" stroke="#888" stroke-width="1"/>
+    <circle cx="960" cy="248" r="5" fill="#fff" stroke="#888" stroke-width="1"/>
+
+    <!-- separator -->
+    <line x1="340" y1="262" x2="960" y2="262" stroke="#d8e8f8" stroke-width="1"/>
+
+    <!-- ================================================================ -->
+    <!--  FUNC: constructor (child)                                        -->
+    <!-- ================================================================ -->
+    <g id="func-ctor">
+      <rect x="370" y="280" width="560" height="140" rx="6"
+            fill="#fff" stroke="#888" stroke-width="1"/>
+      <!-- header (constructor = teal) -->
+      <rect x="370" y="280" width="560" height="28" rx="6"
+            fill="#B3E6D4"/>
+      <rect x="370" y="296" width="560" height="12"
+            fill="#B3E6D4"/>
+      <!-- thick top bar -->
+      <line x1="370" y1="280" x2="930" y2="280" stroke="#5cb88a" stroke-width="3"/>
+      <text x="388" y="298" font-size="9" fill="#4a7a6a" font-style="italic">«constructor»</text>
+      <text x="388" y="314" font-size="11" fill="#1a4a3a" font-weight="600">constructor</text>
+      <!-- func connectors: inout -->
+      <circle cx="650" cy="280" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="650" cy="420" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="370" cy="294" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="930" cy="294" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+
+      <line x1="370" y1="308" x2="930" y2="308" stroke="#d0e8dc" stroke-width="1"/>
+
+      <!-- Attr row: private http: HttpClient -->
+      <rect x="370" y="309" width="560" height="28" fill="#fafafa"/>
+      <!-- private bar (red) -->
+      <rect x="370" y="309" width="3" height="28" fill="#F44336" rx="0"/>
+      <line x1="700" y1="309" x2="700" y2="337" stroke="#eee" stroke-width="1"/>
+      <text x="392" y="328" font-size="11" fill="#333">http</text>
+      <text x="714" y="328" font-size="11" fill="#4A90D9">HttpClient</text>
+      <!-- attr connectors: in (green) -->
+      <circle cx="370" cy="323" r="3.5" fill="#4CAF50"/>
+      <circle cx="930" cy="323" r="3.5" fill="#4CAF50"/>
+
+      <line x1="370" y1="337" x2="930" y2="337" stroke="#eee" stroke-width="1"/>
+
+      <!-- Attr row: private readonly gateway: ApiUrl -->
+      <rect x="370" y="338" width="560" height="28" fill="#f5f5f5"/>
+      <!-- private bar (red) -->
+      <rect x="370" y="338" width="3" height="28" fill="#F44336" rx="0"/>
+      <line x1="700" y1="338" x2="700" y2="366" stroke="#eee" stroke-width="1"/>
+      <text x="392" y="357" font-size="11" fill="#333">
+        <tspan fill="#999" font-size="9" font-weight="600">R </tspan>gateway</text>
+      <text x="714" y="357" font-size="11" fill="#4A90D9">ApiUrl</text>
+      <!-- attr connectors: in (green) -->
+      <circle cx="370" cy="352" r="3.5" fill="#4CAF50"/>
+      <circle cx="930" cy="352" r="3.5" fill="#4CAF50"/>
+
+      <line x1="370" y1="366" x2="930" y2="366" stroke="#eee" stroke-width="1"/>
+    </g>
+
+    <!-- ================================================================ -->
+    <!--  FUNC: getProjects (child)                                        -->
+    <!-- ================================================================ -->
+    <g id="func-getprojects">
+      <rect x="370" y="440" width="560" height="130" rx="6"
+            fill="#fff" stroke="#888" stroke-width="1"/>
+      <!-- header (method = yellow) -->
+      <rect x="370" y="440" width="560" height="28" rx="6"
+            fill="#FFFFB3"/>
+      <rect x="370" y="456" width="560" height="12"
+            fill="#FFFFB3"/>
+      <text x="388" y="458" font-size="9" fill="#8a8a3a" font-style="italic">«method»</text>
+      <text x="388" y="474" font-size="11" fill="#3a3a0a" font-weight="600">getProjects</text>
+      <text x="810" y="458" font-size="10" fill="#888">→ Promise&lt;any&gt;</text>
+      <!-- func connectors: inout -->
+      <circle cx="650" cy="440" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="650" cy="570" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="370" cy="454" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="930" cy="454" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+
+      <line x1="370" y1="468" x2="930" y2="468" stroke="#eeee88" stroke-width="1"/>
+
+      <!-- Attr: filter: any = [] -->
+      <rect x="370" y="469" width="560" height="28" fill="#fafafa"/>
+      <line x1="700" y1="469" x2="700" y2="497" stroke="#eee" stroke-width="1"/>
+      <text x="392" y="488" font-size="11" fill="#333">filter</text>
+      <text x="714" y="488" font-size="11" fill="#4A90D9">any = []</text>
+      <circle cx="370" cy="483" r="3.5" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="930" cy="483" r="3.5" fill="#fff" stroke="#888" stroke-width="1"/>
+
+      <line x1="370" y1="497" x2="930" y2="497" stroke="#eee" stroke-width="1"/>
+
+      <!-- Note: comment as tooltip-like area -->
+      <rect x="386" y="506" width="310" height="20" rx="2"
+            fill="#FFFDE0" stroke="#e8e8a0" stroke-width="0.5"/>
+      <text x="394" y="520" font-size="9" fill="#999966" font-style="italic">
+        Загрузка списка проектов по фильтрам</text>
+    </g>
+
+    <!-- ================================================================ -->
+    <!--  FUNC: getProject (child)                                         -->
+    <!-- ================================================================ -->
+    <g id="func-getproject">
+      <rect x="370" y="590" width="560" height="130" rx="6"
+            fill="#fff" stroke="#888" stroke-width="1"/>
+      <!-- header (method = yellow) -->
+      <rect x="370" y="590" width="560" height="28" rx="6"
+            fill="#FFFFB3"/>
+      <rect x="370" y="606" width="560" height="12"
+            fill="#FFFFB3"/>
+      <text x="388" y="608" font-size="9" fill="#8a8a3a" font-style="italic">«method»</text>
+      <text x="388" y="624" font-size="11" fill="#3a3a0a" font-weight="600">getProject</text>
+      <text x="810" y="608" font-size="10" fill="#888">→ Promise&lt;any&gt;</text>
+      <!-- func connectors: inout -->
+      <circle cx="650" cy="590" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="650" cy="720" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="370" cy="604" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="930" cy="604" r="4" fill="#fff" stroke="#888" stroke-width="1"/>
+
+      <line x1="370" y1="618" x2="930" y2="618" stroke="#eeee88" stroke-width="1"/>
+
+      <!-- Attr: healthProjectId: string -->
+      <rect x="370" y="619" width="560" height="28" fill="#fafafa"/>
+      <line x1="700" y1="619" x2="700" y2="647" stroke="#eee" stroke-width="1"/>
+      <text x="392" y="638" font-size="11" fill="#333">healthProjectId</text>
+      <text x="714" y="638" font-size="11" fill="#4A90D9">string</text>
+      <circle cx="370" cy="633" r="3.5" fill="#fff" stroke="#888" stroke-width="1"/>
+      <circle cx="930" cy="633" r="3.5" fill="#fff" stroke="#888" stroke-width="1"/>
+
+      <line x1="370" y1="647" x2="930" y2="647" stroke="#eee" stroke-width="1"/>
+
+      <!-- Note -->
+      <rect x="386" y="656" width="310" height="20" rx="2"
+            fill="#FFFDE0" stroke="#e8e8a0" stroke-width="0.5"/>
+      <text x="394" y="670" font-size="9" fill="#999966" font-style="italic">
+        Загрузка объекта проекта по ID</text>
+    </g>
+
+  </g><!-- end class-apiservice -->
+
+  <!-- ================================================================== -->
+  <!--  ARROWS                                                             -->
+  <!-- ================================================================== -->
+
+  <!-- 1. INHERIT: ApiUrl extends QUrlService -->
+  <!--    ApiUrl.top(170,156) → QUrlService.bottom(645,110) -->
+  <path d="M 170,156 L 170,133 Q 170,127 176,127 L 639,127 Q 645,127 645,121 L 645,114"
+        fill="none" stroke="#666" stroke-width="1.5"
+        marker-end="url(#mInherit)"/>
+  <!-- label -->
+  <rect x="378" y="120" width="52" height="14" rx="3" fill="#fff" stroke="#ccc" stroke-width="0.5"/>
+  <text x="386" y="131" font-size="9" fill="#888">extends</text>
+
+  <!-- 2. DEPEND: Injectable ref → @Injectable meta -->
+  <!--    ref.bottom(400,110) → meta.top(445,160) -->
+  <path d="M 400,110 L 400,135 Q 400,141 406,141 L 439,141 Q 445,141 445,147 L 445,156"
+        fill="none" stroke="#888" stroke-width="1" stroke-dasharray="6 3"
+        marker-end="url(#mDepend)"/>
+
+  <!-- 3. META: @Injectable → ApiService -->
+  <!--    meta.bottom(445,190) → ApiService.top(650,230) -->
+  <path d="M 445,190 L 445,210 Q 445,216 451,216 L 644,216 Q 650,216 650,222 L 650,226"
+        fill="none" stroke="#E8A050" stroke-width="1" stroke-dasharray="2 3"
+        marker-end="url(#mMeta)"/>
+  <rect x="525" y="208" width="60" height="14" rx="3" fill="#fff" stroke="#e8c890" stroke-width="0.5"/>
+  <text x="533" y="219" font-size="9" fill="#C08030">annotates</text>
+
+  <!-- 4. DEPEND: HttpClient ref → constructor.http attr -->
+  <!--    ref.bottom(165,110) → attr.left(370,323) -->
+  <path d="M 165,110 L 165,323 Q 165,329 171,329 L 175,329 Q 175,323 181,323 L 366,323"
+        fill="none" stroke="#888" stroke-width="1" stroke-dasharray="6 3"
+        marker-end="url(#mDepend)"/>
+  <!-- power label -->
+  <rect x="148" y="210" width="34" height="14" rx="7" fill="#fff" stroke="#bbb" stroke-width="0.5"/>
+  <text x="156" y="220" font-size="8" fill="#888">inject</text>
+
+  <!-- 5. DEPEND: ApiUrl → constructor.gateway attr -->
+  <!--    ApiUrl.right(280,171) → attr.left(370,352) -->
+  <path d="M 280,171 L 326,171 Q 332,171 332,177 L 332,346 Q 332,352 338,352 L 366,352"
+        fill="none" stroke="#888" stroke-width="1" stroke-dasharray="6 3"
+        marker-end="url(#mDepend)"/>
+  <rect x="314" y="256" width="40" height="14" rx="7" fill="#fff" stroke="#bbb" stroke-width="0.5"/>
+  <text x="320" y="266" font-size="8" fill="#888">type_ref</text>
+
+  <!-- 6. FLOW: getProjects calls this.http (→ constructor.http attr) -->
+  <!--    func.left(370,454) → attr.left(370,323) via external routing -->
+  <path d="M 370,454 L 352,454 Q 346,454 346,448 L 346,329 Q 346,323 352,323 L 366,323"
+        fill="none" stroke="#4488CC" stroke-width="1.5"
+        marker-start="url(#mFlowTail)" marker-end="url(#mFlow)"/>
+
+  <!-- 7. FLOW: getProject calls this.http (→ constructor.http attr) -->
+  <path d="M 370,604 L 340,604 Q 334,604 334,598 L 334,329 Q 334,323 340,323 L 346,323"
+        fill="none" stroke="#4488CC" stroke-width="1.5"
+        marker-start="url(#mFlowTail)" marker-end="url(#mFlow)"/>
+
+  <!-- Label for both http calls -->
+  <rect x="336" y="380" width="50" height="14" rx="3" fill="#fff" stroke="#88aacc" stroke-width="0.5"/>
+  <text x="342" y="390" font-size="8" fill="#4488CC">http.get()</text>
+
+  <!-- 8. FLOW: getProjects calls this.gateway.url (→ constructor.gateway attr) -->
+  <path d="M 370,483 L 358,483 Q 352,483 352,477 L 352,358 Q 352,352 358,352 L 366,352"
+        fill="none" stroke="#4488CC" stroke-width="1.5"
+        marker-start="url(#mFlowTail)" marker-end="url(#mFlow)"/>
+
+  <!-- 9. FLOW: getProject calls this.gateway.url -->
+  <path d="M 370,633 L 346,633 Q 340,633 340,627 L 340,358 Q 340,352 346,352 L 352,352"
+        fill="none" stroke="#4488CC" stroke-width="1.5"
+        marker-start="url(#mFlowTail)" marker-end="url(#mFlow)"/>
+
+  <!-- Label for gateway calls -->
+  <rect x="336" y="398" width="66" height="14" rx="3" fill="#fff" stroke="#88aacc" stroke-width="0.5"/>
+  <text x="342" y="408" font-size="8" fill="#4488CC">gateway.url()</text>
+
+  <!-- ================================================================== -->
+  <!--  LEGEND                                                             -->
+  <!-- ================================================================== -->
+  <g id="legend" transform="translate(1020, 60)">
+    <rect x="0" y="0" width="310" height="320" rx="6"
+          fill="#fff" stroke="#ddd" stroke-width="1" filter="url(#nodeShadow)"/>
+    <text x="14" y="22" font-size="12" fill="#333" font-weight="700">Легенда</text>
+    <line x1="14" y1="30" x2="296" y2="30" stroke="#eee" stroke-width="1"/>
+
+    <!-- Node types -->
+    <text x="14" y="48" font-size="9" fill="#999" font-weight="600">ТИПЫ УЗЛОВ</text>
+
+    <rect x="14" y="56" width="16" height="12" rx="3" fill="#B3D9FF" stroke="#4A90D9" stroke-width="0.8"/>
+    <text x="36" y="66" font-size="10" fill="#555">block / «class»</text>
+
+    <rect x="14" y="74" width="16" height="12" rx="3" fill="#B3E6D4" stroke="#7CB987" stroke-width="0.8"/>
+    <text x="36" y="84" font-size="10" fill="#555">func / «constructor»</text>
+
+    <rect x="14" y="92" width="16" height="12" rx="3" fill="#FFFFB3" stroke="#d4d454" stroke-width="0.8"/>
+    <text x="36" y="102" font-size="10" fill="#555">func / «method»</text>
+
+    <rect x="14" y="110" width="16" height="12" rx="3" fill="#f0f0f0" stroke="#bbb" stroke-width="0.8" stroke-dasharray="3 1"/>
+    <text x="36" y="120" font-size="10" fill="#555">ref / «import»</text>
+
+    <rect x="14" y="128" width="16" height="12" rx="3" fill="#FFF3E0" stroke="#E8A050" stroke-width="0.8"/>
+    <text x="36" y="138" font-size="10" fill="#555">meta / «decorator»</text>
+
+    <rect x="14" y="146" width="16" height="12" rx="3" fill="#FFFDE0" stroke="#e8e8a0" stroke-width="0.8"/>
+    <text x="36" y="156" font-size="10" fill="#555">note / «comment»</text>
+
+    <!-- Connectors -->
+    <line x1="14" y1="170" x2="296" y2="170" stroke="#eee" stroke-width="1"/>
+    <text x="14" y="186" font-size="9" fill="#999" font-weight="600">КОННЕКТОРЫ (1 тип на узел)</text>
+
+    <circle cx="22" cy="200" r="5" fill="#4CAF50"/>
+    <text x="34" y="204" font-size="10" fill="#555">in (вход)</text>
+
+    <circle cx="112" cy="200" r="5" fill="#F44336"/>
+    <text x="124" y="204" font-size="10" fill="#555">out (выход)</text>
+
+    <circle cx="202" cy="200" r="5" fill="#fff" stroke="#888" stroke-width="1"/>
+    <text x="214" y="204" font-size="10" fill="#555">inout</text>
+
+    <!-- Arrows -->
+    <line x1="14" y1="216" x2="296" y2="216" stroke="#eee" stroke-width="1"/>
+    <text x="14" y="232" font-size="9" fill="#999" font-weight="600">ТИПЫ СВЯЗЕЙ</text>
+
+    <line x1="14" y1="246" x2="70" y2="246" stroke="#666" stroke-width="1.5"/>
+    <path d="M64,242 L74,246 L64,250 Z" fill="#fff" stroke="#666" stroke-width="1"/>
+    <text x="82" y="250" font-size="10" fill="#555">inherit (extends)</text>
+
+    <line x1="14" y1="264" x2="70" y2="264" stroke="#888" stroke-width="1" stroke-dasharray="6 3"/>
+    <path d="M64,260 L74,264 L64,268 Z" fill="#888"/>
+    <text x="82" y="268" font-size="10" fill="#555">depend (inject, type_ref)</text>
+
+    <line x1="14" y1="282" x2="70" y2="282" stroke="#4488CC" stroke-width="1.5"/>
+    <path d="M64,278 L74,282 L64,286 Z" fill="#4488CC"/>
+    <text x="82" y="286" font-size="10" fill="#555">flow (call)</text>
+
+    <line x1="14" y1="300" x2="70" y2="300" stroke="#E8A050" stroke-width="1" stroke-dasharray="2 3"/>
+    <circle cx="74" cy="300" r="3.5" fill="#fff" stroke="#E8A050" stroke-width="1"/>
+    <text x="82" y="304" font-size="10" fill="#555">meta (annotates)</text>
+
+    <!-- Modifier bars -->
+    <rect x="170" y="56" width="3" height="12" fill="#F44336"/>
+    <text x="180" y="66" font-size="10" fill="#555">private</text>
+    <text x="170" y="84" font-size="10" fill="#999" font-weight="600">R</text>
+    <text x="180" y="84" font-size="10" fill="#555">readonly</text>
+  </g>
+
+</svg>
+
+</body>
+</html>

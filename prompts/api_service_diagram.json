@@ -1,0 +1,357 @@
+{
+  "id": "file_api_service",
+  "label": "api.service.ts",
+  "type": "group",
+  "stereotype": "file",
+  "connectionType": "inout",
+  "children": [
+    {
+      "id": "ref_httpclient",
+      "label": "HttpClient",
+      "type": "ref",
+      "stereotype": "import",
+      "connectionType": "out",
+      "user_object": {
+        "source": "@angular/common/http",
+        "tooltip": "HTTP-клиент Angular"
+      },
+      "geometry": { "x": 44, "y": 56, "width": 210, "height": 44 }
+    },
+    {
+      "id": "ref_injectable",
+      "label": "Injectable",
+      "type": "ref",
+      "stereotype": "import",
+      "connectionType": "out",
+      "user_object": {
+        "source": "@angular/core",
+        "tooltip": "Декоратор для DI Angular"
+      },
+      "geometry": { "x": 274, "y": 56, "width": 190, "height": 44 }
+    },
+    {
+      "id": "ref_qurlservice",
+      "label": "QUrlService",
+      "type": "ref",
+      "stereotype": "import",
+      "connectionType": "out",
+      "user_object": {
+        "source": "@diasoft/qpalette-urls",
+        "tooltip": "Сервис формирования URL"
+      },
+      "geometry": { "x": 484, "y": 56, "width": 230, "height": 44 }
+    },
+    {
+      "id": "class_apiurl",
+      "label": "ApiUrl",
+      "type": "block",
+      "stereotype": "class",
+      "modifiers": ["public"],
+      "connectionType": "inout",
+      "notes": [
+        { "type": "doc", "text": "Наследник QUrlService для формирования API-адресов" }
+      ],
+      "attributes": [
+        {
+          "id": "a_apiurl_extends",
+          "label": "extends",
+          "valueType": "QUrlService",
+          "connectionType": "inout"
+        }
+      ],
+      "geometry": { "x": 44, "y": 126, "width": 220, "height": 60 }
+    },
+    {
+      "id": "meta_injectable",
+      "label": "@Injectable()",
+      "type": "meta",
+      "stereotype": "decorator",
+      "connectionType": "out",
+      "geometry": { "x": 320, "y": 130, "width": 130, "height": 28 }
+    },
+    {
+      "id": "class_apiservice",
+      "label": "ApiService",
+      "type": "block",
+      "stereotype": "class",
+      "modifiers": ["public"],
+      "connectionType": "inout",
+      "notes": [
+        { "type": "doc", "text": "Сервис для работы с API проектов" }
+      ],
+      "attributes": [],
+      "children": [
+        {
+          "id": "attr_http",
+          "label": "http",
+          "type": "value",
+          "stereotype": "field",
+          "valueType": "HttpClient",
+          "modifiers": ["private"],
+          "connectionType": "in"
+        },
+        {
+          "id": "attr_gateway",
+          "label": "gateway",
+          "type": "value",
+          "stereotype": "field",
+          "valueType": "ApiUrl",
+          "modifiers": ["private", "readonly"],
+          "connectionType": "in"
+        },
+        {
+          "id": "func_ctor",
+          "label": "constructor",
+          "type": "func",
+          "stereotype": "constructor",
+          "modifiers": ["public"],
+          "connectionType": "inout",
+          "attributes": [
+            {
+              "id": "arg_ctor_http",
+              "label": "http",
+              "valueType": "HttpClient",
+              "modifiers": ["private"],
+              "connectionType": "in"
+            },
+            {
+              "id": "arg_ctor_gateway",
+              "label": "gateway",
+              "valueType": "ApiUrl",
+              "modifiers": ["private", "readonly"],
+              "connectionType": "in"
+            }
+          ],
+          "geometry": { "x": 40, "y": 50, "width": 1120, "height": 130 }
+        },
+        {
+          "id": "func_getprojects",
+          "label": "getProjects",
+          "type": "func",
+          "stereotype": "method",
+          "modifiers": ["public"],
+          "connectionType": "inout",
+          "returnType": "Promise<any>",
+          "notes": [
+            { "type": "doc", "text": "Загрузка списка проектов по фильтрам" }
+          ],
+          "attributes": [
+            {
+              "id": "arg_gp_filter",
+              "label": "filter",
+              "valueType": "any",
+              "connectionType": "inout",
+              "user_object": { "defaultValue": "[]" }
+            }
+          ],
+          "children": [
+            {
+              "id": "call_gp_gateway_url",
+              "label": "this.gateway.url(`/HealthProjects?${filter.join(\"&\")}`)",
+              "type": "func",
+              "stereotype": "call",
+              "connectionType": "inout",
+              "returnType": "string",
+              "user_object": { "callee": "ApiUrl.url" },
+              "geometry": { "x": 44, "y": 94, "width": 360, "height": 56 }
+            },
+            {
+              "id": "call_gp_http_get",
+              "label": "this.http.get<any>(url)",
+              "type": "func",
+              "stereotype": "call",
+              "connectionType": "inout",
+              "returnType": "Observable<any>",
+              "user_object": { "callee": "HttpClient.get" },
+              "geometry": { "x": 44, "y": 166, "width": 360, "height": 56 }
+            },
+            {
+              "id": "call_gp_topromise",
+              "label": ".toPromise()",
+              "type": "func",
+              "stereotype": "call",
+              "connectionType": "inout",
+              "returnType": "Promise<any>",
+              "user_object": { "callee": "Observable.toPromise" },
+              "geometry": { "x": 44, "y": 238, "width": 280, "height": 40 }
+            }
+          ],
+          "geometry": { "x": 40, "y": 200, "width": 1120, "height": 330 }
+        },
+        {
+          "id": "func_getproject",
+          "label": "getProject",
+          "type": "func",
+          "stereotype": "method",
+          "modifiers": ["public"],
+          "connectionType": "inout",
+          "returnType": "Promise<any>",
+          "notes": [
+            { "type": "doc", "text": "Загрузка объекта проекта по ID" }
+          ],
+          "attributes": [
+            {
+              "id": "arg_gpr_id",
+              "label": "healthProjectId",
+              "valueType": "string",
+              "connectionType": "inout"
+            }
+          ],
+          "children": [
+            {
+              "id": "call_gpr_gateway_url",
+              "label": "this.gateway.url(`/HealthProject/${healthProjectId}`)",
+              "type": "func",
+              "stereotype": "call",
+              "connectionType": "inout",
+              "returnType": "string",
+              "user_object": { "callee": "ApiUrl.url" },
+              "geometry": { "x": 44, "y": 94, "width": 360, "height": 56 }
+            },
+            {
+              "id": "call_gpr_http_get",
+              "label": "this.http.get<any>(url)",
+              "type": "func",
+              "stereotype": "call",
+              "connectionType": "inout",
+              "returnType": "Observable<any>",
+              "user_object": { "callee": "HttpClient.get" },
+              "geometry": { "x": 44, "y": 166, "width": 360, "height": 56 }
+            },
+            {
+              "id": "call_gpr_topromise",
+              "label": ".toPromise()",
+              "type": "func",
+              "stereotype": "call",
+              "connectionType": "inout",
+              "returnType": "Promise<any>",
+              "user_object": { "callee": "Observable.toPromise" },
+              "geometry": { "x": 44, "y": 238, "width": 280, "height": 40 }
+            }
+          ],
+          "geometry": { "x": 40, "y": 550, "width": 1120, "height": 330 }
+        }
+      ],
+      "geometry": { "x": 80, "y": 200, "width": 1180, "height": 1300 }
+    }
+  ],
+  "arrows": [
+    {
+      "id": "arr_apiurl_extends",
+      "type": "inherit",
+      "stereotype": "extends",
+      "source": "class_apiurl",
+      "target": "ref_qurlservice",
+      "targetArrow": "diamond_empty"
+    },
+    {
+      "id": "arr_injectable_ref",
+      "type": "depend",
+      "stereotype": "import",
+      "source": "ref_injectable",
+      "target": "meta_injectable"
+    },
+    {
+      "id": "arr_injectable_annotates",
+      "type": "meta",
+      "stereotype": "annotate",
+      "source": "meta_injectable",
+      "target": "class_apiservice",
+      "targetArrow": "oval"
+    },
+    {
+      "id": "arr_inject_http",
+      "type": "depend",
+      "stereotype": "inject",
+      "source": "ref_httpclient",
+      "target": "arg_ctor_http",
+      "targetArrow": "block",
+      "powers": [
+        { "id": "p_inject_http", "value": "inject", "side": "target" }
+      ]
+    },
+    {
+      "id": "arr_typeref_gateway",
+      "type": "depend",
+      "stereotype": "type_ref",
+      "source": "class_apiurl",
+      "target": "arg_ctor_gateway",
+      "targetArrow": "block",
+      "powers": [
+        { "id": "p_typeref_gw", "value": "type_ref", "side": "target" }
+      ]
+    },
+    {
+      "id": "arr_gp_call_gateway",
+      "type": "flow",
+      "stereotype": "call",
+      "source": "call_gp_gateway_url",
+      "target": "attr_gateway",
+      "sourceArrow": "oval",
+      "targetArrow": "block"
+    },
+    {
+      "id": "arr_gp_call_http",
+      "type": "flow",
+      "stereotype": "call",
+      "source": "call_gp_http_get",
+      "target": "attr_http",
+      "sourceArrow": "oval",
+      "targetArrow": "block"
+    },
+    {
+      "id": "arr_gp_chain_1",
+      "type": "flow",
+      "stereotype": "call",
+      "source": "call_gp_gateway_url",
+      "target": "call_gp_http_get",
+      "sourceArrow": "oval",
+      "targetArrow": "block"
+    },
+    {
+      "id": "arr_gp_chain_2",
+      "type": "flow",
+      "stereotype": "call",
+      "source": "call_gp_http_get",
+      "target": "call_gp_topromise",
+      "sourceArrow": "oval",
+      "targetArrow": "block"
+    },
+    {
+      "id": "arr_gpr_call_gateway",
+      "type": "flow",
+      "stereotype": "call",
+      "source": "call_gpr_gateway_url",
+      "target": "attr_gateway",
+      "sourceArrow": "oval",
+      "targetArrow": "block"
+    },
+    {
+      "id": "arr_gpr_call_http",
+      "type": "flow",
+      "stereotype": "call",
+      "source": "call_gpr_http_get",
+      "target": "attr_http",
+      "sourceArrow": "oval",
+      "targetArrow": "block"
+    },
+    {
+      "id": "arr_gpr_chain_1",
+      "type": "flow",
+      "stereotype": "call",
+      "source": "call_gpr_gateway_url",
+      "target": "call_gpr_http_get",
+      "sourceArrow": "oval",
+      "targetArrow": "block"
+    },
+    {
+      "id": "arr_gpr_chain_2",
+      "type": "flow",
+      "stereotype": "call",
+      "source": "call_gpr_http_get",
+      "target": "call_gpr_topromise",
+      "sourceArrow": "oval",
+      "targetArrow": "block"
+    }
+  ]
+}

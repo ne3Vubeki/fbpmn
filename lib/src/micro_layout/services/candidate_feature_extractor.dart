@@ -24,13 +24,6 @@ class CandidateFeatureExtractor {
     return value / denominator;
   }
 
-  double _safeClamp01(double value) {
-    if (!value.isFinite) {
-      return 0;
-    }
-    return value.clamp(0.0, 1.0);
-  }
-
   double _typeFeature(TableNode node, List<String> qTypes, String expectedType) {
     if (!qTypes.contains(node.qType) && node.qType == expectedType) {
       return 1;
